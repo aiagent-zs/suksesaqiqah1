@@ -19,11 +19,10 @@
 
   --radius: 0.75rem;
 }
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -41,4 +40,117 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+}
+
+:root {
+  /* Sukses Aqiqah Command Design System Tokens (design.md) */
+  --background: #f8f9ff;
+  --foreground: #0b1c30;
+  --card: #ffffff;
+  --card-foreground: #0b1c30;
+  --popover: #ffffff;
+  --popover-foreground: #0b1c30;
+  --primary: #006b2c;
+  --primary-foreground: #ffffff;
+  --secondary: #735c00;
+  --secondary-foreground: #ffffff;
+  --muted: #eff4ff;
+  --muted-foreground: #3e4a3d;
+  --accent: #fed65b;
+  --accent-foreground: #745c00;
+  --destructive: #ba1a1a;
+  --destructive-foreground: #ffffff;
+  --border: #e5eeff;
+  --input: #dce9ff;
+  --ring: #006b2c;
+  --radius: 1rem;
+  --sidebar: #004d1f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #62df7d;
+  --sidebar-primary-foreground: #002109;
+  --sidebar-accent: #006b2c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #005a25;
+  --sidebar-ring: #62df7d;
+}
+
+.dark {
+  --background: #0b1c30;
+  --foreground: #f8f9ff;
+  --card: #15273e;
+  --card-foreground: #f8f9ff;
+  --popover: #15273e;
+  --popover-foreground: #f8f9ff;
+  --primary: #62df7d;
+  --primary-foreground: #002109;
+  --secondary: #e9c349;
+  --secondary-foreground: #241a00;
+  --muted: #1e334d;
+  --muted-foreground: #a0aec0;
+  --accent: #e9c349;
+  --accent-foreground: #241a00;
+  --destructive: #ffb4ab;
+  --destructive-foreground: #690005;
+  --border: #213145;
+  --input: #213145;
+  --ring: #62df7d;
+  --sidebar: #0b1c30;
+  --sidebar-foreground: #f8f9ff;
+  --sidebar-primary: #62df7d;
+  --sidebar-primary-foreground: #002109;
+  --sidebar-accent: #15273e;
+  --sidebar-accent-foreground: #f8f9ff;
+  --sidebar-border: #213145;
+  --sidebar-ring: #62df7d;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  html {
+    @apply font-sans;
+  }
 }

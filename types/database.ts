@@ -712,6 +712,7 @@ export type Database = {
           payment_status: Database["public"]["Enums"]["payment_status"]
           public_token: string
           status: Database["public"]["Enums"]["order_status"]
+          status_reason: string | null
           total_amount: number
           updated_at: string
         }
@@ -727,6 +728,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           public_token?: string
           status?: Database["public"]["Enums"]["order_status"]
+          status_reason?: string | null
           total_amount?: number
           updated_at?: string
         }
@@ -742,6 +744,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           public_token?: string
           status?: Database["public"]["Enums"]["order_status"]
+          status_reason?: string | null
           total_amount?: number
           updated_at?: string
         }
@@ -1370,7 +1373,9 @@ export type Database = {
       }
       can_read_order: { Args: { p_order_id: string }; Returns: boolean }
       can_write_order: { Args: { p_order_id: string }; Returns: boolean }
+      create_order: { Args: { p_payload: Json }; Returns: Json }
       is_central: { Args: never; Returns: boolean }
+      is_order_pic: { Args: { p_order_id: string }; Returns: boolean }
       is_supervisor: { Args: never; Returns: boolean }
       min_dp_ratio: { Args: never; Returns: number }
       next_order_number: { Args: { p_at?: string }; Returns: string }
