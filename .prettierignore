@@ -1,0 +1,13 @@
+# Dokumen sumber — jangan diformat ulang (diff-nya jadi noise saat review)
+docs/
+prd.md
+REBUILD_GUIDE.md
+TEAM_PLAN.md
+
+# Generated / vendor
+node_modules/
+.next/
+out/
+package-lock.json
+graphify-out/
+supabase/.temp/
