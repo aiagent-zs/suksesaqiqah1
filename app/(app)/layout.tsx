@@ -1,5 +1,6 @@
 import { requireAuth } from '@/server/auth/session';
 import { AuthProvider } from '@/components/providers/auth-provider';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ShieldCheck, LayoutDashboard, ShoppingBag, FileText, Settings, LogOut } from 'lucide-react';
 import { logout } from '@/server/actions/auth';
@@ -56,20 +57,20 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
           {/* Navigasi Utama */}
           <nav className="flex-1 p-4 space-y-1">
-            <a
+            <Link
               href="/dashboard"
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-emerald-600/20 text-emerald-400 font-medium text-sm border-l-4 border-emerald-500 transition-all"
             >
               <LayoutDashboard className="w-4 h-4 shrink-0" />
               <span>Dashboard</span>
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              href="/orders"
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 font-medium text-sm transition-all"
             >
               <ShoppingBag className="w-4 h-4 shrink-0" />
               <span>Pesanan (Orders)</span>
-            </a>
+            </Link>
             <a
               href="#"
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 font-medium text-sm transition-all"
