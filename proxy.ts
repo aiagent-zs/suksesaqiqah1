@@ -11,9 +11,13 @@ export const config = {
      * Match semua route kecuali:
      * - _next/static (aset build)
      * - _next/image (image optimization)
-     * - favicon.ico, sitemap.xml, robots.txt
+     * - favicon.ico
      * - file dengan ekstensi (gambar, font, dll)
+     *
+     * `xml|txt|webmanifest` wajib ada di daftar ekstensi: tanpa itu
+     * /sitemap.xml dan /robots.txt ikut masuk middleware dan crawler
+     * kehilangan keduanya.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf|xml|txt|webmanifest)$).*)',
   ],
 };

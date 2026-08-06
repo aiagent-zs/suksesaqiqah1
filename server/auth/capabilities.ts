@@ -13,6 +13,22 @@ export const CAPABILITIES = {
     'petugas_lapangan',
   ] as UserRole[],
 
+  /** Ubah data order non-status (catatan, nilai order) */
+  UPDATE_ORDER: ['manager_program', 'admin_cabang'] as UserRole[],
+
+  /**
+   * Ubah nilai `total_amount` sebuah order.
+   *
+   * Dipisah dari UPDATE_ORDER karena total_amount adalah pembanding payment gate
+   * (`paid_amount >= total_amount * min_dp_ratio`). Siapapun yang bisa
+   * menurunkannya bisa meloloskan order tanpa uang masuk, jadi haknya dibatasi
+   * ke Manager Program saja.
+   */
+  UPDATE_ORDER_AMOUNT: ['manager_program'] as UserRole[],
+
+  /** Tambah/ubah/hapus data hewan pada order */
+  MANAGE_ANIMALS: ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[],
+
   /** Verifikasi pembayaran */
   VERIFY_PAYMENT: ['manager_program', 'admin_cabang'] as UserRole[],
 

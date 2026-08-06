@@ -2,7 +2,7 @@ import { requireAuth } from '@/server/auth/session';
 import { logout } from '@/server/actions/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, ShieldCheck, Building2, User, Key, LogOut } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, Building2, User, LogOut } from 'lucide-react';
 
 export default async function DashboardPage() {
   const session = await requireAuth();

@@ -1,4 +1,4 @@
-import { loginWithEmail } from '@/server/actions/auth';
+import { loginWithEmail, type LoginErrorCode } from '@/server/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,15 +18,20 @@ export const metadata = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { error } = await searchParams;
 
-  const errorMessages: Record<string, string> = {
-    oauth_failed: 'Login Google gagal. Coba lagi.',
-    oauth_init_failed: 'Tidak dapat menghubungi Google. Coba lagi.',
-    Invalid_login_credentials: 'Email atau password salah. Silakan periksa kembali.',
-    Email_not_confirmed: 'Email belum dikonfirmasi. Periksa kotak masuk Anda.',
+  // Kunci di sini harus sama persis dengan LoginErrorCode di
+  // server/actions/auth.ts. Kode yang tidak dikenal jatuh ke pesan umum —
+  // jangan tampilkan isi parameter URL apa adanya, itu bisa disetel siapa saja
+  // lewat tautan dan menjadi celah teks palsu di halaman login.
+  const errorMessages: Record<LoginErrorCode, string> = {
+    invalid_input: 'Email dan kata sandi wajib diisi dengan benar.',
+    invalid_credentials: 'Email atau kata sandi salah. Silakan periksa kembali.',
+    email_not_confirmed: 'Email belum dikonfirmasi. Periksa kotak masuk Anda.',
+    rate_limited: 'Terlalu banyak percobaan masuk. Tunggu beberapa saat lalu coba lagi.',
+    unknown: 'Login gagal. Coba lagi atau hubungi administrator.',
   };
 
   const errorMsg = error
-    ? (errorMessages[error] ?? decodeURIComponent(error))
+    ? (errorMessages[error as LoginErrorCode] ?? errorMessages.unknown)
     : null;
 
   return (

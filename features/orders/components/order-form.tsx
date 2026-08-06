@@ -63,9 +63,10 @@ export function OrderForm({
 
   function pickService(key: number, serviceId: string) {
     const service = services.find((s) => s.id === serviceId);
+    // Harga selalu mengikuti katalog. Nilai ini hanya untuk pratinjau total —
+    // server menimpanya lagi dari tabel `services` saat order dibuat.
     updateItem(key, {
       service_id: serviceId,
-      // Harga terisi otomatis dari katalog, tapi tetap boleh disesuaikan operator.
       unit_price: service ? Number(service.price) : 0,
     });
   }
@@ -243,8 +244,9 @@ export function OrderForm({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold">Item Layanan</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Minimal satu item. Harga terisi dari katalog dan masih bisa disesuaikan.
+            <p id="price-note" className="mt-0.5 text-sm text-muted-foreground">
+              Minimal satu item. Harga mengikuti katalog layanan dan tidak dapat diubah dari
+              form ini.
             </p>
           </div>
           <Button
@@ -300,11 +302,10 @@ export function OrderForm({
                 <Label htmlFor={`price-${item.key}`}>Harga satuan</Label>
                 <Input
                   id={`price-${item.key}`}
-                  type="number"
-                  min={0}
-                  value={item.unit_price}
-                  onChange={(e) => updateItem(item.key, { unit_price: Number(e.target.value) })}
-                  className="mt-1.5 tabular-nums"
+                  readOnly
+                  aria-describedby="price-note"
+                  value={item.service_id ? formatCurrency(item.unit_price) : '—'}
+                  className="mt-1.5 tabular-nums bg-muted text-muted-foreground"
                 />
               </div>
               <div>

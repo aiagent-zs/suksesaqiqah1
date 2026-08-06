@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, CalendarDays, MapPin, Receipt, User, UserCog } from 'lucide-react';
 import { requireAuth } from '@/server/auth/session';
+import { canDo } from '@/server/auth/capabilities';
 import { getOrderDetail, getOrderTimeline } from '@/features/orders/queries';
 import { getTransitionOptions } from '@/features/orders/state-machine';
 import { StatusActions } from '@/features/orders/components/status-actions';
@@ -37,8 +38,9 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
 
   const role = session.profile?.role;
   const transitions = getTransitionOptions(order.status, role, guard);
-  const canEditAnimals =
-    role === 'manager_program' || role === 'admin_cabang' || role === 'petugas_lapangan';
+  // Sumber kebenaran sama dengan yang ditegakkan server action — daftar role
+  // yang di-hardcode di sini akan menyimpang begitu CAPABILITIES berubah.
+  const canEditAnimals = canDo(role, 'MANAGE_ANIMALS');
 
   const outstanding = Number(order.total_amount) - Number(order.paid_amount);
 
@@ -122,7 +124,12 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           </section>
 
           {/* --- Hewan --- */}
-          <AnimalManager orderId={order.id} animals={animals} canEdit={canEditAnimals} />
+          <AnimalManager
+            orderId={order.id}
+            animals={animals}
+            canEdit={canEditAnimals}
+            role={role}
+          />
 
           {/* --- Riwayat --- */}
           <section className="rounded-2xl border border-border bg-card shadow-sm">

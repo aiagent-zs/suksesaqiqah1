@@ -3,6 +3,25 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@/types/database';
 
 /**
+ * Prefix route yang butuh sesi — seluruh route group `(app)`.
+ *
+ * Sengaja allow-by-default: sisi publik (landing, katalog program, halaman
+ * laporan `/r/{token}`, sitemap) harus bisa dibuka pengunjung anonim. Guard
+ * sebenarnya ada di server — `app/(app)/layout.tsx` memanggil `requireAuth()`
+ * dan tiap Server Action memanggilnya lagi — jadi middleware ini hanya
+ * mempercepat redirect, bukan satu-satunya pertahanan.
+ *
+ * Tambahkan prefix baru di sini setiap kali ada halaman baru di bawah `(app)`.
+ */
+const PROTECTED_PREFIXES = ['/dashboard', '/orders'];
+
+function isProtectedRoute(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+/**
  * Update sesi Supabase di middleware.
  * Pola resmi dari @supabase/ssr untuk Next.js App Router.
  */
@@ -38,12 +57,8 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Route yang tidak butuh auth
-  const publicRoutes = ['/login', '/auth/callback', '/r/'];
-  const isPublicRoute = publicRoutes.some((r) => pathname.startsWith(r));
-
   // Belum login dan akses route terproteksi → redirect ke /login
-  if (!user && !isPublicRoute) {
+  if (!user && isProtectedRoute(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

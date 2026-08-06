@@ -78,18 +78,44 @@ export const updateAnimalStatusSchema = z.object({
 
 export const deleteAnimalSchema = z.object({ animal_id: uuid });
 
-/** Filter & pencarian list order (docs/16 section 1). */
+/** Tanggal kalender `YYYY-MM-DD` dari input `<input type="date">`. */
+const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD');
+
+/**
+ * Filter & pencarian list order (docs/16 section 1).
+ *
+ * Seluruh isinya berasal dari query string yang bisa disunting siapa saja, jadi
+ * setiap field memakai `.catch()`: nilai ngawur jatuh ke default alih-alih
+ * melempar. Tanpa itu, `?page=abc` atau `?status=xyz` membuat halaman daftar
+ * order gagal render — enum yang tidak dikenal juga akan ditolak Postgres saat
+ * dipakai di `.eq()`.
+ */
 export const orderFilterSchema = z.object({
-  status: z.string().optional(),
-  payment_status: z.string().optional(),
-  branch_id: z.string().optional(),
-  location_id: z.string().optional(),
-  pic_id: z.string().optional(),
-  date_from: z.string().optional(),
-  date_to: z.string().optional(),
-  q: z.string().optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  page_size: z.coerce.number().int().min(5).max(100).default(20),
+  status: z
+    .enum([
+      'new',
+      'paid',
+      'scheduled',
+      'preparation',
+      'slaughtering',
+      'distribution',
+      'documentation',
+      'reporting',
+      'completed',
+      'on_hold',
+      'cancelled',
+    ])
+    .optional()
+    .catch(undefined),
+  payment_status: z.enum(['unpaid', 'partial', 'paid']).optional().catch(undefined),
+  branch_id: uuid.optional().catch(undefined),
+  location_id: uuid.optional().catch(undefined),
+  pic_id: uuid.optional().catch(undefined),
+  date_from: calendarDate.optional().catch(undefined),
+  date_to: calendarDate.optional().catch(undefined),
+  q: z.string().trim().max(100).optional().catch(undefined),
+  page: z.coerce.number().int().min(1).default(1).catch(1),
+  page_size: z.coerce.number().int().min(5).max(100).default(20).catch(20),
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;

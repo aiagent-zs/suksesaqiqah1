@@ -4,6 +4,7 @@ import type { OrderFilterInput } from './schema';
 import type { OrderGuardContext } from './state-machine';
 import type { Database } from '@/types/database';
 import type { OrderStatus, PaymentStatus } from '@/lib/constants/order';
+import { endOfDayExclusiveWib, startOfDayWib } from '@/lib/format/date-range';
 
 type Tables = Database['public']['Tables'];
 
@@ -19,6 +20,31 @@ export async function getMinDpRatio(): Promise<number> {
   const raw = (data?.value as { ratio?: number } | null)?.ratio;
   return typeof raw === 'number' && raw > 0 && raw <= 1 ? raw : 0.5;
 }
+
+/**
+ * Bungkus nilai dalam tanda kutip untuk filter PostgREST.
+ * Tanpa ini, koma dan kurung pada input pengguna dibaca sebagai sintaks
+ * pemisah `or=(...)` dan mengubah arti query.
+ */
+function quoteFilterValue(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+/** Netralkan wildcard LIKE agar `%` dan `_` dicari sebagai karakter biasa. */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Batas atas id peserta yang ikut diperhitungkan dalam pencarian.
+ *
+ * PostgREST tidak bisa meng-OR kolom lintas tabel dalam satu filter, jadi id
+ * peserta yang cocok dicari lebih dulu lalu di-OR-kan dengan nomor order.
+ * Angkanya sengaja besar (payload-nya hanya uuid) dan pemotongan dicatat ke log
+ * — versi sebelumnya memakai batas 100 tanpa pemberitahuan, sehingga pencarian
+ * nama umum diam-diam kehilangan hasil.
+ */
+const PARTICIPANT_SEARCH_CAP = 2000;
 
 const LIST_SELECT = `
   id, order_number, status, payment_status, total_amount, paid_amount, created_at,
@@ -75,33 +101,40 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
     .select(select, { count: 'exact' })
     .order('created_at', { ascending: false });
 
-  if (filter.status) query = query.eq('status', filter.status as OrderStatus);
-  if (filter.payment_status)
-    query = query.eq('payment_status', filter.payment_status as PaymentStatus);
+  if (filter.status) query = query.eq('status', filter.status);
+  if (filter.payment_status) query = query.eq('payment_status', filter.payment_status);
   if (filter.branch_id) query = query.eq('branch_id', filter.branch_id);
-  if (filter.date_from) query = query.gte('created_at', filter.date_from);
-  // date_to inklusif: tambahkan satu hari karena created_at bertipe timestamptz.
-  if (filter.date_to) query = query.lt('created_at', `${filter.date_to}T23:59:59.999Z`);
+  if (filter.date_from) query = query.gte('created_at', startOfDayWib(filter.date_from));
+  if (filter.date_to) query = query.lt('created_at', endOfDayExclusiveWib(filter.date_to));
   if (filter.location_id) query = query.eq('schedules.location_id', filter.location_id);
   if (filter.pic_id) query = query.eq('schedules.pic_user_id', filter.pic_id);
 
   const q = filter.q?.trim();
   if (q) {
+    const pattern = `%${escapeLikePattern(q)}%`;
+
     // Pencarian menyentuh dua tabel: nomor order (orders) dan nama peserta
     // (participants). PostgREST tidak bisa OR lintas tabel dalam satu filter,
     // jadi id peserta yang cocok dicari lebih dulu lalu di-OR-kan.
     const { data: participants } = await supabase
       .from('participants')
       .select('id')
-      .ilike('name', `%${q}%`)
-      .limit(100);
+      .ilike('name', pattern)
+      .limit(PARTICIPANT_SEARCH_CAP);
 
     const ids = (participants ?? []).map((p) => p.id);
-    const escaped = q.replace(/[,()]/g, '');
+
+    if (ids.length === PARTICIPANT_SEARCH_CAP) {
+      console.warn(
+        `[orders] pencarian "${q}" mengenai >= ${PARTICIPANT_SEARCH_CAP} peserta; hasil dipotong.`,
+      );
+    }
+
+    const orderNumberFilter = `order_number.ilike.${quoteFilterValue(pattern)}`;
     query = query.or(
       ids.length > 0
-        ? `order_number.ilike.%${escaped}%,participant_id.in.(${ids.join(',')})`
-        : `order_number.ilike.%${escaped}%`,
+        ? `${orderNumberFilter},participant_id.in.(${ids.join(',')})`
+        : orderNumberFilter,
     );
   }
 

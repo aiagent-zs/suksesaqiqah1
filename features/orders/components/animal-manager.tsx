@@ -11,13 +11,14 @@ import { AnimalStatusBadge } from '@/components/data/status-badge';
 import { addAnimal, deleteAnimal, updateAnimalStatus } from '@/server/actions/orders';
 import {
   ANIMAL_SPECIES_LABEL,
-  ANIMAL_STATUS_META,
   type AnimalSpecies,
   type AnimalStatus,
 } from '@/lib/constants/order';
+import { getAnimalStatusOptions } from '../animal-state-machine';
 import type { Database } from '@/types/database';
 
 type Animal = Database['public']['Tables']['animals']['Row'];
+type UserRole = Database['public']['Enums']['user_role'];
 
 /**
  * Pengelolaan hewan per order — "1 order banyak hewan" (docs/05 section 4.8).
@@ -28,10 +29,13 @@ export function AnimalManager({
   orderId,
   animals,
   canEdit,
+  role,
 }: {
   orderId: string;
   animals: Animal[];
   canEdit: boolean;
+  /** Menentukan opsi status yang boleh ditawarkan; server memvalidasi ulang. */
+  role: UserRole | undefined;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -194,9 +198,14 @@ export function AnimalManager({
                     }
                     className="w-40"
                   >
-                    {(Object.keys(ANIMAL_STATUS_META) as AnimalStatus[]).map((s) => (
-                      <option key={s} value={s}>
-                        {ANIMAL_STATUS_META[s].label}
+                    {getAnimalStatusOptions(animal.status, role).map((option) => (
+                      <option
+                        key={option.status}
+                        value={option.status}
+                        disabled={!option.allowed}
+                        title={option.reason ?? undefined}
+                      >
+                        {option.label}
                       </option>
                     ))}
                   </Select>
