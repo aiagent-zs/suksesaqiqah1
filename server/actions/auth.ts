@@ -22,30 +22,6 @@ export async function loginWithEmail(formData: FormData) {
 }
 
 /**
- * Login dengan Google OAuth.
- * Redirect ke URL otorisasi Google via Supabase.
- */
-export async function loginWithGoogle() {
-  const supabase = await createClient();
-
-  const siteUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${siteUrl}/auth/callback`,
-    },
-  });
-
-  if (error || !data.url) {
-    redirect('/login?error=oauth_init_failed');
-  }
-
-  redirect(data.url);
-}
-
-/**
  * Logout — menghapus sesi dan redirect ke /login.
  */
 export async function logout() {
