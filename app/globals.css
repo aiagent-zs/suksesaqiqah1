@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 /* ============================================================
    Sukses Aqiqah — Design tokens (14_UI_UX_SPEC §3)
@@ -19,29 +23,10 @@
 
   --radius: 0.75rem;
 }
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-
-@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-}
-
-html {
-  scroll-behavior: smooth;
-  /* offset for sticky header when jumping to #anchors */
-  scroll-padding-top: 5rem;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-}
-
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
@@ -143,6 +128,11 @@ body {
   --sidebar-ring: #62df7d;
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -153,4 +143,4 @@ body {
   html {
     @apply font-sans;
   }
-}
+}
