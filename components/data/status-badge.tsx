@@ -3,10 +3,12 @@ import {
   ANIMAL_STATUS_META,
   ORDER_STATUS_META,
   PAYMENT_STATUS_META,
+  PAYMENT_VERIFICATION_META,
   SCHEDULE_STATUS_META,
   type AnimalStatus,
   type OrderStatus,
   type PaymentStatus,
+  type PaymentVerificationStatus,
   type ScheduleStatus,
 } from '@/lib/constants/order';
 
@@ -17,6 +19,12 @@ export function OrderStatusBadge({ status }: { status: OrderStatus }) {
 
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
   const meta = PAYMENT_STATUS_META[status];
+  return <Badge className={meta.className}>{meta.label}</Badge>;
+}
+
+/** Status satu baris pembayaran — bukan `payment_status` order (lihat konstanta). */
+export function PaymentVerificationBadge({ status }: { status: PaymentVerificationStatus }) {
+  const meta = PAYMENT_VERIFICATION_META[status];
   return <Badge className={meta.className}>{meta.label}</Badge>;
 }
 

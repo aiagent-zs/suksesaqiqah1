@@ -13,11 +13,7 @@ import { redirect } from 'next/navigation';
  * detail internal penyedia auth.
  */
 export type LoginErrorCode =
-  | 'invalid_input'
-  | 'invalid_credentials'
-  | 'email_not_confirmed'
-  | 'rate_limited'
-  | 'unknown';
+  'invalid_input' | 'invalid_credentials' | 'email_not_confirmed' | 'rate_limited' | 'unknown';
 
 const credentialsSchema = z.object({
   email: z.string().trim().min(1, 'Email wajib diisi').email(),

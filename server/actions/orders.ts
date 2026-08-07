@@ -1,7 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
@@ -18,61 +17,27 @@ import { checkAnimalTransition } from '@/features/orders/animal-state-machine';
 import { getOrderDetail } from '@/features/orders/queries';
 import type { OrderStatus } from '@/lib/constants/order';
 
-/** Bentuk respons seragam mengikuti format error docs/16 section 1. */
-export type ActionResult<T = void> =
-  | { ok: true; data: T }
-  | {
-      ok: false;
-      error: {
-        code:
-          | 'UNAUTHENTICATED'
-          | 'FORBIDDEN'
-          | 'NOT_FOUND'
-          | 'VALIDATION_ERROR'
-          | 'CONFLICT'
-          | 'INTERNAL';
-        message: string;
-        fields?: Record<string, string>;
-      };
-    };
+import { scopedInternalError, validationError, type ActionResult } from './result';
 
-function validationError(error: z.ZodError): ActionResult<never> {
-  const fields: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const key = issue.path.join('.') || '_';
-    if (!fields[key]) fields[key] = issue.message;
-  }
-  return {
-    ok: false,
-    error: { code: 'VALIDATION_ERROR', message: 'Data yang dikirim belum valid.', fields },
-  };
-}
-
-/**
- * Kegagalan tak terduga dari Postgres/PostgREST.
- * Detail teknisnya masuk log server, bukan ke layar operator — pesan mentah
- * Postgres membocorkan nama tabel, kolom, dan kebijakan RLS.
- */
-function internalError(context: string, error: { message: string; code?: string }): ActionResult<never> {
-  console.error(`[orders] ${context}:`, error.code ?? '-', error.message);
-  return {
-    ok: false,
-    error: { code: 'INTERNAL', message: `${context}. Coba lagi atau hubungi administrator.` },
-  };
-}
+const internalError = scopedInternalError('orders');
 
 // =============================================================================
 // Create
 // =============================================================================
 
-export async function createOrder(input: unknown): Promise<ActionResult<{ id: string; order_number: string }>> {
+export async function createOrder(
+  input: unknown,
+): Promise<ActionResult<{ id: string; order_number: string }>> {
   const session = await requireAuth();
   const role = session.profile?.role;
 
   if (!role || !['manager_program', 'admin_cabang'].includes(role)) {
     return {
       ok: false,
-      error: { code: 'FORBIDDEN', message: 'Hanya Admin Cabang atau Manager Program yang dapat membuat order.' },
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Hanya Admin Cabang atau Manager Program yang dapat membuat order.',
+      },
     };
   }
 
@@ -112,7 +77,10 @@ export async function createOrder(input: unknown): Promise<ActionResult<{ id: st
   if (priceByService.size !== serviceIds.length) {
     return {
       ok: false,
-      error: { code: 'VALIDATION_ERROR', message: 'Ada layanan yang tidak aktif atau tidak ditemukan.' },
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Ada layanan yang tidak aktif atau tidak ditemukan.',
+      },
     };
   }
 
@@ -144,7 +112,10 @@ export async function updateOrder(input: unknown): Promise<ActionResult<null>> {
   const role = session.profile?.role;
 
   if (!canDo(role, 'UPDATE_ORDER')) {
-    return { ok: false, error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah data order.' } };
+    return {
+      ok: false,
+      error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah data order.' },
+    };
   }
 
   const parsed = updateOrderSchema.safeParse(input);
@@ -190,12 +161,17 @@ export async function updateOrder(input: unknown): Promise<ActionResult<null>> {
 // Transisi status — satu-satunya jalan mengubah orders.status (docs/16 section 12)
 // =============================================================================
 
-export async function changeOrderStatus(input: unknown): Promise<ActionResult<{ status: OrderStatus }>> {
+export async function changeOrderStatus(
+  input: unknown,
+): Promise<ActionResult<{ status: OrderStatus }>> {
   const session = await requireAuth();
   const role = session.profile?.role;
 
   if (!canDo(role, 'UPDATE_ORDER_STATUS')) {
-    return { ok: false, error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah status order.' } };
+    return {
+      ok: false,
+      error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah status order.' },
+    };
   }
 
   const parsed = changeStatusSchema.safeParse(input);
@@ -204,7 +180,10 @@ export async function changeOrderStatus(input: unknown): Promise<ActionResult<{ 
 
   const detail = await getOrderDetail(order_id);
   if (!detail) {
-    return { ok: false, error: { code: 'NOT_FOUND', message: 'Order tidak ditemukan atau di luar akses Anda.' } };
+    return {
+      ok: false,
+      error: { code: 'NOT_FOUND', message: 'Order tidak ditemukan atau di luar akses Anda.' },
+    };
   }
 
   const check = checkTransition(detail.order.status, to as OrderStatus, role, detail.guard);
@@ -251,7 +230,10 @@ export async function addAnimal(input: unknown): Promise<ActionResult<null>> {
   const session = await requireAuth();
 
   if (!canDo(session.profile?.role, 'MANAGE_ANIMALS')) {
-    return { ok: false, error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah data hewan.' } };
+    return {
+      ok: false,
+      error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah data hewan.' },
+    };
   }
 
   const parsed = addAnimalSchema.safeParse(input);
@@ -277,7 +259,10 @@ export async function updateAnimalStatus(input: unknown): Promise<ActionResult<n
   const session = await requireAuth();
 
   if (!canDo(session.profile?.role, 'MANAGE_ANIMALS')) {
-    return { ok: false, error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah data hewan.' } };
+    return {
+      ok: false,
+      error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah data hewan.' },
+    };
   }
 
   const parsed = updateAnimalStatusSchema.safeParse(input);
@@ -338,7 +323,10 @@ export async function deleteAnimal(input: unknown): Promise<ActionResult<null>> 
   const session = await requireAuth();
 
   if (!canDo(session.profile?.role, 'MANAGE_ANIMALS')) {
-    return { ok: false, error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak menghapus data hewan.' } };
+    return {
+      ok: false,
+      error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak menghapus data hewan.' },
+    };
   }
 
   const parsed = deleteAnimalSchema.safeParse(input);

@@ -6,6 +6,7 @@ export type AnimalStatus = Database['public']['Enums']['animal_status'];
 export type AnimalSpecies = Database['public']['Enums']['animal_species'];
 export type ScheduleStatus = Database['public']['Enums']['schedule_status'];
 export type IssueSeverity = Database['public']['Enums']['issue_severity'];
+export type PaymentVerificationStatus = Database['public']['Enums']['payment_verification_status'];
 
 type StatusMeta = {
   label: string;
@@ -50,6 +51,35 @@ export const PAYMENT_STATUS_META: Record<PaymentStatus, StatusMeta> = {
   unpaid: { label: 'Belum Bayar', className: 'bg-red-50 text-red-700 border-red-200' },
   partial: { label: 'DP / Sebagian', className: 'bg-amber-50 text-amber-700 border-amber-200' },
   paid: { label: 'Lunas', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+};
+
+/**
+ * Status verifikasi satu baris `payments` — beda dengan `payment_status` di
+ * `orders`, yang merupakan turunan dari jumlah pembayaran ber-status `verified`
+ * (trigger `sync_order_payment`, migration 05).
+ */
+export const PAYMENT_VERIFICATION_META: Record<PaymentVerificationStatus, StatusMeta> = {
+  pending: {
+    label: 'Menunggu Verifikasi',
+    className: 'bg-amber-50 text-amber-700 border-amber-200',
+  },
+  verified: {
+    label: 'Terverifikasi',
+    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  },
+  rejected: { label: 'Ditolak', className: 'bg-red-50 text-red-700 border-red-200' },
+};
+
+/** Metode pembayaran. Kolomnya `text` bebas di DB; daftar ini yang ditawarkan UI. */
+export const PAYMENT_METHODS = ['transfer_bank', 'tunai', 'qris', 'lainnya'] as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  transfer_bank: 'Transfer Bank',
+  tunai: 'Tunai',
+  qris: 'QRIS',
+  lainnya: 'Lainnya',
 };
 
 export const ANIMAL_STATUS_META: Record<AnimalStatus, StatusMeta> = {

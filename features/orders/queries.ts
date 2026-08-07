@@ -5,6 +5,7 @@ import type { OrderGuardContext } from './state-machine';
 import type { Database } from '@/types/database';
 import type { OrderStatus, PaymentStatus } from '@/lib/constants/order';
 import { endOfDayExclusiveWib, startOfDayWib } from '@/lib/format/date-range';
+import { isScheduleComplete } from '@/features/schedules/status-machine';
 
 type Tables = Database['public']['Tables'];
 
@@ -202,6 +203,10 @@ export type OrderDetail = {
   schedule:
     | (Tables['schedules']['Row'] & {
         locationName: string | null;
+        locationAddress: string | null;
+        /** Koordinat lokasi untuk tautan peta (prd.md FR-S3). */
+        lat: number | null;
+        lng: number | null;
         picName: string | null;
       })
     | null;
@@ -229,7 +234,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
         animals ( * ),
         schedule:schedules (
           *,
-          location:locations ( name ),
+          location:locations ( name, address, lat, lng ),
           pic:profiles ( full_name )
         )
       `,
@@ -257,16 +262,21 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     animals: Tables['animals']['Row'][];
     schedule:
       | (Tables['schedules']['Row'] & {
-          location: { name: string } | null;
+          location: {
+            name: string;
+            address: string | null;
+            lat: number | string | null;
+            lng: number | string | null;
+          } | null;
           pic: { full_name: string | null } | null;
         })
       | null;
   };
 
   const schedule = r.schedule;
-  const hasCompleteSchedule = Boolean(
-    schedule?.scheduled_date && schedule?.location_id && schedule?.pic_user_id,
-  );
+  // Aturan "jadwal lengkap" hidup di satu tempat bersama panel jadwal, supaya
+  // guard state machine dan pesan "apa yang kurang" tidak pernah berbeda.
+  const hasCompleteSchedule = isScheduleComplete(schedule);
 
   return {
     order: r,
@@ -281,13 +291,14 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       serviceName: i.service?.name ?? '-',
       serviceType: i.service?.type ?? '-',
     })),
-    animals: (r.animals ?? []).sort((a, b) =>
-      (a.tag_code ?? '').localeCompare(b.tag_code ?? ''),
-    ),
+    animals: (r.animals ?? []).sort((a, b) => (a.tag_code ?? '').localeCompare(b.tag_code ?? '')),
     schedule: schedule
       ? {
           ...schedule,
           locationName: schedule.location?.name ?? null,
+          locationAddress: schedule.location?.address ?? null,
+          lat: schedule.location?.lat == null ? null : Number(schedule.location.lat),
+          lng: schedule.location?.lng == null ? null : Number(schedule.location.lng),
           picName: schedule.pic?.full_name ?? null,
         }
       : null,
