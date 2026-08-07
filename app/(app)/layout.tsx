@@ -2,7 +2,15 @@ import { requireAuth } from '@/server/auth/session';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ShieldCheck, LayoutDashboard, ShoppingBag, FileText, Settings, LogOut } from 'lucide-react';
+import {
+  ShieldCheck,
+  LayoutDashboard,
+  ShoppingBag,
+  CalendarDays,
+  FileText,
+  Settings,
+  LogOut,
+} from 'lucide-react';
 import { logout } from '@/server/actions/auth';
 
 /**
@@ -14,21 +22,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider profile={session.profile}>
       <div className="flex min-h-screen bg-[#f8f9ff] text-[#0b1c30]">
-        
         {/* Sidebar 260px sesuai design.md */}
-        <aside className="hidden lg:flex w-[260px] flex-col bg-[#0b1c30] text-white shrink-0 border-r border-slate-800">
-          
+        <aside className="hidden w-[260px] shrink-0 flex-col border-r border-slate-800 bg-[#0b1c30] text-white lg:flex">
           {/* Header Brand */}
-          <div className="p-6 border-b border-slate-800/80">
+          <div className="border-b border-slate-800/80 p-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#16A34A] to-[#059669] flex items-center justify-center shrink-0 shadow-md">
-                <ShieldCheck className="w-6 h-6 text-white" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#16A34A] to-[#059669] shadow-md">
+                <ShieldCheck className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="font-bold text-base leading-tight tracking-tight text-white font-sans">
+                <p className="font-sans text-base leading-tight font-bold tracking-tight text-white">
                   Sukses Aqiqah
                 </p>
-                <p className="text-emerald-400 text-xs font-semibold tracking-wider uppercase mt-0.5">
+                <p className="mt-0.5 text-xs font-semibold tracking-wider text-emerald-400 uppercase">
                   Command Center
                 </p>
               </div>
@@ -36,19 +42,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* User Profile Summary */}
-          <div className="px-5 py-4 border-b border-slate-800/80 bg-slate-900/50">
-            <p className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold mb-1">
+          <div className="border-b border-slate-800/80 bg-slate-900/50 px-5 py-4">
+            <p className="mb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
               Staf Terotentikasi
             </p>
-            <p className="text-white text-sm font-semibold truncate">
+            <p className="truncate text-sm font-semibold text-white">
               {session.profile?.full_name ?? session.email ?? 'User Staf'}
             </p>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-500/30">
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
                 {session.profile?.role ?? 'staf'}
               </span>
               {session.profile?.is_supervisor && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-medium border border-amber-500/30">
+                <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-300">
                   Supervisor
                 </span>
               )}
@@ -56,45 +62,52 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* Navigasi Utama */}
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 space-y-1 p-4">
             <Link
               href="/dashboard"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-emerald-600/20 text-emerald-400 font-medium text-sm border-l-4 border-emerald-500 transition-all"
+              className="flex items-center gap-3 rounded-lg border-l-4 border-emerald-500 bg-emerald-600/20 px-3.5 py-2.5 text-sm font-medium text-emerald-400 transition-all"
             >
-              <LayoutDashboard className="w-4 h-4 shrink-0" />
+              <LayoutDashboard className="h-4 w-4 shrink-0" />
               <span>Dashboard</span>
             </Link>
             <Link
               href="/orders"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 font-medium text-sm transition-all"
+              className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"
             >
-              <ShoppingBag className="w-4 h-4 shrink-0" />
+              <ShoppingBag className="h-4 w-4 shrink-0" />
               <span>Pesanan (Orders)</span>
+            </Link>
+            <Link
+              href="/schedule"
+              className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"
+            >
+              <CalendarDays className="h-4 w-4 shrink-0" />
+              <span>Jadwal</span>
             </Link>
             <a
               href="#"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 font-medium text-sm transition-all"
+              className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"
             >
-              <FileText className="w-4 h-4 shrink-0" />
+              <FileText className="h-4 w-4 shrink-0" />
               <span>Dokumentasi</span>
             </a>
             <a
               href="#"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 font-medium text-sm transition-all"
+              className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"
             >
-              <Settings className="w-4 h-4 shrink-0" />
+              <Settings className="h-4 w-4 shrink-0" />
               <span>Pengaturan</span>
             </a>
           </nav>
 
           {/* Footer Logout */}
-          <div className="p-4 border-t border-slate-800">
+          <div className="border-t border-slate-800 p-4">
             <form action={logout}>
               <button
                 type="submit"
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-950/30 font-medium text-sm transition-all"
+                className="flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-red-950/30 hover:text-red-400"
               >
-                <LogOut className="w-4 h-4 shrink-0" />
+                <LogOut className="h-4 w-4 shrink-0" />
                 <span>Keluar Sistem</span>
               </button>
             </form>
@@ -102,23 +115,20 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         </aside>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          
+        <div className="flex min-w-0 flex-1 flex-col">
           {/* Header Mobile */}
-          <header className="lg:hidden bg-[#0b1c30] text-white px-4 py-3 flex items-center justify-between border-b border-slate-800">
+          <header className="flex items-center justify-between border-b border-slate-800 bg-[#0b1c30] px-4 py-3 text-white lg:hidden">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <p className="font-bold text-sm">Sukses Aqiqah</p>
+              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+              <p className="text-sm font-bold">Sukses Aqiqah</p>
             </div>
-            <span className="text-xs bg-emerald-900 text-emerald-200 px-2.5 py-1 rounded-full font-medium">
+            <span className="rounded-full bg-emerald-900 px-2.5 py-1 text-xs font-medium text-emerald-200">
               {session.profile?.role ?? 'staf'}
             </span>
           </header>
 
           {/* Page Body */}
-          <main className="flex-1 p-6 md:p-8 max-w-[1440px] w-full mx-auto">
-            {children}
-          </main>
+          <main className="mx-auto w-full max-w-[1440px] flex-1 p-6 md:p-8">{children}</main>
         </div>
       </div>
     </AuthProvider>
