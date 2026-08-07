@@ -147,7 +147,8 @@
 - [x] Kirim tautan via WA.me + salin tautan + tandai terkirim (`sent_at` inilah yang dibaca `v_order_progress.report_sent`, syarat `reporting → completed`)
 - [x] Foto WebP dilewati saat menyematkan ke PDF — React PDF hanya menerima JPEG/PNG mentah dan menghasilkan PDF rusak, bukan galat yang terlihat
 - [x] Maksimal 6 foto disematkan; tanpa batas, satu permintaan bisa menahan ratusan MB di memori server
-- [ ] **Migration `20260807010000_public_report_rpc.sql` belum di-push** — halaman `/r/{token}` belum bisa dicoba sampai itu dijalankan
+- [x] Migration `20260807010000_public_report_rpc.sql` **ter-push ke cloud**
+- [x] **Terverifikasi di cloud:** anon memanggil RPC dengan token sah → payload satu order lengkap; token ngawur → `null`; sementara `orders`, `participants`, dan `documentations` tetap `[]` untuk anon
 - [ ] Kirim via Email (baru WA.me) — bergantung Tahap 8
 - [ ] QR code ke halaman publik pada PDF (`docs/11 §3`) — butuh dependensi baru
 - [ ] Rate limiting percobaan token (`docs/11 §6`)
@@ -156,6 +157,8 @@
 
 > **Kenapa butuh migration.** Pengunjung anonim tidak punya akses apa pun: seluruh RLS ditujukan `to authenticated` dan `anon` hanya di-grant `SELECT` pada `services`. RPC `get_public_report(token)` bersifat `SECURITY DEFINER` dan mengunci bentuk keluarannya **di level database** — satu order saja, dokumentasi `approved` saja, tanpa kontak peserta. Pilihan ini diambil ketimbang memakai service role di halaman publik, karena dengan service role seluruh pembatasan bergantung pada kebenaran kode TypeScript saya.
 >
+> **Catatan data seed.** `storage_path` pada `02_demo.sql` berbentuk `documentation/JKT/2026/08/order-4/...` — menyertakan nama bucket dan memakai `order-4`, bukan nomor order asli. Kode menulis path **relatif-bucket** (`JKT/2026/08/IA-202608-0001/...`) sesuai `docs/17 §3`, dan bucket `documentation` di cloud memang masih kosong. Jadi halaman publik untuk order seed tidak menampilkan foto — itu placeholder seed, bukan penandatanganan yang rusak.
+
 > Service role tetap dipakai, tapi **hanya untuk menandatangani berkas** yang path-nya sudah dikembalikan RPC (`server/services/public-report.ts`) — penandatanganan tidak bisa memakai kunci publik karena `storage_documentation_read` ditujukan `to authenticated`, sementara pembaca halaman ini anonim.
 
 ---

@@ -88,16 +88,7 @@ export async function getPublicReport(token: string): Promise<PublicReport | nul
   // sudah di-grant ke `anon`, jadi tidak perlu hak istimewa apa pun di sini.
   const supabase = await createClient();
 
-  // `get_public_report` diperkenalkan migration 20260807010000 dan belum ada di
-  // `types/database.ts` — berkas itu hasil `npm run db:types`, yang baru bisa
-  // dijalankan setelah migration-nya ter-push. Cast dilepas begitu tipe
-  // di-generate ulang.
-  const rpc = supabase.rpc as unknown as (
-    fn: string,
-    args: Record<string, unknown>,
-  ) => Promise<{ data: unknown; error: unknown }>;
-
-  const { data, error } = await rpc('get_public_report', { p_token: token });
+  const { data, error } = await supabase.rpc('get_public_report', { p_token: token });
   if (error || !data) return null;
 
   const p = data as unknown as RpcPayload;
