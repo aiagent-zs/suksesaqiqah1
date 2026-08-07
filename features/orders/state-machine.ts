@@ -1,5 +1,6 @@
 import type { Database } from '@/types/database';
 import { ORDER_STATUS_META, type OrderStatus, type PaymentStatus } from '@/lib/constants/order';
+import { missingDocumentationStages } from '@/features/documentation/review';
 
 type UserRole = Database['public']['Enums']['user_role'];
 
@@ -20,6 +21,12 @@ export type OrderGuardContext = {
   animalsDistributed: number;
   distributionCount: number;
   docsApproved: number;
+  /**
+   * Dokumentasi ber-status `approved` per tahap — dasar kelengkapan minimum
+   * docs/10 section 5 (dihitung per ORDER, bukan per hewan).
+   */
+  docsApprovedSlaughter: number;
+  docsApprovedDistribution: number;
   reportSent: boolean;
 };
 
@@ -125,10 +132,19 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
     {
       to: 'reporting',
       roles: OPERATOR,
-      guard: (ctx) =>
-        ctx.docsApproved > 0
+      guard: (ctx) => {
+        // docs/10 section 5: minimum 1 bukti pemotongan DAN 1 bukti distribusi,
+        // keduanya sudah tervalidasi penuh. "Ada satu dokumentasi apa pun"
+        // tidak cukup — order bisa lolos tanpa bukti penyerahan sama sekali.
+        const missing = missingDocumentationStages({
+          approvedSlaughter: ctx.docsApprovedSlaughter,
+          approvedDistribution: ctx.docsApprovedDistribution,
+        });
+
+        return missing.length === 0
           ? null
-          : 'Butuh minimal satu dokumentasi berstatus `approved` (validasi Admin Pusat).',
+          : `Dokumentasi ${missing.join(' & ')} belum ada yang tervalidasi Admin Pusat.`;
+      },
     },
     { to: 'on_hold', roles: OPERATOR },
   ],
@@ -159,7 +175,9 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
       to: 'scheduled',
       roles: OPERATOR,
       guard: (ctx) =>
-        ctx.hasCompleteSchedule ? null : 'Jadwal belum lengkap: tanggal, lokasi, dan PIC wajib diisi.',
+        ctx.hasCompleteSchedule
+          ? null
+          : 'Jadwal belum lengkap: tanggal, lokasi, dan PIC wajib diisi.',
     },
     { to: 'cancelled', roles: OPERATOR },
   ],
@@ -203,8 +221,7 @@ export function getTransitionOptions(
 }
 
 export type TransitionCheck =
-  | { ok: true }
-  | { ok: false; code: 'FORBIDDEN' | 'CONFLICT'; message: string };
+  { ok: true } | { ok: false; code: 'FORBIDDEN' | 'CONFLICT'; message: string };
 
 /**
  * Validasi satu transisi. Dipakai server action sebelum melakukan UPDATE.

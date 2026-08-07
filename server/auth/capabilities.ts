@@ -59,6 +59,12 @@ export const CAPABILITIES = {
    */
   MANAGE_SCHEDULE: ['manager_program', 'admin_cabang'] as UserRole[],
 
+  /**
+   * Unggah dokumentasi lapangan (docs/10 section 3).
+   * Sama dengan `documentations_insert` yang memakai `can_write_order`.
+   */
+  UPLOAD_DOCUMENTATION: ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[],
+
   /** Validasi dokumentasi tingkat-1 (Supervisor) */
   VALIDATE_DOC_LEVEL1: ['manager_program', 'admin_cabang'] as UserRole[],
 

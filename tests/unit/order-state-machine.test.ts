@@ -19,7 +19,9 @@ function ctx(overrides: Partial<OrderGuardContext> = {}): OrderGuardContext {
     animalsSlaughtered: 2,
     animalsDistributed: 2,
     distributionCount: 1,
-    docsApproved: 1,
+    docsApproved: 2,
+    docsApprovedSlaughter: 1,
+    docsApprovedDistribution: 1,
     reportSent: true,
     ...overrides,
   };
@@ -47,9 +49,7 @@ describe('gate pembayaran (docs/08 section 2)', () => {
   });
 
   it('gagal saat belum bayar sama sekali', () => {
-    expect(
-      paymentGatePassed(ctx({ paymentStatus: 'unpaid', paidAmount: 0 })),
-    ).toBe(false);
+    expect(paymentGatePassed(ctx({ paymentStatus: 'unpaid', paidAmount: 0 }))).toBe(false);
   });
 });
 
@@ -78,7 +78,12 @@ describe('transisi new → paid', () => {
 
 describe('transisi paid → scheduled', () => {
   it('ditolak saat jadwal belum lengkap', () => {
-    const result = checkTransition('paid', 'scheduled', 'admin_cabang', ctx({ hasCompleteSchedule: false }));
+    const result = checkTransition(
+      'paid',
+      'scheduled',
+      'admin_cabang',
+      ctx({ hasCompleteSchedule: false }),
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.message).toMatch(/jadwal belum lengkap/i);
   });
@@ -88,14 +93,48 @@ describe('transisi paid → scheduled', () => {
   });
 });
 
+/**
+ * docs/10 section 5 menuntut kelengkapan **per tahap**, bukan sekadar "ada satu
+ * dokumentasi": minimal 1 bukti pemotongan DAN 1 bukti distribusi yang sudah
+ * tervalidasi Admin Pusat.
+ */
 describe('transisi documentation → reporting', () => {
-  it('ditolak tanpa dokumentasi approved', () => {
-    const result = checkTransition('documentation', 'reporting', 'admin_cabang', ctx({ docsApproved: 0 }));
+  it('ditolak tanpa dokumentasi approved sama sekali', () => {
+    const result = checkTransition(
+      'documentation',
+      'reporting',
+      'admin_cabang',
+      ctx({ docsApproved: 0, docsApprovedSlaughter: 0, docsApprovedDistribution: 0 }),
+    );
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toMatch(/approved/i);
+    if (!result.ok) expect(result.message).toMatch(/pemotongan & distribusi/i);
   });
 
-  it('diterima dengan minimal satu dokumentasi approved', () => {
+  it('ditolak bila hanya ada bukti pemotongan', () => {
+    // Kasus yang lolos pada aturan lama "docsApproved > 0": order bisa naik ke
+    // Pelaporan tanpa satu pun bukti penyerahan ke penerima.
+    const result = checkTransition(
+      'documentation',
+      'reporting',
+      'admin_cabang',
+      ctx({ docsApproved: 3, docsApprovedSlaughter: 3, docsApprovedDistribution: 0 }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.message).toMatch(/distribusi/i);
+  });
+
+  it('ditolak bila hanya ada bukti distribusi', () => {
+    const result = checkTransition(
+      'documentation',
+      'reporting',
+      'admin_cabang',
+      ctx({ docsApproved: 1, docsApprovedSlaughter: 0, docsApprovedDistribution: 1 }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.message).toMatch(/pemotongan/i);
+  });
+
+  it('diterima saat kedua tahap punya bukti tervalidasi', () => {
     expect(checkTransition('documentation', 'reporting', 'admin_cabang', ctx()).ok).toBe(true);
   });
 });
@@ -113,7 +152,12 @@ describe('transisi reporting → completed', () => {
   });
 
   it('ditolak saat laporan belum terkirim', () => {
-    const result = checkTransition('reporting', 'completed', 'admin_cabang', ctx({ reportSent: false }));
+    const result = checkTransition(
+      'reporting',
+      'completed',
+      'admin_cabang',
+      ctx({ reportSent: false }),
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.message).toMatch(/laporan/i);
   });

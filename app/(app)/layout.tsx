@@ -84,13 +84,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               <CalendarDays className="h-4 w-4 shrink-0" />
               <span>Jadwal</span>
             </Link>
-            <a
-              href="#"
+            <Link
+              href="/validation"
               className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"
             >
               <FileText className="h-4 w-4 shrink-0" />
-              <span>Dokumentasi</span>
-            </a>
+              <span>Validasi Dokumentasi</span>
+            </Link>
             <a
               href="#"
               className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"

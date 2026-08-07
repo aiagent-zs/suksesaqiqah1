@@ -14,7 +14,7 @@ import { supabaseAnonKey, supabaseUrl } from './env';
  *
  * Tambahkan prefix baru di sini setiap kali ada halaman baru di bawah `(app)`.
  */
-const PROTECTED_PREFIXES = ['/dashboard', '/orders', '/schedule'];
+const PROTECTED_PREFIXES = ['/dashboard', '/orders', '/schedule', '/validation'];
 
 function isProtectedRoute(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(

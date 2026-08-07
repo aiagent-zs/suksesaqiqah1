@@ -6,7 +6,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/dashboard', '/orders', '/settings', '/api', '/r/'],
+      // `/r/` ikut dilarang meski halaman publik: tautannya dibagikan langsung
+      // ke peserta dan isinya memuat nama serta pelaksanaan ibadah mereka.
+      disallow: ['/dashboard', '/orders', '/schedule', '/validation', '/settings', '/api', '/r/'],
     },
     sitemap: `${siteConfig.url}/sitemap.xml`,
   };

@@ -9,7 +9,7 @@
 | Dokumen | `TASKS.md` |
 | Diperbarui | 2026-08-07 |
 | Fase aktif | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`) |
-| Estimasi Phase 1 | **± 65%** |
+| Estimasi Phase 1 | **± 82%** |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
 
@@ -105,34 +105,58 @@
 - [ ] **Issues** · tandai & kelola kendala (`prd.md` FR-SL4, satu bagian dengan Slaughter & Distribution). Dashboard sudah *menampilkan* kendala, tapi belum ada cara membuatnya dari UI. → `docs/06 §1`
 - [ ] Status hewan masih bisa diubah langsung lewat panel Hewan **tanpa** catatan pemotongan. Guard `slaughtering → distribution` membaca `animals.status`, jadi jalur itu melepas transisi tanpa bukti. Perlu diputuskan: kunci status hewan agar hanya bergerak lewat catatan pemotongan, atau biarkan sebagai jalur koreksi.
 
-> Order kini bisa berjalan `new → paid → scheduled → preparation → slaughtering → distribution → documentation` sepenuhnya lewat UI. **Penghambat berikutnya ada di `documentation → reporting`**: guard-nya menuntut ≥1 dokumentasi ber-status `approved`, dan alur dokumentasi (Tahap 5) belum ada.
+> Order kini bisa berjalan **penuh dari `new` sampai `completed`** lewat UI — seluruh guard state machine punya jalur pengisiannya masing-masing. Yang tersisa adalah otomasi, kenyamanan lapangan, dan sisi publik.
 
 ---
 
-## 3. Tahap 5 · Documentation Flow — **± 5%** — *Bani*
+## 3. Tahap 5 · Documentation Flow — **± 85%** — *Bani*
 
 - [x] Tabel `documentations` + enum `doc_status` / `doc_stage` / `doc_type` + RLS
 - [x] Storage bucket
-- [ ] Upload media (foto/video/catatan) tertaut ke order & hewan
-- [ ] Validasi 2 tingkat: Supervisor (`approved_supervisor`) → Admin Pusat (`approved` / `rejected` + alasan)
-- [ ] Antrian validasi tingkat-1 di dashboard cabang
-- [ ] Antrian validasi tingkat-akhir lintas cabang (`docs/09 §4b`)
-- [ ] Gate: order tidak bisa `completed` tanpa dokumentasi tervalidasi
+- [x] Unggah foto/video/catatan, tertaut ke order + tahap + hewan (opsional) — berkas langsung browser → Storage, path baru dikirim ke Server Action
+- [x] Path diverifikasi ulang terhadap cabang + nomor order + tahap (`isDocPathForOrder`); kebijakan Storage hanya menuntut role, sama sekali tidak membatasi folder
+- [x] Validasi 2 tingkat: Supervisor (`pending → approved_supervisor`) → Admin Pusat (`→ approved`), tolak wajib beralasan
+- [x] Tingkat validasi **diturunkan dari role**, tidak pernah dikirim klien — Supervisor tidak bisa meminta `approved` penuh
+- [x] **Pemisahan tugas** (`docs/10 §4`): pengupload tidak dapat memvalidasi unggahannya sendiri
+- [x] Penguncian optimistik: dua validator bersamaan tidak bisa sama-sama berhasil
+- [x] Halaman `/validation` — antrian tingkat-1 & tingkat-akhir menyesuaikan role, filter cabang & tahap, urut tertua dulu, paginasi
+- [x] **Gate diperketat sesuai `docs/10 §5`**: `documentation → reporting` kini menuntut ≥1 bukti **pemotongan** DAN ≥1 bukti **distribusi** yang tervalidasi penuh — sebelumnya cukup "ada satu dokumentasi apa pun"
+- [x] Pratinjau media memakai `<img>`/`<video>` biasa, bukan `next/image`: optimizer Next akan menyimpan salinan yang tetap tersaji setelah signed URL ber-TTL 10 menit kedaluwarsa (`docs/10 §8`)
+- [x] Dokumentasi `approved` tidak dapat dihapus — bukti itu dipakai laporan peserta
+- [x] **Terverifikasi di cloud:** petugas unggah → `pending`; percobaan menyetujui sendiri ditolak RLS (`42501`); Supervisor → `approved_supervisor`; Admin Pusat → `approved`; hitungan gate per tahap `slaughter=1, distribution=0` sehingga order tetap tertahan. Data uji dibersihkan.
+- [ ] Antrian validasi tingkat-1 belum tampil di Cabang Dashboard (`docs/09 §4`) — saat ini hanya di `/validation`
+- [ ] Notifikasi ke Supervisor saat ada unggahan baru & ke Petugas saat ditolak (`docs/10 §7`) — bergantung Tahap 8
+- [ ] Kompresi gambar di klien & antrian upload offline (`docs/13`) — bergantung PWA
+- [ ] Pelucutan EXIF/GPS sebelum unggah (`docs/17 §4`, `docs/20`)
 
-→ `docs/10_DOCUMENTATION_FLOW.md`, kapabilitas `VALIDATE_DOC_LEVEL1` / `VALIDATE_DOC_FINAL`
+> **Catatan kedalaman pertahanan:** urutan dua tingkat ditegakkan di lapisan aplikasi (`checkReview`), **bukan** di RLS — kebijakan `documentations_update` memberi Admin Pusat wewenang penuh atas baris mana pun, sehingga secara teknis ia bisa melompati validasi tingkat-1 lewat panggilan API langsung. Menutupnya butuh constraint/trigger di database (migration).
+
+→ `docs/10_DOCUMENTATION_FLOW.md`, kapabilitas `UPLOAD_DOCUMENTATION` / `VALIDATE_DOC_LEVEL1` / `VALIDATE_DOC_FINAL`
 
 ---
 
-## 4. Tahap 6 · Reporting Engine — **0%** — *Awalin*
+## 4. Tahap 6 · Reporting Engine — **± 80%** — *Awalin*
 
-- [ ] Generate PDF per order (React PDF — dependency sudah terpasang)
-- [ ] Halaman publik bertoken `app/r/[token]` tanpa login
-- [ ] Unduh PDF dari halaman publik
-- [ ] Kirim link via WA.me & Email
-- [ ] Versi laporan tercatat di tabel `reports`
-- [ ] Pastikan data peserta lain tidak bocor lewat token
+- [x] Generate PDF per order (React PDF) — ringkasan, status pelaksanaan, catatan distribusi, galeri bukti, catatan lapangan
+- [x] `serverExternalPackages: ['@react-pdf/renderer']` di `next.config.ts` — dependensi non-JS-nya rusak bila ikut dibundel
+- [x] Halaman publik bertoken `app/r/[token]` tanpa login, `noindex`, dan `/r/` masuk `robots.txt`
+- [x] Unduh PDF dari halaman publik lewat signed URL (TTL 10 menit)
+- [x] Versi laporan tercatat di `reports`; generate ulang menambah versi **tanpa** mengubah `public_token`, jadi tautan yang sudah dibagikan tetap sama
+- [x] Hanya dokumentasi `approved` yang masuk laporan; kontak peserta (telepon/email/alamat) tidak pernah ikut
+- [x] Gate kelengkapan dokumentasi diperiksa ulang saat generate — laporan manual tidak bisa melewati `docs/10 §5`
+- [x] Kirim tautan via WA.me + salin tautan + tandai terkirim (`sent_at` inilah yang dibaca `v_order_progress.report_sent`, syarat `reporting → completed`)
+- [x] Foto WebP dilewati saat menyematkan ke PDF — React PDF hanya menerima JPEG/PNG mentah dan menghasilkan PDF rusak, bukan galat yang terlihat
+- [x] Maksimal 6 foto disematkan; tanpa batas, satu permintaan bisa menahan ratusan MB di memori server
+- [ ] **Migration `20260807010000_public_report_rpc.sql` belum di-push** — halaman `/r/{token}` belum bisa dicoba sampai itu dijalankan
+- [ ] Kirim via Email (baru WA.me) — bergantung Tahap 8
+- [ ] QR code ke halaman publik pada PDF (`docs/11 §3`) — butuh dependensi baru
+- [ ] Rate limiting percobaan token (`docs/11 §6`)
 
-→ `docs/11_REPORTING_ENGINE.md`. Tabel `reports` & kolom `orders.public_token` sudah ada di DB.
+→ `docs/11_REPORTING_ENGINE.md`
+
+> **Kenapa butuh migration.** Pengunjung anonim tidak punya akses apa pun: seluruh RLS ditujukan `to authenticated` dan `anon` hanya di-grant `SELECT` pada `services`. RPC `get_public_report(token)` bersifat `SECURITY DEFINER` dan mengunci bentuk keluarannya **di level database** — satu order saja, dokumentasi `approved` saja, tanpa kontak peserta. Pilihan ini diambil ketimbang memakai service role di halaman publik, karena dengan service role seluruh pembatasan bergantung pada kebenaran kode TypeScript saya.
+>
+> Service role tetap dipakai, tapi **hanya untuk menandatangani berkas** yang path-nya sudah dikembalikan RPC (`server/services/public-report.ts`) — penandatanganan tidak bisa memakai kunci publik karena `storage_documentation_read` ditujukan `to authenticated`, sementara pembaca halaman ini anonim.
 
 ---
 
@@ -187,10 +211,16 @@
 - [x] SEO dasar: `sitemap.xml`, `robots.txt`, metadata
 - [x] Katalog `services` di DB + grant baca untuk `anon`
 
+> **Alur pemesanan saat ini — disengaja, bukan bug.** Tombol "Pesan Paket …" di landing page membuka WhatsApp dengan pesan siap-kirim; admin yang membuatkan ordernya di sistem. Belum ada form maupun pembayaran mandiri.
+>
+> **Catatan pertentangan dokumen (perlu dikoreksi):** `prd.md §7.3` FR-C2 menetapkan checkout & guest checkout sebagai **M (Must)**, sementara `docs/01 §6` dan `docs/23 §6` mencantumkan "Marketplace / katalog publik & checkout" sebagai **out of scope**. Aturan otoritas `TEAM_PLAN` (**migrations → kode → `prd.md` → `docs/`**) memenangkan `prd.md`: checkout **dibangun**, dan kedua bagian di `docs/` itu sudah usang.
+>
+> **Prasyarat teknis guest checkout:** pengunjung anonim belum bisa membuat order sama sekali — `orders_insert` hanya untuk `authenticated` (`manager_program`/`admin_cabang`), RPC `create_order` bersifat `security invoker` dan hanya di-grant ke `authenticated`, dan `anon` cuma punya `SELECT` pada `services`. Perlu RPC `SECURITY DEFINER` khusus + grant ke `anon`, dengan harga diambil dari katalog (bukan dari klien) dan order masuk sebagai `new`/`unpaid`. Itu **migration** — satu pintu di Bani (`TEAM_PLAN §1.2`).
+
 ### Harus dikejar
 - [ ] Halaman program & katalog harga (Aqiqah Ekonomi/Favorit/Premium, Nasi Box, Qurban) → `docs/28`
 - [ ] Halaman FAQ editable (CMS) → `docs/27`
-- [ ] Checkout + Guest Checkout → `features/checkout`
+- [ ] Checkout + Guest Checkout → `features/checkout` (butuh migration di atas lebih dulu)
 - [ ] Payment Gateway UI + verifikasi → `features/integrations`
 - [ ] Affiliate / Referral UI → `prd.md §7.11`
 - [ ] Chatbot + human handoff → `docs/26`
@@ -213,12 +243,13 @@
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] 114 unit test hijau (state machine order/hewan/jadwal, kapabilitas, filter schema, agregasi dashboard, format tanggal, path & schema pembayaran, tautan peta, schema pelaksanaan lapangan)
+- [x] 144 unit test hijau (state machine order/hewan/jadwal, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format tanggal, path & schema pembayaran, tautan peta, schema pelaksanaan lapangan)
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts` — sebelumnya terduplikasi di tiap modul action
 - [ ] `tests/integration/` masih kosong — target: RLS lintas cabang, RPC `create_order`
 - [ ] `tests/e2e/` masih kosong — target: alur order → laporan end-to-end (`docs/21`)
-- [ ] Dua link mati tersisa di sidebar: "Dokumentasi" & "Pengaturan" masih `href="#"` (link "Jadwal" sudah hidup)
+- [ ] Satu link mati tersisa di sidebar: "Pengaturan" masih `href="#"` ("Jadwal" & "Validasi Dokumentasi" sudah hidup)
 - [ ] Checklist keamanan `docs/20_SECURITY_CHECKLIST.md` belum ditelusuri satu per satu
+- [ ] **Koreksi dokumen:** `docs/01 §6` & `docs/23 §6` masih menyebut checkout sebagai out of scope, bertentangan dengan `prd.md §7.3` FR-C2 (lihat §8). Perlu disamakan agar tidak menyesatkan.
 - [ ] **Akun demo `*@suksesaqiqah.test` (password `Password123!`) ada di project cloud** — wajib dihapus sebelum project dipakai produksi
 
 ---
@@ -229,10 +260,10 @@ Diurutkan dari yang paling membuka jalan:
 
 | # | Pekerjaan | Kenapa didahulukan | Pemilik |
 |---|-----------|--------------------|---------|
-| 1 | **Documentation Flow** (Tahap 5) | Penghambat berikutnya: `documentation → reporting` menuntut ≥1 dokumentasi `approved`, dan itu juga gate menuju `completed`. Perlu PWA/kamera untuk dipakai petugas di lapangan. | Bani + Awalin |
+| 1 | **Reporting Engine** (Tahap 6) | Penghambat terakhir rantai order: `reporting → completed` menuntut laporan ter-generate & terkirim. Juga salah satu Definition of Done Phase 1. | Awalin |
 | 2 | **Issues** (Tahap 4, FR-SL4) | Dashboard sudah *menampilkan* kendala, tapi belum ada cara membuatnya — panel kendala akan selalu kosong sampai ini ada. Ringan dan berdiri sendiri. | Bani |
-| 3 | **Reporting Engine** (Tahap 6) | Output akhir ke peserta — salah satu Definition of Done Phase 1. | Awalin |
-| 4 | **Automation & Notification** (Tahap 8) | Mengotomatiskan pengiriman laporan yang sudah jadi di #3. | Bani |
+| 3 | **Automation & Notification** (Tahap 8) | Mengotomatiskan pengiriman laporan yang sudah jadi di #1, plus notifikasi validasi dokumentasi (`docs/10 §7`). | Bani |
+| 4 | **PWA** (kamera, kompresi klien, antrian offline) | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai petugas di lapangan. | Awalin |
 | 5 | Realtime + filter periode dashboard | Penyempurnaan, bukan penghalang. | Awalin |
 
 ---

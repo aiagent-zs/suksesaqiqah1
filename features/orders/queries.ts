@@ -221,7 +221,27 @@ export type OrderDetail = {
 export async function getOrderDetail(orderId: string): Promise<OrderDetail | null> {
   const supabase = await createClient();
 
-  const [{ data: row, error }, { data: progress }, minDpRatio] = await Promise.all([
+  // Hitungan dokumentasi `approved` per tahap tidak tersedia di
+  // `v_order_progress` (view-nya hanya menyimpan total), dan menambahkannya
+  // berarti mengubah view — schema satu pintu di Bani. Dua query `head: true`
+  // di sini hanya mengembalikan angka, tanpa payload baris.
+  const approvedByStage = async (stage: 'slaughter' | 'distribution') => {
+    const { count } = await supabase
+      .from('documentations')
+      .select('id', { count: 'exact', head: true })
+      .eq('order_id', orderId)
+      .eq('stage', stage)
+      .eq('status', 'approved');
+    return count ?? 0;
+  };
+
+  const [
+    { data: row, error },
+    { data: progress },
+    minDpRatio,
+    docsApprovedSlaughter,
+    docsApprovedDistribution,
+  ] = await Promise.all([
     supabase
       .from('orders')
       .select(
@@ -243,6 +263,8 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       .maybeSingle(),
     supabase.from('v_order_progress').select('*').eq('order_id', orderId).maybeSingle(),
     getMinDpRatio(),
+    approvedByStage('slaughter'),
+    approvedByStage('distribution'),
   ]);
 
   if (error) throw new Error(`Gagal memuat detail order: ${error.message}`);
@@ -313,6 +335,8 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       animalsDistributed: progress?.animals_distributed ?? 0,
       distributionCount: progress?.distribution_count ?? 0,
       docsApproved: progress?.docs_approved ?? 0,
+      docsApprovedSlaughter,
+      docsApprovedDistribution,
       reportSent: progress?.report_sent ?? false,
     },
   };

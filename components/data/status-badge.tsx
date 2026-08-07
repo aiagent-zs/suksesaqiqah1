@@ -1,11 +1,13 @@
 import { Badge } from '@/components/ui/badge';
 import {
   ANIMAL_STATUS_META,
+  DOC_STATUS_META,
   ORDER_STATUS_META,
   PAYMENT_STATUS_META,
   PAYMENT_VERIFICATION_META,
   SCHEDULE_STATUS_META,
   type AnimalStatus,
+  type DocStatus,
   type OrderStatus,
   type PaymentStatus,
   type PaymentVerificationStatus,
@@ -19,6 +21,12 @@ export function OrderStatusBadge({ status }: { status: OrderStatus }) {
 
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
   const meta = PAYMENT_STATUS_META[status];
+  return <Badge className={meta.className}>{meta.label}</Badge>;
+}
+
+/** Status validasi 2 tingkat dokumentasi (docs/10 section 6). */
+export function DocStatusBadge({ status }: { status: DocStatus }) {
+  const meta = DOC_STATUS_META[status];
   return <Badge className={meta.className}>{meta.label}</Badge>;
 }
 

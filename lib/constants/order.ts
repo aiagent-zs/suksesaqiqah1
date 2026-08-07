@@ -110,6 +110,39 @@ export const ISSUE_SEVERITY_META: Record<IssueSeverity, StatusMeta> = {
   low: { label: 'Ringan', className: 'bg-slate-100 text-slate-700 border-slate-200' },
 };
 
+export type DocStatus = Database['public']['Enums']['doc_status'];
+export type DocStage = Database['public']['Enums']['doc_stage'];
+export type DocType = Database['public']['Enums']['doc_type'];
+
+/** Status validasi 2 tingkat (docs/10 section 6). */
+export const DOC_STATUS_META: Record<DocStatus, StatusMeta> = {
+  pending: {
+    label: 'Menunggu Supervisor',
+    className: 'bg-amber-50 text-amber-700 border-amber-200',
+  },
+  approved_supervisor: {
+    label: 'Menunggu Admin Pusat',
+    className: 'bg-blue-50 text-blue-700 border-blue-200',
+  },
+  approved: {
+    label: 'Tervalidasi',
+    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  },
+  rejected: { label: 'Ditolak', className: 'bg-red-50 text-red-700 border-red-200' },
+};
+
+export const DOC_STAGE_LABEL: Record<DocStage, string> = {
+  slaughter: 'Pemotongan',
+  distribution: 'Distribusi',
+  general: 'Umum',
+};
+
+export const DOC_TYPE_LABEL: Record<DocType, string> = {
+  photo: 'Foto',
+  video: 'Video',
+  note: 'Catatan',
+};
+
 export const ANIMAL_SPECIES_LABEL: Record<AnimalSpecies, string> = {
   kambing: 'Kambing',
   domba: 'Domba',

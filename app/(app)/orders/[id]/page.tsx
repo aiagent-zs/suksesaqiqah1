@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, CalendarDays, MapPin, Receipt, User, UserCog } from 'lucide-react';
-import { requireAuth } from '@/server/auth/session';
+import { requireAuth, isSupervisor } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import { getOrderDetail, getOrderTimeline } from '@/features/orders/queries';
 import { getTransitionOptions } from '@/features/orders/state-machine';
@@ -16,6 +16,11 @@ import { SlaughterManager } from '@/features/slaughter/components/slaughter-mana
 import { getOrderSlaughterRecords } from '@/features/slaughter/queries';
 import { DistributionManager } from '@/features/distribution/components/distribution-manager';
 import { getOrderDistributions } from '@/features/distribution/queries';
+import { DocumentationManager } from '@/features/documentation/components/documentation-manager';
+import { getOrderDocumentations } from '@/features/documentation/queries';
+import { reviewLevelFor, missingDocumentationStages } from '@/features/documentation/review';
+import { ReportManager } from '@/features/reporting/components/report-manager';
+import { getOrderReports } from '@/features/reporting/queries';
 import {
   OrderStatusBadge,
   PaymentStatusBadge,
@@ -46,7 +51,15 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   const role = session.profile?.role;
   const canManageSchedule = canDo(role, 'MANAGE_SCHEDULE');
 
-  const [timeline, payments, scheduleOptions, slaughterRecords, distributions] = await Promise.all([
+  const [
+    timeline,
+    payments,
+    scheduleOptions,
+    slaughterRecords,
+    distributions,
+    documentations,
+    reports,
+  ] = await Promise.all([
     getOrderTimeline(id),
     getOrderPayments(id),
     // Daftar lokasi & petugas hanya dibutuhkan oleh yang berhak menyunting.
@@ -55,6 +68,8 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
       : Promise.resolve({ locations: [], pics: [] }),
     getOrderSlaughterRecords(id),
     getOrderDistributions(id),
+    getOrderDocumentations(id),
+    getOrderReports(id),
   ]);
 
   const transitions = getTransitionOptions(order.status, role, guard);
@@ -72,6 +87,11 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   // Petugas lapangan tidak pernah melihat data pembayaran (RLS `payments_select`),
   // jadi panelnya tidak dirender sama sekali untuk mereka.
   const showPayments = role !== 'petugas_lapangan';
+  // Kelengkapan yang sama dengan gate `documentation → reporting` (docs/10 §5).
+  const missingDoc = missingDocumentationStages({
+    approvedSlaughter: documentations.approvedSlaughter,
+    approvedDistribution: documentations.approvedDistribution,
+  });
 
   return (
     <div className="space-y-6">
@@ -220,6 +240,31 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             availableAnimals={distributableAnimals}
             canRecord={canRecordFieldWork}
             canDelete={canDeleteFieldRecord}
+          />
+
+          {/* --- Dokumentasi --- */}
+          <DocumentationManager
+            orderId={order.id}
+            orderNumber={order.order_number}
+            branchCode={branch?.code ?? ''}
+            orderCreatedAt={order.created_at}
+            summary={documentations}
+            animals={animals.map((a) => ({ id: a.id, tagCode: a.tag_code }))}
+            canUpload={canDo(role, 'UPLOAD_DOCUMENTATION')}
+            canDelete={role === 'manager_program' || role === 'admin_cabang'}
+            reviewLevel={reviewLevelFor(role, isSupervisor(session.profile))}
+            currentUserId={session.id}
+          />
+
+          {/* --- Laporan --- */}
+          <ReportManager
+            orderId={order.id}
+            publicToken={order.public_token}
+            appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
+            reports={reports}
+            canGenerate={canDo(role, 'GENERATE_REPORT')}
+            documentationReady={missingDoc.length === 0}
+            missingDocumentation={missingDoc}
           />
 
           {/* --- Riwayat --- */}
