@@ -51,11 +51,19 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Link
+          {/* <Link
             href="/login"
             className="hover:text-primary rounded-full px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors"
           >
             Masuk
+          </Link> */}
+          {/* Pemesanan mandiri berdampingan dengan WhatsApp, bukan
+              menggantikannya — memilih kanal pemesanan adalah keputusan bisnis. */}
+          <Link
+            href="/checkout"
+            className="hover:border-primary hover:text-primary rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors"
+          >
+            Pesan Online
           </Link>
           <a
             href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin memesan layanan.')}
@@ -94,12 +102,19 @@ export function SiteHeader() {
               </a>
             ))}
             <div className="mt-3 flex flex-col gap-2 border-t border-neutral-100 pt-3">
-              <Link
+              {/* <Link
                 href="/login"
                 onClick={() => setOpen(false)}
                 className="rounded-full border border-neutral-200 px-4 py-2.5 text-center text-sm font-semibold text-neutral-700"
               >
                 Masuk
+              </Link> */}
+              <Link
+                href="/checkout"
+                onClick={() => setOpen(false)}
+                className="rounded-full border border-neutral-300 px-4 py-2.5 text-center text-sm font-semibold text-neutral-700"
+              >
+                Pesan Online
               </Link>
               <a
                 href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin memesan layanan.')}

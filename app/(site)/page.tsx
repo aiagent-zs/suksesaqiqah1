@@ -41,54 +41,69 @@ export default function LandingPage() {
 /* ------------------------------------------------------------------ */
 function Hero() {
   return (
-    <section className="bg-primary-light relative overflow-hidden">
-      {/* dekor lembut */}
+    <section className="from-primary-light relative overflow-hidden bg-gradient-to-b via-white to-white">
+      {/* Dekor berlapis: dua gumpalan warna + kisi titik tipis. Kisinya memberi
+          tekstur pada latar yang tadinya rata, tanpa menambah beban gambar. */}
       <div
         aria-hidden
-        className="bg-primary/10 pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full blur-3xl"
+        className="bg-primary/15 pointer-events-none absolute -top-32 -right-24 h-96 w-96 rounded-full blur-3xl"
       />
       <div
         aria-hidden
-        className="bg-accent/10 pointer-events-none absolute -bottom-32 -left-20 h-72 w-72 rounded-full blur-3xl"
+        className="bg-accent/15 pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle,var(--color-primary)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_at_center,black_25%,transparent_72%)] [background-size:28px_28px] opacity-[0.15]"
       />
 
       <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
         <div className="mx-auto max-w-3xl text-center">
-          <span className="border-primary/20 text-primary-dark inline-flex items-center gap-2 rounded-full border bg-white/70 px-4 py-1.5 text-xs font-semibold">
-            <span className="bg-accent h-1.5 w-1.5 rounded-full" />
+          <span className="border-primary/20 text-primary-dark inline-flex items-center gap-2 rounded-full border bg-white/80 px-4 py-1.5 text-xs font-semibold shadow-sm backdrop-blur">
+            <span className="bg-accent h-1.5 w-1.5 animate-pulse rounded-full" />
             Aqiqah · Qurban · Sedekah Daging
           </span>
 
-          <h1 className="mt-6 text-4xl font-bold tracking-tight text-neutral-900 sm:text-5xl md:text-6xl">
-            Tunaikan Ibadah, <span className="text-primary">Tebarkan Manfaat</span>
+          <h1 className="mt-7 text-[2.5rem] leading-[1.1] font-bold tracking-tight text-neutral-900 sm:text-6xl md:text-7xl">
+            Tunaikan Ibadah,
+            <br />
+            <span className="from-primary to-success bg-gradient-to-r bg-clip-text text-transparent">
+              Tebarkan Manfaat
+            </span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
+          <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-neutral-600">
             Layanan Aqiqah, Qurban, dan Sedekah Daging yang syar’i dan amanah. Pantau setiap tahap
             secara real-time dan terima laporan pelaksanaan yang transparan — tanpa perlu bertanya.
           </p>
 
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            {/* Pemesanan mandiri jadi aksi utama; WhatsApp tetap sejajar di
+                sebelahnya untuk yang ingin bertanya lebih dulu. */}
+            <Link
+              href="/checkout"
+              className="bg-primary shadow-primary/25 hover:bg-primary-dark group inline-flex w-full items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-semibold text-white shadow-xl transition-all hover:shadow-2xl sm:w-auto"
+            >
+              Pesan Online Sekarang
+              <IconArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
             <a
               href={siteConfig.whatsapp.href(orderMessage())}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-primary shadow-primary/20 hover:bg-primary-dark inline-flex w-full items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold text-white shadow-lg transition-colors sm:w-auto"
+              className="hover:border-primary hover:text-primary inline-flex w-full items-center justify-center gap-2 rounded-full border border-neutral-300 bg-white/80 px-8 py-4 text-base font-semibold text-neutral-800 backdrop-blur transition-colors sm:w-auto"
             >
               <IconWhatsApp className="h-5 w-5" />
-              Pesan via WhatsApp
-            </a>
-            <a
-              href="#paket"
-              className="hover:border-primary hover:text-primary inline-flex w-full items-center justify-center gap-2 rounded-full border border-neutral-300 bg-white px-7 py-3.5 text-base font-semibold text-neutral-800 transition-colors sm:w-auto"
-            >
-              Lihat Paket & Harga
-              <IconArrowRight className="h-4 w-4" />
+              Tanya via WhatsApp
             </a>
           </div>
 
+          <p className="mt-5 text-xs text-neutral-500">
+            Tanpa perlu membuat akun · Pembayaran dikonfirmasi tim kami
+          </p>
+
           {/* Stat strip */}
-          <dl className="mx-auto mt-14 grid max-w-2xl grid-cols-3 gap-4">
+          <dl className="mx-auto mt-14 grid max-w-2xl grid-cols-3 gap-3 sm:gap-4">
             {[
               { value: '100%', label: 'Syar’i & tersertifikasi' },
               { value: 'Real-time', label: 'Pantau status order' },
@@ -96,10 +111,12 @@ function Hero() {
             ].map((s) => (
               <div
                 key={s.label}
-                className="rounded-2xl border border-white/60 bg-white/70 px-3 py-4 backdrop-blur"
+                className="rounded-2xl border border-white/70 bg-white/80 px-3 py-4 shadow-sm backdrop-blur transition-shadow hover:shadow-md"
               >
-                <dt className="text-primary text-lg font-bold sm:text-2xl">{s.value}</dt>
-                <dd className="mt-1 text-xs text-neutral-600 sm:text-sm">{s.label}</dd>
+                <dt className="text-primary text-lg font-bold tracking-tight sm:text-2xl">
+                  {s.value}
+                </dt>
+                <dd className="mt-1 text-xs leading-5 text-neutral-600 sm:text-sm">{s.label}</dd>
               </div>
             ))}
           </dl>
@@ -181,30 +198,34 @@ function PackagesSection() {
       />
 
       {/* Program Aqiqah */}
-      <div className="mt-12 grid gap-6 lg:grid-cols-3">
+      <div className="mt-14 grid items-start gap-6 lg:grid-cols-3">
         {aqiqahPrograms.map((p) => (
           <div
             key={p.slug}
-            className={`relative flex flex-col rounded-3xl border p-7 transition-all ${
+            className={`group relative flex flex-col rounded-3xl p-7 transition-all duration-300 ${
               p.popular
-                ? 'border-primary shadow-primary/10 bg-white shadow-2xl lg:-translate-y-3'
-                : 'hover:border-primary/30 border-neutral-200 bg-white hover:shadow-lg'
+                ? 'ring-primary shadow-primary/15 bg-white shadow-2xl ring-2 lg:-translate-y-4'
+                : 'hover:ring-primary/40 bg-white shadow-sm ring-1 ring-neutral-200 hover:-translate-y-1 hover:shadow-xl'
             }`}
           >
             {p.popular && (
-              <span className="bg-accent absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-xs font-bold text-white shadow">
+              <span className="bg-accent absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-4 py-1.5 text-xs font-bold tracking-wide text-white shadow-lg">
                 Paling Diminati
               </span>
             )}
+
             <h3 className="text-primary text-sm font-semibold tracking-wide uppercase">
               Aqiqah {p.name}
             </h3>
-            <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-3xl font-bold text-neutral-900">{formatIDR(p.price)}</span>
-            </div>
-            <p className="mt-2 text-sm text-neutral-600">{p.tagline}</p>
 
-            <ul className="mt-6 flex-1 space-y-3">
+            <div className="mt-3 flex items-baseline gap-1.5">
+              <span className="text-4xl font-bold tracking-tight text-neutral-900">
+                {formatIDR(p.price)}
+              </span>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-neutral-600">{p.tagline}</p>
+
+            <ul className="mt-6 flex-1 space-y-3 border-t border-neutral-100 pt-6">
               {p.features.map((feat) => (
                 <li key={feat} className="flex items-start gap-2.5 text-sm text-neutral-700">
                   <IconCheck className="text-success mt-0.5 h-4 w-4 shrink-0" />
@@ -213,30 +234,48 @@ function PackagesSection() {
               ))}
             </ul>
 
+            {/* Aksi utama menuju form pemesanan mandiri, membawa slug paketnya
+                supaya pengunjung tidak perlu memilih ulang di halaman sana. */}
+            <Link
+              href={`/checkout?paket=${p.slug}`}
+              className={`mt-7 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-semibold transition-all ${
+                p.popular
+                  ? 'bg-primary hover:bg-primary-dark shadow-primary/25 text-white shadow-lg'
+                  : 'hover:border-primary hover:text-primary border border-neutral-300 text-neutral-800'
+              }`}
+            >
+              Pesan Paket {p.name}
+              <IconArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+
+            {/* Kanal lama dipertahankan sebagai jalur kedua — sebagian pemesan
+                memang lebih nyaman bertanya dulu sebelum mengisi form. */}
             <a
               href={siteConfig.whatsapp.href(orderMessage(`Aqiqah ${p.name}`))}
               target="_blank"
               rel="noopener noreferrer"
-              className={`mt-7 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition-colors ${
-                p.popular
-                  ? 'bg-primary hover:bg-primary-dark text-white'
-                  : 'hover:border-primary hover:text-primary border border-neutral-300 text-neutral-800'
-              }`}
+              className="hover:text-primary mt-3 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors"
             >
-              <IconWhatsApp className="h-4 w-4" />
-              Pesan Paket {p.name}
+              <IconWhatsApp className="h-3.5 w-3.5" />
+              atau tanya via WhatsApp
             </a>
           </div>
         ))}
       </div>
 
-      {/* Nasi Box Aqiqah */}
-      <div className="mt-14 rounded-3xl border border-neutral-200 bg-neutral-50 p-7 sm:p-9">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      {/* Nasi Box Aqiqah — tambahan yang menempel pada paket ibadah, bukan
+          pesanan berdiri sendiri. Karena itu jalurnya tetap WhatsApp; RPC
+          `create_guest_order` memang menolak layanan bertipe `nasi_box`. */}
+      <div className="mt-16 rounded-3xl border border-neutral-200 bg-gradient-to-br from-neutral-50 to-white p-7 sm:p-9">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="text-xl font-bold text-neutral-900">Paket Nasi Box Aqiqah</h3>
-            <p className="mt-1 text-sm text-neutral-600">
-              Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji. Harga per porsi.
+            <span className="text-accent-dark text-xs font-bold tracking-wide uppercase">
+              Tambahan
+            </span>
+            <h3 className="mt-1 text-xl font-bold text-neutral-900">Paket Nasi Box Aqiqah</h3>
+            <p className="mt-1 max-w-xl text-sm leading-6 text-neutral-600">
+              Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji. Harga per porsi, dipesan
+              bersama paket aqiqah Anda lewat tim kami.
             </p>
           </div>
           <a
@@ -371,22 +410,32 @@ function CtaSection() {
             Konsultasikan kebutuhan Anda sekarang — gratis.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href="/checkout"
+              className="bg-primary hover:bg-primary-dark group inline-flex w-full items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold text-white shadow-lg transition-all sm:w-auto"
+            >
+              Pesan Online Sekarang
+              <IconArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
             <a
               href={siteConfig.whatsapp.href(orderMessage())}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-primary hover:bg-primary-dark inline-flex w-full items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold text-white transition-colors sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/25 px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-white/10 sm:w-auto"
             >
               <IconWhatsApp className="h-5 w-5" />
               Konsultasi via WhatsApp
             </a>
-            <Link
-              href="/login"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/25 px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-white/10 sm:w-auto"
-            >
-              Masuk ke Dashboard
-            </Link>
           </div>
+
+          {/* Tautan dashboard turun jadi tautan teks: sasaran bagian ini
+              pengunjung yang mau memesan, bukan staf yang mau masuk. */}
+          <Link
+            href="/login"
+            className="mt-6 inline-block text-sm font-medium text-white/60 transition-colors hover:text-white"
+          >
+            Masuk ke Dashboard Staf
+          </Link>
         </div>
       </div>
     </section>
@@ -456,9 +505,6 @@ function JsonLd() {
   ];
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }

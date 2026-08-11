@@ -709,6 +709,7 @@ export type Database = {
           branch_id: string
           created_at: string
           created_by: string | null
+          delivery_address: string | null
           id: string
           notes: string | null
           order_number: string
@@ -716,6 +717,8 @@ export type Database = {
           participant_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           public_token: string
+          recipient_institution: string | null
+          referral_code: string | null
           status: Database["public"]["Enums"]["order_status"]
           status_reason: string | null
           total_amount: number
@@ -725,6 +728,7 @@ export type Database = {
           branch_id: string
           created_at?: string
           created_by?: string | null
+          delivery_address?: string | null
           id?: string
           notes?: string | null
           order_number: string
@@ -732,6 +736,8 @@ export type Database = {
           participant_id: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           public_token?: string
+          recipient_institution?: string | null
+          referral_code?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           status_reason?: string | null
           total_amount?: number
@@ -741,6 +747,7 @@ export type Database = {
           branch_id?: string
           created_at?: string
           created_by?: string | null
+          delivery_address?: string | null
           id?: string
           notes?: string | null
           order_number?: string
@@ -748,6 +755,8 @@ export type Database = {
           participant_id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           public_token?: string
+          recipient_institution?: string | null
+          referral_code?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           status_reason?: string | null
           total_amount?: number
@@ -1378,7 +1387,9 @@ export type Database = {
       }
       can_read_order: { Args: { p_order_id: string }; Returns: boolean }
       can_write_order: { Args: { p_order_id: string }; Returns: boolean }
+      create_guest_order: { Args: { p_payload: Json }; Returns: Json }
       create_order: { Args: { p_payload: Json }; Returns: Json }
+      get_public_branches: { Args: never; Returns: Json }
       get_public_report: { Args: { p_token: string }; Returns: Json }
       is_central: { Args: never; Returns: boolean }
       is_order_pic: { Args: { p_order_id: string }; Returns: boolean }
