@@ -1,16 +1,9 @@
 import { requireAuth } from '@/server/auth/session';
 import { AuthProvider } from '@/components/providers/auth-provider';
-import Link from 'next/link';
+import { SidebarNav } from '@/components/layout/sidebar-nav';
+import { MobileNav } from '@/components/layout/mobile-nav';
 import type { ReactNode } from 'react';
-import {
-  ShieldCheck,
-  LayoutDashboard,
-  ShoppingBag,
-  CalendarDays,
-  FileText,
-  Settings,
-  LogOut,
-} from 'lucide-react';
+import { ShieldCheck, LogOut } from 'lucide-react';
 import { logout } from '@/server/actions/auth';
 
 /**
@@ -61,44 +54,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {/* Navigasi Utama */}
-          <nav className="flex-1 space-y-1 p-4">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 rounded-lg border-l-4 border-emerald-500 bg-emerald-600/20 px-3.5 py-2.5 text-sm font-medium text-emerald-400 transition-all"
-            >
-              <LayoutDashboard className="h-4 w-4 shrink-0" />
-              <span>Dashboard</span>
-            </Link>
-            <Link
-              href="/orders"
-              className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"
-            >
-              <ShoppingBag className="h-4 w-4 shrink-0" />
-              <span>Pesanan (Orders)</span>
-            </Link>
-            <Link
-              href="/schedule"
-              className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"
-            >
-              <CalendarDays className="h-4 w-4 shrink-0" />
-              <span>Jadwal</span>
-            </Link>
-            <Link
-              href="/validation"
-              className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"
-            >
-              <FileText className="h-4 w-4 shrink-0" />
-              <span>Validasi Dokumentasi</span>
-            </Link>
-            <a
-              href="#"
-              className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/60 hover:text-white"
-            >
-              <Settings className="h-4 w-4 shrink-0" />
-              <span>Pengaturan</span>
-            </a>
-          </nav>
+          {/* Navigasi Utama — penanda aktif diturunkan dari pathname (client) */}
+          <SidebarNav />
 
           {/* Footer Logout */}
           <div className="border-t border-slate-800 p-4">
@@ -127,10 +84,23 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </span>
           </header>
 
-          {/* Page Body */}
-          <main className="mx-auto w-full max-w-[1440px] flex-1 p-6 md:p-8">{children}</main>
+          {/* Page Body.
+              Padding ditulis per sisi, bukan `p-6 md:p-8`: bottom-nav melayang
+              di atas konten, jadi sisi bawah butuh ruang sendiri (`pb-24`) yang
+              baru kembali normal begitu sidebar muncul di `lg`. Ditulis sebagai
+              shorthand, nilai `pb` itu akan tertimpa `md:p-8`. */}
+          <main className="mx-auto w-full max-w-[1440px] flex-1 px-6 pt-6 pb-24 md:px-8 md:pt-8 lg:pb-8">
+            {children}
+          </main>
         </div>
       </div>
+
+      {/* Navigasi < lg — sidebar di atas ini `hidden lg:flex` */}
+      <MobileNav
+        fullName={session.profile?.full_name ?? session.email ?? 'User Staf'}
+        role={session.profile?.role ?? 'staf'}
+        isSupervisor={Boolean(session.profile?.is_supervisor)}
+      />
     </AuthProvider>
   );
 }
