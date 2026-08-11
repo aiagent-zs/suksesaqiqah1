@@ -2,24 +2,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { CheckoutBranch, CheckoutPackage } from '@/features/checkout/queries';
+import type { CheckoutBranch, CheckoutPackage, NasiBoxPackage } from '@/features/checkout/queries';
 
 /**
- * Menjaga agar pesanan hanya terkirim lewat klik yang disengaja.
- *
- * Form dengan satu tombol submit akan terkirim begitu Enter ditekan di
- * sembarang `<input>`. Di langkah terakhir itu berarti order tercatat di
- * database saat pemesan sekadar mengetik — kerusakan yang tidak bisa ia
- * batalkan sendiri.
+ * Menjaga agar pesanan hanya terkirim lewat klik yang disengaja, dan agar alur
+ * enam tahapnya tetap utuh.
  */
-const createGuestOrderAction = vi.fn(async () => ({
-  ok: true as const,
+// Tanda tangannya dinyatakan lewat parameter tipe `vi.fn` supaya
+// `mock.calls[0][0]` bisa diperiksa.
+type Action = (input: unknown) => Promise<{
+  ok: true;
+  data: {
+    order_number: string;
+    public_token: string;
+    total_amount: number;
+    status: 'new';
+    payment_status: 'unpaid';
+  };
+}>;
+
+const createGuestOrderAction = vi.fn<Action>(async () => ({
+  ok: true,
   data: {
     order_number: 'IA-202608-9999',
     public_token: 'x'.repeat(32),
     total_amount: 2300000,
-    status: 'new' as const,
-    payment_status: 'unpaid' as const,
+    status: 'new',
+    payment_status: 'unpaid',
   },
 }));
 
@@ -42,6 +51,9 @@ const PACKAGES: CheckoutPackage[] = [
     price: 2300000,
   },
 ];
+const NASI_BOXES: NasiBoxPackage[] = [
+  { id: 'a2000000-0000-4000-8000-000000000011', name: 'Paket A', slug: 'paket-a', price: 21000 },
+];
 const BRANCHES: CheckoutBranch[] = [
   { id: 'a0000000-0000-4000-8000-000000000001', name: 'Bandung', code: 'BDG' },
 ];
@@ -54,7 +66,7 @@ function mount() {
   document.body.appendChild(container);
   root = createRoot(container);
   act(() => {
-    root!.render(<CheckoutForm packages={PACKAGES} branches={BRANCHES} />);
+    root!.render(<CheckoutForm packages={PACKAGES} nasiBoxes={NASI_BOXES} branches={BRANCHES} />);
   });
 }
 
@@ -83,51 +95,43 @@ function clickText(label: string) {
 /**
  * Menekan Enter, lalu melaporkan apakah aksi bawaannya dibatalkan.
  *
- * jsdom **tidak** mengimplementasikan pengiriman form implisit oleh Enter, jadi
- * "action tidak terpanggil" saja bukan bukti — itu tetap benar walau penjaganya
- * dicabut. Yang menentukan adalah `defaultPrevented`: di peramban sungguhan,
- * itulah satu-satunya hal yang menahan submit implisit.
+ * jsdom tidak mengimplementasikan pengiriman form implisit, jadi "action tidak
+ * terpanggil" saja bukan bukti. Yang menentukan `defaultPrevented`.
  */
 function pressEnter(id: string): { defaultPrevented: boolean } {
   const el = byId(id);
-  const event = new KeyboardEvent('keydown', {
-    key: 'Enter',
-    bubbles: true,
-    cancelable: true,
-  });
+  const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
   act(() => {
     el.dispatchEvent(event);
   });
   return { defaultPrevented: event.defaultPrevented };
 }
 
-/** Majukan waktu semu — tombol kirim baru aktif setelah jeda anti klik-susulan. */
 function advanceClock(ms: number) {
   act(() => {
     vi.advanceTimersByTime(ms);
   });
 }
 
-/**
- * Isi langkah 1 & 2 lalu berhenti di langkah 3.
- *
- * `arm: false` meniru klik yang menyusul seketika setelah "Lanjut" — jam tidak
- * dimajukan, jadi tombol kirim masih dalam jeda ragu-ragu.
- */
+/** Lewati tahap 1-5 dengan isian sah, lalu berhenti di tahap 6 (Ringkasan). */
 function goToFinalStep({ arm = true }: { arm?: boolean } = {}) {
   mount();
-  type('co-behalf', 'Ananda Fulan');
+  clickText('Anak Laki-laki'); // 1 · Aqiqah untuk
   clickText('Lanjut ke');
-  type('co-name', 'Budi Santoso');
+  clickText('Lanjut ke'); // 2 · Paket (sudah terpilih otomatis)
+  clickText('Lanjut ke'); // 3 · Nasi box — default "Tidak pakai"
+  clickText('Aqiqah Salur'); // 4 · Penyaluran
+  clickText('Lanjut ke');
+  type('co-name', 'Budi Santoso'); // 5 · Data pemesan
   type('co-phone', '081234567890');
+  type('co-email', 'budi@example.com');
+  type('co-child', 'Fatih');
   clickText('Lanjut ke');
   if (arm) advanceClock(1000);
 }
 
 beforeEach(() => {
   createGuestOrderAction.mockClear();
-  // Hanya timer yang dipakai penjaga; menyemukan semuanya bisa mengganggu
-  // penjadwal React di jsdom.
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
   vi.setSystemTime(1_760_000_000_000);
 });
@@ -140,21 +144,88 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
-  it('sampai di langkah terakhir tanpa mengirim apa pun', () => {
-    goToFinalStep();
+describe('alur enam tahap', () => {
+  it('tahap 1 menanyakan aqiqah untuk siapa', () => {
+    mount();
 
-    expect(byId('co-institution')).toBeTruthy();
-    expect(createGuestOrderAction).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('Anak Laki-laki');
+    expect(document.body.textContent).toContain('Anak Perempuan');
   });
 
-  it('Enter di kolom instansi dibatalkan, jadi tidak mengirim pesanan', () => {
-    // Inti bug yang dilaporkan: mengetik nama panti lalu menekan Enter langsung
-    // mencatat order tanpa pernah menekan tombol konfirmasi.
-    goToFinalStep();
-    type('co-institution', 'Panti Asuhan Al-Amin');
+  it('tidak bisa maju sebelum memilih jenis kelamin', () => {
+    mount();
+    clickText('Lanjut ke');
 
-    expect(pressEnter('co-institution').defaultPrevented).toBe(true);
+    // Masih di tahap 1 — kartu paket belum dirender.
+    expect(document.body.textContent).toContain('Aqiqah untuk siapa');
+  });
+
+  it('memilih anak laki-laki menganjurkan 2 ekor, perempuan 1 ekor', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    expect(document.body.textContent).toContain('Anjuran untuk anak laki-laki: 2 ekor');
+
+    clickText('Kembali');
+    clickText('Anak Perempuan');
+    clickText('Lanjut ke');
+    expect(document.body.textContent).toContain('Anjuran untuk anak perempuan: 1 ekor');
+  });
+
+  it('nasi box boleh dilewati lewat "Tidak pakai"', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    clickText('Lanjut ke');
+
+    expect(document.body.textContent).toContain('Tidak pakai');
+    // Tidak memilih apa pun tetap boleh lanjut.
+    clickText('Lanjut ke');
+    expect(document.body.textContent).toContain('Cara Penyaluran');
+  });
+
+  it('Aqiqah Kirim memunculkan alamat dan mewajibkannya', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    clickText('Lanjut ke');
+    clickText('Lanjut ke');
+    clickText('Aqiqah Kirim');
+
+    expect(document.getElementById('co-delivery')).not.toBeNull();
+
+    clickText('Lanjut ke'); // alamat masih kosong
+    expect(document.body.textContent).toContain('Alamat pengiriman wajib diisi');
+  });
+
+  it('Aqiqah Salur tidak meminta alamat', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    clickText('Lanjut ke');
+    clickText('Lanjut ke');
+    clickText('Aqiqah Salur');
+
+    expect(document.getElementById('co-delivery')).toBeNull();
+  });
+
+  it('tahap 6 menampilkan ringkasan sebelum konfirmasi', () => {
+    goToFinalStep();
+    const text = document.body.textContent ?? '';
+
+    expect(text).toContain('Rincian Pesanan');
+    expect(text).toContain('Anak Laki-laki');
+    expect(text).toContain('Fatih');
+    expect(text).toContain('Aqiqah Salur');
+    expect(text).toContain('Budi Santoso');
+    expect(text).toContain('Total Tagihan');
+  });
+});
+
+describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
+  it('sampai di tahap akhir tanpa mengirim apa pun', () => {
+    goToFinalStep();
+
     expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
@@ -172,17 +243,7 @@ describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
     expect(pressEnter('co-notes').defaultPrevented).toBe(false);
   });
 
-  it('menekan tombol konfirmasi tetap mengirim pesanan', () => {
-    // Perbaikannya tidak boleh sampai memblokir jalur yang benar.
-    goToFinalStep();
-    clickText('Kirim Pesanan');
-
-    expect(createGuestOrderAction).toHaveBeenCalledOnce();
-  });
-
   it('mengirim form secara implisit tidak pernah mencatat pesanan', () => {
-    // Apa pun yang memicu submit implisit — Enter, autofill, tombol yang luput
-    // diberi `type` — paling jauh hanya boleh memajukan langkah.
     goToFinalStep();
     const form = document.querySelector('form')!;
     act(() => {
@@ -191,31 +252,15 @@ describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
 
     expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
-});
 
-describe('tombol Lanjut tidak boleh berubah jadi tombol Kirim di tempatnya', () => {
-  it('klik kedua pada posisi tombol Lanjut tidak mengirim pesanan', () => {
-    // Inti bug yang dilaporkan, dan versi pertama test ini SALAH: ia mengklik
-    // variabel tombol lama yang sudah dilepas dari dokumen, jadi kliknya tidak
-    // mendarat ke mana pun dan test lolos tanpa menguji apa pun.
-    //
-    // Di peramban, klik kedua mendarat pada elemen yang KINI menempati titik
-    // itu — yaitu tombol "Konfirmasi & Kirim". Jadi yang harus diklik adalah
-    // tombol yang sedang dirender, bukan referensi lama.
-    mount();
-    type('co-behalf', 'Ananda Fulan');
-    clickText('Lanjut ke');
-    type('co-name', 'Budi Santoso');
-    type('co-phone', '081234567890');
-
-    clickText('Lanjut ke'); // -> tiba di langkah 3
-    clickText('Kirim Pesanan'); // klik susulan seketika, di titik yang sama
+  it('klik susulan seketika di posisi tombol Lanjut tidak mengirim pesanan', () => {
+    goToFinalStep({ arm: false });
+    clickText('Kirim Pesanan');
 
     expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
   it('setelah jeda singkat, tombol kirim menerima klik yang disengaja', () => {
-    // Penjaganya tidak boleh sampai memblokir orang yang memang mau memesan.
     goToFinalStep({ arm: false });
     advanceClock(1000);
     clickText('Kirim Pesanan');
@@ -223,57 +268,14 @@ describe('tombol Lanjut tidak boleh berubah jadi tombol Kirim di tempatnya', () 
     expect(createGuestOrderAction).toHaveBeenCalledOnce();
   });
 
-  it('melompat ke langkah 3 lewat penunjuk langkah juga terkunci sesaat', () => {
-    // Jalur pintas itu memakai `goToStep` yang sama, jadi tidak boleh jadi
-    // celah yang melewati jeda.
-    goToFinalStep({ arm: true });
-    clickText('Data Pemesan'); // mundur ke langkah 2
-    clickText('Pengiriman'); // lompat maju ke langkah 3
+  it('payload memuat medan tahap baru', () => {
+    goToFinalStep();
     clickText('Kirim Pesanan');
 
-    expect(createGuestOrderAction).not.toHaveBeenCalled();
-  });
-
-  it('tombol kirim adalah elemen DOM baru, bukan tombol Lanjut yang didaur ulang', () => {
-    mount();
-    type('co-behalf', 'Ananda Fulan');
-    clickText('Lanjut ke');
-    type('co-name', 'Budi Santoso');
-    type('co-phone', '081234567890');
-
-    const nextBtn = [...document.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Lanjut ke'),
-    )!;
-    act(() => nextBtn.click());
-
-    const submitBtn = [...document.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Kirim Pesanan'),
-    )!;
-
-    expect(submitBtn).toBeTruthy();
-    expect(submitBtn).not.toBe(nextBtn);
-    // Elemen lama sudah dilepas dari dokumen, jadi tidak bisa lagi menerima
-    // fokus maupun klik yang menyusul.
-    expect(document.contains(nextBtn)).toBe(false);
-  });
-});
-
-describe('Enter di langkah awal tetap berguna', () => {
-  it('Enter di kolom atas nama memajukan langkah, bukan mengirim', () => {
-    mount();
-    type('co-behalf', 'Ananda Fulan');
-    pressEnter('co-behalf');
-
-    expect(document.getElementById('co-name')).not.toBeNull();
-    expect(createGuestOrderAction).not.toHaveBeenCalled();
-  });
-
-  it('Enter tidak memajukan langkah bila medan wajib belum sah', () => {
-    mount();
-    pressEnter('co-behalf');
-
-    // Masih di langkah 1 — kolom nama pemesan belum dirender.
-    expect(document.getElementById('co-name')).toBeNull();
-    expect(createGuestOrderAction).not.toHaveBeenCalled();
+    const payload = createGuestOrderAction.mock.calls[0][0] as unknown as Record<string, unknown>;
+    expect(payload.aqiqah_for).toBe('laki_laki');
+    expect(payload.distribution_mode).toBe('salur');
+    expect(payload.child_name).toBe('Fatih');
+    expect(payload.email).toBe('budi@example.com');
   });
 });

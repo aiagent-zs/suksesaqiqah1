@@ -29,7 +29,7 @@ export default async function CheckoutPage({
   searchParams: Promise<{ paket?: string }>;
 }) {
   const { paket } = await searchParams;
-  const { packages, branches } = await getCheckoutOptions();
+  const { packages, nasiBoxes, branches } = await getCheckoutOptions();
 
   // `?paket=` membawa slug dari kartu paket di landing. Dicocokkan ke katalog
   // di sini, bukan dipercaya sebagai id: slug yang tidak dikenal cukup
@@ -72,6 +72,7 @@ export default async function CheckoutPage({
         ) : (
           <CheckoutForm
             packages={packages}
+            nasiBoxes={nasiBoxes}
             branches={branches}
             initialServiceId={preselected?.id}
           />

@@ -706,10 +706,12 @@ export type Database = {
       }
       orders: {
         Row: {
+          aqiqah_for: string | null
           branch_id: string
           created_at: string
           created_by: string | null
           delivery_address: string | null
+          distribution_mode: string | null
           id: string
           notes: string | null
           order_number: string
@@ -725,10 +727,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aqiqah_for?: string | null
           branch_id: string
           created_at?: string
           created_by?: string | null
           delivery_address?: string | null
+          distribution_mode?: string | null
           id?: string
           notes?: string | null
           order_number: string
@@ -744,10 +748,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aqiqah_for?: string | null
           branch_id?: string
           created_at?: string
           created_by?: string | null
           delivery_address?: string | null
+          distribution_mode?: string | null
           id?: string
           notes?: string | null
           order_number?: string

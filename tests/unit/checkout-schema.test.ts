@@ -9,9 +9,14 @@ const valid = {
   branch_id: BRANCH_ID,
   species: 'kambing',
   qty: 2,
-  on_behalf_of: 'Ananda Fulan',
+  // Tahap 1 & 4 — keduanya wajib sejak alur enam tahap.
+  aqiqah_for: 'laki_laki',
+  distribution_mode: 'salur',
+  child_name: 'Fatih',
+  bin_binti: 'bin Ahmad',
   name: 'Budi Santoso',
   phone: '081234567890',
+  email: 'budi@example.com',
 };
 
 describe('guestCheckoutSchema', () => {
@@ -61,9 +66,44 @@ describe('guestCheckoutSchema', () => {
     expect(guestCheckoutSchema.safeParse({ ...valid, species: 'naga' }).success).toBe(false);
   });
 
-  it('mewajibkan nama atas nama ibadah', () => {
-    expect(guestCheckoutSchema.safeParse({ ...valid, on_behalf_of: '' }).success).toBe(false);
-    expect(guestCheckoutSchema.safeParse({ ...valid, on_behalf_of: ' A ' }).success).toBe(false);
+  it('mewajibkan nama anak', () => {
+    expect(guestCheckoutSchema.safeParse({ ...valid, child_name: '' }).success).toBe(false);
+    expect(guestCheckoutSchema.safeParse({ ...valid, child_name: ' A ' }).success).toBe(false);
+  });
+
+  it('mewajibkan pilihan tahap 1 dan tahap 4', () => {
+    expect(guestCheckoutSchema.safeParse({ ...valid, aqiqah_for: undefined }).success).toBe(false);
+    expect(guestCheckoutSchema.safeParse({ ...valid, distribution_mode: undefined }).success).toBe(
+      false,
+    );
+    expect(guestCheckoutSchema.safeParse({ ...valid, aqiqah_for: 'lelaki' }).success).toBe(false);
+  });
+
+  it('Aqiqah Kirim menuntut alamat pengiriman', () => {
+    // Aturan silang-medan: dikirim tanpa alamat berarti tidak bisa diantar.
+    expect(guestCheckoutSchema.safeParse({ ...valid, distribution_mode: 'kirim' }).success).toBe(
+      false,
+    );
+    expect(
+      guestCheckoutSchema.safeParse({
+        ...valid,
+        distribution_mode: 'kirim',
+        delivery_address: 'Jl. Melati 1',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('memilih nasi box tanpa jumlah ditolak', () => {
+    expect(
+      guestCheckoutSchema.safeParse({ ...valid, nasi_box_service_id: SERVICE_ID }).success,
+    ).toBe(false);
+    expect(
+      guestCheckoutSchema.safeParse({
+        ...valid,
+        nasi_box_service_id: SERVICE_ID,
+        nasi_box_qty: 25,
+      }).success,
+    ).toBe(true);
   });
 
   it('menerima format nomor telepon yang lazim ditulis orang', () => {
@@ -80,8 +120,9 @@ describe('guestCheckoutSchema', () => {
     }
   });
 
-  it('membolehkan email kosong tapi menolak yang salah bentuk', () => {
-    expect(guestCheckoutSchema.safeParse({ ...valid, email: '' }).success).toBe(true);
+  it('mewajibkan email dan menolak yang salah bentuk', () => {
+    // Mengikuti alur referensi: email dipakai mengirim salinan pesanan.
+    expect(guestCheckoutSchema.safeParse({ ...valid, email: '' }).success).toBe(false);
     expect(guestCheckoutSchema.safeParse({ ...valid, email: 'bukan-email' }).success).toBe(false);
   });
 

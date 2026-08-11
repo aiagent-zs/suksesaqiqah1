@@ -17,8 +17,17 @@ export type CheckoutBranch = {
   code: string;
 };
 
+/** Paket nasi box — tambahan opsional, bukan pesanan yang berdiri sendiri. */
+export type NasiBoxPackage = {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+};
+
 export type CheckoutOptions = {
   packages: CheckoutPackage[];
+  nasiBoxes: NasiBoxPackage[];
   branches: CheckoutBranch[];
 };
 
@@ -33,7 +42,7 @@ export type CheckoutOptions = {
 export async function getCheckoutOptions(): Promise<CheckoutOptions> {
   const supabase = await createClient();
 
-  const [servicesResult, branchesResult] = await Promise.all([
+  const [servicesResult, boxesResult, branchesResult] = await Promise.all([
     supabase
       .from('services')
       .select('id, type, name, slug, description, price')
@@ -41,8 +50,22 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('sort_order', { ascending: true }),
+    supabase
+      .from('services')
+      .select('id, name, slug, price')
+      .eq('type', 'nasi_box')
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('sort_order', { ascending: true }),
     supabase.rpc('get_public_branches'),
   ]);
+
+  const nasiBoxes = (boxesResult.data ?? []).map((s) => ({
+    id: s.id,
+    name: s.name,
+    slug: s.slug,
+    price: Number(s.price),
+  }));
 
   const packages = (servicesResult.data ?? []).map((s) => ({
     id: s.id,
@@ -60,7 +83,7 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
     code: b.code,
   }));
 
-  return { packages, branches };
+  return { packages, nasiBoxes, branches };
 }
 
 /** Tipe hasil RPC `create_guest_order`, dipakai action & halaman konfirmasi. */

@@ -46,7 +46,14 @@ export async function createGuestOrderAction(
       branch_id: data.branch_id,
       species: data.species,
       qty: data.qty,
-      on_behalf_of: data.on_behalf_of,
+      aqiqah_for: data.aqiqah_for,
+      distribution_mode: data.distribution_mode,
+      // Kosong = "Tidak pakai". RPC memperlakukan id kosong sebagai tanpa add-on.
+      nasi_box_service_id: data.nasi_box_service_id || null,
+      nasi_box_qty: data.nasi_box_qty ?? 0,
+      // Nama anak dan nasabnya disatukan di sini — `animals.on_behalf_of`
+      // menyimpannya sebagai satu teks.
+      on_behalf_of: [data.child_name, data.bin_binti].filter(Boolean).join(' ').trim(),
       delivery_address: data.delivery_address || null,
       recipient_institution: data.recipient_institution || null,
       referral_code: data.referral_code || null,
