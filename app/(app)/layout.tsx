@@ -1,5 +1,6 @@
 import { requireAuth } from '@/server/auth/session';
 import { AuthProvider } from '@/components/providers/auth-provider';
+import { IdleLogout } from '@/components/providers/idle-logout';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import type { ReactNode } from 'react';
@@ -14,6 +15,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <AuthProvider profile={session.profile}>
+      {/* Keluar otomatis saat menganggur — penegakannya di middleware,
+          komponen ini yang membuat waktunya tepat (lib/auth/idle.ts) */}
+      <IdleLogout />
+
       <div className="flex min-h-screen bg-[#f8f9ff] text-[#0b1c30]">
         {/* Sidebar 260px sesuai design.md */}
         <aside className="hidden w-[260px] shrink-0 flex-col border-r border-slate-800 bg-[#0b1c30] text-white lg:flex">
