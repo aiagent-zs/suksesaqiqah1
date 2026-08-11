@@ -42,6 +42,16 @@ export const CAPABILITIES = {
   DELETE_FIELD_RECORD: ['manager_program'] as UserRole[],
 
   /**
+   * Tandai & kelola kendala pada order (`prd.md` FR-SL4, docs/16 section 11).
+   *
+   * Daftar rolenya sengaja identik dengan `can_write_order` yang dipakai RLS
+   * `issues_insert` / `issues_update` — kendala paling sering muncul di
+   * lapangan, jadi Petugas Lapangan harus bisa melaporkannya sendiri pada order
+   * yang ia PIC-i. Direktur & Admin Pusat tetap read-only di jalur operasional.
+   */
+  MANAGE_ISSUES: ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[],
+
+  /**
    * Catat pembayaran masuk & unggah bukti transfer.
    *
    * Daftar rolenya sengaja identik dengan kebijakan Storage

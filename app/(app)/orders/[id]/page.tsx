@@ -16,6 +16,8 @@ import { SlaughterManager } from '@/features/slaughter/components/slaughter-mana
 import { getOrderSlaughterRecords } from '@/features/slaughter/queries';
 import { DistributionManager } from '@/features/distribution/components/distribution-manager';
 import { getOrderDistributions } from '@/features/distribution/queries';
+import { IssueManager } from '@/features/issues/components/issue-manager';
+import { getOrderIssues } from '@/features/issues/queries';
 import { DocumentationManager } from '@/features/documentation/components/documentation-manager';
 import { getOrderDocumentations } from '@/features/documentation/queries';
 import { reviewLevelFor, missingDocumentationStages } from '@/features/documentation/review';
@@ -59,6 +61,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
     distributions,
     documentations,
     reports,
+    issues,
   ] = await Promise.all([
     getOrderTimeline(id),
     getOrderPayments(id),
@@ -70,6 +73,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
     getOrderDistributions(id),
     getOrderDocumentations(id),
     getOrderReports(id),
+    getOrderIssues(id),
   ]);
 
   const transitions = getTransitionOptions(order.status, role, guard);
@@ -80,6 +84,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   const canVerifyPayment = canDo(role, 'VERIFY_PAYMENT');
   const canRecordFieldWork = canDo(role, 'RECORD_FIELD_WORK');
   const canDeleteFieldRecord = canDo(role, 'DELETE_FIELD_RECORD');
+  const canManageIssues = canDo(role, 'MANAGE_ISSUES');
   // Hanya hewan yang sudah dipotong yang bisa ditandai tersalurkan.
   const distributableAnimals = animals
     .filter((a) => a.status === 'slaughtered')
@@ -241,6 +246,9 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             canRecord={canRecordFieldWork}
             canDelete={canDeleteFieldRecord}
           />
+
+          {/* --- Kendala --- */}
+          <IssueManager orderId={order.id} summary={issues} canManage={canManageIssues} />
 
           {/* --- Dokumentasi --- */}
           <DocumentationManager

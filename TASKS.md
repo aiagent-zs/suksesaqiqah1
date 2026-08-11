@@ -54,7 +54,7 @@
 
 ---
 
-## 2. Tahap 4 · Order Management — **± 95%** — *Bani*
+## 2. Tahap 4 · Order Management — **± 98%** — *Bani*
 
 ### Sudah jadi
 - [x] CRUD order + nomor unik `IA-YYYYMM-####` (atomik lewat `order_counters`)
@@ -101,8 +101,21 @@
 - [x] Petugas Lapangan bisa mencatat keduanya pada order yang ia PIC-i, sesuai `can_write_order`
 - [x] **Terverifikasi di cloud:** petugas mencatat potong + distribusi pada order-nya sendiri → `pct_slaughter` 0→100%, `pct_distribution` 0→100%, `distribution_count` 1, `packages_total` 12. Seluruh data uji dikembalikan.
 
+#### Issues — tandai & kelola kendala (`prd.md` FR-SL4 · `docs/06 §1`)
+- [x] Panel Kendala di halaman detail order — jalur pembuatan kendala pertama dari UI; sebelumnya tabel `issues` hanya bisa terisi lewat seed
+- [x] Laporkan kendala: judul, tingkat keparahan, deskripsi opsional → baris `issues` berstatus `open`
+- [x] `status` tidak pernah datang dari klien saat pelaporan — kendala selalu lahir `open`, karena itulah yang membuatnya terhitung di panel dashboard
+- [x] Ubah status dua arah `open ↔ in_progress ↔ resolved`; kendala yang ternyata belum beres bisa dibuka kembali
+- [x] `resolved_by` & `resolved_at` **diturunkan dari status tujuan**, tidak pernah dikirim klien — constraint `issues_resolved_consistency_check` menuntut `resolved_at` terisi tepat ketika statusnya `resolved`, dan kosong di status lain
+- [x] Menulis ulang status yang sama ditolak; tanpa itu "Tandai selesai" dua kali akan menggeser waktu penyelesaian yang sudah tercatat
+- [x] Penguncian optimistik: dua operator yang mengubah status bersamaan tidak bisa sama-sama berhasil
+- [x] Koreksi isi (judul/keparahan/deskripsi) dipisah dari perubahan status, supaya perbaikan redaksional tidak menyentuh `resolved_at`
+- [x] Tanpa tombol hapus — tabel `issues` memang tanpa kebijakan RLS `delete`; kendala dikoreksi atau ditutup, bukan dihapus
+- [x] Kapabilitas `MANAGE_ISSUES` disamakan persis dengan `can_write_order`, jadi Petugas Lapangan bisa melapor sendiri dari lapangan
+- [x] `ISSUE_OPEN_STATUSES` menyatukan definisi "kendala terbuka" dengan `v_open_orders` / `v_order_progress` (`open` + `in_progress`), supaya hitungan di panel order tidak pernah berbeda dari angka dashboard
+- [x] **Terverifikasi di cloud:** petugas melapor & menangani kendala pada order yang ia PIC-i → berhasil; pada order di luar PIC-nya → ditolak RLS; direktur bisa membaca lintas cabang tapi ditolak saat menulis; `delete` menghasilkan 0 baris bahkan bagi Manager Program. Constraint menolak `resolved` tanpa `resolved_at` **dan** pembukaan kembali tanpa mengosongkannya; trigger `audit_issues` mencatat tiap perubahan. Seluruh data uji dikembalikan.
+
 ### Harus dikejar
-- [ ] **Issues** · tandai & kelola kendala (`prd.md` FR-SL4, satu bagian dengan Slaughter & Distribution). Dashboard sudah *menampilkan* kendala, tapi belum ada cara membuatnya dari UI. → `docs/06 §1`
 - [ ] Status hewan masih bisa diubah langsung lewat panel Hewan **tanpa** catatan pemotongan. Guard `slaughtering → distribution` membaca `animals.status`, jadi jalur itu melepas transisi tanpa bukti. Perlu diputuskan: kunci status hewan agar hanya bergerak lewat catatan pemotongan, atau biarkan sebagai jalur koreksi.
 
 > Order kini bisa berjalan **penuh dari `new` sampai `completed`** lewat UI — seluruh guard state machine punya jalur pengisiannya masing-masing. Yang tersisa adalah otomasi, kenyamanan lapangan, dan sisi publik.
@@ -264,7 +277,7 @@ Diurutkan dari yang paling membuka jalan:
 | # | Pekerjaan | Kenapa didahulukan | Pemilik |
 |---|-----------|--------------------|---------|
 | 1 | **Reporting Engine** (Tahap 6) | Penghambat terakhir rantai order: `reporting → completed` menuntut laporan ter-generate & terkirim. Juga salah satu Definition of Done Phase 1. | Awalin |
-| 2 | **Issues** (Tahap 4, FR-SL4) | Dashboard sudah *menampilkan* kendala, tapi belum ada cara membuatnya — panel kendala akan selalu kosong sampai ini ada. Ringan dan berdiri sendiri. | Bani |
+| ~~2~~ | ~~**Issues** (Tahap 4, FR-SL4)~~ | **Selesai** — panel Kendala di detail order kini mengisi tabel `issues`, jadi panel dashboard tidak lagi bergantung pada seed. | Bani |
 | 3 | **Automation & Notification** (Tahap 8) | Mengotomatiskan pengiriman laporan yang sudah jadi di #1, plus notifikasi validasi dokumentasi (`docs/10 §7`). | Bani |
 | 4 | **PWA** (kamera, kompresi klien, antrian offline) | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai petugas di lapangan. | Awalin |
 | 5 | Realtime + filter periode dashboard | Penyempurnaan, bukan penghalang. | Awalin |

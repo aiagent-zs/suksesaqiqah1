@@ -6,6 +6,7 @@ export type AnimalStatus = Database['public']['Enums']['animal_status'];
 export type AnimalSpecies = Database['public']['Enums']['animal_species'];
 export type ScheduleStatus = Database['public']['Enums']['schedule_status'];
 export type IssueSeverity = Database['public']['Enums']['issue_severity'];
+export type IssueStatus = Database['public']['Enums']['issue_status'];
 export type PaymentVerificationStatus = Database['public']['Enums']['payment_verification_status'];
 
 type StatusMeta = {
@@ -109,6 +110,24 @@ export const ISSUE_SEVERITY_META: Record<IssueSeverity, StatusMeta> = {
   medium: { label: 'Sedang', className: 'bg-amber-50 text-amber-700 border-amber-200' },
   low: { label: 'Ringan', className: 'bg-slate-100 text-slate-700 border-slate-200' },
 };
+
+/** Urutan penanganan kendala, sama dengan urutan enum Postgres. */
+export const ISSUE_STATUS_ORDER: IssueStatus[] = ['open', 'in_progress', 'resolved'];
+
+export const ISSUE_STATUS_META: Record<IssueStatus, StatusMeta> = {
+  open: { label: 'Terbuka', className: 'bg-red-50 text-red-700 border-red-200' },
+  in_progress: { label: 'Ditangani', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  resolved: { label: 'Selesai', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+};
+
+/**
+ * Status yang dihitung sebagai "kendala terbuka".
+ *
+ * Definisi yang sama dipakai `v_open_orders` dan `v_order_progress`
+ * (`status in ('open', 'in_progress')`). Kalau daftar ini menyimpang, hitungan
+ * di panel order dan angka di dashboard akan berbeda untuk data yang sama.
+ */
+export const ISSUE_OPEN_STATUSES: IssueStatus[] = ['open', 'in_progress'];
 
 export type DocStatus = Database['public']['Enums']['doc_status'];
 export type DocStage = Database['public']['Enums']['doc_stage'];
