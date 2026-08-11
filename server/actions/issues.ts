@@ -33,7 +33,7 @@ const internalError = scopedInternalError('issues');
 // Laporkan kendala (prd.md FR-SL4)
 // =============================================================================
 
-export async function reportIssue(input: unknown): Promise<ActionResult<{ id: string }>> {
+export async function createIssueAction(input: unknown): Promise<ActionResult<{ id: string }>> {
   const session = await requireAuth();
 
   if (!canDo(session.profile?.role, 'MANAGE_ISSUES')) {
@@ -88,7 +88,7 @@ export async function reportIssue(input: unknown): Promise<ActionResult<{ id: st
  * selesai adalah dua keputusan berbeda, dan hanya yang kedua boleh menulis
  * `resolved_by` / `resolved_at`.
  */
-export async function updateIssue(input: unknown): Promise<ActionResult<null>> {
+export async function updateIssueAction(input: unknown): Promise<ActionResult<null>> {
   const session = await requireAuth();
 
   if (!canDo(session.profile?.role, 'MANAGE_ISSUES')) {
@@ -138,7 +138,7 @@ export async function updateIssue(input: unknown): Promise<ActionResult<null>> {
  * `resolved_at` terisi **tepat ketika** statusnya `resolved`; membuka kembali
  * tanpa mengosongkannya akan ditolak database.
  */
-export async function updateIssueStatus(input: unknown): Promise<ActionResult<null>> {
+export async function updateIssueStatusAction(input: unknown): Promise<ActionResult<null>> {
   const session = await requireAuth();
 
   if (!canDo(session.profile?.role, 'MANAGE_ISSUES')) {

@@ -16,7 +16,7 @@ import { SlaughterManager } from '@/features/slaughter/components/slaughter-mana
 import { getOrderSlaughterRecords } from '@/features/slaughter/queries';
 import { DistributionManager } from '@/features/distribution/components/distribution-manager';
 import { getOrderDistributions } from '@/features/distribution/queries';
-import { IssueManager } from '@/features/issues/components/issue-manager';
+import { IssueListPanel } from '@/features/issues/components/issue-list-panel';
 import { getOrderIssues } from '@/features/issues/queries';
 import { DocumentationManager } from '@/features/documentation/components/documentation-manager';
 import { getOrderDocumentations } from '@/features/documentation/queries';
@@ -248,7 +248,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           />
 
           {/* --- Kendala --- */}
-          <IssueManager orderId={order.id} summary={issues} canManage={canManageIssues} />
+          <IssueListPanel orderId={order.id} summary={issues} canManage={canManageIssues} />
 
           {/* --- Dokumentasi --- */}
           <DocumentationManager
