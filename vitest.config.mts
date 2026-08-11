@@ -3,8 +3,11 @@ import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   test: {
+    // Default `node` — cepat, dan cukup untuk sebagian besar unit test.
+    // Berkas yang butuh DOM sungguhan memilih sendiri lewat docblock
+    // `@vitest-environment jsdom` di barisan pertamanya.
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.{ts,tsx}'],
   },
   resolve: {
     alias: {

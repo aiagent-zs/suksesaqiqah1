@@ -2,12 +2,16 @@ import { Badge } from '@/components/ui/badge';
 import {
   ANIMAL_STATUS_META,
   DOC_STATUS_META,
+  ISSUE_SEVERITY_META,
+  ISSUE_STATUS_META,
   ORDER_STATUS_META,
   PAYMENT_STATUS_META,
   PAYMENT_VERIFICATION_META,
   SCHEDULE_STATUS_META,
   type AnimalStatus,
   type DocStatus,
+  type IssueSeverity,
+  type IssueStatus,
   type OrderStatus,
   type PaymentStatus,
   type PaymentVerificationStatus,
@@ -43,5 +47,17 @@ export function AnimalStatusBadge({ status }: { status: AnimalStatus }) {
 
 export function ScheduleStatusBadge({ status }: { status: ScheduleStatus }) {
   const meta = SCHEDULE_STATUS_META[status];
+  return <Badge className={meta.className}>{meta.label}</Badge>;
+}
+
+/** Tingkat keparahan kendala — sama dengan yang dipakai panel dashboard. */
+export function IssueSeverityBadge({ severity }: { severity: IssueSeverity }) {
+  const meta = ISSUE_SEVERITY_META[severity];
+  return <Badge className={meta.className}>{meta.label}</Badge>;
+}
+
+/** Status penanganan satu kendala — bukan tingkat keparahannya. */
+export function IssueStatusBadge({ status }: { status: IssueStatus }) {
+  const meta = ISSUE_STATUS_META[status];
   return <Badge className={meta.className}>{meta.label}</Badge>;
 }

@@ -4,10 +4,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Clock, ShieldCheck } from 'lucide-react';
+import { IDLE_NOTICE, IDLE_TIMEOUT_MS } from '@/lib/auth/idle';
 
 interface LoginPageProps {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string }>;
 }
 
 export const metadata = {
@@ -16,7 +17,7 @@ export const metadata = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { error } = await searchParams;
+  const { error, notice } = await searchParams;
 
   // Kunci di sini harus sama persis dengan LoginErrorCode di
   // server/actions/auth.ts. Kode yang tidak dikenal jatuh ke pesan umum —
@@ -30,56 +31,65 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     unknown: 'Login gagal. Coba lagi atau hubungi administrator.',
   };
 
-  const errorMsg = error
-    ? (errorMessages[error as LoginErrorCode] ?? errorMessages.unknown)
-    : null;
+  const errorMsg = error ? (errorMessages[error as LoginErrorCode] ?? errorMessages.unknown) : null;
+
+  // Sama seperti `error` di atas: hanya nilai yang dikenal yang ditampilkan.
+  // Parameter URL bisa disetel siapa saja lewat tautan, jadi isinya tidak
+  // pernah dicetak apa adanya.
+  const noticeMsg =
+    notice === IDLE_NOTICE
+      ? `Anda keluar otomatis karena tidak ada aktivitas selama ${IDLE_TIMEOUT_MS / 60000} menit. Silakan masuk kembali.`
+      : null;
 
   return (
-    <div className="min-h-screen bg-[#0b1c30] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#004d1f] via-[#0b1c30] to-[#051120] flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#0b1c30] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#004d1f] via-[#0b1c30] to-[#051120] p-4">
       <div className="w-full max-w-md space-y-6">
-
         {/* Logo & Brand Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#16A34A] to-[#059669] shadow-lg shadow-emerald-900/50 ring-1 ring-white/20 mb-2">
-            <ShieldCheck className="w-9 h-9 text-white" />
+        <div className="space-y-2 text-center">
+          <div className="mb-2 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#16A34A] to-[#059669] shadow-lg ring-1 shadow-emerald-900/50 ring-white/20">
+            <ShieldCheck className="h-9 w-9 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight font-sans">
-            Sukses Aqiqah
-          </h1>
-          <p className="text-emerald-400 text-xs font-semibold tracking-wider uppercase">
+          <h1 className="font-sans text-3xl font-bold tracking-tight text-white">Sukses Aqiqah</h1>
+          <p className="text-xs font-semibold tracking-wider text-emerald-400 uppercase">
             Command Center · Tebarkan Manfaat
           </p>
         </div>
 
         {/* Card Form (16px radius matching design.md) */}
-        <Card className="bg-[#15273e]/90 backdrop-blur-xl border-[#213145] shadow-2xl rounded-2xl">
+        <Card className="rounded-2xl border-[#213145] bg-[#15273e]/90 shadow-2xl backdrop-blur-xl">
           <CardHeader className="space-y-1.5 pb-4">
-            <CardTitle className="text-white font-semibold text-xl tracking-tight">
+            <CardTitle className="text-xl font-semibold tracking-tight text-white">
               Masuk Staf Internal
             </CardTitle>
-            <CardDescription className="text-slate-400 text-sm">
+            <CardDescription className="text-sm text-slate-400">
               Masukkan kredensial terotorisasi untuk mengakses dashboard
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-5">
+            {/* Keluar otomatis karena menganggur — pemberitahuan, bukan kegagalan */}
+            {noticeMsg && (
+              <Alert className="rounded-lg border-amber-500/50 bg-amber-950/50 text-amber-200">
+                <Clock className="h-4 w-4 shrink-0 text-amber-400" />
+                <AlertDescription className="text-sm text-amber-200">{noticeMsg}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Error Alert */}
             {errorMsg && (
-              <Alert variant="destructive" className="bg-red-950/50 border-red-500/50 text-red-200 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-                <AlertDescription className="text-red-200 text-sm">
-                  {errorMsg}
-                </AlertDescription>
+              <Alert
+                variant="destructive"
+                className="rounded-lg border-red-500/50 bg-red-950/50 text-red-200"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                <AlertDescription className="text-sm text-red-200">{errorMsg}</AlertDescription>
               </Alert>
             )}
 
             {/* Login Form */}
             <form action={loginWithEmail} className="space-y-4">
               <div className="space-y-2">
-                <Label
-                  htmlFor="input-email"
-                  className="text-slate-200 text-sm font-medium"
-                >
+                <Label htmlFor="input-email" className="text-sm font-medium text-slate-200">
                   Email Staf
                 </Label>
                 <Input
@@ -89,15 +99,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   autoComplete="email"
                   required
                   placeholder="nama@zakatsukses.org"
-                  className="bg-[#0b1c30]/80 border-[#213145] text-white placeholder:text-slate-500 rounded-lg h-11 focus-visible:ring-[#16A34A] focus-visible:border-[#16A34A]"
+                  className="h-11 rounded-lg border-[#213145] bg-[#0b1c30]/80 text-white placeholder:text-slate-500 focus-visible:border-[#16A34A] focus-visible:ring-[#16A34A]"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="input-password"
-                  className="text-slate-200 text-sm font-medium"
-                >
+                <Label htmlFor="input-password" className="text-sm font-medium text-slate-200">
                   Kata Sandi
                 </Label>
                 <Input
@@ -107,14 +114,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   autoComplete="current-password"
                   required
                   placeholder="••••••••"
-                  className="bg-[#0b1c30]/80 border-[#213145] text-white placeholder:text-slate-500 rounded-lg h-11 focus-visible:ring-[#16A34A] focus-visible:border-[#16A34A]"
+                  className="h-11 rounded-lg border-[#213145] bg-[#0b1c30]/80 text-white placeholder:text-slate-500 focus-visible:border-[#16A34A] focus-visible:ring-[#16A34A]"
                 />
               </div>
 
               <Button
                 id="btn-login-email"
                 type="submit"
-                className="w-full bg-gradient-to-r from-[#16A34A] to-[#059669] hover:from-[#15803D] hover:to-[#047857] text-white font-medium h-11 rounded-lg shadow-lg shadow-emerald-950/50 transition-all mt-2"
+                className="mt-2 h-11 w-full rounded-lg bg-gradient-to-r from-[#16A34A] to-[#059669] font-medium text-white shadow-lg shadow-emerald-950/50 transition-all hover:from-[#15803D] hover:to-[#047857]"
               >
                 Masuk ke System
               </Button>
@@ -123,13 +130,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </Card>
 
         {/* Footer info */}
-        <div className="text-center space-y-1">
-          <p className="text-slate-400 text-xs">
+        <div className="space-y-1 text-center">
+          <p className="text-xs text-slate-400">
             Akses terbatas hanya untuk staf & pengelola terotorisasi.
           </p>
-          <p className="text-slate-500 text-[11px]">
-            Sukses Aqiqah © 2026 · Hak Cipta Dilindungi
-          </p>
+          <p className="text-[11px] text-slate-500">Sukses Aqiqah © 2026 · Hak Cipta Dilindungi</p>
         </div>
       </div>
     </div>

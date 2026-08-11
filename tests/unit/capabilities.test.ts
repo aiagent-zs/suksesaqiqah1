@@ -68,3 +68,27 @@ describe('MANAGE_ANIMALS', () => {
     }
   });
 });
+
+describe('MANAGE_ISSUES', () => {
+  // RLS `issues_insert` / `issues_update` memakai `can_write_order`. Kalau
+  // daftar ini menyimpang, UI akan menawarkan tombol yang pasti ditolak
+  // database — atau menyembunyikan tombol yang sebenarnya boleh ditekan.
+  it('sama persis dengan cakupan tulis can_write_order', () => {
+    for (const role of ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[]) {
+      expect(canDo(role, 'MANAGE_ISSUES'), `${role} boleh`).toBe(true);
+    }
+  });
+
+  it('direktur & admin pusat tetap read-only di jalur operasional', () => {
+    for (const role of ['direktur', 'admin_pusat'] as UserRole[]) {
+      expect(canDo(role, 'MANAGE_ISSUES'), `${role} tidak boleh`).toBe(false);
+    }
+  });
+
+  it('petugas lapangan bisa melapor meski tidak boleh mengubah data order', () => {
+    // Kendala paling sering muncul di lapangan — pelapornya harus orang yang
+    // ada di sana, bukan hanya admin cabang.
+    expect(canDo('petugas_lapangan', 'MANAGE_ISSUES')).toBe(true);
+    expect(canDo('petugas_lapangan', 'UPDATE_ORDER')).toBe(false);
+  });
+});
