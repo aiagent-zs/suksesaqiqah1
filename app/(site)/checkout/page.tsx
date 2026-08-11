@@ -41,29 +41,42 @@ export default async function CheckoutPage({
   const unavailable = packages.length === 0 || branches.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 md:px-6 md:py-14">
-      <header className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight">Pesan Aqiqah & Qurban</h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">
-          Isi formulir di bawah untuk memesan. Tidak perlu membuat akun — tim kami akan menghubungi
-          Anda lewat WhatsApp untuk konfirmasi dan pembayaran.
-        </p>
-      </header>
+    // Latar abu tipis memberi kedalaman pada kartu-kartu putih di atasnya —
+    // tanpa itu form tampak mengambang di halaman kosong.
+    <div className="min-h-screen bg-neutral-50">
+      <div className="mx-auto w-full max-w-6xl px-4 py-12 md:px-6 md:py-16">
+        <header className="mb-10 max-w-2xl">
+          <span className="text-primary text-xs font-semibold tracking-wide uppercase">
+            Pemesanan Mandiri
+          </span>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
+            Pesan Aqiqah &amp; Qurban
+          </h1>
+          <p className="mt-3 leading-7 text-neutral-600">
+            Empat langkah singkat, tanpa perlu membuat akun. Tim kami menghubungi Anda lewat
+            WhatsApp untuk konfirmasi dan pembayaran.
+          </p>
+        </header>
 
-      {unavailable ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-          <div>
-            <p className="font-medium">Pemesanan mandiri belum tersedia</p>
-            <p className="mt-1 text-sm">
-              Katalog paket atau wilayah layanan belum siap. Silakan hubungi admin untuk memesan
-              lebih dulu.
-            </p>
+        {unavailable ? (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+            <div>
+              <p className="font-medium">Pemesanan mandiri belum tersedia</p>
+              <p className="mt-1 text-sm">
+                Katalog paket atau wilayah layanan belum siap. Silakan hubungi admin untuk memesan
+                lebih dulu.
+              </p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <CheckoutForm packages={packages} branches={branches} initialServiceId={preselected?.id} />
-      )}
+        ) : (
+          <CheckoutForm
+            packages={packages}
+            branches={branches}
+            initialServiceId={preselected?.id}
+          />
+        )}
+      </div>
     </div>
   );
 }

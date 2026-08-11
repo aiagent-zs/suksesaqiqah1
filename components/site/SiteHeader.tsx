@@ -26,11 +26,13 @@ export function SiteHeader() {
   }, [open]);
 
   return (
+    // Latar solid dan garis bawah yang selalu ada. Versi sebelumnya memakai
+    // `bg-white/70` tanpa border, sehingga header melebur ke hero yang sama
+    // terangnya — batas antara navigasi dan konten jadi tidak terbaca. Yang
+    // berubah saat scroll hanya kedalaman bayangannya, bukan ada/tidaknya batas.
     <header
-      className={`sticky top-0 z-50 w-full border-b transition-colors ${
-        scrolled
-          ? 'border-neutral-200 bg-white/90 backdrop-blur-md'
-          : 'border-transparent bg-white/70 backdrop-blur-sm'
+      className={`sticky top-0 z-50 w-full border-b bg-white transition-shadow duration-300 ${
+        scrolled ? 'border-neutral-200 shadow-sm' : 'border-neutral-100'
       }`}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -38,12 +40,12 @@ export function SiteHeader() {
           <Logo />
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-1 md:flex">
           {primaryNav.map((item) => (
             <a
               key={item.href}
               href={item.href}
-              className="hover:text-primary text-sm font-medium text-neutral-600 transition-colors"
+              className="hover:text-primary rounded-full px-3.5 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100"
             >
               {item.label}
             </a>

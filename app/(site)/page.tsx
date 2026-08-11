@@ -167,13 +167,16 @@ function FeaturesSection() {
           title="Ibadah yang bisa Anda telusuri"
           subtitle="Bukan sekadar jasa potong hewan — kami mengubah proses manual menjadi pengalaman digital yang transparan dan dapat dipertanggungjawabkan."
         />
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
-            <div key={f.title} className="flex gap-4 rounded-2xl bg-white p-6 shadow-sm">
-              <div className="bg-primary-light text-primary inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl">
+            <div
+              key={f.title}
+              className="group hover:border-primary/30 flex gap-4 rounded-2xl border border-neutral-200/80 bg-white p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              <div className="bg-primary-light text-primary group-hover:bg-primary inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors group-hover:text-white">
                 <Icon name={f.icon} className="h-6 w-6" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-base font-semibold text-neutral-900">{f.title}</h3>
                 <p className="mt-1.5 text-sm leading-6 text-neutral-600">{f.description}</p>
               </div>
@@ -318,13 +321,22 @@ function PackagesSection() {
 /* ------------------------------------------------------------------ */
 function ProcessSection() {
   return (
-    <section id="proses" className="bg-primary py-20 text-white">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+    <section
+      id="proses"
+      className="from-primary-dark via-primary to-primary relative overflow-hidden bg-gradient-to-br py-24 text-white"
+    >
+      {/* Kisi halus supaya blok hijau pekat ini tidak terbaca rata. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 [background-image:linear-gradient(white_1px,transparent_1px),linear-gradient(90deg,white_1px,transparent_1px)] [background-size:56px_56px] opacity-[0.07]"
+      />
+
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="text-accent text-sm font-semibold tracking-wide uppercase">
+          <span className="text-accent inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold tracking-wide uppercase ring-1 ring-white/15">
             Alur Layanan
           </span>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Lima langkah, tersaji transparan
           </h2>
           <p className="mt-4 text-base leading-7 text-white/80">
@@ -332,15 +344,17 @@ function ProcessSection() {
           </p>
         </div>
 
-        <ol className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <ol className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
           {processSteps.map((step) => (
             <li
               key={step.step}
-              className="relative rounded-2xl bg-white/10 p-6 ring-1 ring-white/15 backdrop-blur"
+              className="relative rounded-2xl bg-white/[0.08] p-6 ring-1 ring-white/15 backdrop-blur transition-colors hover:bg-white/[0.14]"
             >
-              <span className="text-accent text-3xl font-bold">{step.step}</span>
-              <h3 className="mt-3 text-lg font-semibold">{step.title}</h3>
-              <p className="mt-1.5 text-sm leading-6 text-white/75">{step.description}</p>
+              <span className="bg-accent text-primary-dark absolute -top-4 left-6 flex size-8 items-center justify-center rounded-full text-sm font-bold shadow-lg">
+                {step.step}
+              </span>
+              <h3 className="mt-4 text-lg font-semibold">{step.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-white/75">{step.description}</p>
             </li>
           ))}
         </ol>
@@ -360,9 +374,12 @@ function FaqSection() {
         title="Pertanyaan yang sering diajukan"
         subtitle="Belum menemukan jawaban? Hubungi kami langsung via WhatsApp."
       />
-      <div className="mt-10 divide-y divide-neutral-200 rounded-2xl border border-neutral-200 bg-white">
+      <div className="mt-12 divide-y divide-neutral-100 overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-sm">
         {faqs.map((faq) => (
-          <details key={faq.question} className="group px-6 py-5 [&_summary]:list-none">
+          <details
+            key={faq.question}
+            className="group px-6 py-5 transition-colors open:bg-neutral-50/60 hover:bg-neutral-50/60 [&_summary]:list-none"
+          >
             <summary className="flex cursor-pointer items-center justify-between gap-4 text-left">
               <span className="text-base font-semibold text-neutral-900">{faq.question}</span>
               <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-neutral-300 text-neutral-500 transition-transform group-open:rotate-45">
@@ -456,8 +473,10 @@ function SectionHeading({
 }) {
   return (
     <div className="mx-auto max-w-2xl text-center">
-      <span className="text-primary text-sm font-semibold tracking-wide uppercase">{eyebrow}</span>
-      <h2 className="mt-3 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
+      <span className="border-primary/15 bg-primary-light text-primary inline-flex items-center rounded-full border px-3.5 py-1.5 text-xs font-semibold tracking-wide uppercase">
+        {eyebrow}
+      </span>
+      <h2 className="mt-4 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
         {title}
       </h2>
       <p className="mt-4 text-base leading-7 text-neutral-600">{subtitle}</p>
