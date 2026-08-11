@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import {
   AlertCircle,
@@ -35,6 +35,14 @@ const SERVICE_TYPE_LABEL: Record<string, string> = {
 };
 
 const MAX_QTY = 20;
+
+/**
+ * Jeda sebelum tombol kirim mau menerima klik, dihitung sejak tiba di langkah
+ * terakhir. Cukup panjang untuk menelan klik ganda dan klik susulan yang tidak
+ * disengaja, cukup pendek untuk tidak terasa oleh orang yang memang membaca
+ * ringkasannya dulu.
+ */
+const SUBMIT_ARM_DELAY_MS = 700;
 
 type Draft = {
   service_id: string;
@@ -101,6 +109,15 @@ export function CheckoutForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState<GuestOrderResult | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
+  /**
+   * Apakah tombol kirim sudah boleh dianggap benar-benar disengaja.
+   *
+   * Penanda boolean + timer, bukan perbandingan `Date.now()`: memanggil jam di
+   * badan komponen melanggar aturan kemurnian React (hasilnya bisa berbeda tiap
+   * render ulang).
+   */
+  const submitArmedRef = useRef(false);
+  const armTimerRef = useRef<number | undefined>(undefined);
 
   const [draft, setDraft] = useState<Draft>({
     service_id: initialServiceId ?? packages[0]?.id ?? '',
@@ -204,11 +221,56 @@ export function CheckoutForm({
     }, 80);
   }
 
+  /**
+   * Satu-satunya jalan berpindah langkah, supaya penguncian tombol kirim tidak
+   * bisa terlewat lewat jalur lain.
+   */
+  function goToStep(next: number) {
+    setError(null);
+    // Tombol "Lanjut" dan "Konfirmasi & Kirim" menempati titik layar yang sama.
+    // Begitu langkah berpindah, tombol kirim langsung berada tepat di bawah
+    // kursor — klik kedua yang menyusul (atau klik ganda) mendarat di sana dan
+    // pesanan tercatat tanpa pernah dimaksudkan. `key` berbeda tidak menolong:
+    // itu hanya mencegah fokus ikut berpindah, bukan posisinya di layar.
+    window.clearTimeout(armTimerRef.current);
+    submitArmedRef.current = false;
+    if (next === STEPS.length) {
+      armTimerRef.current = window.setTimeout(() => {
+        submitArmedRef.current = true;
+      }, SUBMIT_ARM_DELAY_MS);
+    }
+    setCurrentStep(next);
+  }
+
   function nextStep() {
     if (validateStep(currentStep)) {
-      setError(null);
-      setCurrentStep((prev) => Math.min(STEPS.length, prev + 1));
+      goToStep(Math.min(STEPS.length, currentStep + 1));
     }
+  }
+
+  /**
+   * Menahan pengiriman implisit oleh tombol Enter.
+   *
+   * Form dengan satu tombol submit akan terkirim begitu Enter ditekan di
+   * sembarang `<input>`. Di langkah terakhir itu berarti pesanan **langsung
+   * tercatat** saat pemesan sekadar mengetik di kolom instansi atau kode
+   * referral — tanpa pernah menekan tombol konfirmasi, dan tanpa bisa
+   * dibatalkan sendiri karena ordernya sudah masuk database.
+   *
+   * Di langkah 1-2 Enter tetap berguna: dipakai untuk maju. Di langkah
+   * terakhir sengaja tidak melakukan apa-apa — mengirim pesanan harus lewat
+   * klik yang disengaja.
+   */
+  function handleEnterKey(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== 'Enter') return;
+
+    const target = e.target as HTMLElement;
+    // Textarea memang butuh Enter untuk baris baru, dan tombol punya
+    // perilakunya sendiri (Enter = klik) yang tidak boleh diganggu.
+    if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') return;
+
+    e.preventDefault();
+    if (currentStep < STEPS.length) nextStep();
   }
 
   function prevStep() {
@@ -217,6 +279,12 @@ export function CheckoutForm({
   }
 
   function submit() {
+    // Abaikan klik yang datang terlalu cepat setelah tiba di langkah terakhir —
+    // itu sisa klik pada tombol "Lanjut", bukan persetujuan mengirim pesanan.
+    // Pesanan tercatat di database dan tidak bisa dibatalkan pemesan, jadi
+    // ambang ragu-ragu ini lebih murah daripada order yang tidak diinginkan.
+    if (!submitArmedRef.current) return;
+
     // Galat bisa berada di langkah yang sedang tidak tampil — mis. pemesan
     // melompat lewat penunjuk langkah. Kalau hanya di-`return`, pesannya tidak
     // pernah dirender dan tombol kirim terlihat seperti rusak. Jadi pindah dulu
@@ -318,7 +386,7 @@ export function CheckoutForm({
                   aria-current={isCurrent ? 'step' : undefined}
                   onClick={() => {
                     if (step.id < currentStep || validateStep(currentStep)) {
-                      setCurrentStep(step.id);
+                      goToStep(step.id);
                     }
                   }}
                   className={cn(
@@ -360,13 +428,14 @@ export function CheckoutForm({
       {/* Modal Body / Steps Content */}
       <form
         onSubmit={(e) => {
+          // Pengiriman form TIDAK PERNAH mencatat pesanan. Jalur satu-satunya
+          // adalah klik tombol konfirmasi. Apa pun yang memicu submit implisit
+          // — Enter di input, tombol yang luput diberi `type`, autofill
+          // peramban — paling jauh hanya memajukan langkah.
           e.preventDefault();
-          if (currentStep === STEPS.length) {
-            submit();
-          } else {
-            nextStep();
-          }
+          if (currentStep < STEPS.length) nextStep();
         }}
+        onKeyDown={handleEnterKey}
         className="p-6 sm:p-8"
       >
         {/* STEP 1: PAKET & HEWAN */}
@@ -723,8 +792,18 @@ export function CheckoutForm({
             <div />
           )}
 
+          {/* `key` berbeda itu wajib, bukan hiasan.
+              Tanpanya kedua tombol menempati slot yang sama di pohon React,
+              sehingga React memakai ulang elemen DOM yang sama dan hanya
+              menukar `type` serta handler-nya. Akibatnya tombol "Lanjut" yang
+              baru diklik berubah menjadi tombol kirim sambil tetap memegang
+              fokus dan berada di bawah kursor — klik kedua atau Enter langsung
+              mencatat pesanan. `key` memaksa React melepas yang lama dan
+              memasang elemen baru, jadi fokus maupun klik yang menyusul tidak
+              mendarat di tombol kirim. */}
           {currentStep < STEPS.length ? (
             <button
+              key="nav-next"
               type="button"
               onClick={nextStep}
               className="bg-primary shadow-primary/20 hover:bg-primary-dark inline-flex items-center gap-1.5 rounded-xl px-6 py-3 text-xs font-semibold text-white shadow-md transition-all hover:shadow-lg"
@@ -732,8 +811,13 @@ export function CheckoutForm({
               Lanjut ke {STEPS[currentStep].title} <ChevronRight className="size-4" />
             </button>
           ) : (
+            /* `type="button"` + onClick, bukan `type="submit"`: pesanan tercatat
+               di database dan tidak bisa dibatalkan pemesan, jadi jalurnya tidak
+               boleh bisa dipicu pengiriman form implisit dari mana pun. */
             <button
-              type="submit"
+              key="nav-submit"
+              type="button"
+              onClick={submit}
               disabled={pending || !selected}
               className="bg-primary shadow-primary/30 hover:bg-primary-dark inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
             >
