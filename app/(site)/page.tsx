@@ -212,7 +212,7 @@ function PackagesSection() {
             }`}
           >
             {p.popular && (
-              <span className="bg-accent absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-4 py-1.5 text-xs font-bold tracking-wide text-white shadow-lg">
+              <span className="bg-accent text-accent-foreground absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-4 py-1.5 text-xs font-bold tracking-wide shadow-lg">
                 Paling Diminati
               </span>
             )}

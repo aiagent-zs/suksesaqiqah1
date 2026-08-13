@@ -7,11 +7,26 @@
 | Field | Value |
 |-------|-------|
 | Dokumen | `TASKS.md` |
-| Diperbarui | 2026-08-07 |
+| Diperbarui | 2026-08-13 |
 | Fase aktif | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`) |
-| Estimasi Phase 1 | **± 82%** |
+| Estimasi Phase 1 | **± 84%** |
+| Terverifikasi pada pembaruan ini | `npm run build` ✅ · `npm run typecheck` ✅ · **271 test hijau (23 file)** · 16 migration |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
+
+---
+
+## Perubahan sejak pembaruan 2026-08-07
+
+Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
+
+- **Checkout mandiri guest dibangun** — prasyarat migration yang dulu ditulis "belum bisa dimulai" sudah ada. Detail di §8.
+- **Keluar otomatis saat menganggur** — middleware + `IdleLogout`, ambang 30 menit (§1 Tahap 2).
+- **Navigasi mobile** — bottom-nav + panel `≡`; sebelumnya di bawah 1024px tidak ada cara berpindah halaman atau keluar sistem (§10).
+- **Panel Kendala** (sudah tercatat di §2) dan penanda aktif sidebar yang diturunkan dari pathname.
+- **Perbaikan token design system** (13 Agustus) — §10.
+
+**Kenapa estimasi Phase 1 hanya naik 2%.** Sebagian besar pekerjaan di atas mendorong **Tahap 10** (Public Platform), yang tidak muncul sama sekali di Definition of Done Phase 1 (§12). Empat butir DoD yang tersisa — pilot end-to-end, cakupan dokumentasi tervalidasi, pengiriman laporan otomatis, UAT + checklist keamanan — tidak tersentuh. Kenaikan kecil itu datang dari pengerasan auth dan navigasi mobile, bukan dari checkout.
 
 ---
 
@@ -34,7 +49,8 @@
 - [x] `.env.example` lengkap (termasuk `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` & `SUPABASE_DB_URL`)
 
 ### Tahap 1 · Database — *Bani*
-- [x] 13 migration di `supabase/migrations/` — 19 tabel, enum, index, trigger
+- [x] 16 migration di `supabase/migrations/` — 19 tabel, enum, index, trigger
+  <br>*(13 fondasi + `public_report_rpc` + 2 migration guest checkout, lihat §8)*
 - [x] 3 view KPI: `v_order_progress`, `v_branch_kpi`, `v_open_orders` (semua `security_invoker = on`)
 - [x] RPC: `create_order`, `next_order_number`, `min_dp_ratio`, helper `can_read_order` / `can_write_order`
 - [x] Storage buckets + GRANT eksplisit untuk `anon` / `authenticated`
@@ -46,6 +62,7 @@
 - [x] `getSession` / `requireAuth` / `requireRole` di `server/auth/session.ts`
 - [x] Proxy/middleware redirect route terproteksi
 - [x] Guard environment (`lib/supabase/env.ts`) — kredensial kosong gagal dengan pesan yang menyebut variabelnya
+- [x] **Keluar otomatis saat menganggur** (ambang 30 menit, `lib/auth/idle.ts`). Supabase menyegarkan token di tiap permintaan lewat middleware, jadi sesi yang ditinggal tidak pernah kedaluwarsa sendiri. Ditegakkan di **middleware** lewat cookie `httpOnly` — berlaku sekalipun JavaScript mati — sementara `IdleLogout` di klien hanya membuat waktunya tepat, karena tab yang menganggur tidak mengirim permintaan apa pun
 
 ### Tahap 3 · RBAC / RLS — *Bani*
 - [x] RLS aktif di seluruh tabel + kebijakan per role
@@ -220,28 +237,47 @@
 
 ---
 
-## 8. Tahap 10 · Public Platform — **± 15%** — *Awalin + Bani*
+## 8. Tahap 10 · Public Platform — **± 45%** — *Awalin + Bani*
 
 ### Sudah jadi
 - [x] Landing page (`app/(site)/page.tsx`)
 - [x] SEO dasar: `sitemap.xml`, `robots.txt`, metadata
 - [x] Katalog `services` di DB + grant baca untuk `anon`
 
-> **Alur pemesanan saat ini — disengaja, bukan bug.** Tombol "Pesan Paket …" di landing page membuka WhatsApp dengan pesan siap-kirim; admin yang membuatkan ordernya di sistem. Belum ada form maupun pembayaran mandiri.
->
-> **Catatan pertentangan dokumen (perlu dikoreksi):** `prd.md §7.3` FR-C2 menetapkan checkout & guest checkout sebagai **M (Must)**, sementara `docs/01 §6` dan `docs/23 §6` mencantumkan "Marketplace / katalog publik & checkout" sebagai **out of scope**. Aturan otoritas `TEAM_PLAN` (**migrations → kode → `prd.md` → `docs/`**) memenangkan `prd.md`: checkout **dibangun**, dan kedua bagian di `docs/` itu sudah usang.
->
-> **Prasyarat teknis guest checkout:** pengunjung anonim belum bisa membuat order sama sekali — `orders_insert` hanya untuk `authenticated` (`manager_program`/`admin_cabang`), RPC `create_order` bersifat `security invoker` dan hanya di-grant ke `authenticated`, dan `anon` cuma punya `SELECT` pada `services`. Perlu RPC `SECURITY DEFINER` khusus + grant ke `anon`, dengan harga diambil dari katalog (bukan dari klien) dan order masuk sebagai `new`/`unpaid`. Itu **migration** — satu pintu di Bani (`TEAM_PLAN §1.2`).
+#### Guest Checkout (`prd.md` FR-C2 · FR-C3 · FR-C4)
+- [x] Migration prasyarat **ter-push**: `20260811010000_guest_checkout.sql` & `20260811020000_guest_checkout_steps.sql`
+- [x] RPC `create_guest_order(jsonb)` **`SECURITY DEFINER`**, di-grant ke `anon` — `anon` sendiri ditolak RLS di setiap tabel operasional
+- [x] **Harga, total, status, dan jumlah terbayar tidak pernah datang dari klien** — RPC membacanya dari `services`. `guestCheckoutSchema` sengaja tidak menyediakan tempatnya, jadi tidak ada jalan memesan seharga nol rupiah
+- [x] RPC `get_public_branches()` untuk daftar wilayah layanan (`anon` tidak boleh membaca `branches` langsung)
+- [x] Form 6 tahap (`features/checkout/`): paket → jenis & jumlah hewan → nasi box → cara penyaluran → data pemesan → ringkasan
+- [x] Kolom baru `orders.aqiqah_for` & `orders.distribution_mode`
+- [x] Aturan lintas-medan ditegakkan **dua kali** — di `superRefine` supaya galatnya menempel pada medan yang tepat di form, dan di dalam RPC supaya tidak bisa dilewati: alamat wajib untuk "Aqiqah Kirim", nasi box terpilih wajib berjumlah, jenis hewan dibatasi per jenis layanan
+- [x] Hanya kode penolakan yang memang layak dibaca pengunjung (`23514`, `P0002`, `P0003`) yang diteruskan ke layar; pesan mentah Postgres tidak pernah sampai karena membocorkan nama tabel & kolom
+- [x] Halaman `force-dynamic` — katalog ter-cache akan memajang harga lama
+- [x] `?paket=` dari landing dicocokkan ke katalog sebagai **slug**, bukan dipercaya sebagai id
+- [x] Panel sukses menampilkan nomor order + total tagihan
+- [x] Order tamu ditandai **`created_by IS NULL`**
 
 ### Harus dikejar
+
+**Penutup loop guest checkout — prioritas tertinggi (lihat §11).** Ordernya sudah masuk dari publik, tapi sisi penanganannya belum ada:
+
+- [ ] **Penanda & filter order tamu di daftar order admin.** `created_by IS NULL` hanya hidup di database; `features/orders` tidak menyebut order tamu sama sekali, dan halaman detail hanya menghilangkan kata "oleh …" tanpa penanda apa pun. Order dari publik bisa mengendap tanpa ada yang tahu
+- [ ] **Antrian verifikasi admin** untuk order tamu sebelum masuk alur operasional
+- [ ] **Notifikasi WhatsApp** ke pemesan. Halaman checkout **menjanjikan** "tim kami menghubungi Anda lewat WhatsApp", tapi tidak ada pengiriman apa pun — saat ini murni manual dan bergantung admin memeriksa daftar order. Bergantung Tahap 8
+
+Sisa cakupan Tahap 10:
+
 - [ ] Halaman program & katalog harga (Aqiqah Ekonomi/Favorit/Premium, Nasi Box, Qurban) → `docs/28`
 - [ ] Halaman FAQ editable (CMS) → `docs/27`
-- [ ] Checkout + Guest Checkout → `features/checkout` (butuh migration di atas lebih dulu)
 - [ ] Payment Gateway UI + verifikasi → `features/integrations`
-- [ ] Affiliate / Referral UI → `prd.md §7.11`
+- [ ] Affiliate / Referral UI → `prd.md §7.11` — kolom `referral_code` sudah diterima checkout, tapi belum ada yang mengolahnya
 - [ ] Chatbot + human handoff → `docs/26`
+- [ ] ⚠️ Belum diverifikasi dengan pemesanan sungguhan dari pengunjung anonim di cloud
 
-> Dibangun **setelah** operasional inti (Tahap 1–8) stabil (`TEAM_PLAN §3`).
+> **Pertentangan dokumen — sudah diputuskan di lapangan.** `prd.md §7.3` FR-C2 menetapkan checkout & guest checkout sebagai **M (Must)**, sementara `docs/01 §6` dan `docs/23 §6` mencantumkannya sebagai **out of scope**. Aturan otoritas `TEAM_PLAN` (**migrations → kode → `prd.md` → `docs/`**) memenangkan `prd.md`, dan sejak 11 Agustus kodenya **sudah ada** — jadi kedua bagian `docs/` itu kini bukan sekadar usang, melainkan salah. Koreksinya tercatat di §10.
+>
+> **Catatan urutan.** `TEAM_PLAN §3` menempatkan Tahap 10 **setelah** operasional inti (Tahap 1–8) stabil. Checkout dikerjakan mendahului itu, selagi Tahap 8 masih ± 5%. Konsekuensinya konkret dan bukan teoretis: notifikasi yang dijanjikan halaman checkout justru bagian dari tahap yang dilewati.
 
 ---
 
@@ -259,28 +295,47 @@
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] 144 unit test hijau (state machine order/hewan/jadwal, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format tanggal, path & schema pembayaran, tautan peta, schema pelaksanaan lapangan)
+- [x] **271 unit test hijau di 23 file** (state machine order/hewan/jadwal, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format tanggal, path & schema pembayaran, tautan peta, schema pelaksanaan lapangan, schema checkout)
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts` — sebelumnya terduplikasi di tiap modul action
-- [ ] `tests/integration/` masih kosong — target: RLS lintas cabang, RPC `create_order`
-- [ ] `tests/e2e/` masih kosong — target: alur order → laporan end-to-end (`docs/21`)
-- [ ] Satu link mati tersisa di sidebar: "Pengaturan" masih `href="#"` ("Jadwal" & "Validasi Dokumentasi" sudah hidup)
+- [x] **Navigasi < 1024px** — bottom-nav + panel `≡` (`components/layout/mobile-nav.tsx`). Sebelumnya sidebar `hidden lg:flex` tidak punya pengganti: di bawah 1024px tidak ada cara berpindah halaman, dan tidak ada cara keluar sistem karena logout hanya hidup di footer sidebar
+- [x] Penanda aktif sidebar diturunkan dari `pathname` dengan pencocokan yang berhenti di batas segmen — sebelumnya di-hardcode pada tautan Dashboard, jadi tidak pernah berpindah
+- [ ] `tests/integration/` masih kosong (`.gitkeep`) — target: RLS lintas cabang, RPC `create_order`, **dan kini RPC `create_guest_order`** (satu-satunya jalan tulis milik `anon`, jadi paling layak diuji)
+- [ ] `tests/e2e/` masih kosong (`.gitkeep`) — target: alur order → laporan end-to-end (`docs/21`)
+- [ ] Link mati "Pengaturan" (`href="#"`) — sekarang ada di **dua** tempat: footer sidebar dan panel `≡` mobile. Halamannya baru muncul di Tahap 11 · Master Data
 - [ ] Checklist keamanan `docs/20_SECURITY_CHECKLIST.md` belum ditelusuri satu per satu
-- [ ] **Koreksi dokumen:** `docs/01 §6` & `docs/23 §6` masih menyebut checkout sebagai out of scope, bertentangan dengan `prd.md §7.3` FR-C2 (lihat §8). Perlu disamakan agar tidak menyesatkan.
+- [ ] **Koreksi dokumen — kini salah, bukan sekadar usang:** `docs/01 §6` & `docs/23 §6` masih menyebut checkout sebagai out of scope, padahal kodenya sudah ada sejak 11 Agustus (lihat §8)
 - [ ] **Akun demo `*@suksesaqiqah.test` (password `Password123!`) ada di project cloud** — wajib dihapus sebelum project dipakai produksi
+
+### Kepatuhan design system (`design.md`)
+
+Ditelusuri 13 Agustus, per bagian spec.
+
+- [x] **Konflik token warna diperbaiki** (`app/globals.css`). `@theme` mendeklarasikan `--color-primary: #0e7c5a` dan `--color-accent: #f0a500`, tapi `@theme inline` di bawahnya menimpa keduanya — jadi **warna brand §3 tidak pernah benar-benar tampil**; yang dirender `#006b2c`, berbeda pula dari `themeColor` PWA. Kini satu sumber kebenaran per token di `:root`, dengan `--ring` dan `--accent-foreground` ikut diselaraskan (`#745c00` di atas `#f0a500` hanya ~2,3:1)
+- [x] Sesuai spec: `AppShell`, `KpiCard`, `StatusBadge`, `FilterBar`, `OrderCard`, `ValidationQueue`, `AlertList`, pola halaman list & detail, breakpoint responsif, bahasa Indonesia
+- [ ] **§8 State & Feedback — bagian terlemah.** Tidak ada toast sukses/gagal, tidak ada `Skeleton`, tidak ada satu pun `loading.tsx`/`error.tsx` di `app/`, tidak ada konfirmasi aksi destruktif, dan tidak ada banner "Mode offline". Yang sudah ada: validasi inline & tombol disabled saat submit
+- [ ] Token semantik `success`/`warning`/`danger`/`info` terdefinisi tapi hampir tak terpakai — badge status memakai palet mentah Tailwind. Hasil visualnya konsisten, tapi bukan lewat token spec
+- [ ] Sidebar merender navy `#0b1c30` yang di-hardcode di 11 tempat, sementara token `--sidebar` bernilai hijau dan `design.md §3` tidak menyebut navy sama sekali. Perlu diputuskan: resmikan di spec, atau kembalikan ke palet
+- [ ] `text-accent-dark` (`#c98800`) di atas putih ~3,4:1 — gagal WCAG AA untuk teks kecil (`design.md §9`)
+- [ ] `DataTable` belum punya sort per kolom & klik-baris; `Timeline`, `EmptyState`, `MediaGallery` masih inline, belum jadi komponen pakai-ulang
+- [ ] `MediaUploader` masih `<input type="file">` polos — tanpa `capture` kamera dan tanpa indikator antrian (§5). Digabung ke pekerjaan PWA (§9)
+- [ ] Blok `.dark` di `globals.css` adalah **kode mati** — kelas `.dark` tidak pernah dipasang, tidak ada theme provider maupun toggle. `design.md` juga tidak punya palet gelap
+- [ ] `design.md §2` menyebut Radix & Recharts; kenyataannya `@base-ui/react` (shadcn versi baru memang sudah pindah) dan bar CSS buatan sendiri. Spec yang perlu menyusul kode di sini
 
 ---
 
 ## 11. Urutan kejar berikutnya
 
-Diurutkan dari yang paling membuka jalan:
+Diurutkan dari yang paling membuka jalan. **Urutannya berubah pada 13 Agustus** karena guest checkout sudah menerima order sungguhan dari publik.
 
 | # | Pekerjaan | Kenapa didahulukan | Pemilik |
 |---|-----------|--------------------|---------|
-| 1 | **Reporting Engine** (Tahap 6) | Penghambat terakhir rantai order: `reporting → completed` menuntut laporan ter-generate & terkirim. Juga salah satu Definition of Done Phase 1. | Awalin |
-| ~~2~~ | ~~**Issues** (Tahap 4, FR-SL4)~~ | **Selesai** — panel Kendala di detail order kini mengisi tabel `issues`, jadi panel dashboard tidak lagi bergantung pada seed. | Bani |
-| 3 | **Automation & Notification** (Tahap 8) | Mengotomatiskan pengiriman laporan yang sudah jadi di #1, plus notifikasi validasi dokumentasi (`docs/10 §7`). | Bani |
-| 4 | **PWA** (kamera, kompresi klien, antrian offline) | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai petugas di lapangan. | Awalin |
-| 5 | Realtime + filter periode dashboard | Penyempurnaan, bukan penghalang. | Awalin |
+| **1** | **Tutup loop order tamu** (§8) — penanda & filter di daftar order, antrian verifikasi admin | Satu-satunya butir yang **sudah menyentuh pengguna luar**. Order masuk hanya bertanda `created_by IS NULL` di database dan tidak muncul sebagai apa pun di UI admin, jadi bisa mengendap tanpa ada yang tahu. Risikonya bukan fitur tertunda, melainkan pesanan terlewat | Bani |
+| 2 | **Automation & Notification** (Tahap 8) | Sekarang menahan **tiga** tahap sekaligus: pengiriman laporan (Tahap 6), notifikasi validasi dokumentasi (`docs/10 §7`), dan notifikasi WA yang sudah **dijanjikan** halaman checkout kepada pemesan | Bani |
+| 3 | **PWA** (kamera, kompresi klien, antrian offline) | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai petugas di lapangan | Awalin |
+| 4 | **`design.md §8`** — toast, `loading.tsx`/`error.tsx`, `Skeleton` (§10) | Celah design system yang paling terasa pengguna; murah dikerjakan dan menyentuh seluruh halaman | Awalin |
+| 5 | Realtime + filter periode dashboard | Penyempurnaan, bukan penghalang | Awalin |
+| ~~—~~ | ~~**Reporting Engine** (Tahap 6)~~ | Inti sudah jalan (± 80%) — PDF, halaman publik bertoken, kirim WA.me, versi laporan. Sisanya (email, QR, rate limit) bergantung #2 atau dependensi baru | Awalin |
+| ~~—~~ | ~~**Issues** (Tahap 4, FR-SL4)~~ | **Selesai** — panel Kendala di detail order kini mengisi tabel `issues`, jadi panel dashboard tidak lagi bergantung pada seed | Bani |
 
 ---
 
@@ -289,8 +344,10 @@ Diurutkan dari yang paling membuka jalan:
 - [x] Litmus test terjawab < 10 detik di dashboard *(dengan data seed; ⚠️ belum dengan data pilot asli)*
 - [ ] 1 cabang pilot jalan end-to-end: order → pembayaran → jadwal → pemotongan → distribusi → dokumentasi → laporan
 - [ ] ≥ 95% order selesai punya dokumentasi tervalidasi
-- [ ] Laporan terkirim otomatis ke peserta via link unik
+- [ ] Laporan terkirim otomatis ke peserta via link unik — bergantung Tahap 8
 - [ ] Lulus UAT + checklist keamanan inti (`docs/20`, `docs/21`)
+
+**1 dari 5 tercentang, itu pun dengan data seed.** Empat butir sisanya tidak tersentuh oleh pekerjaan 11 Agustus — itulah sebab estimasi Phase 1 hampir tidak bergerak meski satu tahap besar bertambah (lihat *Perubahan sejak pembaruan 2026-08-07* di awal dokumen). Dua di antaranya menunggu Tahap 8, dan tiga butir menuntut **data operasional asli**, bukan seed.
 
 ---
 

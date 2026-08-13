@@ -6,12 +6,20 @@
 
 /* ============================================================
    Sukses Aqiqah — Design tokens (14_UI_UX_SPEC §3)
+
+   SATU sumber kebenaran per token. `primary` dan `accent` punya
+   varian gelap/terang runtime, jadi nilainya hidup di `:root`/`.dark`
+   dan dipetakan ke utilitas Tailwind lewat `@theme inline` di bawah.
+   JANGAN mendeklarasikan ulang `--color-primary`/`--color-accent` di
+   blok `@theme` ini: `@theme inline` datang belakangan dan akan
+   menimpanya, sehingga nilai di sini mati tanpa peringatan apa pun.
+
+   Yang boleh tinggal di sini hanya token yang tidak punya pasangan
+   di `@theme inline` — varian statis dan warna semantik.
    ============================================================ */
 @theme {
-  --color-primary: #0e7c5a;
   --color-primary-dark: #0a5c43;
   --color-primary-light: #e6f4ef;
-  --color-accent: #f0a500;
   --color-accent-dark: #c98800;
 
   --color-success: #16a34a;
@@ -20,8 +28,6 @@
   --color-info: #2563eb;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-
-  --radius: 0.75rem;
 }
 
 @theme inline {
@@ -74,20 +80,27 @@
   --card-foreground: #0b1c30;
   --popover: #ffffff;
   --popover-foreground: #0b1c30;
-  --primary: #006b2c;
+  /* Hijau brand design.md §3 — nilai yang sama dengan `themeColor` PWA
+     di app/layout.tsx. Pasangannya `--color-primary-dark` untuk hover. */
+  --primary: #0e7c5a;
   --primary-foreground: #ffffff;
   --secondary: #735c00;
   --secondary-foreground: #ffffff;
   --muted: #eff4ff;
   --muted-foreground: #3e4a3d;
-  --accent: #fed65b;
-  --accent-foreground: #745c00;
+  /* Aksen design.md §3. Kuning-oranye ini butuh teks gelap: putih di
+     atasnya hanya ~2:1, jauh di bawah ambang WCAG AA (docs/14 §9). */
+  --accent: #f0a500;
+  --accent-foreground: #0b1c30;
   --destructive: #ba1a1a;
   --destructive-foreground: #ffffff;
   --border: #e5eeff;
   --input: #dce9ff;
-  --ring: #006b2c;
-  --radius: 1rem;
+  --ring: #0e7c5a;
+  /* design.md §4: radius default 8–12px. Saat ini tidak ada yang membaca
+     `--radius` polos — utilitas `rounded-*` memakai `--radius-*` di
+     `@theme inline` — tapi nilainya dijaga tetap di dalam rentang spec. */
+  --radius: 0.75rem;
   --sidebar: #004d1f;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #62df7d;
