@@ -30,7 +30,13 @@ export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Navigasi utama" className="flex-1 space-y-1 p-4">
+    // `min-h-0 overflow-y-auto`: sidebar berbagi tinggi layar dengan brand,
+    // ringkasan profil, dan tombol keluar. Di layar pendek — atau saat menu
+    // bertambah pada Tahap 11 — daftar inilah yang menggulir, bukan seluruh
+    // sidebar; tombol keluar harus tetap terlihat. `min-h-0` wajib: tanpa itu
+    // anak flex menolak menyusut di bawah tinggi kontennya dan `overflow` tidak
+    // pernah aktif.
+    <nav aria-label="Navigasi utama" className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
       {NAV_ITEMS.map((item) => {
         const active = isNavItemActive(pathname, item.href);
         const Icon = item.icon;

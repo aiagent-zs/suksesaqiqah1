@@ -7,12 +7,29 @@
 | Field | Value |
 |-------|-------|
 | Dokumen | `TASKS.md` |
-| Diperbarui | 2026-08-13 |
+| Diperbarui | 2026-08-14 |
 | Fase aktif | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`) |
-| Estimasi Phase 1 | **± 84%** |
-| Terverifikasi pada pembaruan ini | `npm run build` ✅ · `npm run typecheck` ✅ · **271 test hijau (23 file)** · 16 migration |
+| Estimasi Phase 1 | **± 85%** |
+| Terverifikasi pada pembaruan ini | `npm run build` ✅ · `npm run typecheck` ✅ · `npm run lint` ✅ · **295 test hijau (25 file)** · 18 migration ⚠️ 2 belum di-push |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
+
+---
+
+## Perubahan sejak pembaruan 2026-08-13
+
+Tiga pekerjaan, dua di antaranya menuntut migration yang **belum di-push**.
+
+- **Loop order tamu ditutup** — penanda & filter di daftar order, panel + antrian verifikasi, kartu dashboard. Detail di §8.
+- **Tangga validasi dokumentasi ditegakkan di database** — sebelumnya hanya di `checkReview`, sementara RLS `documentations_update` cukup longgar untuk melompatinya lewat API langsung. Detail di §3.
+- **Rem laju checkout publik per alamat IP** — rem lama hanya per nomor telepon, yang dikirim pengirimnya sendiri. Detail di §8.
+
+> ⚠️ **Wajib sebelum dipakai:** `npm run db:push`. Dua migration baru
+> (`20260814010000_guest_order_verification.sql`, `20260814020000_documentation_review_ladder.sql`)
+> menambah kolom `orders.guest_verified_at` / `guest_verified_by` yang **sudah dibaca kode**.
+> Selama belum ter-push, daftar order dan halaman detail akan gagal memuat.
+
+**Kenapa estimasi Phase 1 hanya naik 1%.** Sama seperti pembaruan sebelumnya: dua dari tiga pekerjaan di atas mendorong **Tahap 10**, yang tidak muncul di Definition of Done Phase 1 (§12). Empat butir DoD yang tersisa masih persis sama — tidak ada yang tersentuh. Kenaikan kecilnya murni dari pengerasan Tahap 5.
 
 ---
 
@@ -49,8 +66,8 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 - [x] `.env.example` lengkap (termasuk `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` & `SUPABASE_DB_URL`)
 
 ### Tahap 1 · Database — *Bani*
-- [x] 16 migration di `supabase/migrations/` — 19 tabel, enum, index, trigger
-  <br>*(13 fondasi + `public_report_rpc` + 2 migration guest checkout, lihat §8)*
+- [x] 18 migration di `supabase/migrations/` — 19 tabel, enum, index, trigger
+  <br>*(13 fondasi + `public_report_rpc` + 2 migration guest checkout + 2 migration pengerasan 14 Agustus yang **belum di-push**, lihat §3 & §8)*
 - [x] 3 view KPI: `v_order_progress`, `v_branch_kpi`, `v_open_orders` (semua `security_invoker = on`)
 - [x] RPC: `create_order`, `next_order_number`, `min_dp_ratio`, helper `can_read_order` / `can_write_order`
 - [x] Storage buckets + GRANT eksplisit untuk `anon` / `authenticated`
@@ -139,7 +156,7 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 
 ---
 
-## 3. Tahap 5 · Documentation Flow — **± 85%** — *Bani*
+## 3. Tahap 5 · Documentation Flow — **± 88%** — *Bani*
 
 - [x] Tabel `documentations` + enum `doc_status` / `doc_stage` / `doc_type` + RLS
 - [x] Storage bucket
@@ -159,7 +176,11 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 - [ ] Kompresi gambar di klien & antrian upload offline (`docs/13`) — bergantung PWA
 - [ ] Pelucutan EXIF/GPS sebelum unggah (`docs/17 §4`, `docs/20`)
 
-> **Catatan kedalaman pertahanan:** urutan dua tingkat ditegakkan di lapisan aplikasi (`checkReview`), **bukan** di RLS — kebijakan `documentations_update` memberi Admin Pusat wewenang penuh atas baris mana pun, sehingga secara teknis ia bisa melompati validasi tingkat-1 lewat panggilan API langsung. Menutupnya butuh constraint/trigger di database (migration).
+> **Kedalaman pertahanan — sudah ditutup (14 Agustus).** Sebelumnya urutan dua tingkat hanya hidup di `checkReview`, sementara `documentations_update` memberi Admin Pusat wewenang penuh atas baris mana pun **dan** Supervisor wewenang penuh atas baris yang bisa ia baca — keduanya tanpa syarat status. Lewat PostgREST langsung itu berarti tiga jalan pintas sekaligus: Admin Pusat melompat `pending → approved`, Supervisor menulis `approved` yang bukan wewenangnya, dan Supervisor yang mengunggah sendiri meloloskan buktinya sendiri.
+>
+> Trigger `enforce_documentation_review_ladder` (`20260814020000`) kini menegakkan tangga yang sama persis dengan `checkReview` di bawah RLS: transisi sah hanya `pending → approved_supervisor|rejected` (Supervisor), `approved_supervisor → approved|rejected` (Admin Pusat), dan `rejected → pending` (pengunggahnya sendiri). `approved` jadi ujung tangga, `reviewed_by` tidak bisa dialamatkan ke orang lain, dan pengunggah ditolak pada barisnya sendiri. Kebijakan RLS sengaja tidak diubah — tugasnya menentukan *baris mana* yang boleh disentuh, bukan *perpindahan status mana* yang sah.
+>
+> ⚠️ Belum diverifikasi di cloud: migration-nya belum di-push.
 
 → `docs/10_DOCUMENTATION_FLOW.md`, kapabilitas `UPLOAD_DOCUMENTATION` / `VALIDATE_DOC_LEVEL1` / `VALIDATE_DOC_FINAL`
 
@@ -237,7 +258,7 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 
 ---
 
-## 8. Tahap 10 · Public Platform — **± 45%** — *Awalin + Bani*
+## 8. Tahap 10 · Public Platform — **± 55%** — *Awalin + Bani*
 
 ### Sudah jadi
 - [x] Landing page (`app/(site)/page.tsx`)
@@ -258,13 +279,22 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 - [x] Panel sukses menampilkan nomor order + total tagihan
 - [x] Order tamu ditandai **`created_by IS NULL`**
 
-### Harus dikejar
+#### Penutup loop order tamu (14 Agustus — §11 butir 1)
 
-**Penutup loop guest checkout — prioritas tertinggi (lihat §11).** Ordernya sudah masuk dari publik, tapi sisi penanganannya belum ada:
-
-- [ ] **Penanda & filter order tamu di daftar order admin.** `created_by IS NULL` hanya hidup di database; `features/orders` tidak menyebut order tamu sama sekali, dan halaman detail hanya menghilangkan kata "oleh …" tanpa penanda apa pun. Order dari publik bisa mengendap tanpa ada yang tahu
-- [ ] **Antrian verifikasi admin** untuk order tamu sebelum masuk alur operasional
-- [ ] **Notifikasi WhatsApp** ke pemesan. Halaman checkout **menjanjikan** "tim kami menghubungi Anda lewat WhatsApp", tapi tidak ada pengiriman apa pun — saat ini murni manual dan bergantung admin memeriksa daftar order. Bergantung Tahap 8
+- [x] **Penanda di daftar order** — badge "Tamu" / "Tamu · perlu verifikasi" di tabel desktop **dan** kartu mobile, diturunkan dari `created_by === null`
+- [x] **Filter asal order** — `?source=guest_pending|guest|staff` di FilterBar, ikut terbawa paginasi. `guest_pending` inilah antrian verifikasinya
+- [x] **Kartu dashboard "Order Tamu Baru"** — hitungan order publik yang belum diverifikasi, menaut ke `/orders?source=guest_pending`. Dihitung query tersendiri, bukan lewat `v_branch_kpi` yang tidak punya dimensi asal order
+- [x] **Panel order tamu di halaman detail** — sekaligus memunculkan isian yang selama ini tersimpan tapi tidak pernah ditampilkan di mana pun: cara penyaluran, alamat kirim, lembaga penerima, kode referral. Sebelumnya admin harus membuka database untuk tahu ke mana daging dikirim
+- [x] **Verifikasi admin sebagai gerbang, bukan catatan** — kolom `guest_verified_at` / `guest_verified_by` + trigger `enforce_guest_order_verification` yang **menahan order tamu di status `new`** sampai diverifikasi. Penahannya di database, bukan di Server Action: `orders_update` memberi Manager Program & Admin Cabang wewenang penuh atas baris order, jadi guard di lapisan aplikasi saja bisa dilewati lewat PostgREST
+- [x] `cancelled` dikecualikan dari penahan — pesanan iseng atau ganda tetap bisa ditutup tanpa harus diverifikasi lebih dulu
+- [x] Verifikasi tidak dapat dicabut, dan order internal tidak bisa dicap terverifikasi (keduanya ditegakkan trigger yang sama)
+- [x] Penguncian optimistik: dua admin yang menekan tombol bersamaan tidak bisa sama-sama berhasil
+- [x] Kapabilitas `VERIFY_GUEST_ORDER` (Manager Program, Admin Cabang, Admin Pusat) disamakan persis dengan daftar role di trigger + unit test
+- [x] **Rem laju checkout per alamat IP** (`lib/security/rate-limit.ts`, 10 permintaan / 10 menit). Rem di `create_guest_order` hanya 5 order/jam **per nomor telepon** — kunci yang dikirim pengirimnya sendiri, jadi skrip yang mengarang nomor acak melewatinya tanpa hambatan
+- [x] Tautan "Hubungi pemesan" (wa.me) di panel order tamu — **manual**, penambal sementara sampai Tahap 8 ada
+- [ ] **Notifikasi WhatsApp otomatis** ke pemesan. Halaman checkout **menjanjikan** "tim kami menghubungi Anda lewat WhatsApp"; yang ada sekarang baru tombol manual di atas. Bergantung Tahap 8
+- [ ] ⚠️ Seluruh butir di atas belum diverifikasi di cloud — `20260814010000_guest_order_verification.sql` belum di-push
+- [ ] Rem laju IP-nya **per instance** (hitungan di memori proses). Cukup untuk penyalahgunaan kasar, tidak untuk serangan terdistribusi; pertahanan sesungguhnya tetap WAF / Redis bersama atau captcha
 
 Sisa cakupan Tahap 10:
 
@@ -295,11 +325,11 @@ Sisa cakupan Tahap 10:
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] **271 unit test hijau di 23 file** (state machine order/hewan/jadwal, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format tanggal, path & schema pembayaran, tautan peta, schema pelaksanaan lapangan, schema checkout)
+- [x] **295 unit test hijau di 25 file** (state machine order/hewan/jadwal, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format tanggal, path & schema pembayaran, tautan peta, schema pelaksanaan lapangan, schema checkout, rem laju & normalisasi nomor WhatsApp)
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts` — sebelumnya terduplikasi di tiap modul action
 - [x] **Navigasi < 1024px** — bottom-nav + panel `≡` (`components/layout/mobile-nav.tsx`). Sebelumnya sidebar `hidden lg:flex` tidak punya pengganti: di bawah 1024px tidak ada cara berpindah halaman, dan tidak ada cara keluar sistem karena logout hanya hidup di footer sidebar
 - [x] Penanda aktif sidebar diturunkan dari `pathname` dengan pencocokan yang berhenti di batas segmen — sebelumnya di-hardcode pada tautan Dashboard, jadi tidak pernah berpindah
-- [ ] `tests/integration/` masih kosong (`.gitkeep`) — target: RLS lintas cabang, RPC `create_order`, **dan kini RPC `create_guest_order`** (satu-satunya jalan tulis milik `anon`, jadi paling layak diuji)
+- [ ] `tests/integration/` masih kosong (`.gitkeep`) — target: RLS lintas cabang, RPC `create_order`, RPC `create_guest_order` (satu-satunya jalan tulis milik `anon`), **dan kini dua trigger baru**: `enforce_documentation_review_ladder` & `enforce_guest_order_verification`. Keduanya justru yang paling layak diuji otomatis — perilakunya hanya muncul di database, jadi tidak ada unit test yang bisa menyentuhnya
 - [ ] `tests/e2e/` masih kosong (`.gitkeep`) — target: alur order → laporan end-to-end (`docs/21`)
 - [ ] Link mati "Pengaturan" (`href="#"`) — sekarang ada di **dua** tempat: footer sidebar dan panel `≡` mobile. Halamannya baru muncul di Tahap 11 · Master Data
 - [ ] Checklist keamanan `docs/20_SECURITY_CHECKLIST.md` belum ditelusuri satu per satu
@@ -329,13 +359,14 @@ Diurutkan dari yang paling membuka jalan. **Urutannya berubah pada 13 Agustus** 
 
 | # | Pekerjaan | Kenapa didahulukan | Pemilik |
 |---|-----------|--------------------|---------|
-| **1** | **Tutup loop order tamu** (§8) — penanda & filter di daftar order, antrian verifikasi admin | Satu-satunya butir yang **sudah menyentuh pengguna luar**. Order masuk hanya bertanda `created_by IS NULL` di database dan tidak muncul sebagai apa pun di UI admin, jadi bisa mengendap tanpa ada yang tahu. Risikonya bukan fitur tertunda, melainkan pesanan terlewat | Bani |
-| 2 | **Automation & Notification** (Tahap 8) | Sekarang menahan **tiga** tahap sekaligus: pengiriman laporan (Tahap 6), notifikasi validasi dokumentasi (`docs/10 §7`), dan notifikasi WA yang sudah **dijanjikan** halaman checkout kepada pemesan | Bani |
+| **1** | **`npm run db:push`** — dua migration 14 Agustus | Kode sudah membaca `orders.guest_verified_at`. Selama belum ter-push, daftar order dan halaman detail gagal memuat, dan kedua pengerasan di §3 & §8 belum berlaku sama sekali | Bani |
+| 2 | **Automation & Notification** (Tahap 8) | Sekarang menahan **tiga** tahap sekaligus: pengiriman laporan (Tahap 6), notifikasi validasi dokumentasi (`docs/10 §7`), dan notifikasi WA yang sudah **dijanjikan** halaman checkout kepada pemesan — tombol manual di panel order tamu hanya penambal | Bani |
 | 3 | **PWA** (kamera, kompresi klien, antrian offline) | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai petugas di lapangan | Awalin |
 | 4 | **`design.md §8`** — toast, `loading.tsx`/`error.tsx`, `Skeleton` (§10) | Celah design system yang paling terasa pengguna; murah dikerjakan dan menyentuh seluruh halaman | Awalin |
 | 5 | Realtime + filter periode dashboard | Penyempurnaan, bukan penghalang | Awalin |
 | ~~—~~ | ~~**Reporting Engine** (Tahap 6)~~ | Inti sudah jalan (± 80%) — PDF, halaman publik bertoken, kirim WA.me, versi laporan. Sisanya (email, QR, rate limit) bergantung #2 atau dependensi baru | Awalin |
 | ~~—~~ | ~~**Issues** (Tahap 4, FR-SL4)~~ | **Selesai** — panel Kendala di detail order kini mengisi tabel `issues`, jadi panel dashboard tidak lagi bergantung pada seed | Bani |
+| ~~—~~ | ~~**Tutup loop order tamu** (§8)~~ | **Selesai 14 Agustus** — penanda & filter di daftar order, panel + gerbang verifikasi, kartu dashboard, rem laju IP. Yang tersisa dari loop ini hanya notifikasi WA otomatis, dan itu memang bagian #2 | Bani |
 
 ---
 

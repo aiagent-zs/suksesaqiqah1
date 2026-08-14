@@ -1,11 +1,30 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { guestCheckoutSchema } from '@/features/checkout/schema';
 import type { GuestOrderResult } from '@/features/checkout/queries';
+import { RateLimiter, clientIpFrom } from '@/lib/security/rate-limit';
 import { scopedInternalError, validationError, type ActionResult } from './result';
 
 const internalError = scopedInternalError('checkout');
+
+/**
+ * Rem laju per alamat IP untuk checkout publik.
+ *
+ * Rem di database (`create_guest_order`: 5 order/jam per nomor telepon) memakai
+ * kunci yang dikirim pengirimnya sendiri — skrip yang mengarang nomor acak
+ * melewatinya tanpa hambatan. Kunci di sini tidak bisa dipilih pengirim.
+ *
+ * Angkanya sengaja longgar (10 per 10 menit): satu keluarga di balik satu IP
+ * kantor atau NAT operator seluler harus tetap bisa memesan berulang kali,
+ * sementara skrip yang membanjiri tabel `orders` tetap tertahan.
+ *
+ * Modul-level, jadi umurnya seumur instance server — lihat batas yang disengaja
+ * di `lib/security/rate-limit.ts`. Untuk serangan terdistribusi, pertahanan yang
+ * benar tetap rate limit di tepi (WAF / Redis bersama) atau captcha.
+ */
+const checkoutLimiter = new RateLimiter({ limit: 10, windowMs: 10 * 60 * 1000 });
 
 /**
  * Kode error Postgres yang dipakai `create_guest_order` untuk penolakan yang
@@ -28,6 +47,25 @@ const EXPECTED_REJECTIONS = new Set(['23514', 'P0002', 'P0003']);
 export async function createGuestOrderAction(
   input: unknown,
 ): Promise<ActionResult<GuestOrderResult>> {
+  // Rem laju sebelum validasi: menolak banjiran permintaan tidak boleh menuntut
+  // pekerjaan parsing lebih dulu.
+  const ip = clientIpFrom(await headers());
+  if (ip) {
+    const gate = checkoutLimiter.consume(ip);
+    if (!gate.allowed) {
+      const minutes = Math.max(1, Math.ceil(gate.retryAfterMs / 60_000));
+      return {
+        ok: false,
+        error: {
+          code: 'CONFLICT',
+          message:
+            `Terlalu banyak percobaan pemesanan dari jaringan ini. ` +
+            `Coba lagi dalam ${minutes} menit, atau hubungi kami lewat WhatsApp.`,
+        },
+      };
+    }
+  }
+
   const parsed = guestCheckoutSchema.safeParse(input);
   if (!parsed.success) return validationError(parsed.error);
 

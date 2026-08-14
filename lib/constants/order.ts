@@ -48,6 +48,24 @@ export const ORDER_STATUS_META: Record<OrderStatus, StatusMeta> = {
   cancelled: { label: 'Dibatalkan', className: 'bg-red-50 text-red-700 border-red-200' },
 };
 
+/**
+ * Label untuk kolom yang hanya terisi lewat checkout publik
+ * (`orders.aqiqah_for`, `orders.distribution_mode`).
+ *
+ * Formulir checkout membangun daftar pilihannya sendiri karena tiap opsi di
+ * sana membawa keterangan tambahan; peta ini untuk **menampilkan** nilai yang
+ * sudah tersimpan, misalnya di panel order tamu pada halaman detail.
+ */
+export const AQIQAH_FOR_LABEL: Record<string, string> = {
+  laki_laki: 'Anak Laki-laki',
+  perempuan: 'Anak Perempuan',
+};
+
+export const DISTRIBUTION_MODE_LABEL: Record<string, string> = {
+  salur: 'Aqiqah Salur — disalurkan ke penerima manfaat',
+  kirim: 'Aqiqah Kirim — diantar ke alamat pemesan',
+};
+
 export const PAYMENT_STATUS_META: Record<PaymentStatus, StatusMeta> = {
   unpaid: { label: 'Belum Bayar', className: 'bg-red-50 text-red-700 border-red-200' },
   partial: { label: 'DP / Sebagian', className: 'bg-amber-50 text-amber-700 border-amber-200' },

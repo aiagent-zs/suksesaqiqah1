@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   FileCheck2,
   FileText,
+  Globe,
   PauseCircle,
   ShoppingBag,
   Truck,
@@ -87,8 +88,21 @@ function pct(value: number): string {
   return `${value.toFixed(value % 1 === 0 ? 0 : 1)}%`;
 }
 
-/** 5 KPI inti + baris sekunder operasional (docs/09 section 2 & section 3). */
-export function KpiCards({ summary }: { summary: KpiSummary }) {
+/**
+ * 5 KPI inti + baris sekunder operasional (docs/09 section 2 & section 3).
+ *
+ * `pendingGuestOrders` datang terpisah dari `summary`: `v_branch_kpi` tidak
+ * punya dimensi asal order, jadi angkanya dihitung query tersendiri di halaman.
+ * `null` berarti role ini tidak berhak memverifikasi order tamu — kartunya
+ * tidak dirender sama sekali, bukan ditampilkan bernilai nol.
+ */
+export function KpiCards({
+  summary,
+  pendingGuestOrders,
+}: {
+  summary: KpiSummary;
+  pendingGuestOrders: number | null;
+}) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -130,7 +144,22 @@ export function KpiCards({ summary }: { summary: KpiSummary }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div
+        className={cn(
+          'grid grid-cols-2 gap-4',
+          pendingGuestOrders === null ? 'lg:grid-cols-4' : 'lg:grid-cols-5',
+        )}
+      >
+        {pendingGuestOrders !== null && (
+          <KpiCard
+            label="Order Tamu Baru"
+            value={pendingGuestOrders.toLocaleString('id-ID')}
+            hint="Dari checkout publik, belum diverifikasi"
+            icon={Globe}
+            accent="border-l-amber-500"
+            href="/orders?source=guest_pending"
+          />
+        )}
         <KpiCard
           label="Order Tertunda"
           value={summary.openOrders.toLocaleString('id-ID')}

@@ -8,6 +8,7 @@ import { getTransitionOptions } from '@/features/orders/state-machine';
 import { StatusActions } from '@/features/orders/components/status-actions';
 import { StatusStepper } from '@/features/orders/components/status-stepper';
 import { AnimalManager } from '@/features/orders/components/animal-manager';
+import { GuestOrderPanel } from '@/features/orders/components/guest-order-panel';
 import { PaymentManager } from '@/features/payments/components/payment-manager';
 import { getOrderPayments } from '@/features/payments/queries';
 import { ScheduleManager } from '@/features/schedules/components/schedule-manager';
@@ -49,6 +50,10 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   if (!detail) notFound();
 
   const { order, participant, branch, items, animals, schedule, guard, creatorName } = detail;
+
+  // Order tamu: `created_by is null` adalah penanda yang ditulis
+  // `create_guest_order` untuk pesanan yang masuk dari halaman publik.
+  const isGuestOrder = order.created_by === null;
 
   const role = session.profile?.role;
   const canManageSchedule = canDo(role, 'MANAGE_SCHEDULE');
@@ -119,7 +124,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
               Dibuat {formatDateTime(order.created_at)}
-              {creatorName ? ` oleh ${creatorName}` : ''}
+              {creatorName ? ` oleh ${creatorName}` : isGuestOrder ? ' lewat checkout publik' : ''}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -138,6 +143,28 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           </p>
         )}
       </header>
+
+      {/* --- Order tamu ---
+          Di luar grid dan tepat di bawah header: selama belum diverifikasi,
+          panel ini yang menjelaskan kenapa aksi status tidak bergerak. */}
+      {isGuestOrder && (
+        <GuestOrderPanel
+          orderId={order.id}
+          canVerify={canDo(role, 'VERIFY_GUEST_ORDER')}
+          info={{
+            orderNumber: order.order_number,
+            participantName: participant?.name ?? null,
+            participantPhone: participant?.phone ?? null,
+            aqiqahFor: order.aqiqah_for,
+            distributionMode: order.distribution_mode,
+            deliveryAddress: order.delivery_address,
+            recipientInstitution: order.recipient_institution,
+            referralCode: order.referral_code,
+            verifiedAt: order.guest_verified_at,
+            verifierName: detail.guestVerifierName,
+          }}
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

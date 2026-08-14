@@ -49,6 +49,7 @@ const PARTICIPANT_SEARCH_CAP = 2000;
 
 const LIST_SELECT = `
   id, order_number, status, payment_status, total_amount, paid_amount, created_at,
+  created_by, guest_verified_at,
   participant:participants!orders_participant_id_fkey ( id, name, phone ),
   branch:branches!orders_branch_id_fkey ( id, code, name ),
   schedule:schedules ( scheduled_date, scheduled_time, status,
@@ -74,6 +75,10 @@ export type OrderListRow = {
   picName: string | null;
   scheduledDate: string | null;
   animalsCount: number;
+  /** Order dari checkout publik — `created_by is null` (docs/05, `prd.md` FR-C2). */
+  isGuest: boolean;
+  /** Terisi begitu seorang admin memverifikasi order tamu tersebut. */
+  guestVerifiedAt: string | null;
 };
 
 export type OrderListResult = {
@@ -104,6 +109,12 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
 
   if (filter.status) query = query.eq('status', filter.status);
   if (filter.payment_status) query = query.eq('payment_status', filter.payment_status);
+
+  if (filter.source === 'staff') query = query.not('created_by', 'is', null);
+  if (filter.source === 'guest' || filter.source === 'guest_pending') {
+    query = query.is('created_by', null);
+  }
+  if (filter.source === 'guest_pending') query = query.is('guest_verified_at', null);
   if (filter.branch_id) query = query.eq('branch_id', filter.branch_id);
   if (filter.date_from) query = query.gte('created_at', startOfDayWib(filter.date_from));
   if (filter.date_to) query = query.lt('created_at', endOfDayExclusiveWib(filter.date_to));
@@ -152,6 +163,8 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
     total_amount: number;
     paid_amount: number;
     created_at: string;
+    created_by: string | null;
+    guest_verified_at: string | null;
     participant: { id: string; name: string; phone: string | null } | null;
     branch: { id: string; code: string; name: string } | null;
     schedule: {
@@ -179,6 +192,8 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
       picName: r.schedule?.pic?.full_name ?? null,
       scheduledDate: r.schedule?.scheduled_date ?? null,
       animalsCount: r.animals?.[0]?.count ?? 0,
+      isGuest: r.created_by === null,
+      guestVerifiedAt: r.guest_verified_at,
     })),
     page,
     page_size,
@@ -186,11 +201,32 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
   };
 }
 
+/**
+ * Jumlah order tamu yang belum diverifikasi, untuk kartu antrian di dashboard.
+ *
+ * Memakai `head: true` — yang dibutuhkan hanya angkanya. Scope barisnya tetap
+ * ditegakkan RLS, jadi Admin Cabang hanya menghitung order cabangnya sendiri.
+ */
+export async function countPendingGuestOrders(): Promise<number> {
+  const supabase = await createClient();
+
+  const { count } = await supabase
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .is('created_by', null)
+    .is('guest_verified_at', null)
+    .neq('status', 'cancelled');
+
+  return count ?? 0;
+}
+
 export type OrderDetail = {
   order: Tables['orders']['Row'];
   participant: Tables['participants']['Row'] | null;
   branch: Tables['branches']['Row'] | null;
   creatorName: string | null;
+  /** Nama admin yang memverifikasi order tamu; null bila belum diverifikasi. */
+  guestVerifierName: string | null;
   items: Array<{
     id: string;
     qty: number;
@@ -250,6 +286,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
         participant:participants!orders_participant_id_fkey ( * ),
         branch:branches!orders_branch_id_fkey ( * ),
         creator:profiles!orders_created_by_fkey ( full_name ),
+        guestVerifier:profiles!orders_guest_verified_by_fkey ( full_name ),
         items:order_items ( id, qty, unit_price, meta, service:services ( name, type ) ),
         animals ( * ),
         schedule:schedules (
@@ -274,6 +311,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     participant: Tables['participants']['Row'] | null;
     branch: Tables['branches']['Row'] | null;
     creator: { full_name: string | null } | null;
+    guestVerifier: { full_name: string | null } | null;
     items: Array<{
       id: string;
       qty: number;
@@ -305,6 +343,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     participant: r.participant,
     branch: r.branch,
     creatorName: r.creator?.full_name ?? null,
+    guestVerifierName: r.guestVerifier?.full_name ?? null,
     items: (r.items ?? []).map((i) => ({
       id: i.id,
       qty: i.qty,

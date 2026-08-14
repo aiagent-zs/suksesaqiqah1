@@ -77,3 +77,25 @@ describe('orderFilterSchema — masukan sah', () => {
     expect(result.status).toBeUndefined();
   });
 });
+
+/**
+ * Filter asal order. `guest_pending` adalah antrian verifikasi — tautannya
+ * dipakai kartu dashboard "Order Tamu Baru", jadi nilainya harus tetap lolos
+ * parse persis seperti yang ditulis di sana.
+ */
+describe('orderFilterSchema — asal order', () => {
+  it('menerima ketiga sumber yang dikenal', () => {
+    for (const source of ['guest_pending', 'guest', 'staff'] as const) {
+      expect(orderFilterSchema.parse({ source }).source).toBe(source);
+    }
+  });
+
+  it('membuang sumber di luar enum', () => {
+    expect(orderFilterSchema.parse({ source: 'tamu' }).source).toBeUndefined();
+    expect(orderFilterSchema.parse({ source: '' }).source).toBeUndefined();
+  });
+
+  it('tidak menyaring apa pun saat sumber tidak diisi', () => {
+    expect(orderFilterSchema.parse({}).source).toBeUndefined();
+  });
+});
