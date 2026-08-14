@@ -22,6 +22,20 @@ export const CAPABILITIES = {
    */
   UPDATE_ORDER_AMOUNT: ['manager_program'] as UserRole[],
 
+  /**
+   * Verifikasi order tamu sebelum masuk alur operasional (`prd.md` FR-C2).
+   *
+   * Order dari checkout publik masuk tanpa `created_by` dan tertahan di status
+   * `new` sampai seseorang benar-benar memeriksanya. Admin Pusat ikut karena
+   * merekalah yang memantau order masuk lintas cabang; Petugas Lapangan tidak,
+   * verifikasi ini keputusan administratif, bukan pekerjaan lapangan.
+   *
+   * Daftarnya sengaja identik dengan `enforce_guest_order_verification` di
+   * `20260814010000_guest_order_verification.sql` — kalau keduanya menyimpang,
+   * UI akan menawarkan tombol yang pasti ditolak database.
+   */
+  VERIFY_GUEST_ORDER: ['manager_program', 'admin_cabang', 'admin_pusat'] as UserRole[],
+
   /** Tambah/ubah/hapus data hewan pada order */
   MANAGE_ANIMALS: ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[],
 

@@ -11,13 +11,21 @@ import {
   deleteAnimalSchema,
   updateAnimalStatusSchema,
   updateOrderSchema,
+  verifyGuestOrderSchema,
 } from '@/features/orders/schema';
 import { checkTransition } from '@/features/orders/state-machine';
 import { checkAnimalTransition } from '@/features/orders/animal-state-machine';
 import { getOrderDetail } from '@/features/orders/queries';
 import type { OrderStatus } from '@/lib/constants/order';
 
-import { scopedInternalError, validationError, type ActionResult } from './result';
+import {
+  conflict,
+  forbidden,
+  notFound,
+  scopedInternalError,
+  validationError,
+  type ActionResult,
+} from './result';
 
 const internalError = scopedInternalError('orders');
 
@@ -158,6 +166,75 @@ export async function updateOrder(input: unknown): Promise<ActionResult<null>> {
 }
 
 // =============================================================================
+// Verifikasi order tamu (prd.md FR-C2, TASKS.md section 11 butir 1)
+// =============================================================================
+
+/**
+ * Tandai satu order dari checkout publik sebagai sudah diperiksa admin.
+ *
+ * Selama penanda ini kosong, trigger `enforce_guest_order_verification` menahan
+ * ordernya di status `new` — jadi verifikasi bukan sekadar catatan, melainkan
+ * pintu masuk ke alur operasional. Waktu dan pelakunya diturunkan di sini,
+ * tidak pernah dikirim klien.
+ *
+ * Verifikasi sengaja tidak bisa dicabut (ditegakkan trigger yang sama): ia
+ * adalah catatan bahwa seseorang benar-benar menghubungi pemesan.
+ */
+export async function verifyGuestOrder(input: unknown): Promise<ActionResult<null>> {
+  const session = await requireAuth();
+
+  if (!canDo(session.profile?.role, 'VERIFY_GUEST_ORDER')) {
+    return forbidden('Role Anda tidak berhak memverifikasi order tamu.');
+  }
+
+  const parsed = verifyGuestOrderSchema.safeParse(input);
+  if (!parsed.success) return validationError(parsed.error);
+  const { order_id } = parsed.data;
+
+  const supabase = await createClient();
+
+  // Dibaca lebih dulu supaya order di luar akses menghasilkan "tidak ditemukan"
+  // yang jelas, bukan penolakan RLS mentah saat update.
+  const { data: order } = await supabase
+    .from('orders')
+    .select('id, created_by, guest_verified_at')
+    .eq('id', order_id)
+    .maybeSingle();
+
+  if (!order) return notFound('Order tidak ditemukan atau di luar akses Anda.');
+
+  if (order.created_by !== null) {
+    return conflict('Order ini dibuat staf, jadi tidak melewati antrian verifikasi order tamu.');
+  }
+
+  if (order.guest_verified_at !== null) {
+    return conflict('Order ini sudah diverifikasi.');
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ guest_verified_at: new Date().toISOString(), guest_verified_by: session.id })
+    .eq('id', order_id)
+    // Penguncian optimistik: dua admin yang menekan tombol bersamaan tidak boleh
+    // sama-sama berhasil — yang kedua mengenai 0 baris.
+    .is('guest_verified_at', null)
+    .select('id');
+
+  if (error) return internalError('Gagal memverifikasi order tamu', error);
+
+  if ((data ?? []).length === 0) {
+    return conflict(
+      'Order sudah diverifikasi pihak lain. Muat ulang halaman untuk melihat kondisi terkini.',
+    );
+  }
+
+  revalidatePath(`/orders/${order_id}`);
+  revalidatePath('/orders');
+  revalidatePath('/dashboard');
+  return { ok: true, data: null };
+}
+
+// =============================================================================
 // Transisi status — satu-satunya jalan mengubah orders.status (docs/16 section 12)
 // =============================================================================
 
@@ -189,6 +266,19 @@ export async function changeOrderStatus(
   const check = checkTransition(detail.order.status, to as OrderStatus, role, detail.guard);
   if (!check.ok) {
     return { ok: false, error: { code: check.code, message: check.message } };
+  }
+
+  // Order tamu tertahan sampai diverifikasi. Trigger
+  // `enforce_guest_order_verification` juga menolaknya di database — cek di sini
+  // hanya supaya operator membaca alasannya, bukan kegagalan Postgres mentah.
+  if (
+    detail.order.created_by === null &&
+    detail.order.guest_verified_at === null &&
+    to !== 'cancelled'
+  ) {
+    return conflict(
+      'Order dari checkout publik harus diverifikasi lebih dulu di panel "Order dari checkout publik".',
+    );
   }
 
   const supabase = await createClient();

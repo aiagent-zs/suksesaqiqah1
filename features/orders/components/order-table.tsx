@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CalendarDays, MapPin, PawPrint, User } from 'lucide-react';
+import { CalendarDays, Globe, MapPin, PawPrint, User } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -11,6 +11,30 @@ import {
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/data/status-badge';
 import { formatCurrency, formatDate, formatRelative } from '@/lib/format';
 import type { OrderListRow } from '../queries';
+
+/**
+ * Penanda order dari checkout publik (`prd.md` FR-C2).
+ *
+ * Order tamu hanya bertanda `created_by is null` di database. Tanpa penanda di
+ * daftar, pesanan yang masuk dari internet tidak bisa dibedakan dari order yang
+ * dibuat staf — dan yang belum diverifikasi bisa mengendap tanpa ada yang tahu.
+ */
+function GuestBadge({ verifiedAt }: { verifiedAt: string | null }) {
+  const pending = verifiedAt === null;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+        pending
+          ? 'border-amber-300 bg-amber-50 text-amber-800'
+          : 'border-slate-200 bg-slate-50 text-slate-600'
+      }`}
+      title={pending ? 'Order publik yang belum diverifikasi admin' : 'Order publik, sudah diverifikasi'}
+    >
+      <Globe className="size-3" aria-hidden="true" />
+      {pending ? 'Tamu · perlu verifikasi' : 'Tamu'}
+    </span>
+  );
+}
 
 /** Tabel order untuk desktop (docs/14 section 6: tabel penuh di > 1024px). */
 export function OrderTable({ rows }: { rows: OrderListRow[] }) {
@@ -43,6 +67,11 @@ export function OrderTable({ rows }: { rows: OrderListRow[] }) {
                   <PawPrint className="size-3" />
                   {row.animalsCount} ekor
                 </p>
+                {row.isGuest && (
+                  <p className="mt-1">
+                    <GuestBadge verifiedAt={row.guestVerifiedAt} />
+                  </p>
+                )}
               </TableCell>
               <TableCell>
                 <p className="font-medium">{row.participantName}</p>
@@ -107,6 +136,11 @@ export function OrderCardList({ rows }: { rows: OrderListRow[] }) {
                 <User className="size-3.5 text-muted-foreground" />
                 {row.participantName}
               </p>
+              {row.isGuest && (
+                <p className="mt-1.5">
+                  <GuestBadge verifiedAt={row.guestVerifiedAt} />
+                </p>
+              )}
             </div>
             <OrderStatusBadge status={row.status} />
           </div>

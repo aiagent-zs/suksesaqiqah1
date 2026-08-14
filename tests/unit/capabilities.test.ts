@@ -69,6 +69,25 @@ describe('MANAGE_ANIMALS', () => {
   });
 });
 
+describe('VERIFY_GUEST_ORDER', () => {
+  // Daftarnya ditulis dua kali: di sini dan di trigger
+  // `enforce_guest_order_verification`. Kalau keduanya menyimpang, UI
+  // menampilkan tombol yang pasti ditolak database.
+  it('admin cabang, admin pusat, dan manager program boleh memverifikasi', () => {
+    for (const role of ['manager_program', 'admin_cabang', 'admin_pusat'] as UserRole[]) {
+      expect(canDo(role, 'VERIFY_GUEST_ORDER'), `${role} boleh`).toBe(true);
+    }
+  });
+
+  it('petugas lapangan tidak — verifikasi ini keputusan administratif', () => {
+    expect(canDo('petugas_lapangan', 'VERIFY_GUEST_ORDER')).toBe(false);
+  });
+
+  it('direktur tidak, sejalan dengan posisinya yang read-only', () => {
+    expect(canDo('direktur', 'VERIFY_GUEST_ORDER')).toBe(false);
+  });
+});
+
 describe('MANAGE_ISSUES', () => {
   // RLS `issues_insert` / `issues_update` memakai `can_write_order`. Kalau
   // daftar ini menyimpang, UI akan menawarkan tombol yang pasti ditolak

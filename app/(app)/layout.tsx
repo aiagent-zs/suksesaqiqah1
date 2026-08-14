@@ -20,8 +20,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <IdleLogout />
 
       <div className="flex min-h-screen bg-[#f8f9ff] text-[#0b1c30]">
-        {/* Sidebar 260px sesuai design.md */}
-        <aside className="hidden w-[260px] shrink-0 flex-col border-r border-slate-800 bg-[#0b1c30] text-white lg:flex">
+        {/* Sidebar 260px sesuai design.md.
+
+            `sticky top-0 h-screen`: sidebar tetap di tempat saat halaman
+            digulir. Tanpa itu ia ikut terbawa naik — pada halaman panjang
+            (daftar order, detail order yang penuh panel) menu dan tombol
+            "Keluar Sistem" hilang dari layar dan operator harus menggulir
+            kembali ke atas hanya untuk berpindah halaman.
+
+            Sengaja `sticky`, bukan `fixed`: elemennya tetap menempati kolomnya
+            sendiri di flex row, jadi konten utama tidak perlu diberi offset
+            kiri yang harus dijaga tetap sama dengan lebar sidebar. */}
+        <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col border-r border-slate-800 bg-[#0b1c30] text-white lg:flex">
           {/* Header Brand */}
           <div className="border-b border-slate-800/80 p-6">
             <div className="flex items-center gap-3">

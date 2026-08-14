@@ -10,7 +10,7 @@ import {
   PAYMENT_STATUS_META,
   type OrderStatus,
 } from '@/lib/constants/order';
-import type { OrderFilterInput } from '../schema';
+import { ORDER_SOURCES, ORDER_SOURCE_LABEL, type OrderFilterInput } from '../schema';
 
 type Option = { id: string; name: string; code?: string };
 
@@ -34,6 +34,7 @@ export function OrderFilters({
       filter.status ||
       filter.payment_status ||
       filter.branch_id ||
+      filter.source ||
       filter.date_from ||
       filter.date_to,
   );
@@ -92,6 +93,20 @@ export function OrderFilters({
                 </option>
               ),
             )}
+          </Select>
+        </div>
+
+        <div>
+          <label htmlFor="source" className="mb-1.5 block text-sm text-slate-700">
+            Sumber order
+          </label>
+          <Select id="source" name="source" defaultValue={filter.source ?? ''}>
+            <option value="">Semua sumber</option>
+            {ORDER_SOURCES.map((s) => (
+              <option key={s} value={s}>
+                {ORDER_SOURCE_LABEL[s]}
+              </option>
+            ))}
           </Select>
         </div>
 

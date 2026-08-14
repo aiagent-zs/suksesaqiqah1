@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, PackageSearch } from 'lucide-react';
 import { requireAuth, isCentral } from '@/server/auth/session';
+import { canDo } from '@/server/auth/capabilities';
 import { dashboardFilterSchema } from '@/features/dashboard/schema';
 import {
   getBranchKpi,
@@ -9,6 +10,7 @@ import {
   getOpenOrders,
 } from '@/features/dashboard/queries';
 import { summarizeBranchKpi } from '@/features/dashboard/summary';
+import { countPendingGuestOrders } from '@/features/orders/queries';
 import { DashboardFilters } from '@/features/dashboard/components/dashboard-filters';
 import { KpiCards } from '@/features/dashboard/components/kpi-cards';
 import { BranchProgress } from '@/features/dashboard/components/branch-progress';
@@ -65,11 +67,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     ? DASHBOARD_HEADING[session.profile.role]
     : { title: 'Dashboard', subtitle: 'Ringkasan operasional dalam cakupan akses Anda.' };
 
-  const [branchRows, openOrders, issues, branches] = await Promise.all([
+  const [branchRows, openOrders, issues, branches, pendingGuestOrders] = await Promise.all([
     getBranchKpi(filter.branch_id),
     getOpenOrders(filter),
     getIssueBreakdown(filter.branch_id),
     canPickBranch ? getBranchOptions() : Promise.resolve([]),
+    // Sengaja di luar `v_branch_kpi`: view itu tidak punya dimensi asal order,
+    // dan menambahkannya berarti mengubah view (migration, satu pintu di Bani).
+    // Hanya dihitung untuk yang bisa menindaklanjutinya — bagi Petugas Lapangan
+    // angkanya selalu 0 (order tamu belum punya PIC), jadi kartunya cuma bising.
+    canDo(session.profile?.role, 'VERIFY_GUEST_ORDER')
+      ? countPendingGuestOrders()
+      : Promise.resolve(null),
   ]);
 
   const summary = summarizeBranchKpi(branchRows);
@@ -94,7 +103,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </div>
       </header>
 
-      <KpiCards summary={summary} />
+      <KpiCards summary={summary} pendingGuestOrders={pendingGuestOrders} />
 
       <DashboardFilters filter={filter} branches={branches} canPickBranch={canPickBranch} />
 

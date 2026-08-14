@@ -712,6 +712,8 @@ export type Database = {
           created_by: string | null
           delivery_address: string | null
           distribution_mode: string | null
+          guest_verified_at: string | null
+          guest_verified_by: string | null
           id: string
           notes: string | null
           order_number: string
@@ -733,6 +735,8 @@ export type Database = {
           created_by?: string | null
           delivery_address?: string | null
           distribution_mode?: string | null
+          guest_verified_at?: string | null
+          guest_verified_by?: string | null
           id?: string
           notes?: string | null
           order_number: string
@@ -754,6 +758,8 @@ export type Database = {
           created_by?: string | null
           delivery_address?: string | null
           distribution_mode?: string | null
+          guest_verified_at?: string | null
+          guest_verified_by?: string | null
           id?: string
           notes?: string | null
           order_number?: string
@@ -803,6 +809,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_open_orders"
             referencedColumns: ["pic_user_id"]
+          },
+          {
+            foreignKeyName: "orders_guest_verified_by_fkey"
+            columns: ["guest_verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "orders_participant_id_fkey"

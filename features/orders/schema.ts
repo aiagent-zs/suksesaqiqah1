@@ -69,6 +69,16 @@ export const changeStatusSchema = z.object({
   reason: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
+/**
+ * Verifikasi order tamu.
+ *
+ * Hanya `order_id` — waktu dan pelaku verifikasi diturunkan di server, tidak
+ * pernah dikirim klien, sama seperti `resolved_at` pada kendala. Penguncian
+ * optimistiknya melekat pada update-nya sendiri (`guest_verified_at is null`),
+ * jadi tidak perlu penanda versi dari layar.
+ */
+export const verifyGuestOrderSchema = z.object({ order_id: uuid });
+
 export const addAnimalSchema = animalInputSchema.extend({ order_id: uuid });
 
 export const updateAnimalStatusSchema = z.object({
@@ -77,6 +87,22 @@ export const updateAnimalStatusSchema = z.object({
 });
 
 export const deleteAnimalSchema = z.object({ animal_id: uuid });
+
+/**
+ * Asal order pada daftar admin (`prd.md` FR-C2).
+ *
+ * Order tamu hanya bertanda `created_by is null` di database; tanpa filter ini
+ * tidak ada cara melihatnya sebagai kelompok tersendiri. `guest_pending` adalah
+ * antrian verifikasinya — order publik yang belum diperiksa siapa pun.
+ */
+export const ORDER_SOURCES = ['guest_pending', 'guest', 'staff'] as const;
+export type OrderSource = (typeof ORDER_SOURCES)[number];
+
+export const ORDER_SOURCE_LABEL: Record<OrderSource, string> = {
+  guest_pending: 'Tamu — perlu verifikasi',
+  guest: 'Tamu — semua',
+  staff: 'Dibuat staf',
+};
 
 /** Tanggal kalender `YYYY-MM-DD` dari input `<input type="date">`. */
 const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD');
@@ -108,6 +134,7 @@ export const orderFilterSchema = z.object({
     .optional()
     .catch(undefined),
   payment_status: z.enum(['unpaid', 'partial', 'paid']).optional().catch(undefined),
+  source: z.enum(ORDER_SOURCES).optional().catch(undefined),
   branch_id: uuid.optional().catch(undefined),
   location_id: uuid.optional().catch(undefined),
   pic_id: uuid.optional().catch(undefined),
