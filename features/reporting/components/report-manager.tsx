@@ -86,7 +86,7 @@ export function ReportManager({
       {!documentationReady && (
         <p className="border-border bg-muted/40 text-muted-foreground border-b px-5 py-2.5 text-xs">
           Laporan baru dapat dibuat setelah ada minimal 1 bukti {missingDocumentation.join(' & ')}{' '}
-          yang tervalidasi Admin Pusat.
+          yang sudah tervalidasi.
         </p>
       )}
 

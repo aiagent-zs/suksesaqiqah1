@@ -44,8 +44,9 @@ export async function getScheduleFormOptions(branchId: string): Promise<Schedule
     supabase
       .from('profiles')
       .select('id, full_name, phone')
-      .eq('branch_id', branchId)
-      .eq('role', 'petugas_lapangan')
+      // Tidak lagi disaring per cabang: vendor bukan pegawai cabang, dan
+      // `profiles.branch_id` sudah tidak membatasi apa pun sejak tiga role.
+      .eq('role', 'vendor')
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('full_name'),
@@ -126,7 +127,6 @@ export async function listSchedules(filter: ScheduleFilterInput): Promise<Schedu
   if (filter.date_from) query = query.gte('scheduled_date', filter.date_from);
   if (filter.date_to) query = query.lte('scheduled_date', filter.date_to);
   // Cabang ada di tabel order, bukan di schedules — disaring lewat join.
-  if (filter.branch_id) query = query.eq('order.branch_id', filter.branch_id);
   if (filter.active_only) query = query.in('order.status', ACTIVE_ORDER_STATUSES);
 
   const from = (page - 1) * page_size;
@@ -183,24 +183,22 @@ export async function listSchedules(filter: ScheduleFilterInput): Promise<Schedu
   };
 }
 
-/** Opsi lokasi & petugas untuk filter halaman Jadwal (lintas cabang dalam scope). */
+/** Opsi lokasi & vendor untuk filter halaman Jadwal. */
 export async function getScheduleFilterOptions() {
   const supabase = await createClient();
 
-  const [{ data: branches }, { data: locations }, { data: pics }] = await Promise.all([
-    supabase.from('branches').select('id, code, name').is('deleted_at', null).order('name'),
+  const [{ data: locations }, { data: pics }] = await Promise.all([
     supabase.from('locations').select('id, name').is('deleted_at', null).order('name'),
     supabase
       .from('profiles')
       .select('id, full_name')
-      .eq('role', 'petugas_lapangan')
+      .eq('role', 'vendor')
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('full_name'),
   ]);
 
   return {
-    branches: branches ?? [],
     locations: locations ?? [],
     pics: (pics ?? []).map((p) => ({ id: p.id, name: p.full_name ?? '(tanpa nama)' })),
   };

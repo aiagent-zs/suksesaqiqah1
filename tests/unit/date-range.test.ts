@@ -1,5 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { endOfDayExclusiveWib, startOfDayWib } from '@/lib/format/date-range';
+import {
+  addCalendarDays,
+  endOfDayExclusiveWib,
+  startOfDayWib,
+  todayWib,
+} from '@/lib/format/date-range';
+
+describe('addCalendarDays', () => {
+  it('menambah dan mengurangi hari', () => {
+    expect(addCalendarDays('2026-08-19', 7)).toBe('2026-08-26');
+    expect(addCalendarDays('2026-08-19', -1)).toBe('2026-08-18');
+    expect(addCalendarDays('2026-08-19', 0)).toBe('2026-08-19');
+  });
+
+  it('menyeberangi pergantian bulan dan tahun', () => {
+    expect(addCalendarDays('2026-08-28', 7)).toBe('2026-09-04');
+    expect(addCalendarDays('2026-12-29', 7)).toBe('2027-01-05');
+  });
+
+  it('menghitung tahun kabisat', () => {
+    expect(addCalendarDays('2028-02-28', 1)).toBe('2028-02-29');
+  });
+});
+
+describe('todayWib', () => {
+  // Inti masalahnya: pukul 00:30 WIB masih 17:30 UTC hari sebelumnya. Kalau
+  // batas bawah pemesanan dihitung di UTC, "hari ini" milik pemesan tertolak
+  // sebagai tanggal yang sudah lewat.
+  it('memakai tanggal WIB pada dini hari, bukan tanggal UTC', () => {
+    expect(todayWib(new Date('2026-08-19T17:30:00.000Z'))).toBe('2026-08-20');
+  });
+
+  it('sama dengan tanggal UTC pada siang hari', () => {
+    expect(todayWib(new Date('2026-08-19T05:00:00.000Z'))).toBe('2026-08-19');
+  });
+
+  it('menyeberangi pergantian bulan', () => {
+    expect(todayWib(new Date('2026-08-31T17:00:00.000Z'))).toBe('2026-09-01');
+  });
+});
 
 describe('startOfDayWib', () => {
   it('menandai tengah malam WIB, bukan UTC', () => {

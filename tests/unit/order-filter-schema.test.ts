@@ -31,7 +31,17 @@ describe('orderFilterSchema — masukan ngawur', () => {
   });
 
   it('membuang id yang bukan uuid', () => {
-    expect(orderFilterSchema.parse({ branch_id: 'bukan-uuid' }).branch_id).toBeUndefined();
+    expect(orderFilterSchema.parse({ location_id: 'bukan-uuid' }).location_id).toBeUndefined();
+    expect(orderFilterSchema.parse({ pic_id: 'bukan-uuid' }).pic_id).toBeUndefined();
+  });
+
+  it('tidak lagi menyediakan filter cabang', () => {
+    // Dicabut 19 Agustus 2026: operasi berjalan satu tempat dan tidak satu pun
+    // kebijakan RLS membandingkan `branch_id`, jadi menyaringnya tidak pernah
+    // mempersempit apa pun. Tautan lama yang masih membawa `?branch_id=` cukup
+    // diabaikan, bukan menggagalkan render daftar order.
+    const result = orderFilterSchema.parse({ branch_id: '3f1a9c62-5f4b-4c1e-9a2d-8e7b6c5d4a3f' });
+    expect(result).not.toHaveProperty('branch_id');
   });
 
   it('membuang tanggal di luar format YYYY-MM-DD', () => {
@@ -52,7 +62,7 @@ describe('orderFilterSchema — masukan sah', () => {
     const result = orderFilterSchema.parse({
       status: 'scheduled',
       payment_status: 'partial',
-      branch_id: '3f1a9c62-5f4b-4c1e-9a2d-8e7b6c5d4a3f',
+      location_id: '3f1a9c62-5f4b-4c1e-9a2d-8e7b6c5d4a3f',
       date_from: '2026-08-01',
       date_to: '2026-08-31',
       q: '  ORD-0001  ',
@@ -62,7 +72,7 @@ describe('orderFilterSchema — masukan sah', () => {
 
     expect(result.status).toBe('scheduled');
     expect(result.payment_status).toBe('partial');
-    expect(result.branch_id).toBe('3f1a9c62-5f4b-4c1e-9a2d-8e7b6c5d4a3f');
+    expect(result.location_id).toBe('3f1a9c62-5f4b-4c1e-9a2d-8e7b6c5d4a3f');
     expect(result.date_from).toBe('2026-08-01');
     expect(result.q).toBe('ORD-0001');
     expect(result.page).toBe(3);

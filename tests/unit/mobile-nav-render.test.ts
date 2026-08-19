@@ -24,9 +24,8 @@ function render(current: string): string {
   pathname = current;
   return renderToStaticMarkup(
     createElement(MobileNav, {
-      fullName: 'Budi Petugas',
-      role: 'petugas_lapangan',
-      isSupervisor: false,
+      fullName: 'Budi Vendor',
+      role: 'vendor',
     }),
   );
 }

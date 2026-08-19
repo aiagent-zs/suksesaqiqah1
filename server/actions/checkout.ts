@@ -81,10 +81,13 @@ export async function createGuestOrderAction(
         address: data.address || null,
       },
       service_id: data.service_id,
-      branch_id: data.branch_id,
+      // `branch_id` sengaja tidak dikirim: pemilih wilayah dicabut dari form,
+      // dan RPC menjatuhkannya ke `branches.is_default`.
       species: data.species,
       qty: data.qty,
       aqiqah_for: data.aqiqah_for,
+      requested_date: data.requested_date,
+      requested_time: data.requested_time,
       distribution_mode: data.distribution_mode,
       // Kosong = "Tidak pakai". RPC memperlakukan id kosong sebagai tanpa add-on.
       nasi_box_service_id: data.nasi_box_service_id || null,
@@ -92,7 +95,14 @@ export async function createGuestOrderAction(
       // Nama anak dan nasabnya disatukan di sini — `animals.on_behalf_of`
       // menyimpannya sebagai satu teks.
       on_behalf_of: [data.child_name, data.bin_binti].filter(Boolean).join(' ').trim(),
-      delivery_address: data.delivery_address || null,
+      // Hanya kode wilayahnya. `delivery_address` satu baris tidak dikirim dari
+      // sini — RPC merakitnya sendiri dari nama yang ia baca di `regions`.
+      delivery_province_code: data.delivery_province_code || null,
+      delivery_city_code: data.delivery_city_code || null,
+      delivery_district_code: data.delivery_district_code || null,
+      delivery_village_code: data.delivery_village_code || null,
+      delivery_postal_code: data.delivery_postal_code || null,
+      delivery_detail: data.delivery_detail || null,
       recipient_institution: data.recipient_institution || null,
       referral_code: data.referral_code || null,
       notes: data.notes || null,

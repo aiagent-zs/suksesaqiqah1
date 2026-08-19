@@ -34,7 +34,8 @@ export const uploadDocumentationSchema = z
  * Keputusan validasi, dipakai kedua tingkat (docs/10 section 4).
  *
  * Tingkat mana yang berlaku ditentukan role pemanggil di server action, bukan
- * oleh klien — supaya Supervisor tidak bisa meminta status `approved` penuh.
+ * oleh klien — supaya vendor tidak bisa meminta status `approved` untuk
+ * unggahannya sendiri.
  */
 export const reviewDocumentationSchema = z
   .object({
@@ -52,7 +53,7 @@ export const deleteDocumentationSchema = z.object({ documentation_id: uuid });
 
 /** Filter antrian validasi (docs/10 section 6). */
 export const validationFilterSchema = z.object({
-  branch_id: uuid.optional().catch(undefined),
+  // Cabang dicabut sebagai filter — lihat catatan di `orderFilterSchema`.
   stage: z.enum(DOC_STAGES).optional().catch(undefined),
   page: z.coerce.number().int().min(1).default(1).catch(1),
   page_size: z.coerce.number().int().min(5).max(100).default(20).catch(20),

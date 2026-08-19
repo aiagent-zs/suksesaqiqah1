@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { reviewDocumentation } from '@/server/actions/documentation';
-import type { ReviewLevel } from '../review';
 
 type Outcome = { ok: boolean; error?: { message: string } };
 
@@ -15,23 +14,23 @@ type Outcome = { ok: boolean; error?: { message: string } };
  * halaman antrian validasi.
  *
  * Status tujuan tidak pernah dikirim dari sini; server yang menentukannya dari
- * role pemanggil (docs/10 section 4). Prop `level` hanya untuk label tombol.
+ * role pemanggil (docs/10 section 4).
  */
 export function DocReviewActions({
   documentationId,
-  level,
   disabled,
   onRun,
 }: {
   documentationId: string;
-  level: ReviewLevel;
   disabled: boolean;
   onRun: (fn: () => Promise<Outcome>) => void;
 }) {
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
 
-  const approveLabel = level === 'supervisor' ? 'Setujui (tingkat-1)' : 'Setujui final';
+  // Satu tingkat sejak 19 Agustus 2026, jadi tombolnya tidak lagi perlu
+  // menyebutkan tingkat mana yang sedang dijalankan.
+  const approveLabel = 'Setujui';
 
   return (
     <div className="border-border mt-3 border-t pt-3">

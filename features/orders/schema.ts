@@ -37,7 +37,15 @@ export const animalInputSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
-  branch_id: uuid,
+  /**
+   * Cabang **tidak** ada di sini, dan itu disengaja.
+   *
+   * Pemilihnya dicabut 19 Agustus 2026 bersama seluruh filter cabang: operasi
+   * berjalan satu tempat. `orders.branch_id` tetap NOT NULL, jadi `createOrder`
+   * menjatuhkannya ke cabang default — sumber yang sama persis dengan yang
+   * dipakai `create_guest_order`, supaya order dari admin dan order dari
+   * checkout publik selalu mendarat di cabang yang sama.
+   */
   participant: participantInputSchema,
   items: z.array(orderItemInputSchema).min(1, 'Order harus punya minimal 1 item layanan'),
   animals: z.array(animalInputSchema).default([]),
@@ -135,7 +143,10 @@ export const orderFilterSchema = z.object({
     .catch(undefined),
   payment_status: z.enum(['unpaid', 'partial', 'paid']).optional().catch(undefined),
   source: z.enum(ORDER_SOURCES).optional().catch(undefined),
-  branch_id: uuid.optional().catch(undefined),
+  // Cabang tidak lagi jadi filter: sejak tiga role (19 Agustus 2026) operasi
+  // berjalan satu tempat dan tidak satu pun kebijakan RLS membandingkan
+  // `branch_id`, jadi menyaringnya tidak pernah mempersempit apa pun. Kolomnya
+  // tetap ada di database — dipakai penomoran order dan path Storage.
   location_id: uuid.optional().catch(undefined),
   pic_id: uuid.optional().catch(undefined),
   date_from: calendarDate.optional().catch(undefined),

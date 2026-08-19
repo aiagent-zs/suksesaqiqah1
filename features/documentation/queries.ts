@@ -153,12 +153,11 @@ const QUEUE_SELECT = `
 /**
  * Antrian validasi (docs/10 section 6).
  *
- * `status` ditentukan tingkat pemanggil, bukan filter dari klien: Supervisor
- * melihat `pending`, Admin Pusat melihat `approved_supervisor`. Baris tetap
- * ter-scope RLS — Supervisor cabang hanya melihat ordernya sendiri.
+ * Daftar `status` ditentukan pemanggil, bukan filter dari klien. Baris tetap
+ * ter-scope RLS.
  */
 export async function getValidationQueue(
-  status: DocStatus,
+  statuses: DocStatus[],
   filter: ValidationFilterInput,
 ): Promise<ValidationQueueResult> {
   const supabase = await createClient();
@@ -167,12 +166,13 @@ export async function getValidationQueue(
   let query = supabase
     .from('documentations')
     .select(QUEUE_SELECT, { count: 'exact' })
-    .eq('status', status)
+    // Daftar, bukan satu status: sejak validasi jadi satu tingkat, antrian ini
+    // memuat `pending` **dan** sisa `approved_supervisor` dari tangga lama.
+    .in('status', statuses)
     // Yang paling lama menunggu ditangani lebih dulu.
     .order('created_at', { ascending: true });
 
   if (filter.stage) query = query.eq('stage', filter.stage);
-  if (filter.branch_id) query = query.eq('order.branch_id', filter.branch_id);
 
   const from = (page - 1) * page_size;
   const { data, count, error } = await query.range(from, from + page_size - 1);

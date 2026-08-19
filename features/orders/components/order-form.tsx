@@ -12,33 +12,37 @@ import { createOrder } from '@/server/actions/orders';
 import { formatCurrency } from '@/lib/format';
 import { ANIMAL_SPECIES_LABEL, type AnimalSpecies } from '@/lib/constants/order';
 
-type Branch = { id: string; code: string; name: string };
 type Service = { id: string; name: string; type: string; price: number; slug: string };
 type Participant = { id: string; name: string; phone: string | null };
 
-type ItemRow = { key: number; service_id: string; qty: number; unit_price: number; on_behalf_of: string };
-type AnimalRow = { key: number; species: AnimalSpecies; tag_code: string; weight_kg: string; on_behalf_of: string };
+type ItemRow = {
+  key: number;
+  service_id: string;
+  qty: number;
+  unit_price: number;
+  on_behalf_of: string;
+};
+type AnimalRow = {
+  key: number;
+  species: AnimalSpecies;
+  tag_code: string;
+  weight_kg: string;
+  on_behalf_of: string;
+};
 
 let rowSeq = 0;
 const nextKey = () => ++rowSeq;
 
 export function OrderForm({
-  branches,
   services,
   participants,
-  defaultBranchId,
-  lockBranch,
 }: {
-  branches: Branch[];
   services: Service[];
   participants: Participant[];
-  defaultBranchId: string | null;
-  lockBranch: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const [branchId, setBranchId] = useState(defaultBranchId ?? branches[0]?.id ?? '');
   const [participantMode, setParticipantMode] = useState<'new' | 'existing'>('new');
   const [participantId, setParticipantId] = useState('');
   const [participant, setParticipant] = useState({ name: '', phone: '', email: '', address: '' });
@@ -76,7 +80,6 @@ export function OrderForm({
     setFieldErrors({});
 
     const payload = {
-      branch_id: branchId,
       participant:
         participantMode === 'existing'
           ? { mode: 'existing' as const, participant_id: participantId }
@@ -117,7 +120,7 @@ export function OrderForm({
       className="space-y-6"
     >
       {formError && (
-        <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+        <div className="border-destructive/30 bg-destructive/5 text-destructive flex items-start gap-2 rounded-xl border p-3 text-sm">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           <div>
             <p className="font-medium">{formError}</p>
@@ -134,33 +137,11 @@ export function OrderForm({
         </div>
       )}
 
-      {/* --- Cabang & peserta --- */}
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <h2 className="text-base font-semibold">Peserta & Cabang</h2>
+      {/* --- Peserta --- */}
+      <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
+        <h2 className="text-base font-semibold">Peserta</h2>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="branch">Cabang</Label>
-            <Select
-              id="branch"
-              value={branchId}
-              disabled={lockBranch}
-              onChange={(e) => setBranchId(e.target.value)}
-              className="mt-1.5"
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.code} — {b.name}
-                </option>
-              ))}
-            </Select>
-            {lockBranch && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Order hanya dapat dibuat untuk cabang Anda sendiri.
-              </p>
-            )}
-          </div>
-
           <div>
             <Label htmlFor="participant-mode">Data peserta</Label>
             <Select
@@ -240,13 +221,13 @@ export function OrderForm({
       </section>
 
       {/* --- Item layanan --- */}
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold">Item Layanan</h2>
-            <p id="price-note" className="mt-0.5 text-sm text-muted-foreground">
-              Minimal satu item. Harga mengikuti katalog layanan dan tidak dapat diubah dari
-              form ini.
+            <p id="price-note" className="text-muted-foreground mt-0.5 text-sm">
+              Minimal satu item. Harga mengikuti katalog layanan dan tidak dapat diubah dari form
+              ini.
             </p>
           </div>
           <Button
@@ -269,7 +250,7 @@ export function OrderForm({
           {items.map((item, index) => (
             <div
               key={item.key}
-              className="grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-[2fr_80px_1fr_1fr_auto]"
+              className="border-border grid gap-3 rounded-xl border p-3 sm:grid-cols-[2fr_80px_1fr_1fr_auto]"
             >
               <div>
                 <Label htmlFor={`svc-${item.key}`}>Layanan</Label>
@@ -305,7 +286,7 @@ export function OrderForm({
                   readOnly
                   aria-describedby="price-note"
                   value={item.service_id ? formatCurrency(item.unit_price) : '—'}
-                  className="mt-1.5 tabular-nums bg-muted text-muted-foreground"
+                  className="bg-muted text-muted-foreground mt-1.5 tabular-nums"
                 />
               </div>
               <div>
@@ -333,20 +314,20 @@ export function OrderForm({
           ))}
         </div>
 
-        <div className="mt-4 flex items-center justify-end gap-3 border-t border-border pt-4">
-          <span className="text-sm text-muted-foreground">Total order</span>
+        <div className="border-border mt-4 flex items-center justify-end gap-3 border-t pt-4">
+          <span className="text-muted-foreground text-sm">Total order</span>
           <span className="text-lg font-semibold tabular-nums">{formatCurrency(total)}</span>
         </div>
       </section>
 
       {/* --- Hewan (1 order banyak hewan) --- */}
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold">Hewan</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Satu order bisa mencakup banyak ekor. Boleh dikosongkan dulu dan ditambah dari
-              halaman detail.
+            <p className="text-muted-foreground mt-0.5 text-sm">
+              Satu order bisa mencakup banyak ekor. Boleh dikosongkan dulu dan ditambah dari halaman
+              detail.
             </p>
           </div>
           <Button
@@ -356,7 +337,13 @@ export function OrderForm({
             onClick={() =>
               setAnimals((prev) => [
                 ...prev,
-                { key: nextKey(), species: 'kambing', tag_code: '', weight_kg: '', on_behalf_of: '' },
+                {
+                  key: nextKey(),
+                  species: 'kambing',
+                  tag_code: '',
+                  weight_kg: '',
+                  on_behalf_of: '',
+                },
               ])
             }
           >
@@ -366,7 +353,7 @@ export function OrderForm({
         </div>
 
         {animals.length === 0 ? (
-          <p className="mt-4 rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+          <p className="border-border text-muted-foreground mt-4 rounded-xl border border-dashed px-4 py-6 text-center text-sm">
             Belum ada hewan ditambahkan.
           </p>
         ) : (
@@ -374,7 +361,7 @@ export function OrderForm({
             {animals.map((animal, index) => (
               <div
                 key={animal.key}
-                className="grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]"
+                className="border-border grid gap-3 rounded-xl border p-3 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]"
               >
                 <div>
                   <Label htmlFor={`sp-${animal.key}`}>Jenis</Label>
@@ -407,7 +394,9 @@ export function OrderForm({
                     placeholder="BDG-K-001"
                     onChange={(e) =>
                       setAnimals((prev) =>
-                        prev.map((a) => (a.key === animal.key ? { ...a, tag_code: e.target.value } : a)),
+                        prev.map((a) =>
+                          a.key === animal.key ? { ...a, tag_code: e.target.value } : a,
+                        ),
                       )
                     }
                     className="mt-1.5"
@@ -423,7 +412,9 @@ export function OrderForm({
                     value={animal.weight_kg}
                     onChange={(e) =>
                       setAnimals((prev) =>
-                        prev.map((a) => (a.key === animal.key ? { ...a, weight_kg: e.target.value } : a)),
+                        prev.map((a) =>
+                          a.key === animal.key ? { ...a, weight_kg: e.target.value } : a,
+                        ),
                       )
                     }
                     className="mt-1.5 tabular-nums"
@@ -462,7 +453,7 @@ export function OrderForm({
       </section>
 
       {/* --- Catatan --- */}
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
         <Label htmlFor="notes">Catatan</Label>
         <Textarea
           id="notes"

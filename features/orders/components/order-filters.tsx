@@ -12,38 +12,27 @@ import {
 } from '@/lib/constants/order';
 import { ORDER_SOURCES, ORDER_SOURCE_LABEL, type OrderFilterInput } from '../schema';
 
-type Option = { id: string; name: string; code?: string };
-
 /**
  * FilterBar list order (docs/14 section 5, docs/16 section 1).
  * Sengaja memakai form GET native: filter tetap berfungsi tanpa JavaScript,
  * dan state filter hidup di URL sehingga bisa di-bookmark & di-share.
  */
-export function OrderFilters({
-  filter,
-  branches,
-  canPickBranch,
-}: {
-  filter: OrderFilterInput;
-  branches: Option[];
-  canPickBranch: boolean;
-}) {
+export function OrderFilters({ filter }: { filter: OrderFilterInput }) {
   const allStatuses: OrderStatus[] = [...ORDER_STATUS_FLOW, 'on_hold', 'cancelled'];
   const hasActiveFilter = Boolean(
     filter.q ||
-      filter.status ||
-      filter.payment_status ||
-      filter.branch_id ||
-      filter.source ||
-      filter.date_from ||
-      filter.date_to,
+    filter.status ||
+    filter.payment_status ||
+    filter.source ||
+    filter.date_from ||
+    filter.date_to,
   );
 
   return (
     <form
       method="get"
       action="/orders"
-      className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+      className="border-border bg-card rounded-2xl border p-4 shadow-sm"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="lg:col-span-2">
@@ -51,7 +40,7 @@ export function OrderFilters({
             Cari
           </label>
           <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
             <Input
               id="q"
               name="q"
@@ -110,27 +99,16 @@ export function OrderFilters({
           </Select>
         </div>
 
-        {canPickBranch && (
-          <div>
-            <label htmlFor="branch_id" className="mb-1.5 block text-sm text-slate-700">
-              Cabang
-            </label>
-            <Select id="branch_id" name="branch_id" defaultValue={filter.branch_id ?? ''}>
-              <option value="">Semua cabang</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.code ? `${b.code} — ${b.name}` : b.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
-
         <div>
           <label htmlFor="date_from" className="mb-1.5 block text-sm text-slate-700">
             Dari tanggal
           </label>
-          <Input id="date_from" name="date_from" type="date" defaultValue={filter.date_from ?? ''} />
+          <Input
+            id="date_from"
+            name="date_from"
+            type="date"
+            defaultValue={filter.date_from ?? ''}
+          />
         </div>
 
         <div>

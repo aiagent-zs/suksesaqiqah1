@@ -27,11 +27,7 @@ export async function getSession(): Promise<SessionUser | null> {
   if (error || !user) return null;
 
   // Ambil profile (role, branch_id, dll)
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
 
   return {
     id: user.id,
@@ -55,9 +51,7 @@ export async function requireAuth(): Promise<SessionUser> {
  * Wajib ada sesi + salah satu dari role yang diizinkan.
  * Jika role tidak sesuai → redirect ke /dashboard (403-friendly).
  */
-export async function requireRole(
-  allowedRoles: UserRole[],
-): Promise<SessionUser> {
+export async function requireRole(allowedRoles: UserRole[]): Promise<SessionUser> {
   const session = await requireAuth();
 
   const userRole = session.profile?.role;
@@ -77,20 +71,16 @@ export function hasRole(profile: Profile | null, roles: UserRole[]): boolean {
 }
 
 /**
- * Cek apakah user adalah role "pusat" (akses lintas cabang):
- * direktur | manager_program | admin_pusat
+ * Pihak internal — superadmin atau admin.
+ *
+ * Lawannya vendor, yang hanya melihat order yang ditugaskan padanya. Cerminan
+ * `public.is_staff()` di database; keduanya harus bergerak bersama.
  */
-export function isCentral(profile: Profile | null): boolean {
-  return hasRole(profile, ['direktur', 'manager_program', 'admin_pusat']);
+export function isStaff(profile: Profile | null): boolean {
+  return hasRole(profile, ['superadmin', 'admin']);
 }
 
-/**
- * Cek apakah user ditunjuk sebagai Supervisor (validasi tingkat-1).
- */
-export function isSupervisor(profile: Profile | null): boolean {
-  if (!profile) return false;
-  return (
-    profile.is_supervisor &&
-    ['manager_program', 'admin_cabang'].includes(profile.role)
-  );
+/** Cerminan `public.is_superadmin()`. */
+export function isSuperadmin(profile: Profile | null): boolean {
+  return hasRole(profile, ['superadmin']);
 }

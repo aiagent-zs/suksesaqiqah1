@@ -9,19 +9,19 @@ import type { Database } from '@/types/database';
 
 type UserRole = Database['public']['Enums']['user_role'];
 
-const FIELD_ROLES: UserRole[] = ['admin_cabang', 'petugas_lapangan'];
+const FIELD_ROLES: UserRole[] = ['admin', 'vendor'];
 
 describe('checkAnimalTransition — maju', () => {
   it('mengizinkan satu langkah maju bagi petugas lapangan', () => {
-    expect(checkAnimalTransition('registered', 'prepared', 'petugas_lapangan').ok).toBe(true);
-    expect(checkAnimalTransition('prepared', 'slaughtered', 'petugas_lapangan').ok).toBe(true);
-    expect(checkAnimalTransition('slaughtered', 'distributed', 'petugas_lapangan').ok).toBe(true);
+    expect(checkAnimalTransition('registered', 'prepared', 'vendor').ok).toBe(true);
+    expect(checkAnimalTransition('prepared', 'slaughtered', 'vendor').ok).toBe(true);
+    expect(checkAnimalTransition('slaughtered', 'distributed', 'vendor').ok).toBe(true);
   });
 
   it('menolak lompatan registered → distributed', () => {
     // Inti bug #6: lompatan ini menaikkan animals_distributed di
     // v_order_progress tanpa pemotongan pernah tercatat.
-    const result = checkAnimalTransition('registered', 'distributed', 'petugas_lapangan');
+    const result = checkAnimalTransition('registered', 'distributed', 'vendor');
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -31,7 +31,7 @@ describe('checkAnimalTransition — maju', () => {
   });
 
   it('menolak lompatan registered → slaughtered', () => {
-    const result = checkAnimalTransition('registered', 'slaughtered', 'admin_cabang');
+    const result = checkAnimalTransition('registered', 'slaughtered', 'admin');
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -40,7 +40,7 @@ describe('checkAnimalTransition — maju', () => {
 
   it('menolak transisi ke status yang sama', () => {
     for (const status of ANIMAL_STATUS_FLOW) {
-      const result = checkAnimalTransition(status, status, 'manager_program');
+      const result = checkAnimalTransition(status, status, 'superadmin');
       expect(result.ok, `${status} → ${status}`).toBe(false);
     }
   });
@@ -62,12 +62,12 @@ describe('checkAnimalTransition — mundur', () => {
   });
 
   it('mengizinkan Manager Program mundur satu tahap', () => {
-    expect(checkAnimalTransition('distributed', 'slaughtered', 'manager_program').ok).toBe(true);
-    expect(checkAnimalTransition('prepared', 'registered', 'manager_program').ok).toBe(true);
+    expect(checkAnimalTransition('distributed', 'slaughtered', 'superadmin').ok).toBe(true);
+    expect(checkAnimalTransition('prepared', 'registered', 'superadmin').ok).toBe(true);
   });
 
   it('menolak Manager Program mundur lebih dari satu tahap', () => {
-    const result = checkAnimalTransition('distributed', 'registered', 'manager_program');
+    const result = checkAnimalTransition('distributed', 'registered', 'superadmin');
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -77,14 +77,14 @@ describe('checkAnimalTransition — mundur', () => {
 
 describe('getAnimalStatusOptions', () => {
   it('mengembalikan seluruh status dan menandai status saat ini sebagai boleh', () => {
-    const options = getAnimalStatusOptions('prepared', 'petugas_lapangan');
+    const options = getAnimalStatusOptions('prepared', 'vendor');
 
     expect(options.map((o) => o.status)).toEqual(ANIMAL_STATUS_FLOW);
     expect(options.find((o) => o.status === 'prepared')?.allowed).toBe(true);
   });
 
   it('hanya membuka tahap berikutnya bagi petugas lapangan', () => {
-    const allowed = getAnimalStatusOptions('registered', 'petugas_lapangan')
+    const allowed = getAnimalStatusOptions('registered', 'vendor')
       .filter((o) => o.allowed)
       .map((o) => o.status);
 
@@ -92,7 +92,7 @@ describe('getAnimalStatusOptions', () => {
   });
 
   it('membuka tahap sebelum & sesudah bagi Manager Program', () => {
-    const allowed = getAnimalStatusOptions('slaughtered', 'manager_program')
+    const allowed = getAnimalStatusOptions('slaughtered', 'superadmin')
       .filter((o) => o.allowed)
       .map((o) => o.status);
 
@@ -100,7 +100,7 @@ describe('getAnimalStatusOptions', () => {
   });
 
   it('menyertakan alasan pada setiap opsi yang tidak diizinkan', () => {
-    for (const option of getAnimalStatusOptions('registered', 'petugas_lapangan')) {
+    for (const option of getAnimalStatusOptions('registered', 'vendor')) {
       if (option.allowed) continue;
       expect(option.reason, `${option.status} butuh alasan`).toBeTruthy();
     }

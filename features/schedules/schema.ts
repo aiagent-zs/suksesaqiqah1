@@ -46,7 +46,7 @@ export const updateScheduleStatusSchema = z.object({
  * Seluruhnya `.catch()` — isinya query string yang bisa disunting siapa saja.
  */
 export const scheduleFilterSchema = z.object({
-  branch_id: uuid.optional().catch(undefined),
+  // Cabang dicabut sebagai filter — lihat catatan di `orderFilterSchema`.
   location_id: uuid.optional().catch(undefined),
   pic_id: uuid.optional().catch(undefined),
   status: z.enum(['planned', 'ongoing', 'done']).optional().catch(undefined),

@@ -2,118 +2,122 @@ import 'server-only';
 import type { UserRole } from './session';
 
 /**
- * Kapabilitas action-level (docs/07 section 4).
- * Setiap kapabilitas memetakan role yang berhak melakukannya.
+ * Kapabilitas action-level untuk tiga role.
+ *
+ *   superadmin  akses penuh atas segalanya
+ *   admin       penghubung pembeli & vendor: verifikasi order, verifikasi
+ *               pembayaran, penugasan vendor, validasi bukti dari vendor
+ *   vendor      pelaksana lapangan; hanya order yang ditugaskan padanya
+ *
+ * Daftar di sini adalah cerminan kebijakan RLS di
+ * `20260819040000_three_roles.sql`. Kalau keduanya menyimpang, UI akan
+ * menawarkan aksi yang pasti ditolak database — atau lebih buruk,
+ * menyembunyikan aksi yang sebenarnya boleh.
  */
+const STAFF: UserRole[] = ['superadmin', 'admin'];
+const ALL: UserRole[] = ['superadmin', 'admin', 'vendor'];
+
 export const CAPABILITIES = {
-  /** Ubah status order (transisi valid) */
-  UPDATE_ORDER_STATUS: ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[],
+  /** Ubah status order (transisi valid) — vendor menggerakkan tahap lapangan. */
+  UPDATE_ORDER_STATUS: ALL,
 
   /** Ubah data order non-status (catatan, nilai order) */
-  UPDATE_ORDER: ['manager_program', 'admin_cabang'] as UserRole[],
+  UPDATE_ORDER: STAFF,
 
   /**
    * Ubah nilai `total_amount` sebuah order.
    *
    * Dipisah dari UPDATE_ORDER karena total_amount adalah pembanding payment gate
-   * (`paid_amount >= total_amount * min_dp_ratio`). Siapapun yang bisa
-   * menurunkannya bisa meloloskan order tanpa uang masuk, jadi haknya dibatasi
-   * ke Manager Program saja.
+   * (`paid_amount >= total_amount * min_dp_ratio`). Siapa pun yang bisa
+   * menurunkannya bisa meloloskan order tanpa uang masuk, jadi haknya berhenti
+   * di superadmin — harga adalah keputusan pemilik usaha, bukan operasional.
    */
-  UPDATE_ORDER_AMOUNT: ['manager_program'] as UserRole[],
+  UPDATE_ORDER_AMOUNT: ['superadmin'] as UserRole[],
 
   /**
    * Verifikasi order tamu sebelum masuk alur operasional (`prd.md` FR-C2).
    *
-   * Order dari checkout publik masuk tanpa `created_by` dan tertahan di status
-   * `new` sampai seseorang benar-benar memeriksanya. Admin Pusat ikut karena
-   * merekalah yang memantau order masuk lintas cabang; Petugas Lapangan tidak,
-   * verifikasi ini keputusan administratif, bukan pekerjaan lapangan.
+   * Inilah pintu pertama peran admin: order dari checkout publik masuk tanpa
+   * `created_by` dan tertahan di status `new` sampai seseorang benar-benar
+   * memeriksanya, lalu mencarikan vendor yang siap mengambilnya.
    *
-   * Daftarnya sengaja identik dengan `enforce_guest_order_verification` di
-   * `20260814010000_guest_order_verification.sql` — kalau keduanya menyimpang,
-   * UI akan menawarkan tombol yang pasti ditolak database.
+   * Daftarnya sengaja identik dengan `enforce_guest_order_verification` yang
+   * kini memakai `is_staff()`.
    */
-  VERIFY_GUEST_ORDER: ['manager_program', 'admin_cabang', 'admin_pusat'] as UserRole[],
+  VERIFY_GUEST_ORDER: STAFF,
 
   /** Tambah/ubah/hapus data hewan pada order */
-  MANAGE_ANIMALS: ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[],
+  MANAGE_ANIMALS: ALL,
 
   /**
    * Catat pelaksanaan lapangan: pemotongan & distribusi (docs/08 section 3).
-   * Petugas Lapangan termasuk — merekalah aktor kedua tahap ini — sejalan
-   * dengan `can_write_order` yang memberi mereka akses pada order yang di-PIC-i.
+   * Vendor termasuk — merekalah aktor kedua tahap ini — sejalan dengan
+   * `can_write_order` yang memberi mereka akses pada order yang ditugaskan.
    */
-  RECORD_FIELD_WORK: ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[],
+  RECORD_FIELD_WORK: ALL,
 
   /**
    * Hapus catatan pemotongan/distribusi.
    *
-   * Dipisah dari pencatatan dan dibatasi Manager Program: catatan ini adalah
-   * bukti pelaksanaan yang sudah terhitung di KPI dan melepas guard transisi
-   * order — sama alasannya dengan pembatasan koreksi mundur status hewan.
+   * Dipisah dari pencatatan dan dibatasi superadmin: catatan ini bukti
+   * pelaksanaan yang sudah terhitung di KPI dan melepas guard transisi order.
    */
-  DELETE_FIELD_RECORD: ['manager_program'] as UserRole[],
+  DELETE_FIELD_RECORD: ['superadmin'] as UserRole[],
 
   /**
    * Tandai & kelola kendala pada order (`prd.md` FR-SL4, docs/16 section 11).
    *
    * Daftar rolenya sengaja identik dengan `can_write_order` yang dipakai RLS
    * `issues_insert` / `issues_update` — kendala paling sering muncul di
-   * lapangan, jadi Petugas Lapangan harus bisa melaporkannya sendiri pada order
-   * yang ia PIC-i. Direktur & Admin Pusat tetap read-only di jalur operasional.
+   * lapangan, jadi vendor harus bisa melaporkannya sendiri.
    */
-  MANAGE_ISSUES: ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[],
+  MANAGE_ISSUES: ALL,
 
   /**
    * Catat pembayaran masuk & unggah bukti transfer.
    *
-   * Daftar rolenya sengaja identik dengan kebijakan Storage
-   * `storage_payment_proofs_write` dan RLS `payments_write`. Kalau ketiganya
-   * menyimpang, UI akan menawarkan aksi yang pasti ditolak database.
+   * Vendor sama sekali di luar urusan pembayaran: uang mengalir antara pembeli
+   * dan kami, bukan antara pembeli dan vendor. Sama dengan kebijakan Storage
+   * `storage_payment_proofs_write` dan RLS `payments_write`.
    */
-  RECORD_PAYMENT: ['manager_program', 'admin_cabang'] as UserRole[],
+  RECORD_PAYMENT: STAFF,
 
-  /** Verifikasi pembayaran */
-  VERIFY_PAYMENT: ['manager_program', 'admin_cabang'] as UserRole[],
+  /** Verifikasi pembayaran pembeli — tugas inti admin. */
+  VERIFY_PAYMENT: STAFF,
 
   /**
-   * Tetapkan tanggal, lokasi, dan PIC (docs/08 section 3 — aktor tahap Schedule).
-   * Sama dengan kebijakan RLS `schedules_write`.
+   * Tetapkan tanggal, lokasi, dan **vendor pelaksana**.
+   *
+   * Inilah yang membuat vendor bisa melihat sebuah order sama sekali:
+   * `can_read_order` memberi vendor akses lewat `schedules.pic_user_id`. Jadi
+   * kapabilitas ini sekaligus pintu masuk data — karenanya berhenti di staf.
    */
-  MANAGE_SCHEDULE: ['manager_program', 'admin_cabang'] as UserRole[],
+  MANAGE_SCHEDULE: STAFF,
+
+  /** Unggah dokumentasi lapangan (docs/10 section 3) — pekerjaan vendor. */
+  UPLOAD_DOCUMENTATION: ALL,
 
   /**
-   * Unggah dokumentasi lapangan (docs/10 section 3).
-   * Sama dengan `documentations_insert` yang memakai `can_write_order`.
+   * Validasi bukti yang dikirim vendor.
+   *
+   * Satu tingkat sejak 19 Agustus 2026: `pending -> approved`. Pemisahan tugas
+   * tetap berlaku — pengunggah tidak bisa memvalidasi unggahannya sendiri —
+   * dan itu ditegakkan `checkReview` serta trigger, bukan daftar ini.
    */
-  UPLOAD_DOCUMENTATION: ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[],
-
-  /** Validasi dokumentasi tingkat-1 (Supervisor) */
-  VALIDATE_DOC_LEVEL1: ['manager_program', 'admin_cabang'] as UserRole[],
-
-  /** Validasi dokumentasi tingkat-akhir */
-  VALIDATE_DOC_FINAL: ['admin_pusat'] as UserRole[],
+  VALIDATE_DOCUMENTATION: STAFF,
 
   /** Generate & kirim laporan */
-  GENERATE_REPORT: ['manager_program', 'admin_pusat', 'admin_cabang'] as UserRole[],
+  GENERATE_REPORT: STAFF,
 
   /** Kelola master data & user */
-  MANAGE_MASTER_DATA: ['manager_program'] as UserRole[],
-
-  /** Lihat seluruh cabang */
-  VIEW_ALL_BRANCHES: ['direktur', 'manager_program', 'admin_pusat'] as UserRole[],
+  MANAGE_MASTER_DATA: ['superadmin'] as UserRole[],
 
   /** Akses audit trail penuh */
-  VIEW_FULL_AUDIT: ['direktur', 'manager_program', 'admin_pusat'] as UserRole[],
+  VIEW_FULL_AUDIT: STAFF,
 } as const;
 
 export type Capability = keyof typeof CAPABILITIES;
 
-/**
- * Cek apakah sebuah role punya kapabilitas tertentu.
- * Catatan: untuk VALIDATE_DOC_LEVEL1 juga butuh is_supervisor=true — cek itu di server action.
- */
 export function canDo(role: UserRole | undefined, capability: Capability): boolean {
   if (!role) return false;
   return (CAPABILITIES[capability] as readonly UserRole[]).includes(role);

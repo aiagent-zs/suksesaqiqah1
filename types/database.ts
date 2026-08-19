@@ -191,6 +191,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           id: string
+          is_default: boolean
           name: string
           phone: string | null
           updated_at: string
@@ -201,6 +202,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
+          is_default?: boolean
           name: string
           phone?: string | null
           updated_at?: string
@@ -211,6 +213,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
+          is_default?: boolean
           name?: string
           phone?: string | null
           updated_at?: string
@@ -711,6 +714,16 @@ export type Database = {
           created_at: string
           created_by: string | null
           delivery_address: string | null
+          delivery_city: string | null
+          delivery_city_code: string | null
+          delivery_detail: string | null
+          delivery_district: string | null
+          delivery_district_code: string | null
+          delivery_postal_code: string | null
+          delivery_province: string | null
+          delivery_province_code: string | null
+          delivery_village: string | null
+          delivery_village_code: string | null
           distribution_mode: string | null
           guest_verified_at: string | null
           guest_verified_by: string | null
@@ -723,6 +736,8 @@ export type Database = {
           public_token: string
           recipient_institution: string | null
           referral_code: string | null
+          requested_date: string | null
+          requested_time: string | null
           status: Database["public"]["Enums"]["order_status"]
           status_reason: string | null
           total_amount: number
@@ -734,6 +749,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           delivery_address?: string | null
+          delivery_city?: string | null
+          delivery_city_code?: string | null
+          delivery_detail?: string | null
+          delivery_district?: string | null
+          delivery_district_code?: string | null
+          delivery_postal_code?: string | null
+          delivery_province?: string | null
+          delivery_province_code?: string | null
+          delivery_village?: string | null
+          delivery_village_code?: string | null
           distribution_mode?: string | null
           guest_verified_at?: string | null
           guest_verified_by?: string | null
@@ -746,6 +771,8 @@ export type Database = {
           public_token?: string
           recipient_institution?: string | null
           referral_code?: string | null
+          requested_date?: string | null
+          requested_time?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           status_reason?: string | null
           total_amount?: number
@@ -757,6 +784,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           delivery_address?: string | null
+          delivery_city?: string | null
+          delivery_city_code?: string | null
+          delivery_detail?: string | null
+          delivery_district?: string | null
+          delivery_district_code?: string | null
+          delivery_postal_code?: string | null
+          delivery_province?: string | null
+          delivery_province_code?: string | null
+          delivery_village?: string | null
+          delivery_village_code?: string | null
           distribution_mode?: string | null
           guest_verified_at?: string | null
           guest_verified_by?: string | null
@@ -769,6 +806,8 @@ export type Database = {
           public_token?: string
           recipient_institution?: string | null
           referral_code?: string | null
+          requested_date?: string | null
+          requested_time?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           status_reason?: string | null
           total_amount?: number
@@ -953,7 +992,6 @@ export type Database = {
           full_name: string | null
           id: string
           is_active: boolean
-          is_supervisor: boolean
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
@@ -966,7 +1004,6 @@ export type Database = {
           full_name?: string | null
           id: string
           is_active?: boolean
-          is_supervisor?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -979,7 +1016,6 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_active?: boolean
-          is_supervisor?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -1005,6 +1041,35 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_open_orders"
             referencedColumns: ["branch_id"]
+          },
+        ]
+      }
+      regions: {
+        Row: {
+          code: string
+          level: number
+          name: string
+          parent_code: string | null
+        }
+        Insert: {
+          code: string
+          level: number
+          name: string
+          parent_code?: string | null
+        }
+        Update: {
+          code?: string
+          level?: number
+          name?: string
+          parent_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regions_parent_code_fkey"
+            columns: ["parent_code"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -1410,9 +1475,9 @@ export type Database = {
       create_order: { Args: { p_payload: Json }; Returns: Json }
       get_public_branches: { Args: never; Returns: Json }
       get_public_report: { Args: { p_token: string }; Returns: Json }
-      is_central: { Args: never; Returns: boolean }
       is_order_pic: { Args: { p_order_id: string }; Returns: boolean }
-      is_supervisor: { Args: never; Returns: boolean }
+      is_staff: { Args: never; Returns: boolean }
+      is_superadmin: { Args: never; Returns: boolean }
       min_dp_ratio: { Args: never; Returns: number }
       next_order_number: { Args: { p_at?: string }; Returns: string }
     }
@@ -1442,12 +1507,7 @@ export type Database = {
       payment_verification_status: "pending" | "verified" | "rejected"
       schedule_status: "planned" | "ongoing" | "done"
       service_type: "aqiqah" | "qurban" | "sedekah_daging" | "nasi_box"
-      user_role:
-        | "direktur"
-        | "manager_program"
-        | "admin_pusat"
-        | "admin_cabang"
-        | "petugas_lapangan"
+      user_role: "superadmin" | "admin" | "vendor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1604,13 +1664,7 @@ export const Constants = {
       payment_verification_status: ["pending", "verified", "rejected"],
       schedule_status: ["planned", "ongoing", "done"],
       service_type: ["aqiqah", "qurban", "sedekah_daging", "nasi_box"],
-      user_role: [
-        "direktur",
-        "manager_program",
-        "admin_pusat",
-        "admin_cabang",
-        "petugas_lapangan",
-      ],
+      user_role: ["superadmin", "admin", "vendor"],
     },
   },
 } as const

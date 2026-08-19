@@ -11,22 +11,12 @@ import {
 } from '@/lib/constants/order';
 import type { DashboardFilterInput } from '../schema';
 
-type Option = { id: string; name: string; code?: string | null };
-
 /**
  * Filter dashboard (docs/09 section 3 & section 7).
  * Form GET native seperti FilterBar order: tetap berfungsi tanpa JavaScript dan
  * state-nya hidup di URL sehingga tampilan bisa di-bookmark & dibagikan.
  */
-export function DashboardFilters({
-  filter,
-  branches,
-  canPickBranch,
-}: {
-  filter: DashboardFilterInput;
-  branches: Option[];
-  canPickBranch: boolean;
-}) {
+export function DashboardFilters({ filter }: { filter: DashboardFilterInput }) {
   // `completed`/`cancelled` sengaja tidak ada: v_open_orders hanya berisi order
   // yang belum selesai, jadi memilihnya selalu menghasilkan tabel kosong.
   const openStatuses: OrderStatus[] = [
@@ -34,9 +24,7 @@ export function DashboardFilters({
     'on_hold',
   ];
 
-  const hasActiveFilter = Boolean(
-    filter.branch_id || filter.status || filter.severity || filter.issues_only,
-  );
+  const hasActiveFilter = Boolean(filter.status || filter.severity || filter.issues_only);
 
   return (
     <form
@@ -45,22 +33,6 @@ export function DashboardFilters({
       className="border-border bg-card rounded-2xl border p-4 shadow-sm"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {canPickBranch && (
-          <div>
-            <label htmlFor="branch_id" className="mb-1.5 block text-sm text-slate-700">
-              Cabang
-            </label>
-            <Select id="branch_id" name="branch_id" defaultValue={filter.branch_id ?? ''}>
-              <option value="">Semua cabang</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.code ? `${b.code} — ${b.name}` : b.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
-
         <div>
           <label htmlFor="status" className="mb-1.5 block text-sm text-slate-700">
             Tahap

@@ -16,19 +16,14 @@ type Option = { id: string; name: string; code?: string | null };
  */
 export function ScheduleFilters({
   filter,
-  branches,
   locations,
   pics,
-  canPickBranch,
 }: {
   filter: ScheduleFilterInput;
-  branches: Option[];
   locations: Option[];
   pics: Option[];
-  canPickBranch: boolean;
 }) {
   const hasActiveFilter = Boolean(
-    filter.branch_id ||
     filter.location_id ||
     filter.pic_id ||
     filter.status ||
@@ -44,22 +39,6 @@ export function ScheduleFilters({
       className="border-border bg-card rounded-2xl border p-4 shadow-sm"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {canPickBranch && (
-          <div>
-            <label htmlFor="branch_id" className="mb-1.5 block text-sm text-slate-700">
-              Cabang
-            </label>
-            <Select id="branch_id" name="branch_id" defaultValue={filter.branch_id ?? ''}>
-              <option value="">Semua cabang</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.code ? `${b.code} — ${b.name}` : b.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
-
         <div>
           <label htmlFor="location_id" className="mb-1.5 block text-sm text-slate-700">
             Lokasi

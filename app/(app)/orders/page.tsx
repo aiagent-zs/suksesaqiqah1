@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Plus, PackageSearch } from 'lucide-react';
-import { requireAuth, isCentral } from '@/server/auth/session';
-import { listOrders, getOrderFormOptions } from '@/features/orders/queries';
+import { requireAuth } from '@/server/auth/session';
+import { listOrders } from '@/features/orders/queries';
 import { orderFilterSchema } from '@/features/orders/schema';
 import { OrderFilters } from '@/features/orders/components/order-filters';
 import { OrderCardList, OrderTable } from '@/features/orders/components/order-table';
@@ -23,17 +23,16 @@ export default async function OrdersPage({ searchParams }: { searchParams: Searc
   ) as Record<string, string | undefined>;
 
   const filter = orderFilterSchema.parse(flat);
-  const [result, { branches }] = await Promise.all([listOrders(filter), getOrderFormOptions()]);
+  const result = await listOrders(filter);
 
-  const canCreate =
-    session.profile?.role === 'admin_cabang' || session.profile?.role === 'manager_program';
+  const canCreate = session.profile?.role === 'admin' || session.profile?.role === 'superadmin';
 
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Order</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-1 text-sm">
             Seluruh pesanan aqiqah & qurban dalam cakupan akses Anda.
           </p>
         </div>
@@ -46,17 +45,13 @@ export default async function OrdersPage({ searchParams }: { searchParams: Searc
         )}
       </header>
 
-      <OrderFilters
-        filter={filter}
-        branches={branches}
-        canPickBranch={isCentral(session.profile)}
-      />
+      <OrderFilters filter={filter} />
 
       {result.total === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center">
-          <PackageSearch className="size-10 text-muted-foreground" />
+        <div className="border-border bg-card flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-16 text-center">
+          <PackageSearch className="text-muted-foreground size-10" />
           <p className="mt-4 font-medium">Tidak ada order yang cocok</p>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-1 max-w-sm text-sm">
             Coba longgarkan filter, atau buat order baru bila pesanan memang belum tercatat.
           </p>
           {canCreate && (

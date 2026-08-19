@@ -6,6 +6,7 @@ import { MobileNav } from '@/components/layout/mobile-nav';
 import type { ReactNode } from 'react';
 import { ShieldCheck, LogOut } from 'lucide-react';
 import { logout } from '@/server/actions/auth';
+import { ROLE_LABEL } from '@/lib/constants/roles';
 
 /**
  * Layout untuk route group (app)/* — terproteksi dengan Sukses Aqiqah Command Design System (design.md)
@@ -59,13 +60,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </p>
             <div className="mt-1.5 flex items-center gap-2">
               <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
-                {session.profile?.role ?? 'staf'}
+                {ROLE_LABEL[session.profile?.role ?? ''] ?? 'Staf'}
               </span>
-              {session.profile?.is_supervisor && (
-                <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-300">
-                  Supervisor
-                </span>
-              )}
             </div>
           </div>
 
@@ -114,7 +110,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <MobileNav
         fullName={session.profile?.full_name ?? session.email ?? 'User Staf'}
         role={session.profile?.role ?? 'staf'}
-        isSupervisor={Boolean(session.profile?.is_supervisor)}
       />
     </AuthProvider>
   );

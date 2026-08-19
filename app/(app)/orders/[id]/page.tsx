@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, CalendarDays, MapPin, Receipt, User, UserCog } from 'lucide-react';
-import { requireAuth, isSupervisor } from '@/server/auth/session';
+import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import { getOrderDetail, getOrderTimeline } from '@/features/orders/queries';
 import { getTransitionOptions } from '@/features/orders/state-machine';
@@ -21,7 +21,10 @@ import { IssueListPanel } from '@/features/issues/components/issue-list-panel';
 import { getOrderIssues } from '@/features/issues/queries';
 import { DocumentationManager } from '@/features/documentation/components/documentation-manager';
 import { getOrderDocumentations } from '@/features/documentation/queries';
-import { reviewLevelFor, missingDocumentationStages } from '@/features/documentation/review';
+import {
+  canValidateDocumentation,
+  missingDocumentationStages,
+} from '@/features/documentation/review';
 import { ReportManager } from '@/features/reporting/components/report-manager';
 import { getOrderReports } from '@/features/reporting/queries';
 import {
@@ -94,9 +97,10 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   const distributableAnimals = animals
     .filter((a) => a.status === 'slaughtered')
     .map((a) => ({ id: a.id, tagCode: a.tag_code, species: a.species }));
-  // Petugas lapangan tidak pernah melihat data pembayaran (RLS `payments_select`),
-  // jadi panelnya tidak dirender sama sekali untuk mereka.
-  const showPayments = role !== 'petugas_lapangan';
+  // Vendor tidak pernah melihat data pembayaran (RLS `payments_select`) — uang
+  // mengalir antara pembeli dan kami, bukan antara pembeli dan vendor. Panelnya
+  // karena itu tidak dirender sama sekali untuk mereka.
+  const showPayments = role !== 'vendor';
   // Kelengkapan yang sama dengan gate `documentation → reporting` (docs/10 §5).
   const missingDoc = missingDocumentationStages({
     approvedSlaughter: documentations.approvedSlaughter,
@@ -156,6 +160,8 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             participantName: participant?.name ?? null,
             participantPhone: participant?.phone ?? null,
             aqiqahFor: order.aqiqah_for,
+            requestedDate: order.requested_date,
+            requestedTime: order.requested_time,
             distributionMode: order.distribution_mode,
             deliveryAddress: order.delivery_address,
             recipientInstitution: order.recipient_institution,
@@ -286,8 +292,8 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             summary={documentations}
             animals={animals.map((a) => ({ id: a.id, tagCode: a.tag_code }))}
             canUpload={canDo(role, 'UPLOAD_DOCUMENTATION')}
-            canDelete={role === 'manager_program' || role === 'admin_cabang'}
-            reviewLevel={reviewLevelFor(role, isSupervisor(session.profile))}
+            canDelete={role === 'superadmin' || role === 'admin'}
+            canValidate={canValidateDocumentation(role)}
             currentUserId={session.id}
           />
 
@@ -430,7 +436,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                 Pembayaran
               </h2>
               <p className="text-muted-foreground mt-2 text-sm">
-                Data pembayaran tidak termasuk cakupan akses Petugas Lapangan.
+                Data pembayaran tidak termasuk cakupan akses vendor.
               </p>
             </section>
           )}

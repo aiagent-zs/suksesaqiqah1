@@ -15,7 +15,7 @@ import {
 } from '@/features/orders/schema';
 import { checkTransition } from '@/features/orders/state-machine';
 import { checkAnimalTransition } from '@/features/orders/animal-state-machine';
-import { getOrderDetail } from '@/features/orders/queries';
+import { getDefaultBranchId, getOrderDetail } from '@/features/orders/queries';
 import type { OrderStatus } from '@/lib/constants/order';
 
 import {
@@ -39,12 +39,12 @@ export async function createOrder(
   const session = await requireAuth();
   const role = session.profile?.role;
 
-  if (!role || !['manager_program', 'admin_cabang'].includes(role)) {
+  if (!role || !['superadmin', 'admin'].includes(role)) {
     return {
       ok: false,
       error: {
         code: 'FORBIDDEN',
-        message: 'Hanya Admin Cabang atau Manager Program yang dapat membuat order.',
+        message: 'Hanya admin atau superadmin yang dapat membuat order.',
       },
     };
   }
@@ -53,16 +53,16 @@ export async function createOrder(
   if (!parsed.success) return validationError(parsed.error);
   const payload = parsed.data;
 
-  // Defense in depth: RLS sudah menolak lintas cabang, tapi pesan errornya
-  // tidak informatif bagi operator.
-  if (role === 'admin_cabang' && session.profile?.branch_id !== payload.branch_id) {
-    return {
-      ok: false,
-      error: { code: 'FORBIDDEN', message: 'Anda hanya dapat membuat order untuk cabang sendiri.' },
-    };
-  }
-
   const supabase = await createClient();
+
+  // Cabang ditentukan di sini, bukan di form: `orders.branch_id` NOT NULL
+  // sementara pemilihnya sudah tidak ada.
+  const branchId = await getDefaultBranchId();
+  if (!branchId) {
+    return internalError('Cabang penampung order belum ada', {
+      message: 'branches kosong — seed 01_master.sql belum dijalankan',
+    });
+  }
 
   // Harga satuan tidak dipercaya dari klien. Katalog `services` adalah satu-
   // satunya sumber harga: layanan wajib aktif, dan `unit_price` yang dikirim
@@ -94,6 +94,7 @@ export async function createOrder(
 
   const pricedPayload = {
     ...payload,
+    branch_id: branchId,
     items: payload.items.map((item) => ({
       ...item,
       unit_price: priceByService.get(item.service_id)!,

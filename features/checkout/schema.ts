@@ -1,6 +1,62 @@
 import { z } from 'zod';
+import { addCalendarDays, todayWib } from '@/lib/format/date-range';
 
 const uuid = z.string().uuid('Pilihan tidak valid');
+
+/**
+ * Sejauh mana ke depan pemesan boleh memilih tanggal pelaksanaan.
+ *
+ * Angka yang sama ditegakkan di `create_guest_order`. Di luar jendela ini harga
+ * dan ketersediaan hewan sudah tidak bisa dipegang dari halaman publik, jadi
+ * pemesanannya lewat admin.
+ */
+export const BOOKING_MAX_DAYS = 7;
+
+/**
+ * Jam pelaksanaan yang ditawarkan form.
+ *
+ * Daftar ini lebih sempit daripada jendela yang dikunci database (06:00–20:00):
+ * yang di database batas luarnya, yang di sini slot operasional sehari-hari —
+ * supaya jamnya bisa digeser tanpa migration.
+ */
+export const BOOKING_TIME_SLOTS = [
+  '08:00',
+  '09:00',
+  '10:00',
+  '13:00',
+  '14:00',
+  '15:00',
+  '16:00',
+] as const;
+
+/** Batas bawah pemilih tanggal: hari ini menurut WIB. */
+export function bookingMinDate(now?: Date): string {
+  return todayWib(now);
+}
+
+/** Batas atas pemilih tanggal: `BOOKING_MAX_DAYS` hari sejak hari ini. */
+export function bookingMaxDate(now?: Date): string {
+  return addCalendarDays(todayWib(now), BOOKING_MAX_DAYS);
+}
+
+/**
+ * Kode wilayah Kemendagri bersarang per dua digit, kecuali kelurahan yang
+ * empat: `32` → `32.04` → `32.04.01` → `32.04.01.2001`. Bentuknya diperiksa
+ * **per tingkat**, bukan dengan satu pola longgar — pola longgar akan
+ * meloloskan kode provinsi yang mendarat di kolom kelurahan.
+ *
+ * Indeksnya sama dengan `regions.level`: 1 provinsi … 4 kelurahan/desa.
+ */
+const REGION_CODE_PATTERN: Record<number, RegExp> = {
+  1: /^\d{2}$/,
+  2: /^\d{2}\.\d{2}$/,
+  3: /^\d{2}\.\d{2}\.\d{2}$/,
+  4: /^\d{2}\.\d{2}\.\d{2}\.\d{4}$/,
+};
+
+function regionCode(level: 1 | 2 | 3 | 4, message: string) {
+  return z.string().trim().regex(REGION_CODE_PATTERN[level], message).optional().or(z.literal(''));
+}
 
 /**
  * Payload checkout mandiri (`prd.md` FR-C2).
@@ -13,7 +69,15 @@ const uuid = z.string().uuid('Pilihan tidak valid');
 export const guestCheckoutSchema = z
   .object({
     service_id: uuid,
-    branch_id: uuid,
+
+    /**
+     * Cabang **tidak** ada di sini, dan itu disengaja.
+     *
+     * Pemilih wilayah layanan dihapus dari form (19 Agustus 2026);
+     * `orders.branch_id` tetap NOT NULL, jadi cabangnya ditentukan
+     * `create_guest_order` dari `branches.is_default`. Menerimanya dari form
+     * berarti pengunjung anonim bisa menyetir order ke cabang mana pun.
+     */
 
     /** Tahap 1 — dasar anjuran jumlah ekor (2 laki-laki, 1 perempuan). */
     aqiqah_for: z.enum(['laki_laki', 'perempuan'], {
@@ -29,12 +93,36 @@ export const guestCheckoutSchema = z
       .max(5000, 'Untuk pesanan di atas 5000 box, hubungi admin')
       .optional(),
 
+    /**
+     * Tahap 4 — tanggal & jam pelaksanaan yang diminta pemesan.
+     *
+     * Bentuknya tanggal kalender, bukan timestamp: yang dipilih pemesan adalah
+     * "17 Agustus pukul 09:00" menurut jam Indonesia, dan itulah yang disimpan
+     * `orders.requested_date` / `requested_time`. Mengubahnya jadi timestamptz
+     * lebih dulu hanya menambah satu kesempatan bergeser tujuh jam.
+     */
+    requested_date: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Pilih tanggal pelaksanaan'),
+
+    requested_time: z
+      .string()
+      .trim()
+      .regex(/^\d{2}:\d{2}$/, 'Pilih jam pelaksanaan'),
+
     /** Tahap 4 — menentukan apakah alamat pengiriman wajib. */
     distribution_mode: z.enum(['salur', 'kirim'], {
       message: 'Pilih cara penyaluran',
     }),
 
-    species: z.enum(['kambing', 'domba', 'sapi'], { message: 'Jenis hewan tidak dikenali' }),
+    /**
+     * Domba tidak ditawarkan di checkout publik (19 Agustus 2026) — enum
+     * `animal_species` di database tetap punya `domba` karena order yang dibuat
+     * staf masih boleh memakainya. `create_guest_order` menolaknya juga, jadi
+     * mengirimnya lewat jalur lain tetap gagal.
+     */
+    species: z.enum(['kambing', 'sapi'], { message: 'Jenis hewan tidak dikenali' }),
 
     qty: z.coerce
       .number()
@@ -67,11 +155,37 @@ export const guestCheckoutSchema = z
 
     address: z.string().trim().max(500, 'Alamat terlalu panjang').optional().or(z.literal('')),
 
-    /** Ke mana hasil olahan dikirim; bisa berbeda dari alamat pemesan. */
-    delivery_address: z
+    /**
+     * Alamat pengiriman terstruktur — hanya relevan untuk Aqiqah Kirim.
+     *
+     * Yang dikirim ke server **hanya kodenya**; nama wilayahnya diambil RPC dari
+     * tabel `regions`. Nama yang dikirim klien bisa tidak cocok dengan kodenya,
+     * dan yang dibaca kurir adalah namanya.
+     *
+     * `delivery_address` sebagai teks bebas sudah tidak ada di sini: kolom itu
+     * kini dirakit RPC dari bagian-bagian ini, supaya tidak ada dua tempat yang
+     * menyusun teks yang sama dengan hasil berbeda.
+     *
+     * Optional di tingkat medan, wajib di `superRefine` saat modenya `kirim` —
+     * kalau diwajibkan di sini, Aqiqah Salur ikut tertolak.
+     */
+    delivery_province_code: regionCode(1, 'Pilih provinsi tujuan'),
+    delivery_city_code: regionCode(2, 'Pilih kabupaten/kota tujuan'),
+    delivery_district_code: regionCode(3, 'Pilih kecamatan tujuan'),
+    delivery_village_code: regionCode(4, 'Pilih kelurahan/desa tujuan'),
+
+    delivery_postal_code: z
       .string()
       .trim()
-      .max(500, 'Alamat pengiriman terlalu panjang')
+      .regex(/^[0-9]{5}$/, 'Kode pos harus 5 digit angka')
+      .optional()
+      .or(z.literal('')),
+
+    /** Nama jalan, nomor rumah, RT/RW, patokan — yang tidak ada di daftar wilayah. */
+    delivery_detail: z
+      .string()
+      .trim()
+      .max(500, 'Detail alamat terlalu panjang')
       .optional()
       .or(z.literal('')),
 
@@ -96,12 +210,55 @@ export const guestCheckoutSchema = z
   // — di sini hanya supaya penolakannya menempel pada medan yang tepat di form,
   // bukan datang sebagai galat dari database.
   .superRefine((v, ctx) => {
-    if (v.distribution_mode === 'kirim' && !v.delivery_address?.trim()) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['delivery_address'],
-        message: 'Alamat pengiriman wajib diisi untuk pilihan Aqiqah Kirim',
-      });
+    if (v.distribution_mode === 'kirim') {
+      const wilayah = [
+        ['delivery_province_code', v.delivery_province_code, 'Pilih provinsi tujuan'],
+        ['delivery_city_code', v.delivery_city_code, 'Pilih kabupaten/kota tujuan'],
+        ['delivery_district_code', v.delivery_district_code, 'Pilih kecamatan tujuan'],
+        ['delivery_village_code', v.delivery_village_code, 'Pilih kelurahan/desa tujuan'],
+      ] as const;
+
+      for (const [path, value, message] of wilayah) {
+        if (!value) ctx.addIssue({ code: 'custom', path: [path], message });
+      }
+
+      if (!v.delivery_detail?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['delivery_detail'],
+          message: 'Isi nama jalan dan nomor rumah',
+        });
+      }
+
+      if (!v.delivery_postal_code) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['delivery_postal_code'],
+          message: 'Kode pos wajib diisi',
+        });
+      }
+
+      // Sejalur atau tidak dibaca dari kodenya sendiri: kode Kemendagri
+      // bersarang, jadi kelurahan yang berasal dari provinsi lain ketahuan tanpa
+      // menyentuh database. Aturan yang sama ditegakkan ulang di dalam RPC —
+      // empat kode yang masing-masing sah masih bisa merakit alamat yang tidak
+      // pernah ada di dunia nyata.
+      const nested =
+        !v.delivery_province_code ||
+        !v.delivery_city_code ||
+        !v.delivery_district_code ||
+        !v.delivery_village_code ||
+        (v.delivery_city_code.startsWith(`${v.delivery_province_code}.`) &&
+          v.delivery_district_code.startsWith(`${v.delivery_city_code}.`) &&
+          v.delivery_village_code.startsWith(`${v.delivery_district_code}.`));
+
+      if (!nested) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['delivery_village_code'],
+          message: 'Wilayah tujuan tidak sejalur — pilih ulang dari provinsi',
+        });
+      }
     }
 
     // Memilih paket nasi box tanpa jumlah berarti tidak ada yang bisa dipesan.
@@ -110,6 +267,31 @@ export const guestCheckoutSchema = z
         code: 'custom',
         path: ['nasi_box_qty'],
         message: 'Isi jumlah nasi box, atau pilih "Tidak pakai"',
+      });
+    }
+
+    // Jendela pemesanan dihitung saat parse, bukan saat modul dimuat: proses
+    // server hidup berhari-hari, jadi batas yang dibekukan di konstanta modul
+    // akan menolak "besok" begitu tanggal berganti.
+    if (v.requested_date < bookingMinDate()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['requested_date'],
+        message: 'Tanggal pelaksanaan sudah lewat',
+      });
+    } else if (v.requested_date > bookingMaxDate()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['requested_date'],
+        message: `Pemesanan hanya bisa untuk ${BOOKING_MAX_DAYS} hari ke depan. Untuk tanggal yang lebih jauh, hubungi admin.`,
+      });
+    }
+
+    if (!(BOOKING_TIME_SLOTS as readonly string[]).includes(v.requested_time)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['requested_time'],
+        message: 'Pilih salah satu jam pelaksanaan yang tersedia',
       });
     }
   });
@@ -121,8 +303,11 @@ export type GuestCheckoutInput = z.infer<typeof guestCheckoutSchema>;
  *
  * Aturan yang sama ditegakkan di dalam RPC; disatukan di sini supaya form tidak
  * pernah menawarkan pilihan yang pasti ditolak server.
+ *
+ * Aqiqah sekarang hanya kambing — domba dicabut dari checkout publik pada
+ * 19 Agustus 2026 atas permintaan operasional.
  */
-export const SPECIES_BY_SERVICE_TYPE: Record<string, Array<'kambing' | 'domba' | 'sapi'>> = {
-  aqiqah: ['kambing', 'domba'],
-  qurban: ['kambing', 'domba', 'sapi'],
+export const SPECIES_BY_SERVICE_TYPE: Record<string, Array<'kambing' | 'sapi'>> = {
+  aqiqah: ['kambing'],
+  qurban: ['kambing', 'sapi'],
 };

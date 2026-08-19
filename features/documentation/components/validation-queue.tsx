@@ -7,7 +7,6 @@ import { AlertCircle } from 'lucide-react';
 import { DocStatusBadge } from '@/components/data/status-badge';
 import { formatDateTime, formatRelative } from '@/lib/format';
 import { DOC_STAGE_LABEL, DOC_TYPE_LABEL } from '@/lib/constants/order';
-import type { ReviewLevel } from '../review';
 import type { ValidationQueueItem } from '../queries';
 import { DocPreview } from './doc-preview';
 import { DocReviewActions } from './doc-review-actions';
@@ -18,11 +17,9 @@ import { DocReviewActions } from './doc-review-actions';
  */
 export function ValidationQueue({
   items,
-  level,
   currentUserId,
 }: {
   items: ValidationQueueItem[];
-  level: ReviewLevel;
   currentUserId: string;
 }) {
   const router = useRouter();
@@ -101,12 +98,7 @@ export function ValidationQueue({
                       validator lain menanganinya.
                     </p>
                   ) : (
-                    <DocReviewActions
-                      documentationId={item.id}
-                      level={level}
-                      disabled={pending}
-                      onRun={run}
-                    />
+                    <DocReviewActions documentationId={item.id} disabled={pending} onRun={run} />
                   )}
                 </div>
               </div>

@@ -115,7 +115,6 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
     query = query.is('created_by', null);
   }
   if (filter.source === 'guest_pending') query = query.is('guest_verified_at', null);
-  if (filter.branch_id) query = query.eq('branch_id', filter.branch_id);
   if (filter.date_from) query = query.gte('created_at', startOfDayWib(filter.date_from));
   if (filter.date_to) query = query.lt('created_at', endOfDayExclusiveWib(filter.date_to));
   if (filter.location_id) query = query.eq('schedules.location_id', filter.location_id);
@@ -205,7 +204,7 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
  * Jumlah order tamu yang belum diverifikasi, untuk kartu antrian di dashboard.
  *
  * Memakai `head: true` — yang dibutuhkan hanya angkanya. Scope barisnya tetap
- * ditegakkan RLS, jadi Admin Cabang hanya menghitung order cabangnya sendiri.
+ * ditegakkan RLS, jadi vendor hanya menghitung order yang ditugaskan padanya.
  */
 export async function countPendingGuestOrders(): Promise<number> {
   const supabase = await createClient();
@@ -427,12 +426,33 @@ export async function getOrderTimeline(orderId: string): Promise<TimelineEntry[]
   });
 }
 
+/**
+ * Cabang penampung order — satu baris, dipakai saat membuat order dari admin.
+ *
+ * Menggantikan pemilih cabang yang dicabut 19 Agustus 2026. Urutannya sama
+ * persis dengan yang dipakai `create_guest_order`, jadi order dari admin dan
+ * order dari checkout publik selalu mendarat di cabang yang sama.
+ */
+export async function getDefaultBranchId(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('branches')
+    .select('id')
+    .is('deleted_at', null)
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: true })
+    .order('code', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return data?.id ?? null;
+}
+
 /** Opsi untuk FilterBar & form order. */
 export async function getOrderFormOptions() {
   const supabase = await createClient();
 
-  const [{ data: branches }, { data: services }, { data: participants }] = await Promise.all([
-    supabase.from('branches').select('id, code, name').is('deleted_at', null).order('name'),
+  const [{ data: services }, { data: participants }] = await Promise.all([
     supabase
       .from('services')
       .select('id, name, type, price, slug')
@@ -443,7 +463,6 @@ export async function getOrderFormOptions() {
   ]);
 
   return {
-    branches: branches ?? [],
     services: services ?? [],
     participants: participants ?? [],
   };

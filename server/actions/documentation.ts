@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireAuth, isSupervisor } from '@/server/auth/session';
+import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import {
   deleteDocumentationSchema,
@@ -129,8 +129,7 @@ export async function uploadDocumentation(input: unknown): Promise<ActionResult<
 /**
  * Setujui atau tolak satu dokumentasi.
  *
- * Tingkat validasinya diturunkan dari role pemanggil — Supervisor menangani
- * `pending` menjadi `approved_supervisor`, Admin Pusat menangani
+ * Wewenangnya diturunkan dari role pemanggil — admin & superadmin menangani
  * `approved_supervisor` menjadi `approved`. Klien tidak pernah menentukan
  * status tujuan.
  */
@@ -155,7 +154,6 @@ export async function reviewDocumentation(input: unknown): Promise<ActionResult<
     currentStatus: doc.status,
     decision,
     role: session.profile?.role,
-    isSupervisor: isSupervisor(session.profile),
     uploadedBy: doc.uploaded_by,
     reviewerId: session.id,
   });
@@ -200,15 +198,15 @@ export async function reviewDocumentation(input: unknown): Promise<ActionResult<
  * Hapus satu dokumentasi.
  *
  * Kebijakan RLS `documentations_delete` membatasinya ke Manager Program &
- * Admin Cabang. Yang sudah `approved` ditolak di sini: dokumentasi itu bukti
+ * admin. Yang sudah `approved` ditolak di sini: dokumentasi itu bukti
  * yang melepas gate menuju `reporting` dan ikut tampil di laporan peserta.
  */
 export async function deleteDocumentation(input: unknown): Promise<ActionResult<null>> {
   const session = await requireAuth();
   const role = session.profile?.role;
 
-  if (role !== 'manager_program' && role !== 'admin_cabang') {
-    return forbidden('Hanya Admin Cabang atau Manager Program yang dapat menghapus dokumentasi.');
+  if (role !== 'superadmin' && role !== 'admin') {
+    return forbidden('Hanya admin atau superadmin yang dapat menghapus dokumentasi.');
   }
 
   const parsed = deleteDocumentationSchema.safeParse(input);

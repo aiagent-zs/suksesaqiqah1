@@ -62,18 +62,18 @@ describe('isScheduleComplete', () => {
 
 describe('checkScheduleTransition', () => {
   it('mengizinkan maju satu tahap bagi role penulis jadwal', () => {
-    expect(checkScheduleTransition('planned', 'ongoing', 'admin_cabang').ok).toBe(true);
-    expect(checkScheduleTransition('ongoing', 'done', 'manager_program').ok).toBe(true);
+    expect(checkScheduleTransition('planned', 'ongoing', 'admin').ok).toBe(true);
+    expect(checkScheduleTransition('ongoing', 'done', 'superadmin').ok).toBe(true);
   });
 
   it('mengizinkan mundur satu tahap — status jadwal bukan bukti pelaksanaan', () => {
     // Berbeda dari status hewan: tidak ada KPI atau guard order yang dihitung
     // dari schedules.status, jadi koreksi tidak menghapus bukti apa pun.
-    expect(checkScheduleTransition('ongoing', 'planned', 'admin_cabang').ok).toBe(true);
+    expect(checkScheduleTransition('ongoing', 'planned', 'admin').ok).toBe(true);
   });
 
   it('menolak lompatan dua tahap', () => {
-    const result = checkScheduleTransition('planned', 'done', 'admin_cabang');
+    const result = checkScheduleTransition('planned', 'done', 'admin');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('CONFLICT');
   });
@@ -81,7 +81,7 @@ describe('checkScheduleTransition', () => {
   it('menolak role yang tidak berhak menulis jadwal', () => {
     // Sama dengan kebijakan RLS `schedules_write` — petugas lapangan mencatat
     // pelaksanaan lewat animals/slaughter_records, bukan mengubah jadwal.
-    for (const role of ['petugas_lapangan', 'direktur', 'admin_pusat'] as const) {
+    for (const role of ['vendor'] as const) {
       const result = checkScheduleTransition('planned', 'ongoing', role);
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.code).toBe('FORBIDDEN');
@@ -92,16 +92,16 @@ describe('checkScheduleTransition', () => {
   });
 
   it('menolak transisi ke status yang sama', () => {
-    expect(checkScheduleTransition('planned', 'planned', 'admin_cabang').ok).toBe(false);
+    expect(checkScheduleTransition('planned', 'planned', 'admin').ok).toBe(false);
   });
 
   it('menandai opsi dropdown sesuai hak role', () => {
-    const options = getScheduleStatusOptions('planned', 'admin_cabang');
+    const options = getScheduleStatusOptions('planned', 'admin');
     expect(options.map((o) => o.status)).toEqual(['planned', 'ongoing', 'done']);
     expect(options.find((o) => o.status === 'ongoing')?.allowed).toBe(true);
     expect(options.find((o) => o.status === 'done')?.allowed).toBe(false);
 
-    const readOnly = getScheduleStatusOptions('planned', 'petugas_lapangan');
+    const readOnly = getScheduleStatusOptions('planned', 'vendor');
     expect(readOnly.filter((o) => o.status !== 'planned').every((o) => !o.allowed)).toBe(true);
   });
 });

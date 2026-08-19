@@ -23,12 +23,12 @@ function mount() {
   root = createRoot(container);
 
   act(() => {
-    root!.render(<MobileNav fullName="Budi Petugas" role="petugas_lapangan" isSupervisor={true} />);
+    root!.render(<MobileNav fullName="Budi Vendor" role="vendor" />);
   });
 }
 
 /** Render ulang komponen yang sama — dipakai untuk mensimulasikan pindah halaman. */
-function rerender(props: { fullName: string; role: string; isSupervisor: boolean }) {
+function rerender(props: { fullName: string; role: string }) {
   act(() => {
     root!.render(<MobileNav {...props} />);
   });
@@ -82,9 +82,9 @@ describe('MobileNav — panel Menu', () => {
     openPanel();
 
     const text = bodyText();
-    expect(text).toContain('Budi Petugas');
-    expect(text).toContain('petugas_lapangan');
-    expect(text).toContain('Supervisor');
+    expect(text).toContain('Budi Vendor');
+    // Nama role yang terbaca orang, bukan nilai enumnya.
+    expect(text).toContain('Vendor');
     expect(text).toContain('Pengaturan');
     // Inilah yang sebelumnya tidak terjangkau sama sekali di bawah 1024px.
     expect(text).toContain('Keluar Sistem');
@@ -111,7 +111,7 @@ describe('MobileNav — panel Menu', () => {
     const labelledBy = dialog.getAttribute('aria-labelledby');
 
     expect(labelledBy).toBeTruthy();
-    expect(document.getElementById(labelledBy!)?.textContent).toContain('Budi Petugas');
+    expect(document.getElementById(labelledBy!)?.textContent).toContain('Budi Vendor');
   });
 
   it('tombol tutup mengembalikan panel ke keadaan tertutup', () => {
@@ -147,7 +147,7 @@ describe('MobileNav — panel Menu', () => {
     expect(trigger().getAttribute('aria-expanded')).toBe('true');
 
     pathname = '/schedule';
-    rerender({ fullName: 'Budi Petugas', role: 'petugas_lapangan', isSupervisor: true });
+    rerender({ fullName: 'Budi Vendor', role: 'vendor' });
 
     expect(trigger().getAttribute('aria-expanded')).toBe('false');
     expect(document.querySelector('[role="dialog"]')).toBeNull();
@@ -158,24 +158,24 @@ describe('MobileNav — panel Menu', () => {
     expect(document.querySelector('[aria-current="page"]')?.getAttribute('href')).toBe('/orders');
 
     pathname = '/schedule';
-    rerender({ fullName: 'Budi Petugas', role: 'petugas_lapangan', isSupervisor: true });
+    rerender({ fullName: 'Budi Vendor', role: 'vendor' });
 
     const active = document.querySelectorAll('[aria-current="page"]');
     expect(active).toHaveLength(1);
     expect(active[0].getAttribute('href')).toBe('/schedule');
   });
 
-  it('menyembunyikan badge Supervisor untuk yang bukan supervisor', () => {
+  it('menamai role dengan label yang terbaca, bukan nilai enum', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
     act(() => {
-      root!.render(<MobileNav fullName="Agus Admin" role="admin_cabang" isSupervisor={false} />);
+      root!.render(<MobileNav fullName="Agus Admin" role="superadmin" />);
     });
 
     openPanel();
 
     expect(bodyText()).toContain('Agus Admin');
-    expect(bodyText()).not.toContain('Supervisor');
+    expect(bodyText()).toContain('Superadmin');
   });
 });

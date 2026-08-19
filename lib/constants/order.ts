@@ -154,11 +154,13 @@ export type DocType = Database['public']['Enums']['doc_type'];
 /** Status validasi 2 tingkat (docs/10 section 6). */
 export const DOC_STATUS_META: Record<DocStatus, StatusMeta> = {
   pending: {
-    label: 'Menunggu Supervisor',
+    label: 'Menunggu Validasi',
     className: 'bg-amber-50 text-amber-700 border-amber-200',
   },
   approved_supervisor: {
-    label: 'Menunggu Admin Pusat',
+    // Sisa tangga dua tingkat yang dipendekkan 19 Agustus 2026. Tidak ada lagi
+    // yang membuat status ini; baris lama tetap bisa diselesaikan admin.
+    label: 'Menunggu Validasi (lama)',
     className: 'bg-blue-50 text-blue-700 border-blue-200',
   },
   approved: {

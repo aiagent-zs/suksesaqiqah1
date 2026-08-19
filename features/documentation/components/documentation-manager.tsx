@@ -14,7 +14,7 @@ import { formatDateTime } from '@/lib/format';
 import { DOC_STAGE_LABEL, DOC_TYPE_LABEL, type DocStage } from '@/lib/constants/order';
 import { deleteDocumentation, uploadDocumentation } from '@/server/actions/documentation';
 import { DOC_BUCKET, buildDocPath, checkDocFile } from '../storage';
-import { missingDocumentationStages, type ReviewLevel } from '../review';
+import { missingDocumentationStages, REVIEWABLE_DOC_STATUSES } from '../review';
 import type { DocumentationSummary } from '../queries';
 import { DocPreview } from './doc-preview';
 import { DocReviewActions } from './doc-review-actions';
@@ -37,7 +37,7 @@ export function DocumentationManager({
   animals,
   canUpload,
   canDelete,
-  reviewLevel,
+  canValidate,
   currentUserId,
 }: {
   orderId: string;
@@ -48,8 +48,8 @@ export function DocumentationManager({
   animals: DocAnimalOption[];
   canUpload: boolean;
   canDelete: boolean;
-  /** Tingkat validasi pengguna ini; null bila bukan validator. */
-  reviewLevel: ReviewLevel | null;
+  /** Apakah pengguna ini berhak memvalidasi dokumentasi sama sekali. */
+  canValidate: boolean;
   currentUserId: string;
 }) {
   const router = useRouter();
@@ -191,7 +191,7 @@ export function DocumentationManager({
             Kelengkapan minimum terpenuhi — order dapat naik ke Pelaporan.
           </span>
         ) : (
-          `Belum lengkap: butuh minimal 1 bukti ${missing.join(' & ')} yang tervalidasi Admin Pusat.`
+          `Belum lengkap: butuh minimal 1 bukti ${missing.join(' & ')} yang sudah tervalidasi.`
         )}
       </p>
 
@@ -316,8 +316,8 @@ export function DocumentationManager({
             // Pemisahan tugas (docs/10 section 4): pengupload tidak boleh
             // memvalidasi unggahannya sendiri. Server memeriksa ulang.
             const isOwnUpload = doc.uploaderId === currentUserId;
-            const expectedStatus = reviewLevel === 'supervisor' ? 'pending' : 'approved_supervisor';
-            const canReview = reviewLevel !== null && !isOwnUpload && doc.status === expectedStatus;
+            const awaitingReview = REVIEWABLE_DOC_STATUSES.includes(doc.status);
+            const canReview = canValidate && !isOwnUpload && awaitingReview;
 
             return (
               <li key={doc.id} className="px-5 py-4">
@@ -358,19 +358,14 @@ export function DocumentationManager({
                       </p>
                     )}
 
-                    {reviewLevel !== null && isOwnUpload && doc.status === expectedStatus && (
+                    {canValidate && isOwnUpload && awaitingReview && (
                       <p className="text-muted-foreground mt-2 text-xs">
                         Anda mengunggah berkas ini, jadi tidak dapat memvalidasinya sendiri.
                       </p>
                     )}
 
                     {canReview && (
-                      <DocReviewActions
-                        documentationId={doc.id}
-                        level={reviewLevel}
-                        disabled={busy}
-                        onRun={run}
-                      />
+                      <DocReviewActions documentationId={doc.id} disabled={busy} onRun={run} />
                     )}
 
                     {canDelete && doc.status !== 'approved' && (

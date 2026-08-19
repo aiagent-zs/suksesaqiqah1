@@ -2,13 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CAPABILITIES, canDo } from '@/server/auth/capabilities';
 import type { UserRole } from '@/server/auth/session';
 
-const ALL_ROLES: UserRole[] = [
-  'direktur',
-  'manager_program',
-  'admin_pusat',
-  'admin_cabang',
-  'petugas_lapangan',
-];
+const ALL_ROLES: UserRole[] = ['superadmin', 'admin', 'vendor'];
 
 describe('canDo', () => {
   it('menolak role yang tidak terdefinisi', () => {
@@ -24,18 +18,25 @@ describe('canDo', () => {
       }
     }
   });
+
+  it('superadmin memegang setiap kapabilitas', () => {
+    // Janji yang paling gampang dilanggar diam-diam saat menambah kapabilitas
+    // baru: "superadmin bisa mengakses semuanya".
+    for (const name of Object.keys(CAPABILITIES) as (keyof typeof CAPABILITIES)[]) {
+      expect(canDo('superadmin', name), name).toBe(true);
+    }
+  });
 });
 
 describe('UPDATE_ORDER_AMOUNT', () => {
   // total_amount adalah pembanding payment gate
   // (paid_amount >= total_amount * min_dp_ratio). Kalau role lain bisa
-  // menurunkannya, order bisa lolos ke `paid` tanpa uang masuk.
-  it('hanya Manager Program yang boleh mengubah nilai order', () => {
-    expect(canDo('manager_program', 'UPDATE_ORDER_AMOUNT')).toBe(true);
-
-    for (const role of ALL_ROLES.filter((r) => r !== 'manager_program')) {
-      expect(canDo(role, 'UPDATE_ORDER_AMOUNT'), `${role} tidak boleh`).toBe(false);
-    }
+  // menurunkannya, order bisa lolos ke `paid` tanpa uang masuk — jadi harga
+  // berhenti di superadmin, bukan di admin yang mengurus operasional harian.
+  it('hanya superadmin yang boleh mengubah nilai order', () => {
+    expect(canDo('superadmin', 'UPDATE_ORDER_AMOUNT')).toBe(true);
+    expect(canDo('admin', 'UPDATE_ORDER_AMOUNT')).toBe(false);
+    expect(canDo('vendor', 'UPDATE_ORDER_AMOUNT')).toBe(false);
   });
 
   it('lebih sempit daripada UPDATE_ORDER', () => {
@@ -47,67 +48,63 @@ describe('UPDATE_ORDER_AMOUNT', () => {
   });
 });
 
-describe('UPDATE_ORDER', () => {
-  it('petugas lapangan tidak boleh mengubah data order', () => {
-    expect(canDo('petugas_lapangan', 'UPDATE_ORDER')).toBe(false);
+describe('vendor', () => {
+  it('tidak menyentuh uang sama sekali', () => {
+    // Uang mengalir antara pembeli dan kami; vendor dibayar di luar alur ini.
+    // Cerminan RLS `payments_select` / `payments_write` yang menuntut is_staff().
+    expect(canDo('vendor', 'RECORD_PAYMENT')).toBe(false);
+    expect(canDo('vendor', 'VERIFY_PAYMENT')).toBe(false);
   });
 
-  it('role read-only tidak boleh menulis', () => {
-    for (const role of ['direktur', 'admin_pusat'] as UserRole[]) {
-      expect(canDo(role, 'UPDATE_ORDER'), `${role} tidak boleh`).toBe(false);
-      expect(canDo(role, 'MANAGE_ANIMALS'), `${role} tidak boleh`).toBe(false);
-      expect(canDo(role, 'UPDATE_ORDER_STATUS'), `${role} tidak boleh`).toBe(false);
-    }
-  });
-});
-
-describe('MANAGE_ANIMALS', () => {
-  it('mengikuti role yang boleh menggerakkan status order di lapangan', () => {
-    for (const role of ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[]) {
-      expect(canDo(role, 'MANAGE_ANIMALS')).toBe(true);
-    }
-  });
-});
-
-describe('VERIFY_GUEST_ORDER', () => {
-  // Daftarnya ditulis dua kali: di sini dan di trigger
-  // `enforce_guest_order_verification`. Kalau keduanya menyimpang, UI
-  // menampilkan tombol yang pasti ditolak database.
-  it('admin cabang, admin pusat, dan manager program boleh memverifikasi', () => {
-    for (const role of ['manager_program', 'admin_cabang', 'admin_pusat'] as UserRole[]) {
-      expect(canDo(role, 'VERIFY_GUEST_ORDER'), `${role} boleh`).toBe(true);
-    }
+  it('tidak bisa menugaskan dirinya sendiri', () => {
+    // `can_read_order` memberi vendor akses justru lewat `schedules.pic_user_id`.
+    // Kalau vendor boleh menulis jadwal, ia bisa membuka order mana pun.
+    expect(canDo('vendor', 'MANAGE_SCHEDULE')).toBe(false);
   });
 
-  it('petugas lapangan tidak — verifikasi ini keputusan administratif', () => {
-    expect(canDo('petugas_lapangan', 'VERIFY_GUEST_ORDER')).toBe(false);
+  it('tidak menilai pekerjaannya sendiri', () => {
+    expect(canDo('vendor', 'UPLOAD_DOCUMENTATION')).toBe(true);
+    expect(canDo('vendor', 'VALIDATE_DOCUMENTATION')).toBe(false);
   });
 
-  it('direktur tidak, sejalan dengan posisinya yang read-only', () => {
-    expect(canDo('direktur', 'VERIFY_GUEST_ORDER')).toBe(false);
-  });
-});
-
-describe('MANAGE_ISSUES', () => {
-  // RLS `issues_insert` / `issues_update` memakai `can_write_order`. Kalau
-  // daftar ini menyimpang, UI akan menawarkan tombol yang pasti ditolak
-  // database — atau menyembunyikan tombol yang sebenarnya boleh ditekan.
-  it('sama persis dengan cakupan tulis can_write_order', () => {
-    for (const role of ['manager_program', 'admin_cabang', 'petugas_lapangan'] as UserRole[]) {
-      expect(canDo(role, 'MANAGE_ISSUES'), `${role} boleh`).toBe(true);
-    }
+  it('tidak memutuskan order tamu layak diproses', () => {
+    expect(canDo('vendor', 'VERIFY_GUEST_ORDER')).toBe(false);
   });
 
-  it('direktur & admin pusat tetap read-only di jalur operasional', () => {
-    for (const role of ['direktur', 'admin_pusat'] as UserRole[]) {
-      expect(canDo(role, 'MANAGE_ISSUES'), `${role} tidak boleh`).toBe(false);
-    }
-  });
-
-  it('petugas lapangan bisa melapor meski tidak boleh mengubah data order', () => {
+  it('tetap bisa melapor kendala & mencatat pelaksanaan', () => {
     // Kendala paling sering muncul di lapangan — pelapornya harus orang yang
-    // ada di sana, bukan hanya admin cabang.
-    expect(canDo('petugas_lapangan', 'MANAGE_ISSUES')).toBe(true);
-    expect(canDo('petugas_lapangan', 'UPDATE_ORDER')).toBe(false);
+    // ada di sana. Sama persis dengan cakupan tulis `can_write_order`.
+    expect(canDo('vendor', 'MANAGE_ISSUES')).toBe(true);
+    expect(canDo('vendor', 'RECORD_FIELD_WORK')).toBe(true);
+    expect(canDo('vendor', 'MANAGE_ANIMALS')).toBe(true);
+    expect(canDo('vendor', 'UPDATE_ORDER_STATUS')).toBe(true);
+    // …tapi bukan menyunting data ordernya.
+    expect(canDo('vendor', 'UPDATE_ORDER')).toBe(false);
+  });
+});
+
+describe('admin', () => {
+  it('memegang tugas penghubung: verifikasi order, pembayaran, bukti vendor', () => {
+    for (const name of [
+      'VERIFY_GUEST_ORDER',
+      'RECORD_PAYMENT',
+      'VERIFY_PAYMENT',
+      'MANAGE_SCHEDULE',
+      'VALIDATE_DOCUMENTATION',
+      'GENERATE_REPORT',
+    ] as const) {
+      expect(canDo('admin', name), name).toBe(true);
+    }
+  });
+
+  it('tidak menyentuh master data, harga, maupun penghapusan', () => {
+    // Siapa pun yang bisa mengubah role bisa mengangkat dirinya sendiri.
+    for (const name of [
+      'MANAGE_MASTER_DATA',
+      'UPDATE_ORDER_AMOUNT',
+      'DELETE_FIELD_RECORD',
+    ] as const) {
+      expect(canDo('admin', name), name).toBe(false);
+    }
   });
 });

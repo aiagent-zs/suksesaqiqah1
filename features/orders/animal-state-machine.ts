@@ -24,18 +24,17 @@ export const ANIMAL_STATUS_FLOW: AnimalStatus[] = [
  * Role yang boleh mengoreksi status hewan mundur.
  *
  * Maju adalah pencatatan lapangan biasa; mundur berarti membatalkan bukti
- * pelaksanaan yang sudah terhitung di KPI, jadi dibatasi ke Manager Program
- * sebagai jalur koreksi yang dapat dipertanggungjawabkan.
+ * pelaksanaan yang sudah terhitung di KPI, jadi dibatasi ke superadmin sebagai
+ * jalur koreksi yang dapat dipertanggungjawabkan.
  */
-const ROLLBACK_ROLES: UserRole[] = ['manager_program'];
+const ROLLBACK_ROLES: UserRole[] = ['superadmin'];
 
 export function animalStatusIndex(status: AnimalStatus): number {
   return ANIMAL_STATUS_FLOW.indexOf(status);
 }
 
 export type AnimalTransitionCheck =
-  | { ok: true }
-  | { ok: false; code: 'FORBIDDEN' | 'CONFLICT'; message: string };
+  { ok: true } | { ok: false; code: 'FORBIDDEN' | 'CONFLICT'; message: string };
 
 /**
  * Validasi satu perubahan status hewan.

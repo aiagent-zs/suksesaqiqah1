@@ -1,5 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
 import { getCheckoutOptions } from '@/features/checkout/queries';
+import { bookingMaxDate, bookingMinDate } from '@/features/checkout/schema';
 import { CheckoutForm } from '@/features/checkout/components/checkout-form';
 
 export const metadata = {
@@ -14,12 +15,14 @@ export const metadata = {
  * Checkout mandiri (`prd.md` FR-C2 · FR-C3 · FR-C4).
  *
  * Halaman publik: dirender untuk pengunjung anonim, jadi pilihannya hanya boleh
- * datang dari dua jalan yang memang dibuka untuk `anon` — SELECT pada
- * `services` dan RPC `get_public_branches`.
+ * datang dari jalan yang memang dibuka untuk `anon` — SELECT pada `services`.
  *
- * Selalu dirender ulang. Katalog dan harga berubah dari sisi admin, dan halaman
- * yang ter-cache akan memajang harga lama — angkanya tetap tidak mengikat
- * (RPC membaca ulang dari database), tapi selisihnya membingungkan pemesan.
+ * Selalu dirender ulang. Dua alasan sekarang: katalog dan harga berubah dari
+ * sisi admin, dan halaman yang ter-cache akan memajang harga lama (angkanya
+ * tetap tidak mengikat — RPC membaca ulang dari database — tapi selisihnya
+ * membingungkan pemesan); dan sejak pemesan memilih tanggal, batas
+ * "hari ini … 7 hari ke depan" ikut dihitung di sini, jadi halaman yang
+ * ter-cache akan menawarkan jendela tanggal milik kemarin.
  */
 export const dynamic = 'force-dynamic';
 
@@ -29,16 +32,23 @@ export default async function CheckoutPage({
   searchParams: Promise<{ paket?: string }>;
 }) {
   const { paket } = await searchParams;
-  const { packages, nasiBoxes, branches } = await getCheckoutOptions();
+  const { packages, nasiBoxes, provinces } = await getCheckoutOptions();
 
   // `?paket=` membawa slug dari kartu paket di landing. Dicocokkan ke katalog
   // di sini, bukan dipercaya sebagai id: slug yang tidak dikenal cukup
   // diabaikan dan form jatuh ke paket pertama, bukan gagal.
   const preselected = paket ? packages.find((p) => p.slug === paket) : undefined;
 
-  // Tanpa salah satunya, form tidak bisa menghasilkan order yang sah:
-  // `orders.branch_id` NOT NULL dan setiap order butuh minimal satu paket.
-  const unavailable = packages.length === 0 || branches.length === 0;
+  // Setiap order butuh minimal satu paket; tanpa katalog, form tidak bisa
+  // menghasilkan order yang sah.
+  const unavailable = packages.length === 0;
+
+  // Jendela tanggal dihitung di server, bukan di komponen: memanggil jam di
+  // badan komponen melanggar aturan kemurnian React, dan jam peramban pemesan
+  // bisa berada di zona waktu mana saja — sementara batasnya harus WIB, sama
+  // dengan yang ditegakkan `create_guest_order`.
+  const minDate = bookingMinDate();
+  const maxDate = bookingMaxDate();
 
   return (
     // Latar abu tipis memberi kedalaman pada kartu-kartu putih di atasnya —
@@ -64,8 +74,7 @@ export default async function CheckoutPage({
             <div>
               <p className="font-medium">Pemesanan mandiri belum tersedia</p>
               <p className="mt-1 text-sm">
-                Katalog paket atau wilayah layanan belum siap. Silakan hubungi admin untuk memesan
-                lebih dulu.
+                Katalog paket belum siap. Silakan hubungi admin untuk memesan lebih dulu.
               </p>
             </div>
           </div>
@@ -73,7 +82,9 @@ export default async function CheckoutPage({
           <CheckoutForm
             packages={packages}
             nasiBoxes={nasiBoxes}
-            branches={branches}
+            provinces={provinces}
+            minDate={minDate}
+            maxDate={maxDate}
             initialServiceId={preselected?.id}
           />
         )}

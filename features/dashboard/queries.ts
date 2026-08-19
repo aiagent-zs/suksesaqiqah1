@@ -21,12 +21,21 @@ type Views = Database['public']['Views'];
  * sendiri kecuali filter eksplisit yang dipilih pengguna.
  */
 
-/** KPI per cabang. Cabang tanpa order tetap muncul dengan angka nol. */
-export async function getBranchKpi(branchId?: string): Promise<BranchKpi[]> {
+/**
+ * KPI dari `v_branch_kpi`.
+ *
+ * View-nya masih beragregasi per cabang dan sengaja dibiarkan begitu — yang
+ * dicabut 19 Agustus 2026 adalah **filter**-nya, bukan strukturnya. Dengan satu
+ * cabang hasilnya satu baris, dan `aggregateBranchKpi` tetap bekerja apa adanya
+ * seandainya suatu saat bertambah lagi.
+ */
+export async function getBranchKpi(): Promise<BranchKpi[]> {
   const supabase = await createClient();
 
-  let query = supabase.from('v_branch_kpi').select('*').order('open_orders', { ascending: false });
-  if (branchId) query = query.eq('branch_id', branchId);
+  const query = supabase
+    .from('v_branch_kpi')
+    .select('*')
+    .order('open_orders', { ascending: false });
 
   const { data, error } = await query;
   if (error) throw new Error(`Gagal memuat KPI cabang: ${error.message}`);
@@ -135,7 +144,6 @@ export async function getOpenOrders(filter: DashboardFilterInput): Promise<OpenO
     .order('max_open_severity', { ascending: false, nullsFirst: false })
     .order('age_days', { ascending: false });
 
-  if (filter.branch_id) query = query.eq('branch_id', filter.branch_id);
   if (filter.status) query = query.eq('status', filter.status);
   if (filter.severity) query = query.eq('max_open_severity', filter.severity);
   if (filter.issues_only) query = query.gt('open_issues', 0);
@@ -168,31 +176,26 @@ const ISSUE_HIGHLIGHT_LIMIT = 5;
  * dikirim, tanpa payload baris — supaya hitungannya tetap eksak berapa pun
  * banyaknya order, sementara daftar sorotan dibatasi 5 baris teratas.
  */
-export async function getIssueBreakdown(branchId?: string): Promise<IssueBreakdown> {
+export async function getIssueBreakdown(): Promise<IssueBreakdown> {
   const supabase = await createClient();
 
   const countBySeverity = ISSUE_SEVERITY_ORDER.map(async (severity) => {
-    let query = supabase
+    const { count } = await supabase
       .from('v_open_orders')
       .select('order_id', { count: 'exact', head: true })
       .eq('max_open_severity', severity);
-    if (branchId) query = query.eq('branch_id', branchId);
 
-    const { count } = await query;
     return [severity, count ?? 0] as const;
   });
 
   const highlightQuery = (async () => {
-    let query = supabase
+    const { data } = await supabase
       .from('v_open_orders')
       .select(OPEN_ORDER_SELECT)
       .gt('open_issues', 0)
       .order('max_open_severity', { ascending: false, nullsFirst: false })
       .order('age_days', { ascending: false })
       .limit(ISSUE_HIGHLIGHT_LIMIT);
-    if (branchId) query = query.eq('branch_id', branchId);
-
-    const { data } = await query;
     return (data ?? []).map((row) => mapOpenOrder(row as Views['v_open_orders']['Row']));
   })();
 
@@ -206,16 +209,4 @@ export async function getIssueBreakdown(branchId?: string): Promise<IssueBreakdo
     total: counts.high + counts.medium + counts.low,
     highlights,
   };
-}
-
-/** Daftar cabang untuk filter dashboard (hanya dipakai role pusat). */
-export async function getBranchOptions() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('branches')
-    .select('id, code, name')
-    .is('deleted_at', null)
-    .order('name');
-
-  return data ?? [];
 }

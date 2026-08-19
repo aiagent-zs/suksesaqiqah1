@@ -28,7 +28,9 @@ function GuestBadge({ verifiedAt }: { verifiedAt: string | null }) {
           ? 'border-amber-300 bg-amber-50 text-amber-800'
           : 'border-slate-200 bg-slate-50 text-slate-600'
       }`}
-      title={pending ? 'Order publik yang belum diverifikasi admin' : 'Order publik, sudah diverifikasi'}
+      title={
+        pending ? 'Order publik yang belum diverifikasi admin' : 'Order publik, sudah diverifikasi'
+      }
     >
       <Globe className="size-3" aria-hidden="true" />
       {pending ? 'Tamu · perlu verifikasi' : 'Tamu'}
@@ -39,13 +41,12 @@ function GuestBadge({ verifiedAt }: { verifiedAt: string | null }) {
 /** Tabel order untuk desktop (docs/14 section 6: tabel penuh di > 1024px). */
 export function OrderTable({ rows }: { rows: OrderListRow[] }) {
   return (
-    <div className="hidden overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:block">
+    <div className="border-border bg-card hidden overflow-hidden rounded-2xl border shadow-sm lg:block">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Nomor Order</TableHead>
             <TableHead>Peserta</TableHead>
-            <TableHead>Cabang</TableHead>
             <TableHead>Lokasi / PIC</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Pembayaran</TableHead>
@@ -59,11 +60,11 @@ export function OrderTable({ rows }: { rows: OrderListRow[] }) {
               <TableCell>
                 <Link
                   href={`/orders/${row.id}`}
-                  className="font-medium text-primary tabular-nums hover:underline"
+                  className="text-primary font-medium tabular-nums hover:underline"
                 >
                   {row.order_number}
                 </Link>
-                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
                   <PawPrint className="size-3" />
                   {row.animalsCount} ekor
                 </p>
@@ -76,22 +77,21 @@ export function OrderTable({ rows }: { rows: OrderListRow[] }) {
               <TableCell>
                 <p className="font-medium">{row.participantName}</p>
                 {row.participantPhone && (
-                  <p className="text-xs text-muted-foreground tabular-nums">
+                  <p className="text-muted-foreground text-xs tabular-nums">
                     {row.participantPhone}
                   </p>
                 )}
               </TableCell>
               <TableCell>
-                <span className="text-sm">{row.branchCode}</span>
-              </TableCell>
-              <TableCell>
                 {row.locationName ? (
                   <>
                     <p className="text-sm">{row.locationName}</p>
-                    <p className="text-xs text-muted-foreground">{row.picName ?? 'PIC belum ditunjuk'}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {row.picName ?? 'PIC belum ditunjuk'}
+                    </p>
                   </>
                 ) : (
-                  <span className="text-xs text-muted-foreground">Belum dijadwalkan</span>
+                  <span className="text-muted-foreground text-xs">Belum dijadwalkan</span>
                 )}
               </TableCell>
               <TableCell>
@@ -100,7 +100,7 @@ export function OrderTable({ rows }: { rows: OrderListRow[] }) {
               <TableCell>
                 <PaymentStatusBadge status={row.payment_status} />
                 {row.payment_status === 'partial' && (
-                  <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                  <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
                     {formatCurrency(row.paid_amount)}
                   </p>
                 )}
@@ -108,7 +108,7 @@ export function OrderTable({ rows }: { rows: OrderListRow[] }) {
               <TableCell className="text-right font-medium tabular-nums">
                 {formatCurrency(row.total_amount)}
               </TableCell>
-              <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
+              <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                 {formatRelative(row.created_at)}
               </TableCell>
             </TableRow>
@@ -127,13 +127,13 @@ export function OrderCardList({ rows }: { rows: OrderListRow[] }) {
         <Link
           key={row.id}
           href={`/orders/${row.id}`}
-          className="block rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
+          className="border-border bg-card hover:border-primary/40 block rounded-2xl border p-4 shadow-sm transition-colors"
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-semibold text-primary tabular-nums">{row.order_number}</p>
+              <p className="text-primary font-semibold tabular-nums">{row.order_number}</p>
               <p className="mt-0.5 flex items-center gap-1.5 text-sm">
-                <User className="size-3.5 text-muted-foreground" />
+                <User className="text-muted-foreground size-3.5" />
                 {row.participantName}
               </p>
               {row.isGuest && (
@@ -145,7 +145,7 @@ export function OrderCardList({ rows }: { rows: OrderListRow[] }) {
             <OrderStatusBadge status={row.status} />
           </div>
 
-          <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+          <div className="text-muted-foreground mt-3 space-y-1 text-xs">
             <p className="flex items-center gap-1.5">
               <MapPin className="size-3.5" />
               {row.locationName ?? 'Belum dijadwalkan'}
@@ -157,7 +157,7 @@ export function OrderCardList({ rows }: { rows: OrderListRow[] }) {
             </p>
           </div>
 
-          <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+          <div className="border-border mt-3 flex items-center justify-between border-t pt-3">
             <PaymentStatusBadge status={row.payment_status} />
             <span className="font-semibold tabular-nums">{formatCurrency(row.total_amount)}</span>
           </div>

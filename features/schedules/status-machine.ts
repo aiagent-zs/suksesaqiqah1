@@ -8,10 +8,11 @@ export const SCHEDULE_STATUS_FLOW: ScheduleStatus[] = ['planned', 'ongoing', 'do
 
 /**
  * Role yang boleh menulis `schedules` — disamakan dengan kebijakan RLS
- * `schedules_write`. Petugas Lapangan sengaja tidak termasuk: mereka mencatat
- * pelaksanaan lewat `animals`/`slaughter_records`, bukan mengubah jadwal.
+ * `schedules_write`. Vendor sengaja tidak termasuk: merekalah yang ditugaskan
+ * lewat jadwal, jadi menulis jadwal berarti bisa menugaskan diri sendiri ke
+ * order mana pun — dan `can_read_order` memberi akses justru lewat situ.
  */
-export const SCHEDULE_WRITE_ROLES: UserRole[] = ['manager_program', 'admin_cabang'];
+export const SCHEDULE_WRITE_ROLES: UserRole[] = ['superadmin', 'admin'];
 
 export function scheduleStatusIndex(status: ScheduleStatus): number {
   return SCHEDULE_STATUS_FLOW.indexOf(status);
@@ -74,7 +75,7 @@ export function checkScheduleTransition(
     return {
       ok: false,
       code: 'FORBIDDEN',
-      message: 'Hanya Admin Cabang atau Manager Program yang dapat mengubah jadwal.',
+      message: 'Hanya admin atau superadmin yang dapat mengubah jadwal.',
     };
   }
 

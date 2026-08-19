@@ -1,7 +1,5 @@
 import { z } from 'zod';
 
-const uuid = z.string().uuid('ID tidak valid');
-
 /**
  * Filter dashboard (docs/09 section 3 & section 7).
  *
@@ -12,9 +10,10 @@ const uuid = z.string().uuid('ID tidak valid');
  * Catatan cakupan: filter periode belum ada di sini. `v_branch_kpi` adalah
  * agregat tanpa dimensi tanggal, jadi menambah periode berarti mengubah view
  * (migration) — dan schema satu pintu di Bani (TEAM_PLAN section 1.2).
+ *
+ * Filter cabang dicabut 19 Agustus 2026 — lihat catatan di `orderFilterSchema`.
  */
 export const dashboardFilterSchema = z.object({
-  branch_id: uuid.optional().catch(undefined),
   status: z
     .enum([
       'new',

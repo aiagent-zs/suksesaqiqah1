@@ -58,7 +58,7 @@ describe('transisi new → paid', () => {
     const result = checkTransition(
       'new',
       'paid',
-      'admin_cabang',
+      'admin',
       ctx({ paymentStatus: 'unpaid', paidAmount: 0 }),
     );
     expect(result.ok).toBe(false);
@@ -69,7 +69,7 @@ describe('transisi new → paid', () => {
     const result = checkTransition(
       'new',
       'paid',
-      'admin_cabang',
+      'admin',
       ctx({ paymentStatus: 'partial', totalAmount: 1_000_000, paidAmount: 500_000 }),
     );
     expect(result.ok).toBe(true);
@@ -81,7 +81,7 @@ describe('transisi paid → scheduled', () => {
     const result = checkTransition(
       'paid',
       'scheduled',
-      'admin_cabang',
+      'admin',
       ctx({ hasCompleteSchedule: false }),
     );
     expect(result.ok).toBe(false);
@@ -89,21 +89,21 @@ describe('transisi paid → scheduled', () => {
   });
 
   it('diterima saat jadwal lengkap dan pembayaran memenuhi gate', () => {
-    expect(checkTransition('paid', 'scheduled', 'admin_cabang', ctx()).ok).toBe(true);
+    expect(checkTransition('paid', 'scheduled', 'admin', ctx()).ok).toBe(true);
   });
 });
 
 /**
  * docs/10 section 5 menuntut kelengkapan **per tahap**, bukan sekadar "ada satu
  * dokumentasi": minimal 1 bukti pemotongan DAN 1 bukti distribusi yang sudah
- * tervalidasi Admin Pusat.
+ * tervalidasi.
  */
 describe('transisi documentation → reporting', () => {
   it('ditolak tanpa dokumentasi approved sama sekali', () => {
     const result = checkTransition(
       'documentation',
       'reporting',
-      'admin_cabang',
+      'admin',
       ctx({ docsApproved: 0, docsApprovedSlaughter: 0, docsApprovedDistribution: 0 }),
     );
     expect(result.ok).toBe(false);
@@ -116,7 +116,7 @@ describe('transisi documentation → reporting', () => {
     const result = checkTransition(
       'documentation',
       'reporting',
-      'admin_cabang',
+      'admin',
       ctx({ docsApproved: 3, docsApprovedSlaughter: 3, docsApprovedDistribution: 0 }),
     );
     expect(result.ok).toBe(false);
@@ -127,7 +127,7 @@ describe('transisi documentation → reporting', () => {
     const result = checkTransition(
       'documentation',
       'reporting',
-      'admin_cabang',
+      'admin',
       ctx({ docsApproved: 1, docsApprovedSlaughter: 0, docsApprovedDistribution: 1 }),
     );
     expect(result.ok).toBe(false);
@@ -135,7 +135,7 @@ describe('transisi documentation → reporting', () => {
   });
 
   it('diterima saat kedua tahap punya bukti tervalidasi', () => {
-    expect(checkTransition('documentation', 'reporting', 'admin_cabang', ctx()).ok).toBe(true);
+    expect(checkTransition('documentation', 'reporting', 'admin', ctx()).ok).toBe(true);
   });
 });
 
@@ -144,7 +144,7 @@ describe('transisi reporting → completed', () => {
     const result = checkTransition(
       'reporting',
       'completed',
-      'admin_cabang',
+      'admin',
       ctx({ paymentStatus: 'partial', paidAmount: 1_400_000 }),
     );
     expect(result.ok).toBe(false);
@@ -152,36 +152,38 @@ describe('transisi reporting → completed', () => {
   });
 
   it('ditolak saat laporan belum terkirim', () => {
-    const result = checkTransition(
-      'reporting',
-      'completed',
-      'admin_cabang',
-      ctx({ reportSent: false }),
-    );
+    const result = checkTransition('reporting', 'completed', 'admin', ctx({ reportSent: false }));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.message).toMatch(/laporan/i);
   });
 
   it('diterima saat lunas dan laporan terkirim', () => {
-    expect(checkTransition('reporting', 'completed', 'admin_cabang', ctx()).ok).toBe(true);
+    expect(checkTransition('reporting', 'completed', 'admin', ctx()).ok).toBe(true);
   });
 });
 
 describe('penegakan role', () => {
-  it('petugas lapangan tidak boleh membatalkan order', () => {
-    const result = checkTransition('new', 'cancelled', 'petugas_lapangan', ctx());
+  it('vendor tidak boleh membatalkan order', () => {
+    const result = checkTransition('new', 'cancelled', 'vendor', ctx());
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('FORBIDDEN');
   });
 
-  it('petugas lapangan boleh menaikkan tahap lapangan', () => {
-    expect(checkTransition('preparation', 'slaughtering', 'petugas_lapangan', ctx()).ok).toBe(true);
+  it('vendor boleh menaikkan tahap lapangan', () => {
+    expect(checkTransition('preparation', 'slaughtering', 'vendor', ctx()).ok).toBe(true);
   });
 
-  it('direktur read-only pada jalur operasional', () => {
-    const result = checkTransition('new', 'paid', 'direktur', ctx());
+  it('vendor tidak boleh menggerakkan tahap yang bukan urusannya', () => {
+    // `new -> paid` adalah keputusan pembayaran; vendor tidak melihat uang
+    // sama sekali (RLS `payments_select`).
+    const result = checkTransition('new', 'paid', 'vendor', ctx());
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('FORBIDDEN');
+  });
+
+  it('superadmin bisa menggerakkan tahap mana pun', () => {
+    expect(checkTransition('new', 'paid', 'superadmin', ctx()).ok).toBe(true);
+    expect(checkTransition('preparation', 'slaughtering', 'superadmin', ctx()).ok).toBe(true);
   });
 
   it('tanpa role tidak ada opsi transisi', () => {
@@ -191,14 +193,14 @@ describe('penegakan role', () => {
 
 describe('lompatan status', () => {
   it('new tidak bisa langsung ke completed', () => {
-    const result = checkTransition('new', 'completed', 'manager_program', ctx());
+    const result = checkTransition('new', 'completed', 'superadmin', ctx());
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('CONFLICT');
   });
 
   it('status akhir tidak punya transisi keluar', () => {
-    expect(getTransitionOptions('completed', 'manager_program', ctx())).toHaveLength(0);
-    expect(getTransitionOptions('cancelled', 'manager_program', ctx())).toHaveLength(0);
+    expect(getTransitionOptions('completed', 'superadmin', ctx())).toHaveLength(0);
+    expect(getTransitionOptions('cancelled', 'superadmin', ctx())).toHaveLength(0);
   });
 });
 
@@ -206,7 +208,7 @@ describe('getTransitionOptions', () => {
   it('tetap mengembalikan opsi yang gagal precondition, disertai alasannya', () => {
     const options = getTransitionOptions(
       'new',
-      'admin_cabang',
+      'admin',
       ctx({ paymentStatus: 'unpaid', paidAmount: 0 }),
     );
     const toPaid = options.find((o) => o.to === 'paid');

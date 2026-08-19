@@ -31,13 +31,15 @@ select
   '', '', '', ''
 from (
   values
-    ('a3000000-0000-4000-8000-000000000001'::uuid, 'direktur@suksesaqiqah.test', 'Hasan Direktur',      'direktur',         null),
-    ('a3000000-0000-4000-8000-000000000002'::uuid, 'manager@suksesaqiqah.test',  'Rina Manager Program','manager_program',  null),
-    ('a3000000-0000-4000-8000-000000000003'::uuid, 'pusat@suksesaqiqah.test',    'Dewi Admin Pusat',    'admin_pusat',      null),
-    ('a3000000-0000-4000-8000-000000000004'::uuid, 'admin.bdg@suksesaqiqah.test','Agus Admin Bandung',  'admin_cabang',     'a0000000-0000-4000-8000-000000000001'),
-    ('a3000000-0000-4000-8000-000000000005'::uuid, 'admin.jkt@suksesaqiqah.test','Sari Admin Jakarta',  'admin_cabang',     'a0000000-0000-4000-8000-000000000002'),
-    ('a3000000-0000-4000-8000-000000000006'::uuid, 'petugas.bdg@suksesaqiqah.test','Budi Petugas',      'petugas_lapangan', 'a0000000-0000-4000-8000-000000000001'),
-    ('a3000000-0000-4000-8000-000000000007'::uuid, 'petugas.jkt@suksesaqiqah.test','Eko Petugas',       'petugas_lapangan', 'a0000000-0000-4000-8000-000000000002')
+    -- Id-nya sengaja tidak berubah: seluruh baris demo di bawah (order, jadwal,
+    -- pembayaran, dokumentasi) menunjuk ke id ini. Yang berganti perannya.
+    ('a3000000-0000-4000-8000-000000000001'::uuid, 'superadmin@suksesaqiqah.test','Hasan Superadmin',  'superadmin', null),
+    ('a3000000-0000-4000-8000-000000000002'::uuid, 'superadmin2@suksesaqiqah.test','Rina Superadmin',  'superadmin', null),
+    ('a3000000-0000-4000-8000-000000000003'::uuid, 'admin@suksesaqiqah.test',    'Dewi Admin',         'admin',      null),
+    ('a3000000-0000-4000-8000-000000000004'::uuid, 'admin2@suksesaqiqah.test',   'Agus Admin',         'admin',      'a0000000-0000-4000-8000-000000000001'),
+    ('a3000000-0000-4000-8000-000000000005'::uuid, 'admin3@suksesaqiqah.test',   'Sari Admin',         'admin',      'a0000000-0000-4000-8000-000000000002'),
+    ('a3000000-0000-4000-8000-000000000006'::uuid, 'vendor1@suksesaqiqah.test',  'Budi Vendor',        'vendor',     'a0000000-0000-4000-8000-000000000001'),
+    ('a3000000-0000-4000-8000-000000000007'::uuid, 'vendor2@suksesaqiqah.test',  'Eko Vendor',         'vendor',     'a0000000-0000-4000-8000-000000000002')
 ) as u(id, email, full_name, role, branch_id)
 on conflict (id) do nothing;
 
@@ -62,13 +64,13 @@ from auth.users u
 where u.email like '%@suksesaqiqah.test'
 on conflict do nothing;
 
--- Penunjukan Supervisor validasi tingkat-1 (docs/07 section 1).
+-- Vendor lahir non-aktif lewat `handle_new_user` (kerja sama dimulai dari
+-- kesepakatan, bukan dari pendaftaran). Untuk data demo keduanya diaktifkan,
+-- kalau tidak `auth_role()` mengembalikan NULL dan tidak satu pun order demo
+-- terlihat oleh mereka.
 update public.profiles
-set is_supervisor = true
-where id in (
-  'a3000000-0000-4000-8000-000000000002', -- Manager Program
-  'a3000000-0000-4000-8000-000000000004'  -- Admin Cabang Bandung
-);
+set is_active = true
+where id::text like 'a3000000%';
 
 update public.profiles
 set phone = '0812' || right(id::text, 8)

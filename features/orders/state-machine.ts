@@ -45,8 +45,10 @@ export function paymentGatePassed(ctx: OrderGuardContext): boolean {
   return ctx.paidAmount >= ctx.totalAmount * ctx.minDpRatio;
 }
 
-const OPERATOR: UserRole[] = ['manager_program', 'admin_cabang'];
-const FIELD: UserRole[] = ['manager_program', 'admin_cabang', 'petugas_lapangan'];
+/** Yang mengurus order dari sisi kami: verifikasi, pembayaran, penjadwalan. */
+const OPERATOR: UserRole[] = ['superadmin', 'admin'];
+/** Tahap yang dijalankan di lapangan — vendor ikut menggerakkannya. */
+const FIELD: UserRole[] = ['superadmin', 'admin', 'vendor'];
 
 /**
  * State machine order — sumber kebenaran tunggal untuk transisi status.
@@ -143,7 +145,7 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
 
         return missing.length === 0
           ? null
-          : `Dokumentasi ${missing.join(' & ')} belum ada yang tervalidasi Admin Pusat.`;
+          : `Dokumentasi ${missing.join(' & ')} belum ada yang tervalidasi.`;
       },
     },
     { to: 'on_hold', roles: OPERATOR },

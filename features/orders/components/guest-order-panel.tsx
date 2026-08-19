@@ -6,7 +6,7 @@ import { AlertCircle, BadgeCheck, Globe, MessageCircle, ShieldQuestion } from 'l
 import { Button } from '@/components/ui/button';
 import { verifyGuestOrder } from '@/server/actions/orders';
 import { AQIQAH_FOR_LABEL, DISTRIBUTION_MODE_LABEL } from '@/lib/constants/order';
-import { formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, formatTime } from '@/lib/format';
 import { whatsAppHref } from '@/lib/format/phone';
 
 export type GuestOrderInfo = {
@@ -14,6 +14,9 @@ export type GuestOrderInfo = {
   participantName: string | null;
   participantPhone: string | null;
   aqiqahFor: string | null;
+  /** Tanggal & jam yang diminta pemesan — bahan menyusun jadwal, bukan jadwalnya. */
+  requestedDate: string | null;
+  requestedTime: string | null;
   distributionMode: string | null;
   deliveryAddress: string | null;
   recipientInstitution: string | null;
@@ -82,6 +85,16 @@ export function GuestOrderPanel({
       value: AQIQAH_FOR_LABEL[info.aqiqahFor] ?? info.aqiqahFor,
     });
   }
+  // Tanggal yang diminta pemesan: inilah yang dikonfirmasi saat menghubunginya,
+  // dan yang dipakai admin menyusun baris `schedules` sesudah verifikasi.
+  if (info.requestedDate) {
+    details.push({
+      label: 'Diminta dilaksanakan',
+      value: `${formatDate(info.requestedDate)}${
+        info.requestedTime ? ` · ${formatTime(info.requestedTime)} WIB` : ''
+      }`,
+    });
+  }
   if (info.distributionMode) {
     details.push({
       label: 'Cara penyaluran',
@@ -108,7 +121,9 @@ export function GuestOrderPanel({
           />
           <div>
             <h2 className="text-base font-semibold">Order dari checkout publik</h2>
-            <p className={`mt-0.5 text-sm ${verified ? 'text-muted-foreground' : 'text-amber-800'}`}>
+            <p
+              className={`mt-0.5 text-sm ${verified ? 'text-muted-foreground' : 'text-amber-800'}`}
+            >
               {verified ? (
                 <>
                   Diverifikasi {formatDateTime(info.verifiedAt)}
@@ -172,7 +187,7 @@ export function GuestOrderPanel({
             </Button>
           ) : (
             <p className="text-muted-foreground text-sm">
-              Verifikasi dilakukan Admin Cabang, Admin Pusat, atau Manager Program.
+              Verifikasi dilakukan admin atau superadmin.
             </p>
           ))}
       </div>

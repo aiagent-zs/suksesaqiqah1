@@ -11,12 +11,6 @@ export type CheckoutPackage = {
   price: number;
 };
 
-export type CheckoutBranch = {
-  id: string;
-  name: string;
-  code: string;
-};
-
 /** Paket nasi box — tambahan opsional, bukan pesanan yang berdiri sendiri. */
 export type NasiBoxPackage = {
   id: string;
@@ -25,24 +19,40 @@ export type NasiBoxPackage = {
   price: number;
 };
 
+/** Satu pilihan wilayah pada pemilih alamat bertingkat. */
+export type RegionOption = {
+  code: string;
+  name: string;
+};
+
 export type CheckoutOptions = {
   packages: CheckoutPackage[];
   nasiBoxes: NasiBoxPackage[];
-  branches: CheckoutBranch[];
+  /**
+   * Provinsi ikut dirender di server — 38 baris, tingkat teratas, dan selalu
+   * dibutuhkan begitu pemesan memilih Aqiqah Kirim. Tiga tingkat di bawahnya
+   * diambil dari peramban saat induknya dipilih; memuat 83 ribu kelurahan di
+   * muka jelas bukan pilihan.
+   */
+  provinces: RegionOption[];
 };
 
 /**
  * Isi pilihan halaman checkout publik.
  *
- * Dibaca sebagai pengunjung anonim, jadi hanya lewat dua jalan yang memang
- * dibuka untuk `anon`: SELECT pada `services` (dibatasi kebijakan
- * `services_public_select`) dan RPC `get_public_branches`. Tabel `branches`
- * sendiri tertutup — isinya termasuk telepon dan alamat internal.
+ * Dibaca sebagai pengunjung anonim, jadi hanya lewat jalan yang memang dibuka
+ * untuk `anon`: SELECT pada `services` (dibatasi `services_public_select`) dan
+ * SELECT pada `regions` (`regions_public_select` — daftar wilayah administratif,
+ * memang terbuka).
+ *
+ * Daftar cabang tidak lagi diambil — pemilih wilayah layanan dicabut dari form
+ * pada 19 Agustus 2026, dan `create_guest_order` menentukan cabangnya sendiri
+ * dari `branches.is_default`.
  */
 export async function getCheckoutOptions(): Promise<CheckoutOptions> {
   const supabase = await createClient();
 
-  const [servicesResult, boxesResult, branchesResult] = await Promise.all([
+  const [servicesResult, boxesResult, provincesResult] = await Promise.all([
     supabase
       .from('services')
       .select('id, type, name, slug, description, price')
@@ -57,7 +67,7 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('sort_order', { ascending: true }),
-    supabase.rpc('get_public_branches'),
+    supabase.from('regions').select('code, name').eq('level', 1).order('name', { ascending: true }),
   ]);
 
   const nasiBoxes = (boxesResult.data ?? []).map((s) => ({
@@ -77,13 +87,9 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
     price: Number(s.price),
   }));
 
-  const branches = ((branchesResult.data as unknown as CheckoutBranch[] | null) ?? []).map((b) => ({
-    id: b.id,
-    name: b.name,
-    code: b.code,
-  }));
+  const provinces = (provincesResult.data ?? []).map((r) => ({ code: r.code, name: r.name }));
 
-  return { packages, nasiBoxes, branches };
+  return { packages, nasiBoxes, provinces };
 }
 
 /** Tipe hasil RPC `create_guest_order`, dipakai action & halaman konfirmasi. */

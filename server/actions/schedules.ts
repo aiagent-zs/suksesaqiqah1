@@ -82,9 +82,9 @@ export async function saveSchedule(input: unknown): Promise<ActionResult<null>> 
     };
   }
 
-  // PIC wajib Petugas Lapangan aktif di cabang yang sama. Kolomnya hanya
-  // ber-foreign key ke `profiles`, sehingga tanpa cek ini seorang Direktur pun
-  // bisa tercatat sebagai PIC lapangan.
+  // PIC wajib vendor yang aktif. Kolomnya hanya ber-foreign key ke `profiles`,
+  // sehingga tanpa cek ini seorang admin pun bisa tercatat sebagai pelaksana —
+  // dan lebih jauh, menugaskan dirinya sendiri ke order mana pun.
   if (pic_user_id) {
     const { data: pic } = await supabase
       .from('profiles')
@@ -92,13 +92,13 @@ export async function saveSchedule(input: unknown): Promise<ActionResult<null>> 
       .eq('id', pic_user_id)
       .maybeSingle();
 
-    if (!pic || pic.role !== 'petugas_lapangan' || !pic.is_active) {
+    if (!pic || pic.role !== 'vendor' || !pic.is_active) {
       return {
         ok: false,
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'PIC harus Petugas Lapangan yang aktif.',
-          fields: { pic_user_id: 'Bukan Petugas Lapangan aktif.' },
+          message: 'Pelaksana harus vendor yang aktif.',
+          fields: { pic_user_id: 'Bukan vendor aktif.' },
         },
       };
     }

@@ -73,7 +73,7 @@ export async function generateReport(
 
   if (!isDocumentationComplete({ approvedSlaughter, approvedDistribution })) {
     return conflict(
-      'Laporan belum dapat dibuat: butuh minimal 1 bukti pemotongan dan 1 bukti distribusi yang tervalidasi Admin Pusat.',
+      'Laporan belum dapat dibuat: butuh minimal 1 bukti pemotongan dan 1 bukti distribusi yang sudah tervalidasi.',
     );
   }
 

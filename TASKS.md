@@ -7,12 +7,51 @@
 | Field | Value |
 |-------|-------|
 | Dokumen | `TASKS.md` |
-| Diperbarui | 2026-08-14 |
+| Diperbarui | 2026-08-19 |
 | Fase aktif | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`) |
 | Estimasi Phase 1 | **± 85%** |
-| Terverifikasi pada pembaruan ini | `npm run build` ✅ · `npm run typecheck` ✅ · `npm run lint` ✅ · **295 test hijau (25 file)** · 18 migration ⚠️ 2 belum di-push |
+| Terverifikasi pada pembaruan ini | `npm run build` ✅ · `npm run typecheck` ✅ · `npm run lint` ✅ · **323 test hijau (25 file)** · 22 migration ⚠️ 6 belum di-push |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
+
+---
+
+## Perubahan sejak pembaruan 2026-08-14
+
+Penyesuaian form pemesan dari lapangan — tiga permintaan, satu migration baru
+(`20260819010000_checkout_booking.sql`, **belum di-push**).
+
+- **Domba dicabut dari checkout publik.** Aqiqah kini hanya kambing; qurban
+  kambing atau sapi. Enum `animal_species` tidak disentuh — order yang dibuat
+  staf masih boleh memakai domba. Detail di §8.
+- **Pemilih wilayah layanan dihapus dari form.** `orders.branch_id` tetap NOT
+  NULL, jadi cabangnya kini ditentukan server lewat kolom baru
+  `branches.is_default`. Detail di §8.
+- **Pemesan memilih tanggal & jam pelaksanaan, maksimal 7 hari ke depan** —
+  kolom baru `orders.requested_date` / `requested_time`. Detail di §8.
+- **Wizard checkout dipadatkan dari 6 langkah jadi 4** — "Aqiqah untuk",
+  "Paket", dan "Nasi box" disatukan jadi satu langkah **Pesanan**. Detail di §8.
+- **Alamat pengiriman jadi terstruktur** — Provinsi → Kabupaten/Kota →
+  Kecamatan → Kelurahan/Desa bertingkat dari tabel `regions` yang baru
+  (data Kepmendagri 2025, 91.599 baris), plus kode pos dan detail jalan.
+  Dua migration lagi: `20260819020000_regions.sql` &
+  `20260819030000_structured_delivery_address.sql`. Detail di §8.
+- **Lima role diringkas jadi tiga: superadmin, admin, vendor** —
+  `20260819040000_three_roles.sql`. Perubahan paling dalam pada pembaruan ini:
+  enum ditukar, seluruh kebijakan RLS yang menyebut role ditulis ulang, scope
+  per cabang pensiun, dan validasi dokumentasi jadi satu tingkat. Detail di
+  §1 Tahap 3.
+
+> ⚠️ Keenamnya menambah kolom & tabel yang **sudah dibaca kode**
+> (`requested_date`, `requested_time`, `branches.is_default`, `regions`,
+> `orders.delivery_*`) dan mengganti `create_guest_order` serta seluruh enum
+> role. Selama belum di-push, checkout publik gagal mencatat pesanan, halaman
+> detail order gagal memuat, dan **tidak seorang pun bisa login dengan benar**
+> — kode sudah membandingkan role dengan nilai yang belum ada di database.
+
+**Estimasi Phase 1 tidak bergerak.** Seluruh pekerjaan di atas ada di Tahap 10,
+yang tidak muncul di Definition of Done Phase 1 (§12); empat butir DoD yang
+tersisa tidak tersentuh.
 
 ---
 
@@ -66,12 +105,12 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 - [x] `.env.example` lengkap (termasuk `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` & `SUPABASE_DB_URL`)
 
 ### Tahap 1 · Database — *Bani*
-- [x] 18 migration di `supabase/migrations/` — 19 tabel, enum, index, trigger
-  <br>*(13 fondasi + `public_report_rpc` + 2 migration guest checkout + 2 migration pengerasan 14 Agustus yang **belum di-push**, lihat §3 & §8)*
+- [x] 22 migration di `supabase/migrations/` — 20 tabel, enum, index, trigger
+  <br>*(13 fondasi + `public_report_rpc` + 2 migration guest checkout + 2 migration pengerasan 14 Agustus + 4 migration penyesuaian 19 Agustus; **enam terakhir belum di-push**, lihat §1 Tahap 3, §3 & §8)*
 - [x] 3 view KPI: `v_order_progress`, `v_branch_kpi`, `v_open_orders` (semua `security_invoker = on`)
 - [x] RPC: `create_order`, `next_order_number`, `min_dp_ratio`, helper `can_read_order` / `can_write_order`
 - [x] Storage buckets + GRANT eksplisit untuk `anon` / `authenticated`
-- [x] Seed `01_master.sql` (cabang, lokasi) & `02_demo.sql` (7 akun demo + order contoh)
+- [x] Seed `01_master.sql` (cabang, lokasi) & `02_demo.sql` (7 akun demo — 2 superadmin, 3 admin, 2 vendor — + order contoh)
 - [x] **Ter-push & terverifikasi di Supabase cloud** — ketiga view mengembalikan data
 
 ### Tahap 2 · Auth — *Bani*
@@ -82,9 +121,77 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 - [x] **Keluar otomatis saat menganggur** (ambang 30 menit, `lib/auth/idle.ts`). Supabase menyegarkan token di tiap permintaan lewat middleware, jadi sesi yang ditinggal tidak pernah kedaluwarsa sendiri. Ditegakkan di **middleware** lewat cookie `httpOnly` — berlaku sekalipun JavaScript mati — sementara `IdleLogout` di klien hanya membuat waktunya tepat, karena tab yang menganggur tidak mengirim permintaan apa pun
 
 ### Tahap 3 · RBAC / RLS — *Bani*
+
+**Tiga role sejak 19 Agustus 2026** (`20260819040000_three_roles.sql`, belum
+di-push). Lima role lama dirancang untuk organisasi bercabang; kenyataannya
+operasi berjalan **satu tempat** dan yang banyak adalah vendornya. Alurnya:
+pesanan masuk -> admin memvalidasi -> admin mencari vendor yang siap -> vendor
+mengerjakan & mengunggah bukti -> admin memvalidasi bukti itu.
+
+| Role | Wewenang |
+|------|----------|
+| **superadmin** | Segalanya: master data, harga (`total_amount`), penghapusan order & catatan lapangan, pengelolaan user |
+| **admin** | Penghubung pembeli & vendor: verifikasi order tamu, catat & verifikasi pembayaran, penugasan vendor, validasi bukti dari vendor, laporan |
+| **vendor** | Pelaksana: catat pemotongan & distribusi, unggah bukti, lapor kendala - **hanya pada order yang ditugaskan padanya** |
+
+Pemetaan dari role lama: `direktur` + `manager_program` -> **superadmin**;
+`admin_pusat` + `admin_cabang` -> **admin**; `petugas_lapangan` -> **vendor**.
+
 - [x] RLS aktif di seluruh tabel + kebijakan per role
-- [x] Matriks kapabilitas action-level (`server/auth/capabilities.ts`) + unit test
-- [x] **Uji positif & negatif lintas cabang lolos di cloud**: direktur 5 order · admin cabang 3 · petugas 1 (hanya yang di-PIC-i)
+- [x] Matriks kapabilitas action-level (`server/auth/capabilities.ts`) + unit test —
+  termasuk tes yang menuntut **superadmin memegang setiap kapabilitas**, janji
+  yang paling gampang dilanggar diam-diam saat menambah kapabilitas baru
+- [x] **Enum ditukar, bukan ditambah.** `alter type … add value` akan
+  meninggalkan lima nilai lama yang masih sah dipakai. Menukar tipenya memaksa
+  tiap baris dipetakan ulang sekarang juga — dengan konsekuensi seluruh
+  kebijakan yang menyebut role harus dilepas dan dibangun ulang di migration
+  yang sama
+- [x] Pelepasan fungsi lama **sengaja tanpa `CASCADE`** — kalau masih ada yang
+  bergantung pada `auth_role()` di luar daftar yang dibangun ulang, migration
+  harus gagal berisik, bukan diam-diam menghapus kebijakan yang tak tergantikan
+- [x] `can_read_order` / `can_write_order` di-`create or replace`, tidak
+  di-`drop`: belasan kebijakan RLS bergantung padanya, dan menghapusnya berarti
+  ikut menghapus kebijakannya
+- [x] `is_central()` -> `is_staff()` (superadmin atau admin) + `is_superadmin()`
+- [x] **Vendor tidak bisa menugaskan dirinya sendiri.** `can_read_order` memberi
+  vendor akses justru lewat `schedules.pic_user_id`, jadi menulis jadwal berarti
+  bisa membuka order mana pun. `schedules_write` menuntut `is_staff()`
+- [x] **Vendor sama sekali di luar urusan uang** — `payments_select` menuntut
+  `is_staff()`, jadi panel pembayaran tidak dirender untuk mereka dan barisnya
+  pun tidak terbaca
+- [x] **Vendor hanya melihat profilnya sendiri** — daftar vendor lain bukan
+  urusannya (`profiles_select`)
+- [x] **Pengelolaan user berhenti di superadmin.** Admin sengaja tidak ikut:
+  siapa pun yang bisa mengubah role bisa mengangkat dirinya sendiri
+- [x] Akun baru lahir sebagai `vendor` **non-aktif** — kerja sama dengan vendor
+  dimulai dari kesepakatan, bukan dari pendaftaran. `auth_role()` mengembalikan
+  NULL selama `is_active` masih false, jadi akunnya belum bisa apa-apa
+- [x] `profiles.is_supervisor` dibuang — penanda itu hanya berarti pada tangga
+  validasi dua tingkat yang kini ditiadakan (lihat §3)
+- [x] **Cabang dicabut dari seluruh permukaan pengguna.** Yang hilang: filter
+  "Cabang" di dashboard, order, jadwal, dan validasi (beserta `branch_id` di
+  keempat filter schema-nya); grafik "Order Tertunda per Cabang"; kolom Cabang
+  di tabel order dan kartu jadwal; dan pemilih cabang di form Order Baru.
+  Cabang order kini ditentukan server (`getDefaultBranchId`) dengan urutan yang
+  sama persis dengan `create_guest_order` — jadi order dari admin dan order dari
+  checkout publik selalu mendarat di cabang yang sama
+- [x] Tautan lama yang masih membawa `?branch_id=` **diabaikan, bukan
+  digagalkan** — seluruh filter schema memakai `.catch()`, dan ada tesnya
+- [ ] **`branches` sendiri belum dibongkar, dan itu disengaja.** Tabelnya serta
+  `orders.branch_id` tetap ada karena menyusun nomor order (`IA-YYYYMM-####`)
+  dan path Storage (`BDG/2026/08/…`); `v_branch_kpi` juga masih beragregasi per
+  cabang — dengan satu cabang hasilnya satu baris, dan `aggregateBranchKpi`
+  tetap benar seandainya suatu saat bertambah lagi. Membongkarnya menyentuh view
+  KPI, penomoran, dan seluruh path berkas yang sudah terlanjur ditulis —
+  pekerjaan tersendiri, bukan bagian pembersihan filter
+- [ ] **Role masih bisa dikirim lewat user metadata saat signup.**
+  `handle_new_user` membacanya dari `raw_user_meta_data` (jalur admin membuat
+  akun). Kalau signup mandiri dibuka di Supabase, seseorang bisa mendaftar
+  sebagai `admin`. Bukan regresi — perilakunya sudah begitu sejak Tahap 2 —
+  tapi wajib ditutup sebelum produksi, entah dengan invite-only atau dengan
+  mengabaikan metadata role sama sekali
+- [ ] Uji positif & negatif belum diulang di cloud dengan tiga role; hasil lama
+  (direktur 5 order · admin cabang 3 · petugas 1) sudah tidak berlaku
 
 ---
 
@@ -162,11 +269,12 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 - [x] Storage bucket
 - [x] Unggah foto/video/catatan, tertaut ke order + tahap + hewan (opsional) — berkas langsung browser → Storage, path baru dikirim ke Server Action
 - [x] Path diverifikasi ulang terhadap cabang + nomor order + tahap (`isDocPathForOrder`); kebijakan Storage hanya menuntut role, sama sekali tidak membatasi folder
-- [x] Validasi 2 tingkat: Supervisor (`pending → approved_supervisor`) → Admin Pusat (`→ approved`), tolak wajib beralasan
-- [x] Tingkat validasi **diturunkan dari role**, tidak pernah dikirim klien — Supervisor tidak bisa meminta `approved` penuh
-- [x] **Pemisahan tugas** (`docs/10 §4`): pengupload tidak dapat memvalidasi unggahannya sendiri
+- [x] **Validasi satu tingkat sejak 19 Agustus 2026**: vendor unggah (`pending`) → admin/superadmin memutuskan (`approved` / `rejected`), tolak wajib beralasan. Tangga dua tingkat lama (Supervisor → Admin Pusat) ikut pensiun bersama lima role (§1 Tahap 3)
+- [x] `approved_supervisor` **tetap ada di enum sebagai jalur warisan** — tidak ada lagi yang membuatnya, tapi baris yang sempat lolos tingkat-1 sebelum perubahan akan terjebak selamanya kalau jalurnya ditutup. `REVIEWABLE_DOC_STATUSES` dan trigger menerima jalur yang sama persis
+- [x] Wewenang validasi **diturunkan dari role**, tidak pernah dikirim klien — vendor tidak bisa meminta `approved` untuk unggahannya sendiri
+- [x] **Pemisahan tugas** (`docs/10 §4`): pengupload tidak dapat memvalidasi unggahannya sendiri — tetap berlaku meski tingkatnya tinggal satu, jadi admin yang ikut mengunggah pun ditolak pada barisnya sendiri
 - [x] Penguncian optimistik: dua validator bersamaan tidak bisa sama-sama berhasil
-- [x] Halaman `/validation` — antrian tingkat-1 & tingkat-akhir menyesuaikan role, filter cabang & tahap, urut tertua dulu, paginasi
+- [x] Halaman `/validation` — satu antrian (`pending` + sisa `approved_supervisor`), filter cabang & tahap, urut tertua dulu, paginasi
 - [x] **Gate diperketat sesuai `docs/10 §5`**: `documentation → reporting` kini menuntut ≥1 bukti **pemotongan** DAN ≥1 bukti **distribusi** yang tervalidasi penuh — sebelumnya cukup "ada satu dokumentasi apa pun"
 - [x] Pratinjau media memakai `<img>`/`<video>` biasa, bukan `next/image`: optimizer Next akan menyimpan salinan yang tetap tersaji setelah signed URL ber-TTL 10 menit kedaluwarsa (`docs/10 §8`)
 - [x] Dokumentasi `approved` tidak dapat dihapus — bukti itu dipakai laporan peserta
@@ -270,7 +378,7 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 - [x] RPC `create_guest_order(jsonb)` **`SECURITY DEFINER`**, di-grant ke `anon` — `anon` sendiri ditolak RLS di setiap tabel operasional
 - [x] **Harga, total, status, dan jumlah terbayar tidak pernah datang dari klien** — RPC membacanya dari `services`. `guestCheckoutSchema` sengaja tidak menyediakan tempatnya, jadi tidak ada jalan memesan seharga nol rupiah
 - [x] RPC `get_public_branches()` untuk daftar wilayah layanan (`anon` tidak boleh membaca `branches` langsung)
-- [x] Form 6 tahap (`features/checkout/`): paket → jenis & jumlah hewan → nasi box → cara penyaluran → data pemesan → ringkasan
+- [x] Form bertahap (`features/checkout/`) — sejak 19 Agustus **4 tahap**: pesanan (aqiqah untuk, paket, jenis & jumlah hewan, nasi box) → jadwal & penyaluran → data pemesan → ringkasan
 - [x] Kolom baru `orders.aqiqah_for` & `orders.distribution_mode`
 - [x] Aturan lintas-medan ditegakkan **dua kali** — di `superRefine` supaya galatnya menempel pada medan yang tepat di form, dan di dalam RPC supaya tidak bisa dilewati: alamat wajib untuk "Aqiqah Kirim", nasi box terpilih wajib berjumlah, jenis hewan dibatasi per jenis layanan
 - [x] Hanya kode penolakan yang memang layak dibaca pengunjung (`23514`, `P0002`, `P0003`) yang diteruskan ke layar; pesan mentah Postgres tidak pernah sampai karena membocorkan nama tabel & kolom
@@ -278,6 +386,102 @@ Sepuluh commit (semua 11 Agustus) belum tercatat di revisi sebelumnya:
 - [x] `?paket=` dari landing dicocokkan ke katalog sebagai **slug**, bukan dipercaya sebagai id
 - [x] Panel sukses menampilkan nomor order + total tagihan
 - [x] Order tamu ditandai **`created_by IS NULL`**
+
+#### Penyesuaian form pemesan (19 Agustus)
+
+- [x] **Domba dicabut dari checkout publik** — aqiqah hanya kambing, qurban
+  kambing atau sapi. Ditegakkan tiga lapis: `SPECIES_BY_SERVICE_TYPE` menentukan
+  apa yang ditawarkan form, `guestCheckoutSchema` menutup enum-nya di
+  `['kambing','sapi']`, dan `create_guest_order` menolak `domba` sekalipun
+  dikirim lewat PostgREST langsung. Enum `animal_species` sengaja **tidak**
+  diubah — order yang dibuat staf masih melayani domba, dan mencabutnya dari
+  enum akan membatalkan baris `animals` yang sudah ada
+- [x] **Pemilih wilayah layanan dihapus.** `orders.branch_id` NOT NULL, jadi
+  cabangnya kini datang dari kolom baru `branches.is_default` (indeks unik
+  parsial: paling banyak satu). Cabang **tidak** lagi diterima dari form —
+  `guestCheckoutSchema` tidak menyediakan tempatnya, karena pengunjung anonim
+  yang bisa memilih cabang berarti bisa menyetir order ke cabang mana pun.
+  Payload yang tetap mengirim `branch_id` (impor, n8n) masih dihormati RPC
+- [x] **Tanggal & jam pelaksanaan dipilih pemesan, maksimal 7 hari ke depan** —
+  kolom baru `orders.requested_date` / `requested_time`. Ditulis ke `orders`,
+  **bukan** `schedules`: `schedules.location_id` NOT NULL dan pemesan tidak
+  memilih lokasi pemotongan, jadi jadwal sungguhan tetap disusun admin sesudah
+  verifikasi. Kolom ini permintaan pemesan, bukan jadwal
+- [x] Batas 7 hari dihitung terhadap **hari ini menurut WIB** di kedua sisi
+  (`todayWib` di `lib/format/date-range.ts`, `now() at time zone 'Asia/Jakarta'`
+  di RPC). Memakai UTC berarti pemesan yang membuka form pukul 00:30 WIB
+  ditolak karena "tanggal sudah lewat"
+- [x] Jendelanya dihitung **saat parse**, bukan saat modul dimuat — proses
+  server hidup berhari-hari, dan batas yang dibekukan di konstanta modul akan
+  menolak "besok" begitu tanggal berganti. `min`/`max` pada input tanggal
+  datang sebagai prop dari server, karena memanggil jam di badan komponen
+  melanggar aturan kemurnian React dan jam peramban pemesan bisa di zona mana pun
+- [x] Jam dibatasi daftar slot di form (08:00–16:00), sementara RPC mengunci
+  batas luarnya saja (06:00–20:00) — slotnya bisa digeser tanpa migration
+- [x] `orders_requested_slot_check` menolak tanggal tanpa jam (dan sebaliknya).
+  Batas 7 harinya sendiri tidak bisa jadi CHECK constraint: acuannya `now()`,
+  sementara CHECK menuntut ekspresi immutable
+- [x] Tanggal yang diminta tampil di **panel order tamu** halaman detail —
+  tanpa itu ia jadi kolom yang tersimpan tapi tidak pernah dibaca siapa pun,
+  persis masalah yang ditutup pada 14 Agustus
+- [ ] ⚠️ Belum diverifikasi di cloud — `20260819010000_checkout_booking.sql`
+  belum di-push
+- [x] **Wizard dipadatkan jadi 4 langkah** — Pesanan → Jadwal & Penyaluran →
+  Data Pemesan → Ringkasan. "Aqiqah untuk", "Paket", dan "Nasi box" dulu tiga
+  langkah terpisah yang masing-masing hanya menuntut satu klik: pemesan menekan
+  "Lanjut" dua kali tanpa mengisi apa pun di antaranya, sementara paket dan
+  nasi box yang sama-sama menyusun total tagihan justru tidak pernah terlihat
+  bersamaan. `FIELD_STEP` — peta yang memindahkan layar ke langkah tempat medan
+  yang ditolak server berada — ikut disesuaikan, jadi galat dari zod tetap
+  mendarat di langkah yang benar
+- [x] **Alamat pengiriman terstruktur** — tabel baru `regions` (kode, nama,
+  induk, tingkat) berisi **91.599 wilayah**: 38 provinsi, 514 kabupaten/kota,
+  7.285 kecamatan, 83.762 kelurahan/desa. Sumbernya Kepmendagri
+  No 300.2.2-2138/2025 lewat dump publik `cahyadsn/wilayah` (MIT); berkas
+  migration-nya dibangkitkan, bukan ditulis tangan
+- [x] Masuk **migration**, bukan `supabase/seed/` — isi `supabase/seed/` hanya
+  jalan lokal saat `db reset`, sementara tanpa tabel ini checkout publik tidak
+  bisa merender pemilih alamatnya sama sekali di staging maupun produksi.
+  Alasan yang sama dipakai `20260806010900_reference_data.sql`
+- [x] Kolom baru di `orders`: `delivery_province_code` / `delivery_province`
+  dan tiga pasang serupa untuk kota, kecamatan, kelurahan, ditambah
+  `delivery_postal_code` & `delivery_detail`. **Nama ikut disimpan, bukan hanya
+  kode** — alamat pada order adalah rekaman sejarah, dan revisi Kemendagri
+  berikutnya tidak boleh diam-diam mengubah alamat order lama. Karena alasan
+  yang sama **tidak ada FK ke `regions`**: FK akan menahan pembaruan data
+  wilayah, atau menyeret order lama ikut berubah
+- [x] Kebenaran kodenya ditegakkan saat penulisan, bukan lewat FK —
+  `create_guest_order` menolak kode yang tidak ada, salah tingkat, atau tidak
+  sejalur dengan induknya. Sejalur diperiksa dari kodenya sendiri (kode
+  Kemendagri bersarang: `32` → `32.04` → `32.04.01`), jadi empat kode yang
+  masing-masing sah tetap tidak bisa merakit alamat yang tidak pernah ada
+- [x] **Nama wilayah tidak pernah dikirim klien** — RPC membacanya dari
+  `regions` berdasarkan kode. Yang dibaca kurir adalah namanya, jadi nama yang
+  boleh dikirim sendiri oleh pemesan berarti alamat tercatat bisa berbeda dari
+  wilayah yang ia pilih
+- [x] `orders.delivery_address` tetap ada dan kini **dirakit RPC** dari
+  bagian-bagian di atas — satu tempat saja yang menyusun teks itu, jadi
+  tampilan, panel admin, dan PDF laporan tidak bisa berbeda-beda
+- [x] `regions` dibaca langsung dari peramban (`regions_public_select` untuk
+  `anon`), bukan lewat Server Action: isinya daftar wilayah administratif yang
+  memang terbuka, jadi melewatkannya lewat server hanya menambah satu lompatan
+  tanpa menambah jaminan. 38 provinsi ikut dirender di server; tiga tingkat di
+  bawahnya diambil saat induknya dipilih — memuat 83 ribu kelurahan di muka
+  jelas bukan pilihan
+- [x] Hasil permintaan disinggahkan **per kode induk**, bukan per tingkat.
+  Itu yang menyelesaikan balapan: mengganti provinsi dua kali dengan cepat
+  membuat dua permintaan berjalan bersamaan, dan yang lebih lambat bisa
+  mendarat belakangan — kalau disimpan per tingkat, daftar kabupaten provinsi
+  pertama menimpa yang kedua
+- [ ] Kode pos masih diketik manual — dataset Kemendagri tidak memuatnya.
+  Untuk mengisinya otomatis butuh dataset kodepos terpisah
+- [ ] Alamat pemesan (`participants.address`) masih teks bebas; yang
+  terstruktur baru alamat kirim
+- [ ] Panel jadwal admin belum memakai `requested_date` sebagai nilai awal;
+  admin masih mengetik ulang tanggal yang diminta pemesan
+- [ ] `get_public_branches` tidak lagi dipanggil siapa pun (checkout dulu satu-
+  satunya pemakainya). Dibiarkan hidup untuk daftar wilayah layanan di halaman
+  publik (`docs/28`) — kalau sampai Tahap 11 tidak terpakai, sebaiknya di-drop
 
 #### Penutup loop order tamu (14 Agustus — §11 butir 1)
 
@@ -325,11 +529,11 @@ Sisa cakupan Tahap 10:
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] **295 unit test hijau di 25 file** (state machine order/hewan/jadwal, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format tanggal, path & schema pembayaran, tautan peta, schema pelaksanaan lapangan, schema checkout, rem laju & normalisasi nomor WhatsApp)
+- [x] **323 unit test hijau di 25 file** (state machine order/hewan/jadwal, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, tautan peta, schema pelaksanaan lapangan, schema & wizard checkout termasuk jendela pemesanan 7 hari, rem laju & normalisasi nomor WhatsApp)
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts` — sebelumnya terduplikasi di tiap modul action
 - [x] **Navigasi < 1024px** — bottom-nav + panel `≡` (`components/layout/mobile-nav.tsx`). Sebelumnya sidebar `hidden lg:flex` tidak punya pengganti: di bawah 1024px tidak ada cara berpindah halaman, dan tidak ada cara keluar sistem karena logout hanya hidup di footer sidebar
 - [x] Penanda aktif sidebar diturunkan dari `pathname` dengan pencocokan yang berhenti di batas segmen — sebelumnya di-hardcode pada tautan Dashboard, jadi tidak pernah berpindah
-- [ ] `tests/integration/` masih kosong (`.gitkeep`) — target: RLS lintas cabang, RPC `create_order`, RPC `create_guest_order` (satu-satunya jalan tulis milik `anon`), **dan kini dua trigger baru**: `enforce_documentation_review_ladder` & `enforce_guest_order_verification`. Keduanya justru yang paling layak diuji otomatis — perilakunya hanya muncul di database, jadi tidak ada unit test yang bisa menyentuhnya
+- [ ] `tests/integration/` masih kosong (`.gitkeep`) — target: RLS lintas cabang, RPC `create_order`, RPC `create_guest_order` (satu-satunya jalan tulis milik `anon`; kini juga pemegang batas 7 hari, penolakan domba, dan pemilihan cabang default), **dan dua trigger**: `enforce_documentation_review_ladder` & `enforce_guest_order_verification`. Semuanya justru yang paling layak diuji otomatis — perilakunya hanya muncul di database, jadi tidak ada unit test yang bisa menyentuhnya
 - [ ] `tests/e2e/` masih kosong (`.gitkeep`) — target: alur order → laporan end-to-end (`docs/21`)
 - [ ] Link mati "Pengaturan" (`href="#"`) — sekarang ada di **dua** tempat: footer sidebar dan panel `≡` mobile. Halamannya baru muncul di Tahap 11 · Master Data
 - [ ] Checklist keamanan `docs/20_SECURITY_CHECKLIST.md` belum ditelusuri satu per satu
@@ -359,7 +563,7 @@ Diurutkan dari yang paling membuka jalan. **Urutannya berubah pada 13 Agustus** 
 
 | # | Pekerjaan | Kenapa didahulukan | Pemilik |
 |---|-----------|--------------------|---------|
-| **1** | **`npm run db:push`** — dua migration 14 Agustus | Kode sudah membaca `orders.guest_verified_at`. Selama belum ter-push, daftar order dan halaman detail gagal memuat, dan kedua pengerasan di §3 & §8 belum berlaku sama sekali | Bani |
+| **1** | **`npm run db:push`** — dua migration 14 Agustus + empat migration 19 Agustus | Kode sudah membaca `orders.guest_verified_at`, `orders.requested_date`, `orders.delivery_*`, `branches.is_default`, dan tabel `regions`. Selama belum ter-push, daftar order & halaman detail gagal memuat, checkout publik gagal mencatat pesanan, dan pengerasan di §3 & §8 belum berlaku sama sekali. Catatan: `20260819020000_regions.sql` berukuran ±3 MB, jadi push-nya lebih lama dari biasanya | Bani |
 | 2 | **Automation & Notification** (Tahap 8) | Sekarang menahan **tiga** tahap sekaligus: pengiriman laporan (Tahap 6), notifikasi validasi dokumentasi (`docs/10 §7`), dan notifikasi WA yang sudah **dijanjikan** halaman checkout kepada pemesan — tombol manual di panel order tamu hanya penambal | Bani |
 | 3 | **PWA** (kamera, kompresi klien, antrian offline) | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai petugas di lapangan | Awalin |
 | 4 | **`design.md §8`** — toast, `loading.tsx`/`error.tsx`, `Skeleton` (§10) | Celah design system yang paling terasa pengguna; murah dikerjakan dan menyentuh seluruh halaman | Awalin |

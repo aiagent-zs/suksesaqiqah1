@@ -193,11 +193,7 @@ export function ScheduleManager({
                 </option>
               ))}
             </Select>
-            {noPics && (
-              <p className="text-destructive mt-1 text-xs">
-                Belum ada Petugas Lapangan aktif di cabang ini.
-              </p>
-            )}
+            {noPics && <p className="text-destructive mt-1 text-xs">Belum ada vendor aktif.</p>}
           </div>
 
           <div className="sm:col-span-2">

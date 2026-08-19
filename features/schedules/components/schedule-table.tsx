@@ -50,7 +50,7 @@ export function ScheduleTable({ rows }: { rows: ScheduleRow[] }) {
                   </Link>
                   <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
                     <PawPrint className="size-3" />
-                    {row.animalsCount} ekor · {row.branchCode}
+                    {row.animalsCount} ekor
                   </p>
                 </TableCell>
 
@@ -158,7 +158,7 @@ export function ScheduleCardList({ rows }: { rows: ScheduleRow[] }) {
               </p>
               <p className="flex items-center gap-1.5">
                 <PawPrint className="size-3.5 shrink-0" />
-                {row.animalsCount} ekor · {row.branchCode}
+                {row.animalsCount} ekor
               </p>
             </div>
 

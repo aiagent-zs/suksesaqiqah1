@@ -1,5 +1,5 @@
 import { CalendarOff } from 'lucide-react';
-import { requireAuth, isCentral } from '@/server/auth/session';
+import { requireAuth } from '@/server/auth/session';
 import { scheduleFilterSchema } from '@/features/schedules/schema';
 import { getScheduleFilterOptions, listSchedules } from '@/features/schedules/queries';
 import { ScheduleFilters } from '@/features/schedules/components/schedule-filters';
@@ -11,7 +11,7 @@ export const metadata = { title: 'Jadwal — Sukses Aqiqah' };
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function SchedulePage({ searchParams }: { searchParams: SearchParams }) {
-  const session = await requireAuth();
+  await requireAuth();
   const raw = await searchParams;
 
   // Nilai array (mis. ?status=a&status=b) diambil yang pertama saja.
@@ -31,13 +31,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Sea
         </p>
       </header>
 
-      <ScheduleFilters
-        filter={filter}
-        branches={options.branches}
-        locations={options.locations}
-        pics={options.pics}
-        canPickBranch={isCentral(session.profile)}
-      />
+      <ScheduleFilters filter={filter} locations={options.locations} pics={options.pics} />
 
       {result.total === 0 ? (
         <div className="border-border bg-card flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-16 text-center">

@@ -1,19 +1,13 @@
 import Link from 'next/link';
 import { ArrowRight, PackageSearch } from 'lucide-react';
-import { requireAuth, isCentral } from '@/server/auth/session';
+import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import { dashboardFilterSchema } from '@/features/dashboard/schema';
-import {
-  getBranchKpi,
-  getBranchOptions,
-  getIssueBreakdown,
-  getOpenOrders,
-} from '@/features/dashboard/queries';
+import { getBranchKpi, getIssueBreakdown, getOpenOrders } from '@/features/dashboard/queries';
 import { summarizeBranchKpi } from '@/features/dashboard/summary';
 import { countPendingGuestOrders } from '@/features/orders/queries';
 import { DashboardFilters } from '@/features/dashboard/components/dashboard-filters';
 import { KpiCards } from '@/features/dashboard/components/kpi-cards';
-import { BranchProgress } from '@/features/dashboard/components/branch-progress';
 import { IssuePanel } from '@/features/dashboard/components/issue-panel';
 import {
   OpenOrdersCardList,
@@ -30,25 +24,17 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 /** Judul & cakupan per role (docs/09 section 3–section 6). */
 const DASHBOARD_HEADING: Record<UserRole, { title: string; subtitle: string }> = {
-  direktur: {
+  superadmin: {
     title: 'Executive Dashboard',
-    subtitle: 'Monitoring operasional seluruh cabang.',
+    subtitle: 'Seluruh order, pembayaran, dan pelaksanaan.',
   },
-  manager_program: {
-    title: 'Executive Dashboard',
-    subtitle: 'Monitoring operasional seluruh cabang.',
+  admin: {
+    title: 'Dashboard Admin',
+    subtitle: 'Order masuk, pembayaran menunggu verifikasi, dan bukti dari vendor.',
   },
-  admin_pusat: {
-    title: 'Dashboard Validasi Pusat',
-    subtitle: 'Progres dokumentasi & pelaporan lintas cabang.',
-  },
-  admin_cabang: {
-    title: 'Dashboard Cabang',
-    subtitle: 'Order aktif, jadwal, dan kendala di cabang Anda.',
-  },
-  petugas_lapangan: {
+  vendor: {
     title: 'Tugas Saya',
-    subtitle: 'Order yang Anda pegang sebagai PIC lapangan.',
+    subtitle: 'Order yang ditugaskan kepada Anda.',
   },
 };
 
@@ -62,19 +48,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   ) as Record<string, string | undefined>;
 
   const filter = dashboardFilterSchema.parse(flat);
-  const canPickBranch = isCentral(session.profile);
   const heading = session.profile?.role
     ? DASHBOARD_HEADING[session.profile.role]
     : { title: 'Dashboard', subtitle: 'Ringkasan operasional dalam cakupan akses Anda.' };
 
-  const [branchRows, openOrders, issues, branches, pendingGuestOrders] = await Promise.all([
-    getBranchKpi(filter.branch_id),
+  const [branchRows, openOrders, issues, pendingGuestOrders] = await Promise.all([
+    getBranchKpi(),
     getOpenOrders(filter),
-    getIssueBreakdown(filter.branch_id),
-    canPickBranch ? getBranchOptions() : Promise.resolve([]),
+    getIssueBreakdown(),
     // Sengaja di luar `v_branch_kpi`: view itu tidak punya dimensi asal order,
     // dan menambahkannya berarti mengubah view (migration, satu pintu di Bani).
-    // Hanya dihitung untuk yang bisa menindaklanjutinya — bagi Petugas Lapangan
+    // Hanya dihitung untuk yang bisa menindaklanjutinya — bagi vendor
     // angkanya selalu 0 (order tamu belum punya PIC), jadi kartunya cuma bising.
     canDo(session.profile?.role, 'VERIFY_GUEST_ORDER')
       ? countPendingGuestOrders()
@@ -82,7 +66,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   ]);
 
   const summary = summarizeBranchKpi(branchRows);
-  const showBranchBreakdown = canPickBranch && !filter.branch_id;
 
   return (
     <div className="space-y-6">
@@ -105,12 +88,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
       <KpiCards summary={summary} pendingGuestOrders={pendingGuestOrders} />
 
-      <DashboardFilters filter={filter} branches={branches} canPickBranch={canPickBranch} />
+      <DashboardFilters filter={filter} />
 
-      <div className={cn('grid gap-4', showBranchBreakdown ? 'lg:grid-cols-2' : 'lg:grid-cols-1')}>
-        {showBranchBreakdown && <BranchProgress rows={branchRows} />}
-        <IssuePanel breakdown={issues} basePath="/dashboard" searchParams={flat} />
-      </div>
+      <IssuePanel breakdown={issues} basePath="/dashboard" searchParams={flat} />
 
       {/* Tabel litmus test: berapa order tertunda, di mana, siapa PIC, apa kendalanya. */}
       <section className="space-y-4">

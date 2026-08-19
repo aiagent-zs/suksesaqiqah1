@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canValidateDocumentation,
   checkReview,
   isDocumentationComplete,
   missingDocumentationStages,
   nextDocStatus,
-  reviewLevelFor,
 } from '@/features/documentation/review';
 import {
   buildDocPath,
@@ -17,35 +17,24 @@ const UUID = '4f3c1a2b-5d6e-4f70-8a91-b2c3d4e5f607';
 const UPLOADER = 'a3000000-0000-4000-8000-000000000006';
 const REVIEWER = 'a3000000-0000-4000-8000-000000000004';
 
-describe('reviewLevelFor', () => {
-  it('memberi tingkat akhir hanya kepada Admin Pusat', () => {
-    expect(reviewLevelFor('admin_pusat', false)).toBe('final');
+describe('canValidateDocumentation', () => {
+  it('admin dan superadmin memvalidasi', () => {
+    expect(canValidateDocumentation('admin')).toBe(true);
+    expect(canValidateDocumentation('superadmin')).toBe(true);
   });
 
-  it('memberi tingkat-1 kepada Supervisor yang ditunjuk', () => {
-    expect(reviewLevelFor('admin_cabang', true)).toBe('supervisor');
-    expect(reviewLevelFor('manager_program', true)).toBe('supervisor');
-  });
-
-  it('menolak Manager/Admin Cabang yang belum ditunjuk sebagai Supervisor', () => {
-    // `is_supervisor` adalah penanda terpisah dari role (docs/07 section 1).
-    expect(reviewLevelFor('admin_cabang', false)).toBeNull();
-    expect(reviewLevelFor('manager_program', false)).toBeNull();
-  });
-
-  it('menolak Direktur dan Petugas Lapangan', () => {
-    expect(reviewLevelFor('direktur', true)).toBeNull();
-    expect(reviewLevelFor('petugas_lapangan', true)).toBeNull();
-    expect(reviewLevelFor(undefined, true)).toBeNull();
+  it('vendor tidak — yang mengerjakan bukan yang menilai', () => {
+    expect(canValidateDocumentation('vendor')).toBe(false);
+    expect(canValidateDocumentation(undefined)).toBe(false);
   });
 });
 
 describe('nextDocStatus', () => {
-  it('memetakan tingkat & keputusan ke status berikutnya', () => {
-    expect(nextDocStatus('supervisor', 'approve')).toBe('approved_supervisor');
-    expect(nextDocStatus('final', 'approve')).toBe('approved');
-    expect(nextDocStatus('supervisor', 'reject')).toBe('rejected');
-    expect(nextDocStatus('final', 'reject')).toBe('rejected');
+  it('memetakan keputusan langsung ke status akhirnya', () => {
+    // Satu tingkat sejak 19 Agustus 2026: tidak ada lagi singgahan
+    // `approved_supervisor` di tengah jalan.
+    expect(nextDocStatus('approve')).toBe('approved');
+    expect(nextDocStatus('reject')).toBe('rejected');
   });
 });
 
@@ -56,58 +45,36 @@ describe('checkReview', () => {
     reviewerId: REVIEWER,
   };
 
-  it('Supervisor memproses pending menjadi approved_supervisor', () => {
-    const result = checkReview({
-      ...base,
-      currentStatus: 'pending',
-      role: 'admin_cabang',
-      isSupervisor: true,
-    });
+  it('admin memproses pending langsung menjadi approved', () => {
+    const result = checkReview({ ...base, currentStatus: 'pending', role: 'admin' });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.next).toBe('approved_supervisor');
+    if (result.ok) expect(result.next).toBe('approved');
   });
 
-  it('Admin Pusat memproses approved_supervisor menjadi approved', () => {
+  it('superadmin juga bisa memvalidasi', () => {
+    const result = checkReview({ ...base, currentStatus: 'pending', role: 'superadmin' });
+    expect(result.ok).toBe(true);
+  });
+
+  it('masih menyelesaikan sisa antrian tangga lama', () => {
+    // Baris yang sempat lolos tingkat-1 sebelum tangganya dipendekkan akan
+    // terjebak selamanya kalau jalur ini ditutup.
     const result = checkReview({
       ...base,
       currentStatus: 'approved_supervisor',
-      role: 'admin_pusat',
-      isSupervisor: false,
+      role: 'admin',
     });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.next).toBe('approved');
   });
 
-  it('Supervisor tidak dapat melompati validasi akhir', () => {
-    // Tanpa ini, dokumentasi bisa mencapai `approved` tanpa pernah dilihat
-    // Admin Pusat — dan `approved` yang masuk laporan peserta.
-    const result = checkReview({
-      ...base,
-      currentStatus: 'approved_supervisor',
-      role: 'admin_cabang',
-      isSupervisor: true,
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.code).toBe('CONFLICT');
-  });
-
-  it('Admin Pusat tidak dapat memproses yang belum lolos tingkat-1', () => {
-    const result = checkReview({
-      ...base,
-      currentStatus: 'pending',
-      role: 'admin_pusat',
-      isSupervisor: false,
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toMatch(/tingkat-1/i);
-  });
-
   it('menegakkan pemisahan tugas: pengupload tidak boleh memvalidasi sendiri', () => {
+    // Tetap berlaku meski tingkatnya tinggal satu — seorang admin yang ikut
+    // mengunggah tidak boleh meloloskan buktinya sendiri.
     const result = checkReview({
       ...base,
       currentStatus: 'pending',
-      role: 'admin_cabang',
-      isSupervisor: true,
+      role: 'admin',
       uploadedBy: REVIEWER,
       reviewerId: REVIEWER,
     });
@@ -115,28 +82,17 @@ describe('checkReview', () => {
     if (!result.ok) expect(result.code).toBe('FORBIDDEN');
   });
 
-  it('menolak role yang bukan validator', () => {
-    for (const role of ['petugas_lapangan', 'direktur'] as const) {
-      const result = checkReview({
-        ...base,
-        currentStatus: 'pending',
-        role,
-        isSupervisor: true,
-      });
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.code).toBe('FORBIDDEN');
-    }
+  it('menolak vendor', () => {
+    const result = checkReview({ ...base, currentStatus: 'pending', role: 'vendor' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('FORBIDDEN');
   });
 
-  it('menolak dokumentasi yang sudah final atau sudah ditolak', () => {
+  it('menolak dokumentasi yang sudah tervalidasi atau sudah ditolak', () => {
     for (const status of ['approved', 'rejected'] as const) {
-      const result = checkReview({
-        ...base,
-        currentStatus: status,
-        role: 'admin_pusat',
-        isSupervisor: false,
-      });
-      expect(result.ok).toBe(false);
+      const result = checkReview({ ...base, currentStatus: status, role: 'admin' });
+      expect(result.ok, status).toBe(false);
+      if (!result.ok) expect(result.code).toBe('CONFLICT');
     }
   });
 });

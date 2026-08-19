@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   AlertCircle,
   Baby,
+  CalendarClock,
   CheckCircle2,
   Check,
   ChevronLeft,
@@ -25,11 +26,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ANIMAL_SPECIES_LABEL } from '@/lib/constants/order';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { createGuestOrderAction } from '@/server/actions/checkout';
-import { SPECIES_BY_SERVICE_TYPE } from '../schema';
-import type { CheckoutBranch, CheckoutPackage, GuestOrderResult, NasiBoxPackage } from '../queries';
+import { BOOKING_MAX_DAYS, BOOKING_TIME_SLOTS, SPECIES_BY_SERVICE_TYPE } from '../schema';
+import { AddressPicker, EMPTY_DELIVERY_ADDRESS, type DeliveryAddressValue } from './address-picker';
+import type { CheckoutPackage, GuestOrderResult, NasiBoxPackage, RegionOption } from '../queries';
 
 const SERVICE_TYPE_LABEL: Record<string, string> = {
   aqiqah: 'Aqiqah',
@@ -49,30 +51,44 @@ const SUBMIT_ARM_DELAY_MS = 700;
 type Draft = {
   aqiqah_for: string;
   service_id: string;
-  branch_id: string;
   species: string;
   qty: number;
   nasi_box_service_id: string;
   nasi_box_qty: number;
+  requested_date: string;
+  requested_time: string;
   distribution_mode: string;
   child_name: string;
   bin_binti: string;
   name: string;
   phone: string;
   email: string;
-  delivery_address: string;
+  /** Alamat pengiriman terstruktur; kosong selama modenya bukan `kirim`. */
+  delivery: DeliveryAddressValue;
   recipient_institution: string;
   referral_code: string;
   notes: string;
 };
 
+/**
+ * Empat langkah, bukan enam.
+ *
+ * "Aqiqah untuk", "Paket", dan "Nasi box" disatukan pada 19 Agustus 2026:
+ * ketiganya menjawab satu pertanyaan yang sama — *apa yang dipesan* — dan
+ * masing-masing hanya menuntut satu klik. Memecahnya jadi tiga langkah membuat
+ * pemesan menekan "Lanjut" dua kali tanpa mengisi apa pun di antaranya, sambil
+ * menyembunyikan bahwa paket dan nasi box saling memengaruhi total.
+ */
 const STEPS = [
-  { id: 1, title: 'Aqiqah Untuk', icon: Baby, description: 'Anak laki-laki / perempuan' },
-  { id: 2, title: 'Paket Kambing', icon: Package, description: 'Pilih paket & jumlah ekor' },
-  { id: 3, title: 'Nasi Box', icon: ShoppingBag, description: 'Tambahan, boleh dilewati' },
-  { id: 4, title: 'Penyaluran', icon: Truck, description: 'Disalurkan atau dikirim' },
-  { id: 5, title: 'Data Pemesan', icon: User, description: 'Kontak & nama anak' },
-  { id: 6, title: 'Ringkasan', icon: ClipboardCheck, description: 'Periksa lalu konfirmasi' },
+  { id: 1, title: 'Pesanan', icon: Package, description: 'Paket, jumlah ekor, nasi box' },
+  {
+    id: 2,
+    title: 'Jadwal & Penyaluran',
+    icon: CalendarClock,
+    description: 'Tanggal, jam, cara kirim',
+  },
+  { id: 3, title: 'Data Pemesan', icon: User, description: 'Kontak & nama anak' },
+  { id: 4, title: 'Ringkasan', icon: ClipboardCheck, description: 'Periksa lalu konfirmasi' },
 ];
 
 /**
@@ -111,7 +127,14 @@ const FIELD_ANCHOR: Record<string, string> = {
   phone: 'co-phone',
   email: 'co-email',
   nasi_box_qty: 'co-boxqty',
-  delivery_address: 'co-delivery',
+  requested_date: 'co-date',
+  requested_time: 'co-time',
+  delivery_province_code: 'co-prov',
+  delivery_city_code: 'co-city',
+  delivery_district_code: 'co-dist',
+  delivery_village_code: 'co-vill',
+  delivery_postal_code: 'co-postal',
+  delivery_detail: 'co-detail',
   recipient_institution: 'co-institution',
   referral_code: 'co-referral',
 };
@@ -119,32 +142,50 @@ const FIELD_ANCHOR: Record<string, string> = {
 /** Langkah tempat tiap medan tinggal — server tidak tahu soal langkah. */
 const FIELD_STEP: Record<string, number> = {
   aqiqah_for: 1,
-  service_id: 2,
-  species: 2,
-  qty: 2,
-  nasi_box_service_id: 3,
-  nasi_box_qty: 3,
-  distribution_mode: 4,
-  branch_id: 4,
-  delivery_address: 4,
-  recipient_institution: 4,
-  child_name: 5,
-  bin_binti: 5,
-  name: 5,
-  phone: 5,
-  email: 5,
-  referral_code: 6,
+  service_id: 1,
+  species: 1,
+  qty: 1,
+  nasi_box_service_id: 1,
+  nasi_box_qty: 1,
+  requested_date: 2,
+  requested_time: 2,
+  distribution_mode: 2,
+  delivery_province_code: 2,
+  delivery_city_code: 2,
+  delivery_district_code: 2,
+  delivery_village_code: 2,
+  delivery_postal_code: 2,
+  delivery_detail: 2,
+  recipient_institution: 2,
+  child_name: 3,
+  bin_binti: 3,
+  name: 3,
+  phone: 3,
+  email: 3,
+  referral_code: 4,
 };
 
 export function CheckoutForm({
   packages,
   nasiBoxes,
-  branches,
+  provinces,
+  minDate,
+  maxDate,
   initialServiceId,
 }: {
   packages: CheckoutPackage[];
   nasiBoxes: NasiBoxPackage[];
-  branches: CheckoutBranch[];
+  /** Tingkat teratas pemilih alamat; sisanya diambil peramban saat dipilih. */
+  provinces: RegionOption[];
+  /**
+   * Jendela tanggal pemesanan (`YYYY-MM-DD`), dihitung di server dalam WIB.
+   *
+   * Tidak dihitung di sini: memanggil jam di badan komponen melanggar aturan
+   * kemurnian React, dan jam peramban pemesan bisa berada di zona waktu mana
+   * saja — sementara batas yang ditegakkan `create_guest_order` selalu WIB.
+   */
+  minDate: string;
+  maxDate: string;
   initialServiceId?: string;
 }) {
   const [pending, startTransition] = useTransition();
@@ -165,18 +206,22 @@ export function CheckoutForm({
   const [draft, setDraft] = useState<Draft>({
     aqiqah_for: '',
     service_id: initialServiceId ?? packages[0]?.id ?? '',
-    branch_id: branches[0]?.id ?? '',
     species: 'kambing',
     qty: 1,
     nasi_box_service_id: '',
     nasi_box_qty: 0,
+    // Sengaja kosong, bukan diisi hari ini: tanggal pelaksanaan adalah pilihan
+    // yang harus disadari pemesan. Nilai awal yang sudah terisi akan lolos
+    // begitu saja dan pesanan masuk untuk tanggal yang tidak pernah ia pilih.
+    requested_date: '',
+    requested_time: '',
     distribution_mode: '',
     child_name: '',
     bin_binti: '',
     name: '',
     phone: '',
     email: '',
-    delivery_address: '',
+    delivery: EMPTY_DELIVERY_ADDRESS,
     recipient_institution: '',
     referral_code: '',
     notes: '',
@@ -241,19 +286,39 @@ export function CheckoutForm({
 
     if (step === 1) {
       if (!draft.aqiqah_for) errors.aqiqah_for = 'Pilih salah satu terlebih dahulu';
-    } else if (step === 2) {
       if (!draft.service_id) errors.service_id = 'Pilih paket terlebih dahulu';
-    } else if (step === 3) {
       // Memilih paket box tanpa jumlah berarti tidak ada yang bisa dipesan.
       if (draft.nasi_box_service_id && draft.nasi_box_qty < 1) {
         errors.nasi_box_qty = 'Isi jumlah box, atau pilih "Tidak pakai"';
       }
-    } else if (step === 4) {
-      if (!draft.distribution_mode) errors.distribution_mode = 'Pilih cara penyaluran';
-      if (draft.distribution_mode === 'kirim' && !draft.delivery_address.trim()) {
-        errors.delivery_address = 'Alamat pengiriman wajib diisi untuk Aqiqah Kirim';
+    } else if (step === 2) {
+      // Batasnya dibandingkan sebagai teks: `YYYY-MM-DD` berurut secara
+      // leksikografis, jadi tidak perlu mengurai tanggal — sekaligus tidak
+      // memperkenalkan zona waktu peramban ke dalam perbandingan.
+      if (!draft.requested_date) errors.requested_date = 'Pilih tanggal pelaksanaan';
+      else if (draft.requested_date < minDate) {
+        errors.requested_date = 'Tanggal pelaksanaan sudah lewat';
+      } else if (draft.requested_date > maxDate) {
+        errors.requested_date = `Maksimal ${BOOKING_MAX_DAYS} hari ke depan`;
       }
-    } else if (step === 5) {
+
+      if (!draft.requested_time) errors.requested_time = 'Pilih jam pelaksanaan';
+
+      if (!draft.distribution_mode) errors.distribution_mode = 'Pilih cara penyaluran';
+
+      if (draft.distribution_mode === 'kirim') {
+        const a = draft.delivery;
+        if (!a.province_code) errors.delivery_province_code = 'Pilih provinsi tujuan';
+        if (!a.city_code) errors.delivery_city_code = 'Pilih kabupaten/kota tujuan';
+        if (!a.district_code) errors.delivery_district_code = 'Pilih kecamatan tujuan';
+        if (!a.village_code) errors.delivery_village_code = 'Pilih kelurahan/desa tujuan';
+        if (!a.postal_code) errors.delivery_postal_code = 'Kode pos wajib diisi';
+        else if (!/^[0-9]{5}$/.test(a.postal_code)) {
+          errors.delivery_postal_code = 'Kode pos harus 5 digit angka';
+        }
+        if (!a.detail.trim()) errors.delivery_detail = 'Isi nama jalan dan nomor rumah';
+      }
+    } else if (step === 3) {
       if (draft.name.trim().length < 2) errors.name = 'Nama pemesan wajib diisi';
 
       const phone = draft.phone.trim();
@@ -336,9 +401,9 @@ export function CheckoutForm({
    * referral — tanpa pernah menekan tombol konfirmasi, dan tanpa bisa
    * dibatalkan sendiri karena ordernya sudah masuk database.
    *
-   * Di langkah 1-2 Enter tetap berguna: dipakai untuk maju. Di langkah
-   * terakhir sengaja tidak melakukan apa-apa — mengirim pesanan harus lewat
-   * klik yang disengaja.
+   * Di langkah-langkah sebelumnya Enter tetap berguna: dipakai untuk maju. Di
+   * langkah terakhir sengaja tidak melakukan apa-apa — mengirim pesanan harus
+   * lewat klik yang disengaja.
    */
   function handleEnterKey(e: React.KeyboardEvent<HTMLFormElement>) {
     if (e.key !== 'Enter') return;
@@ -368,7 +433,7 @@ export function CheckoutForm({
     // melompat lewat penunjuk langkah. Kalau hanya di-`return`, pesannya tidak
     // pernah dirender dan tombol kirim terlihat seperti rusak. Jadi pindah dulu
     // ke langkah yang bermasalah.
-    for (const step of [1, 2, 3, 4, 5]) {
+    for (const step of [1, 2, 3]) {
       if (!validateStep(step)) {
         setCurrentStep(step);
         return;
@@ -378,7 +443,20 @@ export function CheckoutForm({
     setError(null);
     setFieldErrors({});
     startTransition(async () => {
-      const result = await createGuestOrderAction({ ...draft, qty: String(draft.qty) });
+      // Alamat diratakan jadi medan-medan datar, dan **hanya kodenya** yang
+      // ikut: nama wilayah dibaca ulang RPC dari `regions`, jadi mengirimnya
+      // dari sini hanya membuka celah nama yang tidak cocok dengan kodenya.
+      const { delivery, ...rest } = draft;
+      const result = await createGuestOrderAction({
+        ...rest,
+        qty: String(draft.qty),
+        delivery_province_code: delivery.province_code,
+        delivery_city_code: delivery.city_code,
+        delivery_district_code: delivery.district_code,
+        delivery_village_code: delivery.village_code,
+        delivery_postal_code: delivery.postal_code,
+        delivery_detail: delivery.detail,
+      });
       if (!result.ok) {
         const fields = result.error.fields ?? {};
         setError(result.error.message);
@@ -453,7 +531,7 @@ export function CheckoutForm({
             />
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {STEPS.map((step) => {
               const Icon = step.icon;
               const isCurrent = step.id === currentStep;
@@ -517,9 +595,11 @@ export function CheckoutForm({
         onKeyDown={handleEnterKey}
         className="p-6 sm:p-8"
       >
-        {/* STEP 1: AQIQAH UNTUK */}
+        {/* STEP 1: PESANAN — aqiqah untuk, paket & jumlah ekor, nasi box.
+            Ketiganya dulu langkah terpisah; disatukan karena masing-masing
+            hanya menuntut satu klik dan total tagihannya saling memengaruhi. */}
         {currentStep === 1 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-7 duration-300">
             <div>
               <div className="mb-3 flex items-center justify-between">
                 <Label className="text-base font-bold text-neutral-900">Aqiqah untuk siapa?</Label>
@@ -564,13 +644,8 @@ export function CheckoutForm({
               </div>
               {fieldErrors.aqiqah_for && <FieldError message={fieldErrors.aqiqah_for} />}
             </div>
-          </div>
-        )}
 
-        {/* STEP 2: PAKET KAMBING */}
-        {currentStep === 2 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
-            <div>
+            <div className="border-t border-neutral-100 pt-6">
               <div className="mb-3 flex items-center justify-between">
                 <Label className="text-base font-bold text-neutral-900">Pilih Paket</Label>
                 <span className="text-xs text-neutral-500">
@@ -680,24 +755,17 @@ export function CheckoutForm({
                 {fieldErrors.qty && <FieldError message={fieldErrors.qty} />}
               </div>
             </div>
-          </div>
-        )}
 
-        {/* STEP 3: NASI BOX (OPSIONAL) */}
-        {currentStep === 3 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
-            <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900">
-              <ShoppingBag className="mt-0.5 size-4 shrink-0 text-blue-600" />
-              <span>
-                Tambahan nasi box untuk dibagikan bersama aqiqah Anda. Boleh dilewati — pilih
-                &ldquo;Tidak pakai&rdquo;.
-              </span>
-            </div>
-
-            <div>
-              <Label className="mb-3 block text-base font-bold text-neutral-900">
-                Paket Nasi Box
-              </Label>
+            <div className="border-t border-neutral-100 pt-6">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <Label className="text-base font-bold text-neutral-900">
+                  Nasi Box <span className="font-normal text-neutral-400">(opsional)</span>
+                </Label>
+                <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
+                  <ShoppingBag className="size-3.5 text-blue-600" />
+                  Dibagikan bersama aqiqah Anda
+                </span>
+              </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <button
                   type="button"
@@ -754,40 +822,111 @@ export function CheckoutForm({
                   );
                 })}
               </div>
-            </div>
 
-            {draft.nasi_box_service_id && (
-              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/60 p-5">
-                <Label htmlFor="co-boxqty" className="text-sm font-semibold text-neutral-800">
-                  Jumlah Box <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="co-boxqty"
-                  type="number"
-                  min={1}
-                  max={5000}
-                  step="1"
-                  inputMode="numeric"
-                  value={draft.nasi_box_qty || ''}
-                  aria-invalid={Boolean(fieldErrors.nasi_box_qty)}
-                  onChange={(e) => set('nasi_box_qty', Number(e.target.value) || 0)}
-                  className="mt-2 h-12 max-w-40 rounded-xl border-neutral-200 text-sm tabular-nums shadow-sm"
-                />
-                {selectedBox && draft.nasi_box_qty > 0 && (
-                  <p className="mt-2 text-xs text-neutral-600">
-                    {draft.nasi_box_qty} × {formatCurrency(selectedBox.price)} ={' '}
-                    <span className="text-primary font-bold">{formatCurrency(boxSubtotal)}</span>
-                  </p>
-                )}
-                {fieldErrors.nasi_box_qty && <FieldError message={fieldErrors.nasi_box_qty} />}
-              </div>
-            )}
+              {draft.nasi_box_service_id && (
+                <div className="mt-4 rounded-2xl border border-neutral-100 bg-neutral-50/60 p-5">
+                  <Label htmlFor="co-boxqty" className="text-sm font-semibold text-neutral-800">
+                    Jumlah Box <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="co-boxqty"
+                    type="number"
+                    min={1}
+                    max={5000}
+                    step="1"
+                    inputMode="numeric"
+                    value={draft.nasi_box_qty || ''}
+                    aria-invalid={Boolean(fieldErrors.nasi_box_qty)}
+                    onChange={(e) => set('nasi_box_qty', Number(e.target.value) || 0)}
+                    className="mt-2 h-12 max-w-40 rounded-xl border-neutral-200 text-sm tabular-nums shadow-sm"
+                  />
+                  {selectedBox && draft.nasi_box_qty > 0 && (
+                    <p className="mt-2 text-xs text-neutral-600">
+                      {draft.nasi_box_qty} × {formatCurrency(selectedBox.price)} ={' '}
+                      <span className="text-primary font-bold">{formatCurrency(boxSubtotal)}</span>
+                    </p>
+                  )}
+                  {fieldErrors.nasi_box_qty && <FieldError message={fieldErrors.nasi_box_qty} />}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* STEP 4: PENYALURAN */}
-        {currentStep === 4 && (
+        {/* STEP 2: JADWAL & PENYALURAN */}
+        {currentStep === 2 && (
           <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
+            <div className="rounded-2xl border border-neutral-100 bg-neutral-50/60 p-5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor="co-date" className="text-base font-bold text-neutral-900">
+                  Kapan dilaksanakan? <span className="text-red-500">*</span>
+                </Label>
+                <span className="text-xs text-neutral-500">
+                  Maksimal {BOOKING_MAX_DAYS} hari ke depan
+                </span>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="co-date" className="text-sm font-semibold text-neutral-800">
+                    Tanggal
+                  </Label>
+                  {/* `min`/`max` datang dari server dalam WIB — atribut ini hanya
+                      membantu pemilih tanggal peramban; penolakan sungguhannya
+                      tetap di `validateStep`, `guestCheckoutSchema`, dan RPC,
+                      karena input `date` bisa diisi lewat keyboard. */}
+                  <Input
+                    id="co-date"
+                    type="date"
+                    min={minDate}
+                    max={maxDate}
+                    value={draft.requested_date}
+                    required
+                    aria-required
+                    aria-invalid={Boolean(fieldErrors.requested_date)}
+                    onChange={(e) => set('requested_date', e.target.value)}
+                    className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                  />
+                  {fieldErrors.requested_date && (
+                    <FieldError message={fieldErrors.requested_date} />
+                  )}
+                </div>
+
+                <div>
+                  <Label className="text-sm font-semibold text-neutral-800">Jam</Label>
+                  <div id="co-time" className="mt-2.5 flex flex-wrap gap-2">
+                    {BOOKING_TIME_SLOTS.map((slot) => {
+                      const active = draft.requested_time === slot;
+                      return (
+                        <button
+                          key={slot}
+                          type="button"
+                          onClick={() => set('requested_time', slot)}
+                          aria-pressed={active}
+                          className={cn(
+                            'rounded-xl border px-3.5 py-2 text-xs font-semibold tabular-nums transition-all',
+                            active
+                              ? 'border-primary bg-primary/5 text-primary ring-primary/20 ring-2'
+                              : 'hover:border-primary/40 border-neutral-200 bg-white text-neutral-700',
+                          )}
+                        >
+                          {slot}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {fieldErrors.requested_time && (
+                    <FieldError message={fieldErrors.requested_time} />
+                  )}
+                </div>
+              </div>
+
+              <p className="mt-3 text-xs leading-5 text-neutral-500">
+                Jadwal ini permintaan Anda. Tim kami mengonfirmasinya lewat WhatsApp sebelum
+                ditetapkan — bisa bergeser bila petugas atau lokasi pada jam itu sudah penuh.
+              </p>
+            </div>
+
             <div>
               <Label className="mb-3 block text-base font-bold text-neutral-900">
                 Cara Penyaluran
@@ -836,52 +975,14 @@ export function CheckoutForm({
               )}
             </div>
 
-            <div>
-              <Label className="text-sm font-semibold text-neutral-800">Wilayah Layanan</Label>
-              <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
-                {branches.map((b) => {
-                  const active = b.id === draft.branch_id;
-                  return (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => set('branch_id', b.id)}
-                      aria-pressed={active}
-                      className={cn(
-                        'rounded-xl border px-4 py-3 text-xs font-semibold transition-all',
-                        active
-                          ? 'border-primary bg-primary/5 text-primary ring-primary/20 ring-2'
-                          : 'hover:border-primary/40 border-neutral-200 bg-white text-neutral-700',
-                      )}
-                    >
-                      {b.name}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-1.5 text-xs text-neutral-500">
-                Cabang yang melaksanakan dan mengantar pesanan Anda.
-              </p>
-            </div>
-
             {/* Hanya bermakna kalau dagingnya diantar ke pemesan. */}
             {draft.distribution_mode === 'kirim' && (
-              <div className="animate-in fade-in duration-200">
-                <Label htmlFor="co-delivery" className="text-sm font-semibold text-neutral-800">
-                  Alamat Pengiriman <span className="text-red-500">*</span>
-                </Label>
-                <Textarea
-                  id="co-delivery"
-                  value={draft.delivery_address}
-                  aria-invalid={Boolean(fieldErrors.delivery_address)}
-                  placeholder="Alamat lengkap tujuan pengiriman hasil olahan"
-                  onChange={(e) => set('delivery_address', e.target.value)}
-                  className="mt-2 rounded-xl border-neutral-200 text-sm shadow-sm"
-                />
-                {fieldErrors.delivery_address && (
-                  <FieldError message={fieldErrors.delivery_address} />
-                )}
-              </div>
+              <AddressPicker
+                provinces={provinces}
+                value={draft.delivery}
+                onChange={(next) => set('delivery', next)}
+                errors={fieldErrors}
+              />
             )}
 
             <div>
@@ -903,8 +1004,8 @@ export function CheckoutForm({
           </div>
         )}
 
-        {/* STEP 5: DATA PEMESAN */}
-        {currentStep === 5 && (
+        {/* STEP 3: DATA PEMESAN */}
+        {currentStep === 3 && (
           <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
             <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900">
               <User className="mt-0.5 size-4 shrink-0 text-blue-600" />
@@ -1009,8 +1110,8 @@ export function CheckoutForm({
           </div>
         )}
 
-        {/* STEP 6: RINGKASAN & KONFIRMASI */}
-        {currentStep === 6 && (
+        {/* STEP 4: RINGKASAN & KONFIRMASI */}
+        {currentStep === 4 && (
           <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
             <div className="overflow-hidden rounded-2xl border border-neutral-200">
               <div className="border-b border-neutral-100 bg-neutral-50/80 px-5 py-3">
@@ -1039,14 +1140,29 @@ export function CheckoutForm({
                     </span>
                   </SummaryRow>
                 )}
+                <SummaryRow label="Pelaksanaan">
+                  {formatDate(draft.requested_date)}
+                  {draft.requested_time && ` · ${draft.requested_time} WIB`}
+                  <span className="block text-xs text-neutral-500">
+                    Menunggu konfirmasi tim kami
+                  </span>
+                </SummaryRow>
                 <SummaryRow label="Penyaluran">
                   {draft.distribution_mode === 'kirim' ? 'Aqiqah Kirim' : 'Aqiqah Salur'}
-                  {draft.distribution_mode === 'kirim' && draft.delivery_address && (
-                    <span className="block text-xs text-neutral-500">{draft.delivery_address}</span>
+                  {/* Bagian alamat ditampilkan terpisah, tidak dirangkai jadi
+                      satu baris. Bentuk satu barisnya dirakit `create_guest_order`
+                      dan hanya di sana — merakitnya lagi di sini berarti dua
+                      tempat menyusun teks yang sama dengan hasil bisa berbeda. */}
+                  {draft.distribution_mode === 'kirim' && draft.delivery.village_code && (
+                    <span className="mt-1 block text-xs leading-5 text-neutral-500">
+                      {draft.delivery.detail}
+                      <br />
+                      Kel. {draft.delivery.village_name}, Kec. {draft.delivery.district_name}
+                      <br />
+                      {draft.delivery.city_name}, {draft.delivery.province_name}{' '}
+                      {draft.delivery.postal_code}
+                    </span>
                   )}
-                </SummaryRow>
-                <SummaryRow label="Wilayah">
-                  {branches.find((b) => b.id === draft.branch_id)?.name ?? '-'}
                 </SummaryRow>
                 <SummaryRow label="Pemesan">
                   {draft.name}
