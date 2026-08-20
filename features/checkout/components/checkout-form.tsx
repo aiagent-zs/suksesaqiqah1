@@ -29,7 +29,12 @@ import { ANIMAL_SPECIES_LABEL } from '@/lib/constants/order';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { createGuestOrderAction } from '@/server/actions/checkout';
-import { BOOKING_MAX_DAYS, BOOKING_TIME_SLOTS, SPECIES_BY_SERVICE_TYPE } from '../schema';
+import {
+  BOOKING_MAX_DAYS,
+  BOOKING_TIME_SLOTS,
+  CHILD_BIRTH_MIN_DATE,
+  SPECIES_BY_SERVICE_TYPE,
+} from '../schema';
 import { AddressPicker, EMPTY_DELIVERY_ADDRESS, type DeliveryAddressValue } from './address-picker';
 import type { CheckoutPackage, GuestOrderResult, NasiBoxPackage, RegionOption } from '../queries';
 
@@ -60,6 +65,8 @@ type Draft = {
   distribution_mode: string;
   child_name: string;
   bin_binti: string;
+  child_birth_place: string;
+  child_birth_date: string;
   name: string;
   phone: string;
   email: string;
@@ -123,6 +130,8 @@ const DISTRIBUTION_OPTIONS = [
 const FIELD_ANCHOR: Record<string, string> = {
   child_name: 'co-child',
   bin_binti: 'co-binbinti',
+  child_birth_place: 'co-birthplace',
+  child_birth_date: 'co-birthdate',
   name: 'co-name',
   phone: 'co-phone',
   email: 'co-email',
@@ -159,6 +168,8 @@ const FIELD_STEP: Record<string, number> = {
   recipient_institution: 2,
   child_name: 3,
   bin_binti: 3,
+  child_birth_place: 3,
+  child_birth_date: 3,
   name: 3,
   phone: 3,
   email: 3,
@@ -218,6 +229,8 @@ export function CheckoutForm({
     distribution_mode: '',
     child_name: '',
     bin_binti: '',
+    child_birth_place: '',
+    child_birth_date: '',
     name: '',
     phone: '',
     email: '',
@@ -335,6 +348,20 @@ export function CheckoutForm({
       }
 
       if (draft.child_name.trim().length < 2) errors.child_name = 'Nama anak wajib diisi';
+
+      if (draft.child_birth_place.trim().length < 2) {
+        errors.child_birth_place = 'Tempat lahir anak wajib diisi';
+      }
+
+      // `minDate` di sini dipinjam sebagai "hari ini menurut WIB" — nilainya
+      // memang itu (`bookingMinDate()` di server). Tanggal lahir tidak butuh
+      // props sendiri selama batas atasnya persis hari ini.
+      if (!draft.child_birth_date) errors.child_birth_date = 'Isi tanggal lahir anak';
+      else if (draft.child_birth_date > minDate) {
+        errors.child_birth_date = 'Tanggal lahir tidak boleh di masa depan';
+      } else if (draft.child_birth_date < CHILD_BIRTH_MIN_DATE) {
+        errors.child_birth_date = 'Periksa lagi tahun lahirnya';
+      }
     }
 
     setFieldErrors(errors);
@@ -985,7 +1012,7 @@ export function CheckoutForm({
               />
             )}
 
-            <div>
+            {/* <div>
               <Label htmlFor="co-institution" className="text-sm font-semibold text-neutral-800">
                 Instansi Penerima Risalah{' '}
                 <span className="font-normal text-neutral-400">(opsional)</span>
@@ -1000,7 +1027,7 @@ export function CheckoutForm({
               {fieldErrors.recipient_institution && (
                 <FieldError message={fieldErrors.recipient_institution} />
               )}
-            </div>
+            </div> */}
           </div>
         )}
 
@@ -1106,6 +1133,54 @@ export function CheckoutForm({
                 />
                 {fieldErrors.bin_binti && <FieldError message={fieldErrors.bin_binti} />}
               </div>
+
+              <div>
+                <Label htmlFor="co-birthplace" className="text-sm font-semibold text-neutral-800">
+                  Tempat Lahir <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="co-birthplace"
+                  value={draft.child_birth_place}
+                  required
+                  aria-required
+                  aria-invalid={Boolean(fieldErrors.child_birth_place)}
+                  placeholder="Mis. Bandung"
+                  onChange={(e) => set('child_birth_place', e.target.value)}
+                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                />
+                {fieldErrors.child_birth_place && (
+                  <FieldError message={fieldErrors.child_birth_place} />
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="co-birthdate" className="text-sm font-semibold text-neutral-800">
+                  Tanggal Lahir <span className="text-red-500">*</span>
+                </Label>
+                {/* `max` adalah hari ini menurut WIB — `minDate` memang bernilai
+                    itu, dihitung di server. Sama seperti pemilih tanggal
+                    pelaksanaan, atribut ini cuma membantu peramban; penolakan
+                    sungguhannya di `validateStep`, `guestCheckoutSchema`, dan
+                    RPC, karena input `date` bisa diisi lewat keyboard. */}
+                <Input
+                  id="co-birthdate"
+                  type="date"
+                  min={CHILD_BIRTH_MIN_DATE}
+                  max={minDate}
+                  value={draft.child_birth_date}
+                  required
+                  aria-required
+                  aria-invalid={Boolean(fieldErrors.child_birth_date)}
+                  onChange={(e) => set('child_birth_date', e.target.value)}
+                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                />
+                <p className="mt-1.5 text-xs text-neutral-500">
+                  Dicetak di sertifikat aqiqah bersama nama anak.
+                </p>
+                {fieldErrors.child_birth_date && (
+                  <FieldError message={fieldErrors.child_birth_date} />
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1124,6 +1199,16 @@ export function CheckoutForm({
                 </SummaryRow>
                 <SummaryRow label="Atas nama">
                   {[draft.child_name, draft.bin_binti].filter(Boolean).join(' ') || '-'}
+                  {/* Tempat & tanggal lahir ikut ditampilkan di sini, bukan
+                      sebagai barisnya sendiri: keduanya menerangkan anak yang
+                      sama, dan inilah kesempatan terakhir pemesan mengoreksi
+                      salah ketik sebelum keduanya tercetak di sertifikat. */}
+                  {(draft.child_birth_place || draft.child_birth_date) && (
+                    <span className="block text-xs text-neutral-500">
+                      Lahir di {draft.child_birth_place || '-'}
+                      {draft.child_birth_date && `, ${formatDate(draft.child_birth_date)}`}
+                    </span>
+                  )}
                 </SummaryRow>
                 <SummaryRow label="Paket">
                   {selected?.name ?? '-'} · {draft.qty}{' '}

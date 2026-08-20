@@ -711,6 +711,8 @@ export type Database = {
         Row: {
           aqiqah_for: string | null
           branch_id: string
+          child_birth_date: string | null
+          child_birth_place: string | null
           created_at: string
           created_by: string | null
           delivery_address: string | null
@@ -746,6 +748,8 @@ export type Database = {
         Insert: {
           aqiqah_for?: string | null
           branch_id: string
+          child_birth_date?: string | null
+          child_birth_place?: string | null
           created_at?: string
           created_by?: string | null
           delivery_address?: string | null
@@ -781,6 +785,8 @@ export type Database = {
         Update: {
           aqiqah_for?: string | null
           branch_id?: string
+          child_birth_date?: string | null
+          child_birth_place?: string | null
           created_at?: string
           created_by?: string | null
           delivery_address?: string | null

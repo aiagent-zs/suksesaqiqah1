@@ -160,6 +160,8 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             participantName: participant?.name ?? null,
             participantPhone: participant?.phone ?? null,
             aqiqahFor: order.aqiqah_for,
+            childBirthPlace: order.child_birth_place,
+            childBirthDate: order.child_birth_date,
             requestedDate: order.requested_date,
             requestedTime: order.requested_time,
             distributionMode: order.distribution_mode,

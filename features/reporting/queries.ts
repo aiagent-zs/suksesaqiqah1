@@ -68,6 +68,7 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
     .select(
       `
       order_number, status, created_at,
+      child_birth_place, child_birth_date,
       branch:branches!orders_branch_id_fkey ( name ),
       participant:participants!orders_participant_id_fkey ( name ),
       items:order_items ( qty, service:services ( name ) ),
@@ -85,6 +86,8 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
     order_number: string;
     status: OrderStatus;
     created_at: string;
+    child_birth_place: string | null;
+    child_birth_date: string | null;
     branch: { name: string } | null;
     participant: { name: string } | null;
     items: Array<{ qty: number; service: { name: string } | null }>;
@@ -127,6 +130,8 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
     createdAt: r.created_at,
     branchName: r.branch?.name ?? null,
     participantName: r.participant?.name ?? null,
+    childBirthPlace: r.child_birth_place,
+    childBirthDate: r.child_birth_date,
     services: (r.items ?? []).map((i) => ({ name: i.service?.name ?? '-', qty: i.qty })),
     animals: (r.animals ?? []).map((a) => ({
       species: a.species,

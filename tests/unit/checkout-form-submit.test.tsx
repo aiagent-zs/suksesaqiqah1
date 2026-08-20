@@ -79,6 +79,11 @@ const MIN_DATE = '2026-08-19';
 const MAX_DATE = '2026-08-26';
 const PICKED_DATE = '2026-08-21';
 const PICKED_TIME = '09:00';
+/**
+ * Tanggal lahir anak — harus <= `MIN_DATE`, karena batas atasnya "hari ini"
+ * dan form membacanya dari prop `minDate` yang sama.
+ */
+const CHILD_BIRTH_DATE = '2026-01-15';
 
 let root: Root | null = null;
 let container: HTMLElement | null = null;
@@ -179,6 +184,8 @@ function goToFinalStep({ arm = true }: { arm?: boolean } = {}) {
   type('co-phone', '081234567890');
   type('co-email', 'budi@example.com');
   type('co-child', 'Fatih');
+  type('co-birthplace', 'Bandung');
+  type('co-birthdate', CHILD_BIRTH_DATE);
   clickText('Lanjut ke');
   if (arm) advanceClock(1000);
 }
@@ -288,6 +295,49 @@ describe('alur empat tahap', () => {
     expect(text).toContain('Aqiqah Salur');
     expect(text).toContain('Budi Santoso');
     expect(text).toContain('Total Tagihan');
+    // Kesempatan terakhir mengoreksi data yang akan tercetak di sertifikat.
+    expect(text).toContain('Lahir di Bandung');
+  });
+
+  it('menahan tahap 3 selama data lahir anak belum lengkap', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    type('co-date', PICKED_DATE);
+    clickText(PICKED_TIME);
+    clickText('Aqiqah Salur');
+    clickText('Lanjut ke');
+    type('co-name', 'Budi Santoso');
+    type('co-phone', '081234567890');
+    type('co-email', 'budi@example.com');
+    type('co-child', 'Fatih');
+    clickText('Lanjut ke');
+
+    expect(document.body.textContent).toContain('Tempat lahir anak wajib diisi');
+    expect(document.body.textContent).toContain('Isi tanggal lahir anak');
+    // Masih di tahap 3 — ringkasan belum dirender.
+    expect(document.body.textContent).not.toContain('Rincian Pesanan');
+  });
+
+  it('menolak tanggal lahir di masa depan sekalipun diketik langsung', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    type('co-date', PICKED_DATE);
+    clickText(PICKED_TIME);
+    clickText('Aqiqah Salur');
+    clickText('Lanjut ke');
+    type('co-name', 'Budi Santoso');
+    type('co-phone', '081234567890');
+    type('co-email', 'budi@example.com');
+    type('co-child', 'Fatih');
+    type('co-birthplace', 'Bandung');
+    // Atribut `max` hanya membantu pemilih tanggal peramban; nilainya tetap
+    // bisa diketik, jadi penolakannya harus datang dari validasi.
+    type('co-birthdate', '2027-01-01');
+    clickText('Lanjut ke');
+
+    expect(document.body.textContent).toContain('Tanggal lahir tidak boleh di masa depan');
   });
 });
 
@@ -345,6 +395,8 @@ describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
     expect(payload.aqiqah_for).toBe('laki_laki');
     expect(payload.distribution_mode).toBe('salur');
     expect(payload.child_name).toBe('Fatih');
+    expect(payload.child_birth_place).toBe('Bandung');
+    expect(payload.child_birth_date).toBe(CHILD_BIRTH_DATE);
     expect(payload.email).toBe('budi@example.com');
     expect(payload.requested_date).toBe(PICKED_DATE);
     expect(payload.requested_time).toBe(PICKED_TIME);
@@ -477,6 +529,8 @@ describe('pemilih alamat bertingkat', () => {
     type('co-phone', '081234567890');
     type('co-email', 'budi@example.com');
     type('co-child', 'Fatih');
+    type('co-birthplace', 'Bandung');
+    type('co-birthdate', CHILD_BIRTH_DATE);
     clickText('Lanjut ke');
     advanceClock(1000);
     clickText('Kirim Pesanan');
