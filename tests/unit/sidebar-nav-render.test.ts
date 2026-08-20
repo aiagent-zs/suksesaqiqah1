@@ -18,7 +18,7 @@ type Rendered = { props: Record<string, unknown>; children?: unknown };
 
 /** Kumpulkan seluruh anak <nav> sebagai daftar props yang bisa diperiksa. */
 function navItems(): Array<{ href?: string; ariaCurrent?: string; className: string }> {
-  const nav = SidebarNav() as unknown as Rendered;
+  const nav = SidebarNav({ role: 'superadmin' }) as unknown as Rendered;
   const children = (nav.props.children as unknown[]).flat(Infinity).filter(Boolean);
 
   return (children as Array<{ props: Record<string, unknown> }>).map((child) => ({

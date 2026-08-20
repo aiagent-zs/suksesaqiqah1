@@ -28,7 +28,7 @@ function mount() {
 }
 
 /** Render ulang komponen yang sama — dipakai untuk mensimulasikan pindah halaman. */
-function rerender(props: { fullName: string; role: string }) {
+function rerender(props: { fullName: string; role: 'superadmin' | 'admin' | 'vendor' }) {
   act(() => {
     root!.render(<MobileNav {...props} />);
   });
@@ -77,7 +77,7 @@ describe('MobileNav — panel Menu', () => {
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
   });
 
-  it('panel memuat identitas, Pengaturan, dan Keluar Sistem', () => {
+  it('panel memuat identitas dan Keluar Sistem', () => {
     mount();
     openPanel();
 
@@ -85,9 +85,20 @@ describe('MobileNav — panel Menu', () => {
     expect(text).toContain('Budi Vendor');
     // Nama role yang terbaca orang, bukan nilai enumnya.
     expect(text).toContain('Vendor');
-    expect(text).toContain('Pengaturan');
     // Inilah yang sebelumnya tidak terjangkau sama sekali di bawah 1024px.
     expect(text).toContain('Keluar Sistem');
+  });
+
+  it('menu khusus superadmin tidak muncul untuk vendor', () => {
+    // Menu disaring per role. Ini kenyamanan, bukan pengaman — halamannya
+    // sendiri memeriksa kapabilitas dan RLS menolak datanya — tapi menu yang
+    // membawa orang ke halaman yang pasti menolaknya tetap layak disembunyikan.
+    mount();
+    openPanel();
+
+    const text = bodyText();
+    expect(text).not.toContain('Pengguna');
+    expect(text).not.toContain('Mitra');
   });
 
   it('tombol Keluar Sistem men-submit form logout', () => {

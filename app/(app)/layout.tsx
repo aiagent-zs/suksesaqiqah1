@@ -66,7 +66,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* Navigasi Utama — penanda aktif diturunkan dari pathname (client) */}
-          <SidebarNav />
+          <SidebarNav role={session.profile?.role} />
 
           {/* Footer Logout */}
           <div className="border-t border-slate-800 p-4">
@@ -109,7 +109,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       {/* Navigasi < lg — sidebar di atas ini `hidden lg:flex` */}
       <MobileNav
         fullName={session.profile?.full_name ?? session.email ?? 'User Staf'}
-        role={session.profile?.role ?? 'staf'}
+        role={session.profile?.role}
       />
     </AuthProvider>
   );

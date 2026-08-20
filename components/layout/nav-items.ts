@@ -3,8 +3,13 @@ import {
   FileText,
   LayoutDashboard,
   ShoppingBag,
+  Store,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
+import type { Database } from '@/types/database';
+
+type UserRole = Database['public']['Enums']['user_role'];
 
 export type NavItem = {
   href: string;
@@ -12,6 +17,14 @@ export type NavItem = {
   /** Label pendek untuk bottom-nav mobile, di mana lebarnya hanya ~20% layar. */
   shortLabel: string;
   icon: LucideIcon;
+  /**
+   * Role yang boleh melihat menu ini. Kosong = semua role.
+   *
+   * Ini kenyamanan, bukan pengaman: halamannya sendiri memeriksa kapabilitas,
+   * dan RLS menolak datanya. Yang dihindari di sini adalah menu yang membawa
+   * orang ke halaman yang pasti menolaknya.
+   */
+  roles?: UserRole[];
 };
 
 /**
@@ -28,7 +41,27 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/orders', label: 'Pesanan (Orders)', shortLabel: 'Pesanan', icon: ShoppingBag },
   { href: '/schedule', label: 'Jadwal', shortLabel: 'Jadwal', icon: CalendarDays },
   { href: '/validation', label: 'Validasi Dokumentasi', shortLabel: 'Validasi', icon: FileText },
+  {
+    href: '/vendors',
+    label: 'Mitra',
+    shortLabel: 'Mitra',
+    icon: Store,
+    roles: ['superadmin'],
+  },
+  {
+    href: '/users',
+    label: 'Pengguna',
+    shortLabel: 'Pengguna',
+    icon: Users,
+    roles: ['superadmin'],
+  },
 ];
+
+/** Menu yang layak ditampilkan untuk sebuah role. */
+export function navItemsForRole(role: UserRole | undefined): NavItem[] {
+  if (!role) return [];
+  return NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
+}
 
 /**
  * Apakah sebuah menu sedang aktif untuk pathname tertentu.

@@ -4,11 +4,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Drawer } from '@base-ui/react/drawer';
-import { LogOut, Menu, Settings, X } from 'lucide-react';
+import { LogOut, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logout } from '@/server/actions/auth';
 import { ROLE_LABEL } from '@/lib/constants/roles';
-import { NAV_ITEMS, isNavItemActive } from './nav-items';
+import { isNavItemActive, navItemsForRole } from './nav-items';
+import type { Database } from '@/types/database';
+
+type UserRole = Database['public']['Enums']['user_role'];
 
 const TAB_BASE =
   // ≥ 44px tinggi sentuh (docs/13 section 5). `min-w-0` supaya label panjang
@@ -42,8 +45,15 @@ const SHEET_ITEM =
  * membuat rentang 640–1024px (tablet, "admin di lapangan") kehilangan
  * kedua-duanya.
  */
-export function MobileNav({ fullName, role }: { fullName: string; role: string }) {
+export function MobileNav({
+  fullName,
+  role,
+}: {
+  fullName: string;
+  role: UserRole | undefined;
+}) {
   const pathname = usePathname();
+  const items = navItemsForRole(role);
   const [open, setOpen] = useState(false);
   const [renderedPathname, setRenderedPathname] = useState(pathname);
 
@@ -70,7 +80,7 @@ export function MobileNav({ fullName, role }: { fullName: string; role: string }
         className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-[#0b1c30] pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         <ul className="grid grid-cols-5">
-          {NAV_ITEMS.map((item) => {
+          {items.map((item) => {
             const active = isNavItemActive(pathname, item.href);
             const Icon = item.icon;
 
@@ -133,7 +143,7 @@ export function MobileNav({ fullName, role }: { fullName: string; role: string }
                   </Drawer.Title>
                   <Drawer.Description className="mt-1.5 flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
-                      {ROLE_LABEL[role] ?? role}
+                      {role ? (ROLE_LABEL[role] ?? role) : 'Tanpa peran'}
                     </span>
                   </Drawer.Description>
                 </div>
@@ -147,13 +157,6 @@ export function MobileNav({ fullName, role }: { fullName: string; role: string }
               </div>
 
               <div className="mt-4 space-y-1 border-t border-slate-800/80 pt-4">
-                {/* Halamannya belum ada (Tahap 11 · Master Data) — sama seperti
-                    di sidebar, sengaja di luar NAV_ITEMS. */}
-                <a href="#" className={cn(SHEET_ITEM, 'text-slate-400 active:bg-slate-800/60')}>
-                  <Settings className="h-4 w-4 shrink-0" />
-                  <span>Pengaturan</span>
-                </a>
-
                 <form action={logout}>
                   <button
                     type="submit"
