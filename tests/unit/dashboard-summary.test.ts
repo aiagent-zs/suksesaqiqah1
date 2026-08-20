@@ -1,67 +1,89 @@
 import { describe, expect, it } from 'vitest';
-import { summarizeBranchKpi, type BranchKpi } from '@/features/dashboard/summary';
+import { summarizeVendorKpi, type VendorKpi } from '@/features/dashboard/summary';
 import { dashboardFilterSchema } from '@/features/dashboard/schema';
 
-function branch(overrides: Partial<BranchKpi>): BranchKpi {
+function vendor(overrides: Partial<VendorKpi>): VendorKpi {
   return {
-    branchId: 'b1',
-    branchCode: 'BDG',
-    branchName: 'Bandung',
-    totalOrders: 0,
-    openOrders: 0,
-    completedOrders: 0,
-    onHoldOrders: 0,
-    unpaidOrders: 0,
-    pctSlaughter: 0,
-    pctDistribution: 0,
-    pctDocumentation: 0,
-    pctReport: 0,
-    openIssues: 0,
-    totalAmount: 0,
-    paidAmount: 0,
+    vendorId: 'v1',
+    vendorCode: 'MITRA1',
+    vendorName: 'Dapur Mitra Satu',
+    isActive: true,
+    ordersTotal: 0,
+    ordersOpen: 0,
+    ordersCompleted: 0,
+    ordersOnHold: 0,
+    revenueTotal: 0,
+    vendorCostTotal: 0,
+    marginTotal: 0,
+    avgCycleHours: null,
+    ordersWithRejection: 0,
     ...overrides,
   };
 }
 
-describe('summarizeBranchKpi', () => {
-  it('menjumlahkan hitungan absolut lintas cabang', () => {
-    const result = summarizeBranchKpi([
-      branch({ branchId: 'b1', totalOrders: 100, openOrders: 30, openIssues: 4, paidAmount: 500 }),
-      branch({ branchId: 'b2', totalOrders: 50, openOrders: 12, openIssues: 1, paidAmount: 250 }),
+describe('summarizeVendorKpi', () => {
+  it('menjumlahkan hitungan absolut lintas mitra', () => {
+    const result = summarizeVendorKpi([
+      vendor({ vendorId: 'v1', ordersTotal: 100, ordersOpen: 30, revenueTotal: 500 }),
+      vendor({ vendorId: 'v2', ordersTotal: 50, ordersOpen: 12, revenueTotal: 250 }),
     ]);
 
-    expect(result.totalOrders).toBe(150);
-    expect(result.openOrders).toBe(42);
-    expect(result.openIssues).toBe(5);
-    expect(result.paidAmount).toBe(750);
+    expect(result.ordersTotal).toBe(150);
+    expect(result.ordersOpen).toBe(42);
+    expect(result.revenueTotal).toBe(750);
   });
 
-  it('menimbang persentase dengan jumlah order, bukan rata-rata polos', () => {
-    // Cabang besar 100% dan cabang kecil 0%: rata-rata polos menghasilkan 50%,
-    // padahal 200 dari 202 order sebenarnya sudah selesai dipotong.
-    const result = summarizeBranchKpi([
-      branch({ branchId: 'b1', totalOrders: 200, pctSlaughter: 100 }),
-      branch({ branchId: 'b2', totalOrders: 2, pctSlaughter: 0 }),
+  it('menghitung margin sebagai selisih tagihan dan modal', () => {
+    const result = summarizeVendorKpi([
+      vendor({ ordersTotal: 10, revenueTotal: 1000, vendorCostTotal: 800, marginTotal: 200 }),
     ]);
 
-    expect(result.pctSlaughter).toBeCloseTo(99.01, 2);
+    expect(result.marginTotal).toBe(200);
+    expect(result.marginPct).toBe(20);
   });
 
-  it('mengabaikan cabang tanpa order saat menimbang', () => {
-    const withEmpty = summarizeBranchKpi([
-      branch({ branchId: 'b1', totalOrders: 10, pctDocumentation: 80 }),
-      branch({ branchId: 'b2', totalOrders: 0, pctDocumentation: 0 }),
+  it('margin nol persen ketika belum ada tagihan — bukan pembagian nol', () => {
+    expect(summarizeVendorKpi([vendor({})]).marginPct).toBe(0);
+  });
+
+  it('menimbang rata-rata siklus dengan jumlah order, bukan rata-rata polos', () => {
+    // Mitra besar 10 jam (100 order) dan mitra kecil 100 jam (1 order):
+    // rata-rata polos menghasilkan 55 jam, padahal hampir semua order sebenarnya
+    // selesai dalam 10 jam.
+    const result = summarizeVendorKpi([
+      vendor({ vendorId: 'v1', ordersTotal: 100, avgCycleHours: 10 }),
+      vendor({ vendorId: 'v2', ordersTotal: 1, avgCycleHours: 100 }),
     ]);
 
-    expect(withEmpty.pctDocumentation).toBe(80);
+    expect(result.avgCycleHours).toBeCloseTo(10.89, 1);
   });
 
-  it('mengembalikan nol saat belum ada cabang atau belum ada order sama sekali', () => {
-    expect(summarizeBranchKpi([]).totalOrders).toBe(0);
-    expect(summarizeBranchKpi([]).pctSlaughter).toBe(0);
+  it('mitra tanpa order tidak menyeret rata-rata siklus', () => {
+    const result = summarizeVendorKpi([
+      vendor({ vendorId: 'v1', ordersTotal: 10, avgCycleHours: 20 }),
+      vendor({ vendorId: 'v2', ordersTotal: 0, avgCycleHours: 999 }),
+    ]);
 
-    const noOrders = summarizeBranchKpi([branch({ totalOrders: 0, pctSlaughter: 42 })]);
-    expect(noOrders.pctSlaughter).toBe(0);
+    expect(result.avgCycleHours).toBe(20);
+  });
+
+  it('null bila belum ada siklus tercatat sama sekali', () => {
+    expect(summarizeVendorKpi([vendor({ ordersTotal: 5 })]).avgCycleHours).toBeNull();
+  });
+
+  it('menghitung mitra aktif saja', () => {
+    const result = summarizeVendorKpi([
+      vendor({ vendorId: 'v1', isActive: true }),
+      vendor({ vendorId: 'v2', isActive: false }),
+    ]);
+
+    expect(result.activeVendors).toBe(1);
+  });
+
+  it('daftar kosong menghasilkan nol, bukan NaN', () => {
+    expect(summarizeVendorKpi([]).ordersTotal).toBe(0);
+    expect(summarizeVendorKpi([]).marginPct).toBe(0);
+    expect(summarizeVendorKpi([]).avgCycleHours).toBeNull();
   });
 });
 
@@ -88,7 +110,7 @@ describe('dashboardFilterSchema — masukan ngawur', () => {
     // menghasilkan tabel kosong tanpa penjelasan.
     expect(dashboardFilterSchema.parse({ status: 'completed' }).status).toBeUndefined();
     expect(dashboardFilterSchema.parse({ status: 'cancelled' }).status).toBeUndefined();
-    expect(dashboardFilterSchema.parse({ status: 'slaughtering' }).status).toBe('slaughtering');
+    expect(dashboardFilterSchema.parse({ status: 'in_progress' }).status).toBe('in_progress');
   });
 
   it('membuang tingkat keparahan di luar enum Postgres', () => {

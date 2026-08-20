@@ -31,7 +31,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Sea
         </p>
       </header>
 
-      <ScheduleFilters filter={filter} locations={options.locations} pics={options.pics} />
+      <ScheduleFilters filter={filter} locations={options.locations} vendors={options.vendors} />
 
       {result.total === 0 ? (
         <div className="border-border bg-card flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-16 text-center">

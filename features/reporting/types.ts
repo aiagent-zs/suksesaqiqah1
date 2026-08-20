@@ -16,6 +16,15 @@ export type ReportAnimal = {
   status: AnimalStatus;
 };
 
+export type ReportStage = {
+  stage: string;
+  occurredAt: string | null;
+  notes: string | null;
+  packagesCount: number | null;
+  recipientName: string | null;
+  recipientArea: string | null;
+};
+
 export type ReportDistribution = {
   recipientArea: string | null;
   packagesCount: number;
@@ -59,9 +68,17 @@ export type ReportData = {
     animalsTotal: number;
     animalsSlaughtered: number;
     animalsDistributed: number;
-    packagesTotal: number;
+    stagesTotal: number;
+    stagesValidated: number;
   };
-  distributions: ReportDistribution[];
+  /**
+   * Tahap yang sudah tervalidasi, urut pelaksanaan.
+   *
+   * Menggantikan daftar distribusi: pada order Aqiqah Kirim, cerita yang perlu
+   * dibaca pemesan bukan "berapa paket disalurkan", melainkan bahwa pesanannya
+   * disembelih, dimasak, diantar, dan sampai.
+   */
+  stages: ReportStage[];
   media: ReportMedia[];
   report: {
     version: number;

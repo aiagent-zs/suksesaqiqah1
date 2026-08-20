@@ -172,12 +172,18 @@ create table public.animals (
   order_id     uuid not null references public.orders (id) on delete cascade,
   species      public.animal_species not null,
   tag_code     text,
+  -- Bobot hidup saat didaftarkan. Bobot hasil sembelih dicatat terpisah pada
+  -- laporan tahap, karena keduanya angka yang berbeda.
+  weight_kg    numeric(6, 2),
   on_behalf_of text,
   status       public.animal_status not null default 'registered',
   notes        text,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+
+alter table public.animals
+  add constraint animals_weight_check check (weight_kg is null or weight_kg > 0);
 
 create index animals_order_id_idx on public.animals (order_id);
 create index animals_status_idx on public.animals (status);

@@ -67,7 +67,7 @@ export function ValidationQueue({
                         {item.orderNumber}
                       </Link>
                       <p className="text-muted-foreground mt-0.5 text-xs">
-                        {item.participantName} · {item.branchCode}
+                        {item.participantName}
                       </p>
                     </div>
                     <DocStatusBadge status={item.status} />

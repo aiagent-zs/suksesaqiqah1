@@ -206,12 +206,32 @@ select
 
   pr.current_stage,
   pr.pct_stage,
+  pr.stages_total,
+  pr.stages_validated,
   pr.stages_rejected,
   pr.missing_doc_stages,
+  pr.animals_total,
+  pr.animals_slaughtered,
+  pr.pct_documentation,
+  pr.docs_pending_review,
   pr.open_issues,
-  pr.max_open_severity,
+  pr.max_open_severity::public.issue_severity as max_open_severity,
+  -- Kendala terbaru yang masih terbuka: dipakai kolom "apa kendalanya" pada
+  -- tabel litmus test, supaya operator tidak perlu membuka detail order dulu.
+  (
+    select i.title from public.issues i
+    where i.order_id = o.id and i.status in ('open', 'in_progress')
+    order by
+      case i.severity when 'high' then 1 when 'medium' then 2 else 3 end,
+      i.created_at desc
+    limit 1
+  ) as latest_issue_title,
 
-  extract(epoch from (now() - o.created_at)) / 3600 as age_hours
+  extract(epoch from (now() - o.created_at)) / 3600 as age_hours,
+  -- Umur dalam hari, dibulatkan ke bawah. Disediakan view karena dipakai
+  -- pengurutan **dan** tampilan; menghitungnya di dua tempat berarti keduanya
+  -- bisa berbeda untuk baris yang sama.
+  floor(extract(epoch from (now() - o.created_at)) / 86400)::int as age_days
 from public.orders o
 join public.participants p on p.id = o.participant_id
 left join public.vendors v on v.id = o.vendor_id

@@ -74,7 +74,9 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
       items:order_items ( qty, service:services ( name ) ),
       animals ( species, tag_code, on_behalf_of, status ),
       schedule:schedules ( scheduled_date, scheduled_time, location:locations ( name ) ),
-      distributions ( recipient_area, packages_count, distributed_at )
+      stages:order_stage_events (
+        stage, status, occurred_at, notes, packages_count, recipient_name, recipient_area
+      )
     `,
     )
     .eq('id', orderId)
@@ -97,16 +99,20 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
       on_behalf_of: string | null;
       status: AnimalStatus;
     }>;
+    stages: Array<{
+      stage: string;
+      status: string;
+      occurred_at: string | null;
+      notes: string | null;
+      packages_count: number | null;
+      recipient_name: string | null;
+      recipient_area: string | null;
+    }>;
     schedule: {
       scheduled_date: string | null;
       scheduled_time: string | null;
       location: { name: string } | null;
     } | null;
-    distributions: Array<{
-      recipient_area: string | null;
-      packages_count: number;
-      distributed_at: string;
-    }>;
   };
 
   // Hanya dokumentasi tervalidasi penuh yang boleh masuk laporan (docs/10 section 6).
@@ -119,7 +125,7 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
       .order('created_at', { ascending: true }),
     supabase
       .from('v_order_progress')
-      .select('animals_total, animals_slaughtered, animals_distributed, packages_total')
+      .select('animals_total, animals_slaughtered, animals_distributed, stages_total, stages_validated')
       .eq('order_id', orderId)
       .maybeSingle(),
   ]);
@@ -147,16 +153,24 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
         }
       : null,
     progress: {
-      animalsTotal: progress?.animals_total ?? 0,
-      animalsSlaughtered: progress?.animals_slaughtered ?? 0,
-      animalsDistributed: progress?.animals_distributed ?? 0,
-      packagesTotal: progress?.packages_total ?? 0,
+      animalsTotal: Number(progress?.animals_total ?? 0),
+      animalsSlaughtered: Number(progress?.animals_slaughtered ?? 0),
+      animalsDistributed: Number(progress?.animals_distributed ?? 0),
+      stagesValidated: Number(progress?.stages_validated ?? 0),
+      stagesTotal: Number(progress?.stages_total ?? 0),
     },
-    distributions: (r.distributions ?? []).map((d) => ({
-      recipientArea: d.recipient_area,
-      packagesCount: d.packages_count ?? 0,
-      distributedAt: d.distributed_at,
-    })),
+    // Tahap yang sudah tervalidasi — inilah yang membuat laporan bercerita
+    // runtut kepada pemesan, bukan sekadar "selesai".
+    stages: (r.stages ?? [])
+      .filter((s) => s.status === 'validated')
+      .map((s) => ({
+        stage: s.stage,
+        occurredAt: s.occurred_at,
+        notes: s.notes,
+        packagesCount: s.packages_count,
+        recipientName: s.recipient_name,
+        recipientArea: s.recipient_area,
+      })),
     media: (docs ?? []).map((d) => ({
       type: d.type as DocType,
       stage: d.stage as DocStage,

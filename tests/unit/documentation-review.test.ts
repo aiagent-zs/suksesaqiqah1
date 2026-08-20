@@ -3,7 +3,6 @@ import {
   canValidateDocumentation,
   checkReview,
   isDocumentationComplete,
-  missingDocumentationStages,
   nextDocStatus,
 } from '@/features/documentation/review';
 import {
@@ -61,7 +60,7 @@ describe('checkReview', () => {
     // terjebak selamanya kalau jalur ini ditutup.
     const result = checkReview({
       ...base,
-      currentStatus: 'approved_supervisor',
+      currentStatus: 'pending',
       role: 'admin',
     });
     expect(result.ok).toBe(true);
@@ -97,16 +96,14 @@ describe('checkReview', () => {
   });
 });
 
-describe('kelengkapan minimum (docs/10 section 5)', () => {
-  it('menuntut bukti pemotongan DAN distribusi', () => {
-    expect(missingDocumentationStages({ approvedSlaughter: 0, approvedDistribution: 0 })).toEqual([
-      'pemotongan',
-      'distribusi',
-    ]);
-    expect(missingDocumentationStages({ approvedSlaughter: 5, approvedDistribution: 0 })).toEqual([
-      'distribusi',
-    ]);
-    expect(isDocumentationComplete({ approvedSlaughter: 1, approvedDistribution: 1 })).toBe(true);
+describe('kelengkapan bukti', () => {
+  it('lengkap ketika tidak ada tahap yang kurang', () => {
+    // Perhitungannya sendiri ada di database (`v_order_progress` membacanya
+    // dari `stage_requirements` menurut cara penyaluran order) — di sini hanya
+    // memastikan pembacaan hasilnya benar.
+    expect(isDocumentationComplete([])).toBe(true);
+    expect(isDocumentationComplete(['sembelih'])).toBe(false);
+    expect(isDocumentationComplete(['sembelih', 'masak', 'terkirim'])).toBe(false);
   });
 });
 
@@ -141,51 +138,47 @@ describe('checkDocFile', () => {
 
 describe('isDocPathForOrder', () => {
   const path = buildDocPath({
-    branchCode: 'BDG',
     orderNumber: 'IA-202608-0001',
     orderCreatedAt: '2026-08-03T02:00:00.000Z',
-    stage: 'slaughter',
+    stage: 'sembelih',
     uuid: UUID,
     ext: 'jpg',
   });
 
-  it('membangun path sesuai konvensi docs/17 section 3', () => {
-    expect(path).toBe(`BDG/2026/08/IA-202608-0001/slaughter/${UUID}.jpg`);
-    expect(isDocPathForOrder(path, 'BDG', 'IA-202608-0001', 'slaughter')).toBe(true);
+  it('membangun path tanpa segmen cabang', () => {
+    // Cabang dibuang bersama tabelnya, dan sengaja tidak diganti kode mitra:
+    // kode mitra bisa berubah dan order bisa dipindah ke mitra lain, sementara
+    // nomor order unik global dan tidak pernah berubah.
+    expect(path).toBe(`2026/08/IA-202608-0001/sembelih/${UUID}.jpg`);
+    expect(isDocPathForOrder(path, 'IA-202608-0001', 'sembelih')).toBe(true);
   });
 
-  it('menolak path milik order, cabang, atau tahap lain', () => {
+  it('menolak path milik order atau tahap lain', () => {
     // Kebijakan Storage hanya menuntut pengunggah punya role — sama sekali
     // tidak membatasi folder, jadi pemeriksaan ini satu-satunya penjaga.
-    expect(isDocPathForOrder(path, 'JKT', 'IA-202608-0001', 'slaughter')).toBe(false);
-    expect(isDocPathForOrder(path, 'BDG', 'IA-202608-0002', 'slaughter')).toBe(false);
-    expect(isDocPathForOrder(path, 'BDG', 'IA-202608-0001', 'distribution')).toBe(false);
+    expect(isDocPathForOrder(path, 'IA-202608-0002', 'sembelih')).toBe(false);
+    expect(isDocPathForOrder(path, 'IA-202608-0001', 'masak')).toBe(false);
   });
 
   it('menolak path traversal, bulan tak valid, dan ekstensi terlarang', () => {
     expect(
       isDocPathForOrder(
-        `BDG/2026/08/IA-202608-0001/slaughter/../../${UUID}.jpg`,
-        'BDG',
+        `2026/08/IA-202608-0001/sembelih/../../${UUID}.jpg`,
         'IA-202608-0001',
-        'slaughter',
+        'sembelih',
       ),
     ).toBe(false);
     expect(
-      isDocPathForOrder(
-        `BDG/2026/13/IA-202608-0001/slaughter/${UUID}.jpg`,
-        'BDG',
-        'IA-202608-0001',
-        'slaughter',
-      ),
+      isDocPathForOrder(`2026/13/IA-202608-0001/sembelih/${UUID}.jpg`, 'IA-202608-0001', 'sembelih'),
     ).toBe(false);
     expect(
-      isDocPathForOrder(
-        `BDG/2026/08/IA-202608-0001/slaughter/${UUID}.exe`,
-        'BDG',
-        'IA-202608-0001',
-        'slaughter',
-      ),
+      isDocPathForOrder(`2026/08/IA-202608-0001/sembelih/${UUID}.exe`, 'IA-202608-0001', 'sembelih'),
+    ).toBe(false);
+  });
+
+  it('menolak tahap yang tidak dikenal di path', () => {
+    expect(
+      isDocPathForOrder(`2026/08/IA-202608-0001/slaughter/${UUID}.jpg`, 'IA-202608-0001', 'sembelih'),
     ).toBe(false);
   });
 });

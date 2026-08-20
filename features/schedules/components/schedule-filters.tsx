@@ -3,8 +3,6 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { SCHEDULE_STATUS_META, type ScheduleStatus } from '@/lib/constants/order';
-import { SCHEDULE_STATUS_FLOW } from '../status-machine';
 import type { ScheduleFilterInput } from '../schema';
 
 type Option = { id: string; name: string; code?: string | null };
@@ -17,16 +15,15 @@ type Option = { id: string; name: string; code?: string | null };
 export function ScheduleFilters({
   filter,
   locations,
-  pics,
+  vendors,
 }: {
   filter: ScheduleFilterInput;
   locations: Option[];
-  pics: Option[];
+  vendors: Option[];
 }) {
   const hasActiveFilter = Boolean(
     filter.location_id ||
-    filter.pic_id ||
-    filter.status ||
+    filter.vendor_id ||
     filter.date_from ||
     filter.date_to ||
     filter.active_only,
@@ -54,28 +51,14 @@ export function ScheduleFilters({
         </div>
 
         <div>
-          <label htmlFor="pic_id" className="mb-1.5 block text-sm text-slate-700">
-            Petugas (PIC)
+          <label htmlFor="vendor_id" className="mb-1.5 block text-sm text-slate-700">
+            Mitra pelaksana
           </label>
-          <Select id="pic_id" name="pic_id" defaultValue={filter.pic_id ?? ''}>
-            <option value="">Semua petugas</option>
-            {pics.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        <div>
-          <label htmlFor="status" className="mb-1.5 block text-sm text-slate-700">
-            Status jadwal
-          </label>
-          <Select id="status" name="status" defaultValue={filter.status ?? ''}>
-            <option value="">Semua status</option>
-            {SCHEDULE_STATUS_FLOW.map((s: ScheduleStatus) => (
-              <option key={s} value={s}>
-                {SCHEDULE_STATUS_META[s].label}
+          <Select id="vendor_id" name="vendor_id" defaultValue={filter.vendor_id ?? ''}>
+            <option value="">Semua mitra</option>
+            {vendors.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
               </option>
             ))}
           </Select>

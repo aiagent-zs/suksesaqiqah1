@@ -10,7 +10,15 @@ const uuid = z.string().uuid('Pilihan tidak valid');
  * dan ketersediaan hewan sudah tidak bisa dipegang dari halaman publik, jadi
  * pemesanannya lewat admin.
  */
-export const BOOKING_MAX_DAYS = 30;
+/**
+ * Batas jendela pemesanan, dalam hari.
+ *
+ * Angkanya **wajib sama** dengan `app_settings.booking_max_days` yang dibaca
+ * `create_guest_order`. Pernah berselisih (form 30, RPC 7): pemesan memilih
+ * tanggal 20 hari ke depan, lolos seluruh validasi form, lalu ditolak database
+ * saat menekan konfirmasi.
+ */
+export const BOOKING_MAX_DAYS = 7;
 
 /**
  * Jam pelaksanaan yang ditawarkan form.

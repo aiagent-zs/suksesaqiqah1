@@ -59,12 +59,12 @@ type RpcPayload = {
     animals_total: number | null;
     animals_slaughtered: number | null;
     animals_distributed: number | null;
-    packages_total: number | null;
+
   } | null;
-  distributions: Array<{
-    recipient_area: string | null;
-    packages_count: number;
-    distributed_at: string;
+  stages: Array<{
+    stage: string;
+    occurred_at: string | null;
+    notes: string | null;
   }> | null;
   documentations: Array<{
     type: ReportData['media'][number]['type'];
@@ -168,12 +168,18 @@ export async function getPublicReport(token: string): Promise<PublicReport | nul
       animalsTotal: p.progress?.animals_total ?? 0,
       animalsSlaughtered: p.progress?.animals_slaughtered ?? 0,
       animalsDistributed: p.progress?.animals_distributed ?? 0,
-      packagesTotal: p.progress?.packages_total ?? 0,
+      stagesTotal: 0,
+      stagesValidated: 0,
     },
-    distributions: (p.distributions ?? []).map((d) => ({
-      recipientArea: d.recipient_area,
-      packagesCount: d.packages_count ?? 0,
-      distributedAt: d.distributed_at,
+    // Tahap yang sudah tervalidasi — inilah yang membuat halaman ini bercerita
+    // runtut kepada pemesan, bukan sekadar menyatakan "selesai".
+    stages: (p.stages ?? []).map((s) => ({
+      stage: s.stage,
+      occurredAt: s.occurred_at,
+      notes: s.notes,
+      packagesCount: null,
+      recipientName: null,
+      recipientArea: null,
     })),
     media,
     report: p.report

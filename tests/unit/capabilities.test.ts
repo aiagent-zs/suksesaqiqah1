@@ -75,7 +75,7 @@ describe('vendor', () => {
     // Kendala paling sering muncul di lapangan — pelapornya harus orang yang
     // ada di sana. Sama persis dengan cakupan tulis `can_write_order`.
     expect(canDo('vendor', 'MANAGE_ISSUES')).toBe(true);
-    expect(canDo('vendor', 'RECORD_FIELD_WORK')).toBe(true);
+    expect(canDo('vendor', 'REPORT_STAGE')).toBe(true);
     expect(canDo('vendor', 'MANAGE_ANIMALS')).toBe(true);
     expect(canDo('vendor', 'UPDATE_ORDER_STATUS')).toBe(true);
     // …tapi bukan menyunting data ordernya.
@@ -102,7 +102,7 @@ describe('admin', () => {
     for (const name of [
       'MANAGE_MASTER_DATA',
       'UPDATE_ORDER_AMOUNT',
-      'DELETE_FIELD_RECORD',
+      'DELETE_STAGE_REPORT',
     ] as const) {
       expect(canDo('admin', name), name).toBe(false);
     }

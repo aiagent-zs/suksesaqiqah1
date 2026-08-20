@@ -6,13 +6,11 @@ type UserRole = Database['public']['Enums']['user_role'];
 /**
  * Status yang masih menunggu keputusan.
  *
- * `approved_supervisor` ikut, tapi hanya sebagai **jalur warisan**: sejak
- * validasi dipendekkan jadi satu tingkat (19 Agustus 2026) tidak ada lagi yang
- * membuat status itu. Tanpa dimasukkan ke sini, baris yang sempat lolos
- * tingkat-1 sebelum perubahan akan terjebak selamanya. Trigger
- * `enforce_documentation_review_ladder` menerima jalur yang sama persis.
+ * Validasi satu tingkat: vendor unggah (`pending`), admin memutuskan. Tangga
+ * dua tingkat lama sudah tidak ada di enum — skema dibangun ulang dari nol,
+ * jadi tidak ada baris warisan yang perlu dijaga jalurnya.
  */
-export const REVIEWABLE_DOC_STATUSES: DocStatus[] = ['pending', 'approved_supervisor'];
+export const REVIEWABLE_DOC_STATUSES: DocStatus[] = ['pending'];
 
 /**
  * Siapa yang berhak memvalidasi bukti dari vendor.
@@ -79,25 +77,25 @@ export function checkReview(params: {
   return { ok: true, next: nextDocStatus(params.decision) };
 }
 
-export type DocStageCounts = {
-  approvedSlaughter: number;
-  approvedDistribution: number;
-};
-
 /**
- * Kelengkapan minimum dokumentasi sebelum order boleh naik ke `reporting`
- * (docs/10 section 5).
+ * Kelengkapan bukti sebelum order boleh naik ke `reporting`.
  *
- * Dihitung **per order**, bukan per hewan — kebijakan baku agar beban upload di
- * lapangan tetap ringan.
+ * **Perhitungannya tidak di sini lagi.** `v_order_progress.missing_doc_stages`
+ * menurunkannya dari tabel `stage_requirements` menurut cara penyaluran order —
+ * satu sumber kebenaran di database. Fungsi di bawah hanya memformat hasilnya
+ * untuk layar.
+ *
+ * Alasannya: tahapan kini bercabang. Aturan yang ditulis di TypeScript harus
+ * disalin ke guard transisi juga, dan dengan dua alur salinan itu jadi empat
+ * tempat yang harus dijaga sinkron selamanya.
  */
-export function missingDocumentationStages(counts: DocStageCounts): string[] {
-  const missing: string[] = [];
-  if (counts.approvedSlaughter < 1) missing.push('pemotongan');
-  if (counts.approvedDistribution < 1) missing.push('distribusi');
-  return missing;
+export function formatMissingDocStages(
+  stages: string[],
+  labels: Record<string, string>,
+): string[] {
+  return stages.map((s) => labels[s] ?? s);
 }
 
-export function isDocumentationComplete(counts: DocStageCounts): boolean {
-  return missingDocumentationStages(counts).length === 0;
+export function isDocumentationComplete(missingStages: string[]): boolean {
+  return missingStages.length === 0;
 }

@@ -472,3 +472,102 @@ comment on function public.confirm_delivery is
   'Pembeli mengonfirmasi pesanan diterima lewat halaman bertoken. Idempoten. Laporan terkirim dari vendor tetap tercatat terpisah sebagai cadangan.';
 
 grant execute on function public.confirm_delivery(text, text) to anon, authenticated;
+
+-- =============================================================================
+-- create_order — order yang dibuat staf dari dalam aplikasi
+--
+-- Berbeda dari `create_guest_order`: pemanggilnya sudah login dan tunduk RLS,
+-- jadi fungsi ini **tidak** SECURITY DEFINER. Gunanya menyatukan pembuatan
+-- order + item + hewan dalam satu transaksi, supaya tidak ada order setengah
+-- jadi ketika salah satu langkahnya gagal.
+--
+-- Harga tetap dibaca dari `services` di sisi pemanggil dan diverifikasi ulang
+-- di sini — nilai kiriman klien tidak pernah dipercaya, sama seperti checkout.
+-- =============================================================================
+
+create or replace function public.create_order(p_payload jsonb)
+returns jsonb
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_participant uuid := nullif(p_payload ->> 'participant_id', '')::uuid;
+  v_name        text := nullif(btrim(coalesce(p_payload -> 'participant' ->> 'name', '')), '');
+  v_phone       text := nullif(btrim(coalesce(p_payload -> 'participant' ->> 'phone', '')), '');
+  v_email       text := nullif(btrim(coalesce(p_payload -> 'participant' ->> 'email', '')), '');
+  v_address     text := nullif(btrim(coalesce(p_payload -> 'participant' ->> 'address', '')), '');
+  v_mode        public.distribution_mode;
+  v_notes       text := nullif(btrim(coalesce(p_payload ->> 'notes', '')), '');
+  v_order_id    uuid;
+  v_total       numeric(14, 2) := 0;
+  v_item        jsonb;
+  v_animal      jsonb;
+  v_service     public.services%rowtype;
+begin
+  -- Peserta: dipilih dari yang sudah ada, atau dibuat baru.
+  if v_participant is null then
+    if v_name is null or v_phone is null then
+      raise exception 'Nama dan nomor telepon pemesan wajib diisi'
+        using errcode = 'check_violation';
+    end if;
+    insert into public.participants (name, phone, email, address)
+    values (v_name, v_phone, v_email, v_address)
+    returning participants.id into v_participant;
+  end if;
+
+  begin
+    v_mode := nullif(btrim(coalesce(p_payload ->> 'distribution_mode', '')), '')::public.distribution_mode;
+  exception when invalid_text_representation then
+    raise exception 'Cara penyaluran tidak dikenali' using errcode = 'check_violation';
+  end;
+
+  insert into public.orders (participant_id, created_by, distribution_mode, notes, total_amount)
+  values (v_participant, auth.uid(), v_mode, v_notes, 0)
+  returning orders.id into v_order_id;
+
+  -- Item: harga dibaca ulang dari katalog, bukan dari payload.
+  for v_item in select * from jsonb_array_elements(coalesce(p_payload -> 'items', '[]'::jsonb))
+  loop
+    select * into v_service from public.services s
+    where s.id = (v_item ->> 'service_id')::uuid and s.is_active and s.deleted_at is null;
+
+    if not found then
+      raise exception 'Layanan tidak ditemukan atau sedang tidak aktif'
+        using errcode = 'no_data_found';
+    end if;
+
+    insert into public.order_items (order_id, service_id, qty, unit_price, meta)
+    values (
+      v_order_id, v_service.id,
+      greatest(coalesce((v_item ->> 'qty')::int, 1), 1),
+      v_service.price,
+      coalesce(v_item -> 'meta', '{}'::jsonb)
+    );
+
+    v_total := v_total + v_service.price * greatest(coalesce((v_item ->> 'qty')::int, 1), 1);
+  end loop;
+
+  for v_animal in select * from jsonb_array_elements(coalesce(p_payload -> 'animals', '[]'::jsonb))
+  loop
+    insert into public.animals (order_id, species, tag_code, weight_kg, on_behalf_of)
+    values (
+      v_order_id,
+      (v_animal ->> 'species')::public.animal_species,
+      nullif(btrim(coalesce(v_animal ->> 'tag_code', '')), ''),
+      nullif(v_animal ->> 'weight_kg', '')::numeric,
+      nullif(btrim(coalesce(v_animal ->> 'on_behalf_of', '')), '')
+    );
+  end loop;
+
+  update public.orders set total_amount = v_total where id = v_order_id;
+
+  return (
+    select jsonb_build_object('id', o.id, 'order_number', o.order_number)
+    from public.orders o where o.id = v_order_id
+  );
+end $$;
+
+comment on function public.create_order is
+  'Buat order dari dalam aplikasi (staf). Bukan SECURITY DEFINER — pemanggilnya tunduk RLS. Harga dibaca dari services, bukan dari payload.';
+
+grant execute on function public.create_order(jsonb) to authenticated;

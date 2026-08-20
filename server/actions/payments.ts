@@ -92,8 +92,8 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ id: 
 
   // Path bukti datang dari klien (unggahan langsung ke Storage), sementara
   // kebijakan bucket hanya membatasi bucket — bukan foldernya. Tanpa cek ini,
-  // seorang admin cabang bisa menautkan bukti milik order cabang lain.
-  if (proof_path && !isProofPathForOrder(proof_path, order.branch_code, order.order_number)) {
+  // seseorang bisa menautkan bukti milik order lain ke pembayaran ini.
+  if (proof_path && !isProofPathForOrder(proof_path, order.order_number)) {
     return {
       ok: false,
       error: {

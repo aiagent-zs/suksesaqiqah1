@@ -45,6 +45,7 @@ export type Database = {
           status: Database["public"]["Enums"]["animal_status"]
           tag_code: string | null
           updated_at: string
+          weight_kg: number | null
         }
         Insert: {
           created_at?: string
@@ -56,6 +57,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["animal_status"]
           tag_code?: string | null
           updated_at?: string
+          weight_kg?: number | null
         }
         Update: {
           created_at?: string
@@ -67,6 +69,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["animal_status"]
           tag_code?: string | null
           updated_at?: string
+          weight_kg?: number | null
         }
         Relationships: [
           {
@@ -1535,15 +1538,22 @@ export type Database = {
     Views: {
       v_open_orders: {
         Row: {
+          age_days: number | null
           age_hours: number | null
+          animals_slaughtered: number | null
+          animals_total: number | null
           created_at: string | null
           current_stage: Database["public"]["Enums"]["fulfilment_stage"] | null
           distribution_mode:
             | Database["public"]["Enums"]["distribution_mode"]
             | null
+          docs_pending_review: number | null
           is_guest_order: boolean | null
+          latest_issue_title: string | null
           location_name: string | null
-          max_open_severity: string | null
+          max_open_severity:
+            | Database["public"]["Enums"]["issue_severity"]
+            | null
           missing_doc_stages: string[] | null
           needs_verification: boolean | null
           open_issues: number | null
@@ -1553,12 +1563,15 @@ export type Database = {
           participant_name: string | null
           participant_phone: string | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
+          pct_documentation: number | null
           pct_stage: number | null
           requested_date: string | null
           requested_time: string | null
           scheduled_date: string | null
           scheduled_time: string | null
           stages_rejected: number | null
+          stages_total: number | null
+          stages_validated: number | null
           status: Database["public"]["Enums"]["order_status"] | null
           total_amount: number | null
           vendor_id: string | null
@@ -1689,6 +1702,7 @@ export type Database = {
         Returns: Json
       }
       create_guest_order: { Args: { p_payload: Json }; Returns: Json }
+      create_order: { Args: { p_payload: Json }; Returns: Json }
       fulfilment_sequence: {
         Args: { p_mode: Database["public"]["Enums"]["distribution_mode"] }
         Returns: Database["public"]["Enums"]["fulfilment_stage"][]

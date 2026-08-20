@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ISSUE_SEVERITY_META, ISSUE_SEVERITY_ORDER } from '@/lib/constants/order';
 import { cn } from '@/lib/utils';
 import type { IssueBreakdown } from '../queries';
+import { STAGE_META } from '@/features/stages/sequence';
 
 /**
  * Panel kendala terbuka (docs/09 section 3).
@@ -82,9 +83,8 @@ export function IssuePanel({
                   </div>
                   <p className="text-muted-foreground mt-0.5 truncate text-xs">
                     {row.latestIssueTitle ?? 'Kendala tanpa judul'}
-                    {' · '}
-                    {row.branchCode}
-                    {row.picName ? ` · ${row.picName}` : ''}
+                    {row.vendorName ? ` · ${row.vendorName}` : ''}
+                    {row.currentStage ? ` · ${STAGE_META[row.currentStage].label}` : ''}
                   </p>
                 </Link>
               </li>

@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { OrderStatusBadge, ScheduleStatusBadge } from '@/components/data/status-badge';
+import { OrderStatusBadge } from '@/components/data/status-badge';
 import { formatDate, formatTime } from '@/lib/format';
 import { googleMapsUrl } from '../maps';
 import type { ScheduleRow } from '../queries';
@@ -24,8 +24,8 @@ export function ScheduleTable({ rows }: { rows: ScheduleRow[] }) {
             <TableHead>Order</TableHead>
             <TableHead>Peserta</TableHead>
             <TableHead>Lokasi</TableHead>
-            <TableHead>PIC</TableHead>
-            <TableHead>Status Jadwal</TableHead>
+            <TableHead>Mitra</TableHead>
+            
             <TableHead>Status Order</TableHead>
           </TableRow>
         </TableHeader>
@@ -79,11 +79,11 @@ export function ScheduleTable({ rows }: { rows: ScheduleRow[] }) {
                 </TableCell>
 
                 <TableCell>
-                  {row.picName ? (
+                  {row.vendorName ? (
                     <>
-                      <p className="text-sm">{row.picName}</p>
-                      {row.picPhone && (
-                        <p className="text-muted-foreground text-xs tabular-nums">{row.picPhone}</p>
+                      <p className="text-sm">{row.vendorName}</p>
+                      {row.vendorPhone && (
+                        <p className="text-muted-foreground text-xs tabular-nums">{row.vendorPhone}</p>
                       )}
                     </>
                   ) : (
@@ -92,7 +92,6 @@ export function ScheduleTable({ rows }: { rows: ScheduleRow[] }) {
                 </TableCell>
 
                 <TableCell>
-                  <ScheduleStatusBadge status={row.status} />
                 </TableCell>
 
                 <TableCell>
@@ -128,7 +127,6 @@ export function ScheduleCardList({ rows }: { rows: ScheduleRow[] }) {
                   {row.participantName}
                 </p>
               </div>
-              <ScheduleStatusBadge status={row.status} />
             </div>
 
             <div className="text-muted-foreground mt-3 space-y-1 text-xs">
@@ -153,8 +151,8 @@ export function ScheduleCardList({ rows }: { rows: ScheduleRow[] }) {
               </p>
               <p className="flex items-center gap-1.5">
                 <Phone className="size-3.5 shrink-0" />
-                {row.picName ?? 'PIC belum ditunjuk'}
-                {row.picPhone ? ` · ${row.picPhone}` : ''}
+                {row.vendorName ?? 'Mitra belum ditugaskan'}
+                {row.vendorPhone ? ` · ${row.vendorPhone}` : ''}
               </p>
               <p className="flex items-center gap-1.5">
                 <PawPrint className="size-3.5 shrink-0" />

@@ -66,7 +66,7 @@ export async function uploadDocumentation(input: unknown): Promise<ActionResult<
   // order lain bisa ditautkan ke dokumentasi ini.
   if (
     storage_path &&
-    !isDocPathForOrder(storage_path, order.branch?.code ?? '', order.order_number, stage)
+    !isDocPathForOrder(storage_path, order.order_number, stage)
   ) {
     return {
       ok: false,
@@ -105,7 +105,7 @@ export async function uploadDocumentation(input: unknown): Promise<ActionResult<
       animal_id: animal_id || null,
       stage,
       type,
-      storage_path: storage_path || null,
+      storage_path: storage_path ?? '',
       caption: caption || null,
       uploaded_by: session.id,
       status: 'pending',

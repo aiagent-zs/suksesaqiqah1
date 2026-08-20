@@ -13,6 +13,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { KpiSummary } from '../summary';
+import { formatCurrency } from '@/lib/format';
 
 /**
  * Kartu KPI dengan aksen border kiri 4px (design.md — "KPI Stats").
@@ -108,46 +109,49 @@ export function KpiCards({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label="Total Order"
-          value={summary.totalOrders.toLocaleString('id-ID')}
-          hint={`${summary.completedOrders.toLocaleString('id-ID')} selesai`}
+          value={summary.ordersTotal.toLocaleString('id-ID')}
+          hint={`${summary.ordersCompleted.toLocaleString('id-ID')} selesai`}
           icon={ShoppingBag}
           accent="border-l-primary"
           href="/orders"
         />
         <KpiCard
-          label="Progres Potong"
-          value={pct(summary.pctSlaughter)}
-          icon={FileCheck2}
-          accent="border-l-violet-500"
-          progress={summary.pctSlaughter}
+          label="Tagihan Masuk"
+          value={formatCurrency(summary.revenueTotal)}
+          icon={Wallet}
+          accent="border-l-emerald-500"
         />
         <KpiCard
-          label="Progres Distribusi"
-          value={pct(summary.pctDistribution)}
+          label="Modal ke Mitra"
+          value={formatCurrency(summary.vendorCostTotal)}
           icon={Truck}
           accent="border-l-cyan-500"
-          progress={summary.pctDistribution}
         />
         <KpiCard
-          label="Progres Dokumentasi"
-          value={pct(summary.pctDocumentation)}
-          icon={FileText}
-          accent="border-l-amber-500"
-          progress={summary.pctDocumentation}
-        />
-        <KpiCard
-          label="Progres Laporan"
-          value={pct(summary.pctReport)}
+          label="Margin"
+          value={formatCurrency(summary.marginTotal)}
+          hint={`${pct(summary.marginPct)} dari tagihan`}
           icon={FileCheck2}
           accent="border-l-teal-500"
-          progress={summary.pctReport}
+        />
+        <KpiCard
+          label="Mitra Aktif"
+          value={summary.activeVendors.toLocaleString('id-ID')}
+          hint={
+            summary.avgCycleHours === null
+              ? 'Belum ada siklus tercatat'
+              : `Rata-rata ${Math.round(summary.avgCycleHours)} jam per order`
+          }
+          icon={FileText}
+          accent="border-l-violet-500"
+          href="/vendors"
         />
       </div>
 
       <div
         className={cn(
           'grid grid-cols-2 gap-4',
-          pendingGuestOrders === null ? 'lg:grid-cols-4' : 'lg:grid-cols-5',
+          pendingGuestOrders === null ? 'lg:grid-cols-3' : 'lg:grid-cols-4',
         )}
       >
         {pendingGuestOrders !== null && (
@@ -162,29 +166,21 @@ export function KpiCards({
         )}
         <KpiCard
           label="Order Tertunda"
-          value={summary.openOrders.toLocaleString('id-ID')}
+          value={summary.ordersOpen.toLocaleString('id-ID')}
           hint="Belum selesai / belum dibatalkan"
           icon={ShoppingBag}
           accent="border-l-blue-500"
         />
         <KpiCard
-          label="Kendala Terbuka"
-          value={summary.openIssues.toLocaleString('id-ID')}
-          hint="Issue open / in progress"
+          label="Laporan Ditolak"
+          value={summary.ordersWithRejection.toLocaleString('id-ID')}
+          hint="Order dengan bukti tahap yang pernah ditolak"
           icon={AlertTriangle}
           accent="border-l-red-500"
         />
         <KpiCard
-          label="Belum Lunas"
-          value={summary.unpaidOrders.toLocaleString('id-ID')}
-          hint="Order aktif berstatus belum lunas"
-          icon={Wallet}
-          accent="border-l-secondary"
-          href="/orders?payment_status=unpaid"
-        />
-        <KpiCard
           label="Order Ditahan"
-          value={summary.onHoldOrders.toLocaleString('id-ID')}
+          value={summary.ordersOnHold.toLocaleString('id-ID')}
           hint="Status on hold"
           icon={PauseCircle}
           accent="border-l-orange-500"

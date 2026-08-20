@@ -5,7 +5,6 @@ import type { OrderGuardContext } from './state-machine';
 import type { Database } from '@/types/database';
 import type { OrderStatus, PaymentStatus } from '@/lib/constants/order';
 import { endOfDayExclusiveWib, startOfDayWib } from '@/lib/format/date-range';
-import { isScheduleComplete } from '@/features/schedules/status-machine';
 
 type Tables = Database['public']['Tables'];
 
@@ -222,7 +221,7 @@ export async function countPendingGuestOrders(): Promise<number> {
 export type OrderDetail = {
   order: Tables['orders']['Row'];
   participant: Tables['participants']['Row'] | null;
-  branch: Tables['branches']['Row'] | null;
+  vendor: Tables['vendors']['Row'] | null;
   creatorName: string | null;
   /** Nama admin yang memverifikasi order tamu; null bila belum diverifikasi. */
   guestVerifierName: string | null;
@@ -236,13 +235,18 @@ export type OrderDetail = {
   }>;
   animals: Tables['animals']['Row'][];
   schedule:
-    | (Tables['schedules']['Row'] & {
+    | ({
+        id: string;
+        order_id: string;
+        location_id: string | null;
+        scheduled_date: string;
+        scheduled_time: string | null;
+        notes: string | null;
         locationName: string | null;
         locationAddress: string | null;
         /** Koordinat lokasi untuk tautan peta (prd.md FR-S3). */
         lat: number | null;
         lng: number | null;
-        picName: string | null;
       })
     | null;
   guard: OrderGuardContext;
@@ -256,42 +260,25 @@ export type OrderDetail = {
 export async function getOrderDetail(orderId: string): Promise<OrderDetail | null> {
   const supabase = await createClient();
 
-  // Hitungan dokumentasi `approved` per tahap tidak tersedia di
-  // `v_order_progress` (view-nya hanya menyimpan total), dan menambahkannya
-  // berarti mengubah view — schema satu pintu di Bani. Dua query `head: true`
-  // di sini hanya mengembalikan angka, tanpa payload baris.
-  const approvedByStage = async (stage: 'slaughter' | 'distribution') => {
-    const { count } = await supabase
-      .from('documentations')
-      .select('id', { count: 'exact', head: true })
-      .eq('order_id', orderId)
-      .eq('stage', stage)
-      .eq('status', 'approved');
-    return count ?? 0;
-  };
-
-  const [
-    { data: row, error },
-    { data: progress },
-    minDpRatio,
-    docsApprovedSlaughter,
-    docsApprovedDistribution,
-  ] = await Promise.all([
+  // Kelengkapan bukti per tahap tidak lagi dihitung di sini: `v_order_progress`
+  // mengembalikan `missing_doc_stages` yang diturunkan dari `stage_requirements`
+  // menurut cara penyaluran order. Satu sumber kebenaran, dan menambah tahap
+  // baru tidak menyentuh satu baris TypeScript pun.
+  const [{ data: row, error }, { data: progress }, minDpRatio] = await Promise.all([
     supabase
       .from('orders')
       .select(
         `
         *,
         participant:participants!orders_participant_id_fkey ( * ),
-        branch:branches!orders_branch_id_fkey ( * ),
+        vendor:vendors!orders_vendor_id_fkey ( * ),
         creator:profiles!orders_created_by_fkey ( full_name ),
         guestVerifier:profiles!orders_guest_verified_by_fkey ( full_name ),
         items:order_items ( id, qty, unit_price, meta, service:services ( name, type ) ),
         animals ( * ),
         schedule:schedules (
           *,
-          location:locations ( name, address, lat, lng ),
-          pic:profiles ( full_name )
+          location:locations ( name, address, lat, lng )
         )
       `,
       )
@@ -299,8 +286,6 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       .maybeSingle(),
     supabase.from('v_order_progress').select('*').eq('order_id', orderId).maybeSingle(),
     getMinDpRatio(),
-    approvedByStage('slaughter'),
-    approvedByStage('distribution'),
   ]);
 
   if (error) throw new Error(`Gagal memuat detail order: ${error.message}`);
@@ -308,7 +293,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
 
   const r = row as unknown as Tables['orders']['Row'] & {
     participant: Tables['participants']['Row'] | null;
-    branch: Tables['branches']['Row'] | null;
+    vendor: Tables['vendors']['Row'] | null;
     creator: { full_name: string | null } | null;
     guestVerifier: { full_name: string | null } | null;
     items: Array<{
@@ -327,20 +312,16 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
             lat: number | string | null;
             lng: number | string | null;
           } | null;
-          pic: { full_name: string | null } | null;
         })
       | null;
   };
 
   const schedule = r.schedule;
-  // Aturan "jadwal lengkap" hidup di satu tempat bersama panel jadwal, supaya
-  // guard state machine dan pesan "apa yang kurang" tidak pernah berbeda.
-  const hasCompleteSchedule = isScheduleComplete(schedule);
 
   return {
     order: r,
     participant: r.participant,
-    branch: r.branch,
+    vendor: r.vendor,
     creatorName: r.creator?.full_name ?? null,
     guestVerifierName: r.guestVerifier?.full_name ?? null,
     items: (r.items ?? []).map((i) => ({
@@ -359,7 +340,6 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
           locationAddress: schedule.location?.address ?? null,
           lat: schedule.location?.lat == null ? null : Number(schedule.location.lat),
           lng: schedule.location?.lng == null ? null : Number(schedule.location.lng),
-          picName: schedule.pic?.full_name ?? null,
         }
       : null,
     guard: {
@@ -367,14 +347,15 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       totalAmount: Number(r.total_amount),
       paidAmount: Number(r.paid_amount),
       minDpRatio,
-      hasCompleteSchedule,
-      animalsTotal: progress?.animals_total ?? 0,
-      animalsSlaughtered: progress?.animals_slaughtered ?? 0,
-      animalsDistributed: progress?.animals_distributed ?? 0,
-      distributionCount: progress?.distribution_count ?? 0,
-      docsApproved: progress?.docs_approved ?? 0,
-      docsApprovedSlaughter,
-      docsApprovedDistribution,
+      isGuestOrder: r.created_by === null,
+      guestVerified: r.guest_verified_at !== null,
+      hasVendor: r.vendor_id !== null,
+      hasSchedule: schedule !== null,
+      animalsTotal: Number(progress?.animals_total ?? 0),
+      stagesTotal: Number(progress?.stages_total ?? 0),
+      stagesValidated: Number(progress?.stages_validated ?? 0),
+      stagesRejected: Number(progress?.stages_rejected ?? 0),
+      missingDocStages: progress?.missing_doc_stages ?? [],
       reportSent: progress?.report_sent ?? false,
     },
   };
@@ -398,9 +379,9 @@ export async function getOrderTimeline(orderId: string): Promise<TimelineEntry[]
 
   const { data, error } = await supabase
     .from('audit_logs')
-    .select('id, action, created_at, before, after, actor:profiles ( full_name )')
-    .eq('entity', 'orders')
-    .eq('entity_id', orderId)
+    .select('id, action, created_at, old_data, new_data, actor:profiles ( full_name )')
+    .eq('table_name', 'orders')
+    .eq('record_id', orderId)
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -411,8 +392,8 @@ export async function getOrderTimeline(orderId: string): Promise<TimelineEntry[]
       id: string;
       action: string;
       created_at: string;
-      before: { status?: string } | null;
-      after: { status?: string } | null;
+      old_data: { status?: string } | null;
+      new_data: { status?: string } | null;
       actor: { full_name: string | null } | null;
     };
     return {
@@ -420,32 +401,10 @@ export async function getOrderTimeline(orderId: string): Promise<TimelineEntry[]
       action: row.action,
       createdAt: row.created_at,
       actorName: row.actor?.full_name ?? null,
-      fromStatus: row.before?.status ?? null,
-      toStatus: row.after?.status ?? null,
+      fromStatus: row.old_data?.status ?? null,
+      toStatus: row.new_data?.status ?? null,
     };
   });
-}
-
-/**
- * Cabang penampung order — satu baris, dipakai saat membuat order dari admin.
- *
- * Menggantikan pemilih cabang yang dicabut 19 Agustus 2026. Urutannya sama
- * persis dengan yang dipakai `create_guest_order`, jadi order dari admin dan
- * order dari checkout publik selalu mendarat di cabang yang sama.
- */
-export async function getDefaultBranchId(): Promise<string | null> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('branches')
-    .select('id')
-    .is('deleted_at', null)
-    .order('is_default', { ascending: false })
-    .order('created_at', { ascending: true })
-    .order('code', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  return data?.id ?? null;
 }
 
 /** Opsi untuk FilterBar & form order. */
