@@ -160,11 +160,14 @@ begin
 
   update public.orders
   set paid_amount = v_paid,
-      payment_status = case
+      -- Cast eksplisit: `case` yang mengembalikan literal teks tidak otomatis
+      -- jadi enum, dan Postgres menolaknya dengan galat yang menyebut kolomnya
+      -- — bukan trigger-nya, jadi asal-usulnya tidak langsung terlihat.
+      payment_status = (case
         when v_paid <= 0 then 'unpaid'
         when v_paid >= v_total then 'paid'
         else 'partial'
-      end
+      end)::public.payment_status
   where id = v_order;
 
   return null;
