@@ -73,6 +73,22 @@ export default async function PublicReportPage({ params }: { params: Params }) {
               <dd className="text-slate-900">{onBehalf.join(', ')}</dd>
             </div>
           )}
+          {/* Disembunyikan saat kosong, bukan ditampilkan sebagai "-": order
+              qurban tidak punya anak, dan order sebelum 19 Agustus 2026 tidak
+              pernah menanyakannya. */}
+          {(report.childBirthPlace || report.childBirthDate) && (
+            <div className="flex gap-3">
+              <dt className="w-36 shrink-0 text-slate-500">Tempat, tanggal lahir</dt>
+              <dd className="text-slate-900">
+                {[
+                  report.childBirthPlace,
+                  report.childBirthDate ? formatDate(report.childBirthDate) : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+              </dd>
+            </div>
+          )}
           <div className="flex gap-3">
             <dt className="w-36 shrink-0 text-slate-500">Layanan</dt>
             <dd className="text-slate-900">

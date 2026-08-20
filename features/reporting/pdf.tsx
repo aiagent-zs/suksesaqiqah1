@@ -134,6 +134,22 @@ export function ReportDocument({
               <Text style={styles.value}>{onBehalf.join(', ')}</Text>
             </View>
           )}
+          {/* Barisnya hilang sama sekali bila kosong, bukan tercetak "-":
+              order qurban tidak punya anak, dan order sebelum 19 Agustus 2026
+              tidak pernah menanyakannya. */}
+          {(data.childBirthPlace || data.childBirthDate) && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Tempat, tanggal lahir</Text>
+              <Text style={styles.value}>
+                {[
+                  data.childBirthPlace,
+                  data.childBirthDate ? formatDateId(data.childBirthDate) : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+              </Text>
+            </View>
+          )}
           <View style={styles.row}>
             <Text style={styles.label}>Layanan</Text>
             <Text style={styles.value}>

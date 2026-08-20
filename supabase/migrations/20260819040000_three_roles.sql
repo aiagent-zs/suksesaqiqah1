@@ -79,6 +79,18 @@ create type public.user_role_new as enum ('superadmin', 'admin', 'vendor');
 
 alter table public.profiles alter column role drop default;
 
+-- `profiles_branch_scope_check` menyebut nilai enum lama secara harfiah
+-- (`role in ('direktur', 'manager_program', 'admin_pusat')`). Postgres memeriksa
+-- ulang ekspresi constraint saat tipe kolom ditukar, dan literal di dalamnya
+-- masih bertipe `user_role` lama — hasilnya `operator does not exist:
+-- user_role_new = user_role`. Jadi constraint-nya harus lepas lebih dulu.
+--
+-- Ia tidak dibangun ulang: aturannya ("role cabang wajib punya branch_id agar
+-- bisa aktif") ikut pensiun bersama scope per cabang di catatan 1 di atas.
+-- Sebaliknya, `handle_new_user` di bawah justru membuat vendor tanpa cabang —
+-- non-aktif, memang, tapi constraint ini akan menolaknya begitu diaktifkan.
+alter table public.profiles drop constraint if exists profiles_branch_scope_check;
+
 -- Pemetaan yang dipakai:
 --   direktur, manager_program        -> superadmin  (pemegang wewenang penuh)
 --   admin_pusat, admin_cabang        -> admin       (penghubung & pemvalidasi)

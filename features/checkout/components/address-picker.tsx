@@ -264,7 +264,7 @@ export function AddressPicker({
             onChange={(e) =>
               onChange({ ...value, postal_code: e.target.value.replace(/\D/g, '').slice(0, 5) })
             }
-            className="mt-2 h-12 max-w-40 rounded-xl border-neutral-200 text-sm tabular-nums shadow-sm"
+            className="mt-2 h-12 max-w-40 rounded-xl border-neutral-200 bg-white text-sm tabular-nums shadow-sm"
           />
           {errors.delivery_postal_code && <FieldError message={errors.delivery_postal_code} />}
         </div>
@@ -280,7 +280,7 @@ export function AddressPicker({
           aria-invalid={Boolean(errors.delivery_detail)}
           placeholder="Jl. Cikutra Barat No. 12, RT 003/RW 007, sebelah Masjid Al-Ikhlas"
           onChange={(e) => onChange({ ...value, detail: e.target.value })}
-          className="mt-2 rounded-xl border-neutral-200 text-sm shadow-sm"
+          className="mt-2 rounded-xl border-neutral-200 bg-white text-sm shadow-sm"
         />
         <p className="mt-1.5 text-xs text-neutral-500">
           Sertakan patokan yang mudah dikenali — ini yang dipakai kurir mencari lokasi.

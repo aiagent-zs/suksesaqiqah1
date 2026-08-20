@@ -41,6 +41,8 @@ type RpcPayload = {
   created_at: string;
   branch_name: string | null;
   participant_name: string | null;
+  child_birth_place: string | null;
+  child_birth_date: string | null;
   services: Array<{ name: string; qty: number }> | null;
   animals: Array<{
     species: ReportData['animals'][number]['species'];
@@ -144,6 +146,10 @@ export async function getPublicReport(token: string): Promise<PublicReport | nul
     createdAt: p.created_at,
     branchName: p.branch_name,
     participantName: p.participant_name,
+    // Order lama & order qurban tidak punya keduanya — RPC mengembalikan null,
+    // dan tampilan menyembunyikan barisnya, bukan mencetak "-".
+    childBirthPlace: p.child_birth_place ?? null,
+    childBirthDate: p.child_birth_date ?? null,
     services: p.services ?? [],
     animals: (p.animals ?? []).map((a) => ({
       species: a.species,

@@ -95,6 +95,11 @@ export async function createGuestOrderAction(
       // Nama anak dan nasabnya disatukan di sini — `animals.on_behalf_of`
       // menyimpannya sebagai satu teks.
       on_behalf_of: [data.child_name, data.bin_binti].filter(Boolean).join(' ').trim(),
+      // Data lahir tidak ikut ke dalam teks itu: ia mendarat di kolomnya sendiri
+      // pada `orders`, supaya tetap bisa dibaca mesin (acuan hari ke-7, isi
+      // sertifikat) dan tidak tersalin ke tiap ekor hewan.
+      child_birth_place: data.child_birth_place,
+      child_birth_date: data.child_birth_date,
       // Hanya kode wilayahnya. `delivery_address` satu baris tidak dikirim dari
       // sini — RPC merakitnya sendiri dari nama yang ia baca di `regions`.
       delivery_province_code: data.delivery_province_code || null,

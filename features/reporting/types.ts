@@ -37,6 +37,17 @@ export type ReportData = {
   createdAt: string;
   branchName: string | null;
   participantName: string | null;
+  /**
+   * Data lahir anak yang diaqiqahi — pasangan nama pada `animals[].onBehalfOf`.
+   *
+   * Termasuk data minimal meski laporan ini dibagikan lewat tautan: yang ditahan
+   * dari halaman publik adalah kontak peserta (telepon, email, alamat), sedangkan
+   * tempat & tanggal lahir justru pokok ibadah yang sedang dilaporkan.
+   *
+   * Null untuk order qurban dan untuk order sebelum 19 Agustus 2026.
+   */
+  childBirthPlace: string | null;
+  childBirthDate: string | null;
   services: Array<{ name: string; qty: number }>;
   animals: ReportAnimal[];
   schedule: {
