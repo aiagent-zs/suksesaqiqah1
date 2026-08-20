@@ -10,7 +10,7 @@ import type { UserRole } from './session';
  *   vendor      pelaksana lapangan; hanya order yang ditugaskan padanya
  *
  * Daftar di sini adalah cerminan kebijakan RLS di
- * `20260819040000_three_roles.sql`. Kalau keduanya menyimpang, UI akan
+ * `20260820000800_rls.sql`. Kalau keduanya menyimpang, UI akan
  * menawarkan aksi yang pasti ditolak database — atau lebih buruk,
  * menyembunyikan aksi yang sebenarnya boleh.
  */
@@ -50,19 +50,60 @@ export const CAPABILITIES = {
   MANAGE_ANIMALS: ALL,
 
   /**
-   * Catat pelaksanaan lapangan: pemotongan & distribusi (docs/08 section 3).
-   * Vendor termasuk — merekalah aktor kedua tahap ini — sejalan dengan
-   * `can_write_order` yang memberi mereka akses pada order yang ditugaskan.
+   * Laporkan tahap pelaksanaan (`order_stage_events`).
+   *
+   * Vendor termasuk — merekalah pelakunya. Yang TIDAK ikut di sini adalah
+   * memvalidasi laporan itu; lihat `VALIDATE_STAGE_REPORT` di bawah. Pemisahan
+   * keduanya adalah inti pemisahan tugas: yang mengerjakan tidak menyatakan
+   * pekerjaannya benar.
    */
-  RECORD_FIELD_WORK: ALL,
+  REPORT_STAGE: ALL,
 
   /**
-   * Hapus catatan pemotongan/distribusi.
+   * Validasi laporan tahap dari vendor.
    *
-   * Dipisah dari pencatatan dan dibatasi superadmin: catatan ini bukti
-   * pelaksanaan yang sudah terhitung di KPI dan melepas guard transisi order.
+   * Berhenti di staf, dan trigger `enforce_stage_review` masih menolak sekalipun
+   * seorang admin memvalidasi laporan yang ia buat sendiri.
    */
-  DELETE_FIELD_RECORD: ['superadmin'] as UserRole[],
+  VALIDATE_STAGE_REPORT: STAFF,
+
+  /**
+   * Tetapkan mitra pelaksana pada order.
+   *
+   * Inilah yang membuat vendor bisa melihat sebuah order sama sekali:
+   * `can_read_order` membandingkan `orders.vendor_id` dengan `profiles.vendor_id`.
+   * Jadi kapabilitas ini sekaligus pintu masuk data — karenanya berhenti di staf,
+   * dan trigger `enforce_vendor_assignment` menolak vendor yang mencoba
+   * memindahkan penugasan ke dirinya sendiri.
+   */
+  ASSIGN_VENDOR: STAFF,
+
+  /**
+   * Kelola master mitra: identitas, alamat, daftar modal, wilayah layanan.
+   *
+   * Berhenti di superadmin bersama harga: `vendor_services.vendor_price` adalah
+   * angka yang menentukan margin, dan siapa pun yang bisa mengubahnya bisa
+   * membuat order tampak untung padahal rugi.
+   */
+  MANAGE_VENDORS: ['superadmin'] as UserRole[],
+
+  /**
+   * Buat & kelola akun pengguna.
+   *
+   * Berhenti di superadmin: siapa pun yang bisa mengubah role bisa mengangkat
+   * dirinya sendiri. Jalurnya memakai service role yang melewati RLS sepenuhnya,
+   * jadi server action-nya wajib memeriksa role sendiri — RLS tidak akan
+   * menolongnya di sana.
+   */
+  MANAGE_USERS: ['superadmin'] as UserRole[],
+
+  /**
+   * Hapus laporan tahap.
+   *
+   * Dipisah dari pencatatan dan dibatasi superadmin: laporan ini bukti
+   * pelaksanaan yang sudah terhitung di KPI dan melepas gerbang tahap berikutnya.
+   */
+  DELETE_STAGE_REPORT: ['superadmin'] as UserRole[],
 
   /**
    * Tandai & kelola kendala pada order (`prd.md` FR-SL4, docs/16 section 11).
@@ -86,11 +127,11 @@ export const CAPABILITIES = {
   VERIFY_PAYMENT: STAFF,
 
   /**
-   * Tetapkan tanggal, lokasi, dan **vendor pelaksana**.
+   * Tetapkan tanggal & lokasi pelaksanaan.
    *
-   * Inilah yang membuat vendor bisa melihat sebuah order sama sekali:
-   * `can_read_order` memberi vendor akses lewat `schedules.pic_user_id`. Jadi
-   * kapabilitas ini sekaligus pintu masuk data — karenanya berhenti di staf.
+   * Sejak penugasan mitra pindah ke `orders.vendor_id`, jadwal kembali jadi
+   * sekadar jadwal — ia tidak lagi menentukan siapa boleh melihat order.
+   * Pintu masuk datanya kini `ASSIGN_VENDOR`.
    */
   MANAGE_SCHEDULE: STAFF,
 
