@@ -1,6 +1,13 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from 'react';
 import Link from 'next/link';
 import {
   AlertCircle,
@@ -15,9 +22,9 @@ import {
   Minus,
   Package,
   Plus,
+  RotateCcw,
   ShieldCheck,
   ShoppingBag,
-  Sparkles,
   Tag,
   Truck,
   User,
@@ -35,7 +42,16 @@ import {
   CHILD_BIRTH_MIN_DATE,
   SPECIES_BY_SERVICE_TYPE,
 } from '../schema';
-import { AddressPicker, EMPTY_DELIVERY_ADDRESS, type DeliveryAddressValue } from './address-picker';
+import { AddressPicker } from './address-picker';
+import {
+  clearDraft,
+  emptyDraft,
+  getDraftServerSnapshot,
+  getDraftSnapshot,
+  saveDraft,
+  subscribeDraft,
+  type Draft,
+} from '../draft';
 import type { CheckoutPackage, GuestOrderResult, NasiBoxPackage, RegionOption } from '../queries';
 
 const SERVICE_TYPE_LABEL: Record<string, string> = {
@@ -52,30 +68,6 @@ const MAX_QTY = 20;
  * ringkasannya dulu.
  */
 const SUBMIT_ARM_DELAY_MS = 700;
-
-type Draft = {
-  aqiqah_for: string;
-  service_id: string;
-  species: string;
-  qty: number;
-  nasi_box_service_id: string;
-  nasi_box_qty: number;
-  requested_date: string;
-  requested_time: string;
-  distribution_mode: string;
-  child_name: string;
-  bin_binti: string;
-  child_birth_place: string;
-  child_birth_date: string;
-  name: string;
-  phone: string;
-  email: string;
-  /** Alamat pengiriman terstruktur; kosong selama modenya bukan `kirim`. */
-  delivery: DeliveryAddressValue;
-  recipient_institution: string;
-  referral_code: string;
-  notes: string;
-};
 
 /**
  * Empat langkah, bukan enam.
@@ -214,32 +206,122 @@ export function CheckoutForm({
    */
   const submitArmedRef = useRef(false);
   const armTimerRef = useRef<number | undefined>(undefined);
+  /**
+   * Berapa entri riwayat yang sudah kami dorong sendiri.
+   *
+   * Dipakai `prevStep` untuk memastikan `history.back()` mendarat di langkah
+   * sebelumnya, bukan melempar pemesan keluar dari halaman checkout — di entri
+   * paling awal tidak ada apa pun milik kami untuk dimundurkan.
+   */
+  const pushedRef = useRef(0);
 
-  const [draft, setDraft] = useState<Draft>({
-    aqiqah_for: '',
-    service_id: initialServiceId ?? packages[0]?.id ?? '',
-    species: 'kambing',
-    qty: 1,
-    nasi_box_service_id: '',
-    nasi_box_qty: 0,
-    // Sengaja kosong, bukan diisi hari ini: tanggal pelaksanaan adalah pilihan
-    // yang harus disadari pemesan. Nilai awal yang sudah terisi akan lolos
-    // begitu saja dan pesanan masuk untuk tanggal yang tidak pernah ia pilih.
-    requested_date: '',
-    requested_time: '',
-    distribution_mode: '',
-    child_name: '',
-    bin_binti: '',
-    child_birth_place: '',
-    child_birth_date: '',
-    name: '',
-    phone: '',
-    email: '',
-    delivery: EMPTY_DELIVERY_ADDRESS,
-    recipient_institution: '',
-    referral_code: '',
-    notes: '',
-  });
+  const [draft, setDraft] = useState<Draft>(() =>
+    emptyDraft(initialServiceId ?? packages[0]?.id ?? ''),
+  );
+
+  /**
+   * Draft tersimpan yang ditemukan saat halaman dibuka.
+   *
+   * `useSyncExternalStore`, bukan `useState` + efek: `sessionStorage` tidak ada
+   * saat render di server, dan hook inilah yang memang dirancang untuk sumber
+   * data di luar React yang jawabannya berbeda antara server dan klien —
+   * snapshot server mengembalikan `null`, jadi hidrasinya tetap cocok.
+   */
+  const stored = useSyncExternalStore(
+    subscribeDraft,
+    getDraftSnapshot,
+    getDraftServerSnapshot,
+  );
+
+  /** Draft yang sudah dijawab pemesan — dipulihkan atau dibuang. */
+  const [recoveryHandled, setRecoveryHandled] = useState(false);
+
+  /**
+   * Memulihkan draft **ditawarkan, tidak dipaksakan**.
+   *
+   * Isian ini memuat nama anak dan alamat rumah; memuat ulang halaman lalu
+   * mendapati kolom sudah terisi data yang tidak diketahui asalnya lebih
+   * meresahkan daripada menolong — terlebih bila perangkatnya dipakai berdua.
+   * Jadi bacanya di sini, tapi yang memasangnya klik pemesan.
+   *
+   * Draft yang berhenti di langkah 1 tidak ditawarkan: pemesan menutup tab
+   * sebelum menyelesaikan apa pun, dan menawarkannya hanya menambah satu
+   * keputusan yang tidak menyelamatkan pekerjaan siapa pun.
+   */
+  const recovered = !recoveryHandled && stored && stored.step > 1 ? stored : null;
+
+  /**
+   * Patokan "belum disentuh", dipakai menentukan apakah ada yang layak
+   * diselamatkan.
+   *
+   * `useMemo`, bukan ref: nilainya dibaca saat render, dan membaca
+   * `ref.current` saat render adalah persis yang dilarang React — hasilnya
+   * bisa tidak sejalan dengan apa yang sedang dirender.
+   */
+  const pristine = useMemo(
+    () => JSON.stringify(emptyDraft(initialServiceId ?? packages[0]?.id ?? '')),
+    [initialServiceId, packages],
+  );
+  const isDirty = JSON.stringify(draft) !== pristine;
+
+  /** Simpan tiap kali isian berubah — tanpa tombol "simpan", tanpa diumumkan. */
+  useEffect(() => {
+    if (done || !isDirty) return;
+    saveDraft(draft, currentStep);
+  }, [draft, currentStep, done, isDirty]);
+
+  /**
+   * Peringatan bawaan peramban sebelum tab ditutup atau dimuat ulang.
+   *
+   * Jaring terakhir, bukan yang utama — sebagian peramban mengabaikannya bila
+   * pemesan belum berinteraksi dengan halaman, dan gestur *back-swipe* di ponsel
+   * tidak selalu memicunya. Yang sungguh menyelamatkan isian adalah draft
+   * tersimpan di atas; ini hanya memberi kesempatan membatalkan.
+   */
+  useEffect(() => {
+    if (!isDirty || done || pending) return;
+
+    function warn(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      // Teksnya sendiri tidak pernah tampil — peramban modern selalu memakai
+      // kalimatnya sendiri. Yang dibaca hanyalah "event ini dibatalkan".
+      e.returnValue = '';
+    }
+
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [isDirty, done, pending]);
+
+  /**
+   * Tombol "kembali" peramban memundurkan **langkah**, bukan meninggalkan
+   * halaman.
+   *
+   * Di ponsel, gestur usap-dari-tepi adalah cara paling lazim untuk membatalkan
+   * sesuatu. Tanpa ini, gestur itu membuang tiga langkah isian sekaligus — dan
+   * `beforeunload` tidak selalu sempat menahannya. Tiap perpindahan langkah
+   * menambah satu entri riwayat, jadi "kembali" mendarat di langkah sebelumnya.
+   *
+   * `window.history` dipakai langsung, bukan `router.push`: panduan Next 16
+   * menyatakan `pushState`/`replaceState` sudah terintegrasi dengan router-nya,
+   * dan ini tidak berpindah rute — hanya menandai posisi di dalam satu halaman.
+   */
+  useEffect(() => {
+    function onPop(e: PopStateEvent) {
+      const state = e.state as { saStep?: number } | null;
+      const step = state?.saStep;
+      // Entri tanpa penanda kami berarti pemesan sudah memundur melewati
+      // seluruh langkah — biarkan peramban meninggalkan halaman seperti biasa.
+      if (typeof step !== 'number') return;
+      window.clearTimeout(armTimerRef.current);
+      submitArmedRef.current = false;
+      pushedRef.current = Math.max(0, pushedRef.current - 1);
+      setError(null);
+      setCurrentStep(Math.min(STEPS.length, Math.max(1, step)));
+    }
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   const selected = useMemo(
     () => packages.find((p) => p.id === draft.service_id),
@@ -411,7 +493,28 @@ export function CheckoutForm({
         submitArmedRef.current = true;
       }, SUBMIT_ARM_DELAY_MS);
     }
+    pushStepHistory(next);
     setCurrentStep(next);
+  }
+
+  /**
+   * Menandai posisi langkah di riwayat peramban.
+   *
+   * Entri pertama di-`replaceState` supaya langkah 1 tetap bisa ditinggalkan
+   * dengan sekali "kembali" — kalau ikut di-`push`, pemesan yang baru tiba
+   * harus menekan "kembali" dua kali untuk keluar dari halaman, dan itu
+   * terbaca sebagai halaman yang menyandera.
+   */
+  function pushStepHistory(next: number) {
+    const current = (window.history.state as { saStep?: number } | null)?.saStep;
+    if (typeof current !== 'number') {
+      // Entri yang sedang ditempati belum bertanda. Tandai dulu dengan langkah
+      // sekarang, supaya `popstate` mengenalinya saat pemesan mundur ke sini.
+      window.history.replaceState({ ...window.history.state, saStep: currentStep }, '');
+    }
+    if (next === current) return;
+    window.history.pushState({ saStep: next }, '');
+    pushedRef.current += 1;
   }
 
   function nextStep() {
@@ -445,8 +548,22 @@ export function CheckoutForm({
     if (currentStep < STEPS.length) nextStep();
   }
 
+  /**
+   * Tombol "Kembali" di layar menempuh jalur yang **sama** dengan tombol
+   * kembali peramban: keduanya memundurkan riwayat.
+   *
+   * Kalau ia hanya menyetel state langsung, tiap kali mundur akan menyisakan
+   * entri "maju" yang menganggur — pemesan yang menekan kembali peramban
+   * sesudahnya justru terlempar ke langkah yang lebih jauh, bukan lebih dekat.
+   * Dengan `history.back()`, penanganan keduanya bertemu di satu tempat
+   * (`popstate`) dan tumpukannya tetap runut.
+   */
   function prevStep() {
     setError(null);
+    if (pushedRef.current > 0) {
+      window.history.back();
+      return;
+    }
     setCurrentStep((prev) => Math.max(1, prev - 1));
   }
 
@@ -501,8 +618,27 @@ export function CheckoutForm({
         focusFirstError(fields);
         return;
       }
+      // Pesanan sudah tercatat di database. Draft-nya harus hilang sekarang
+      // juga — kalau tidak, membuka checkout lagi akan menawarkan memulihkan
+      // isian pesanan yang **sudah** dikirim, dan pemesan bisa mengirimnya dua
+      // kali tanpa merasa melakukan sesuatu yang salah.
+      clearDraft();
       setDone(result.data);
     });
+  }
+
+  /** Memakai draft yang ditawarkan, lalu menutup tawarannya. */
+  function restoreRecovered() {
+    if (!recovered) return;
+    setDraft(recovered.draft);
+    goToStep(Math.min(STEPS.length, recovered.step));
+    setRecoveryHandled(true);
+  }
+
+  /** Menolak tawaran — draft-nya dibuang, bukan sekadar disembunyikan. */
+  function discardRecovered() {
+    clearDraft();
+    setRecoveryHandled(true);
   }
 
   if (done) return <SuccessPanel result={done} />;
@@ -510,110 +646,127 @@ export function CheckoutForm({
   const progressPct = (currentStep / STEPS.length) * 100;
 
   return (
-    <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-xl shadow-neutral-900/5 transition-all sm:rounded-3xl">
-      {/* Modal / Wizard Header */}
-      <div className="from-primary/5 to-primary/5 relative border-b border-neutral-100 bg-gradient-to-r via-white px-4 py-4 sm:px-8 sm:py-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <span className="bg-primary/10 text-primary inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide sm:px-3 sm:py-1 sm:text-xs">
-              <Sparkles className="size-3 sm:size-3.5" /> Modal Pemesanan Aqiqah
+    <div className="mx-auto max-w-3xl">
+      {/*
+        Kepala wizard.
+
+        Dulu dibingkai sebagai "modal": kartu melayang dengan `shadow-xl`,
+        sudut `rounded-3xl`, latar gradasi, dan lencana ✨ "Modal Pemesanan".
+        Padahal ini halaman penuh, bukan modal — dan pemesan yang sedang
+        mengisi data pembayaran tidak butuh dihibur, ia butuh tahu posisinya.
+
+        Sekarang: garis rambut sebagai pemisah, satu baris status, dan total
+        yang selalu terbaca. Sejalan dengan `design.md §1` — clarity over
+        decoration.
+      */}
+      <div className="sticky top-16 z-30 -mx-4 border-b border-neutral-200 bg-white/95 px-4 py-3.5 backdrop-blur-sm sm:-mx-6 sm:px-6">
+        <div className="flex items-baseline justify-between gap-4">
+          <p className="text-sm font-medium text-neutral-500">
+            Langkah <span className="font-semibold text-neutral-900">{currentStep}</span> dari{' '}
+            {STEPS.length}
+            <span className="ml-2 hidden text-neutral-400 sm:inline">
+              · {STEPS[currentStep - 1]?.title}
             </span>
-            <h2 className="mt-1.5 text-lg font-bold tracking-tight text-neutral-900 sm:text-2xl">
-              Checkout Pesanan Mandiri
-            </h2>
-          </div>
+          </p>
           {/* Total ikut di kepala wizard, bukan hanya di langkah terakhir:
               pemesan mengubah paket & jumlah di langkah 1, jadi di situlah
               angkanya paling dibutuhkan. */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden items-center gap-2 rounded-2xl bg-neutral-100/80 px-4 py-2 text-xs font-medium text-neutral-600 backdrop-blur-sm sm:flex">
-              <ShieldCheck className="size-4 text-emerald-600" />
-              <span>Tanpa Perlu Login Akun</span>
-            </div>
-            <div
-              aria-live="polite"
-              className="border-primary/15 bg-primary/5 rounded-xl border px-3 py-1.5 text-right sm:rounded-2xl sm:px-4 sm:py-2"
-            >
-              <p className="text-[9px] font-medium tracking-wide text-neutral-500 uppercase sm:text-[10px]">
-                Total
-              </p>
-              <p className="text-primary text-sm font-bold tracking-tight tabular-nums sm:text-base">
-                {formatCurrency(total)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Stepper Nav & Progress Bar */}
-        <div className="mt-4 sm:mt-6">
-          <div className="mb-2 flex items-center justify-between text-xs font-semibold text-neutral-500">
-            <span>
-              Langkah {currentStep} dari {STEPS.length}
+          <p aria-live="polite" className="text-right text-sm">
+            <span className="text-neutral-500">Total </span>
+            <span className="font-bold text-neutral-900 tabular-nums">
+              {formatCurrency(total)}
             </span>
-            <span className="text-primary">{Math.round(progressPct)}% Selesai</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-100">
-            <div
-              className="from-primary to-primary-dark h-full bg-gradient-to-r transition-all duration-300 ease-out"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
+          </p>
+        </div>
 
-          <div className="mt-3 grid grid-cols-4 gap-1.5 sm:mt-4 sm:gap-2.5">
-            {STEPS.map((step) => {
-              const Icon = step.icon;
-              const isCurrent = step.id === currentStep;
-              const isPassed = step.id < currentStep;
-              return (
+        {/* Bilah kemajuan setipis garis — penanda, bukan hiasan. Persentasenya
+            sengaja tidak ditulis: "25% Selesai" pada langkah 1 keliru, karena
+            beban tiap langkah tidak sama. */}
+        <div className="mt-3 h-0.5 w-full bg-neutral-200">
+          <div
+            className="bg-primary h-full transition-[width] duration-500 ease-out"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+
+        {/* Nama langkah, bukan kartu bertumpuk. Di ponsel hanya nomor +
+            label pendek; deskripsi panjang di dalam kotak kecil dulu terpotong
+            jadi elipsis dan tidak menolong siapa pun. */}
+        <nav aria-label="Langkah pemesanan" className="mt-3 flex gap-1">
+          {STEPS.map((step) => {
+            const isCurrent = step.id === currentStep;
+            const isPassed = step.id < currentStep;
+            return (
+              <button
+                key={step.id}
+                type="button"
+                aria-current={isCurrent ? 'step' : undefined}
+                onClick={() => {
+                  if (step.id < currentStep || validateStep(currentStep)) {
+                    goToStep(step.id);
+                  }
+                }}
+                className={cn(
+                  'flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs transition-colors sm:justify-start sm:px-2.5',
+                  isCurrent
+                    ? 'text-primary bg-primary/8 font-semibold'
+                    : isPassed
+                      ? 'font-medium text-neutral-700 hover:bg-neutral-100'
+                      : 'text-neutral-400',
+                )}
+              >
+                {isPassed ? (
+                  <Check className="size-3.5 shrink-0 stroke-[2.5]" />
+                ) : (
+                  <span className="shrink-0 tabular-nums">{step.id}.</span>
+                )}
+                <span className="truncate">
+                  <span className="sm:hidden">{step.shortTitle}</span>
+                  <span className="hidden sm:inline">{step.title}</span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/*
+        Tawaran memulihkan isian yang tertinggal.
+
+        Ditaruh di bawah kepala wizard, bukan sebagai dialog yang menghadang:
+        isian yang hilang memang menjengkelkan, tapi tidak cukup genting untuk
+        menghalangi orang yang justru datang untuk memesan hal lain.
+      */}
+      {recovered && (
+        <div className="animate-in fade-in mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 duration-300">
+          <div className="flex items-start gap-2.5">
+            <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-700" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-amber-900">Lanjutkan isian sebelumnya?</p>
+              <p className="mt-1 text-xs leading-5 text-amber-800">
+                Kami menemukan pesanan yang belum selesai dari tab ini, tersimpan sampai langkah{' '}
+                {recovered.step} ({STEPS[recovered.step - 1]?.title}).
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button
-                  key={step.id}
                   type="button"
-                  aria-current={isCurrent ? 'step' : undefined}
-                  onClick={() => {
-                    if (step.id < currentStep || validateStep(currentStep)) {
-                      goToStep(step.id);
-                    }
-                  }}
-                  className={cn(
-                    'flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center transition-all sm:flex-row sm:items-start sm:justify-start sm:gap-2.5 sm:rounded-2xl sm:px-3.5 sm:py-3 sm:text-left',
-                    isCurrent
-                      ? 'border-primary bg-primary/10 text-primary ring-primary/20 font-semibold shadow-sm ring-2'
-                      : isPassed
-                        ? 'border-emerald-200 bg-emerald-50/50 text-emerald-800'
-                        : 'border-neutral-100 bg-neutral-50/50 text-neutral-400 hover:bg-neutral-100',
-                  )}
+                  onClick={restoreRecovered}
+                  className="inline-flex min-h-11 items-center rounded-lg bg-amber-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-amber-800 active:bg-amber-900"
                 >
-                  <div
-                    className={cn(
-                      'flex size-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-all sm:size-7 sm:rounded-xl',
-                      isCurrent
-                        ? 'bg-primary text-white shadow-sm'
-                        : isPassed
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-neutral-200 text-neutral-600',
-                    )}
-                  >
-                    {isPassed ? (
-                      <Check className="size-3 stroke-[3] sm:size-4" />
-                    ) : (
-                      <Icon className="size-3 sm:size-3.5" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-[10px] font-semibold leading-tight sm:text-xs">
-                      <span className="sm:hidden">{step.shortTitle}</span>
-                      <span className="hidden sm:inline">{step.title}</span>
-                    </p>
-                    <p className="hidden truncate text-[10px] opacity-75 sm:block">
-                      {step.description}
-                    </p>
-                  </div>
+                  Lanjutkan
                 </button>
-              );
-            })}
+                <button
+                  type="button"
+                  onClick={discardRecovered}
+                  className="inline-flex min-h-11 items-center rounded-lg border border-amber-300 bg-white px-4 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 active:bg-amber-200"
+                >
+                  Mulai baru
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Modal Body / Steps Content */}
       <form
@@ -632,7 +785,7 @@ export function CheckoutForm({
             Ketiganya dulu langkah terpisah; disatukan karena masing-masing
             hanya menuntut satu klik dan total tagihannya saling memengaruhi. */}
         {currentStep === 1 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
             <div>
               <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                 <Label className="text-base font-bold text-neutral-900">Aqiqah untuk siapa?</Label>
@@ -648,10 +801,10 @@ export function CheckoutForm({
                       onClick={() => pickAqiqahFor(opt.value)}
                       aria-pressed={active}
                       className={cn(
-                        'relative flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200 sm:rounded-2xl sm:p-4.5',
+                        'relative flex items-center gap-3 rounded-lg border p-3.5 text-left transition-all duration-200 sm:p-4',
                         active
-                          ? 'border-primary bg-primary/5 ring-primary/20 shadow-md ring-2'
-                          : 'hover:border-primary/40 border-neutral-200 bg-white hover:shadow-md',
+                          ? 'border-primary bg-primary/5 ring-primary ring-1'
+                          : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
                       )}
                     >
                       <div
@@ -696,10 +849,10 @@ export function CheckoutForm({
                       onClick={() => pickPackage(pkg)}
                       aria-pressed={active}
                       className={cn(
-                        'group relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all duration-200 sm:rounded-2xl sm:p-4.5',
+                        'group relative flex flex-col justify-between rounded-lg border p-3.5 text-left transition-all duration-200 sm:p-4',
                         active
-                          ? 'border-primary bg-primary/5 ring-primary/20 shadow-md ring-2'
-                          : 'hover:border-primary/40 border-neutral-200 bg-white hover:shadow-md',
+                          ? 'border-primary bg-primary/5 ring-primary ring-1'
+                          : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
                       )}
                     >
                       <div>
@@ -735,7 +888,7 @@ export function CheckoutForm({
               {fieldErrors.service_id && <FieldError message={fieldErrors.service_id} />}
             </div>
 
-            <div className="grid gap-4 rounded-xl border border-neutral-100 bg-neutral-50/60 p-3.5 sm:gap-6 sm:rounded-2xl sm:p-5 sm:grid-cols-2">
+            <div className="grid gap-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3.5 sm:gap-6 sm:p-5 sm:grid-cols-2">
               <div>
                 <Label className="text-sm font-semibold text-neutral-800">Jenis Hewan</Label>
                 <div className="mt-2 inline-flex rounded-xl bg-neutral-200/60 p-1">
@@ -809,10 +962,10 @@ export function CheckoutForm({
                   }}
                   aria-pressed={!draft.nasi_box_service_id}
                   className={cn(
-                    'relative rounded-2xl border p-4.5 text-left transition-all duration-200',
+                    'relative rounded-lg border p-4 text-left transition-colors',
                     !draft.nasi_box_service_id
-                      ? 'border-primary bg-primary/5 ring-primary/20 shadow-md ring-2'
-                      : 'hover:border-primary/40 border-neutral-200 bg-white hover:shadow-md',
+                      ? 'border-primary bg-primary/5 ring-primary ring-1'
+                      : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
                   )}
                 >
                   <p className="font-bold text-neutral-900">Tidak pakai</p>
@@ -836,10 +989,10 @@ export function CheckoutForm({
                       }}
                       aria-pressed={active}
                       className={cn(
-                        'relative rounded-2xl border p-4.5 text-left transition-all duration-200',
+                        'relative rounded-lg border p-4 text-left transition-colors',
                         active
-                          ? 'border-primary bg-primary/5 ring-primary/20 shadow-md ring-2'
-                          : 'hover:border-primary/40 border-neutral-200 bg-white hover:shadow-md',
+                          ? 'border-primary bg-primary/5 ring-primary ring-1'
+                          : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
                       )}
                     >
                       <p className="font-bold text-neutral-900">{box.name}</p>
@@ -858,7 +1011,7 @@ export function CheckoutForm({
               </div>
 
               {draft.nasi_box_service_id && (
-                <div className="mt-4 rounded-2xl border border-neutral-100 bg-neutral-50/60 p-5">
+                <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
                   <Label htmlFor="co-boxqty" className="text-sm font-semibold text-neutral-800">
                     Jumlah Box <span className="text-red-500">*</span>
                   </Label>
@@ -889,8 +1042,8 @@ export function CheckoutForm({
 
         {/* STEP 2: JADWAL & PENYALURAN */}
         {currentStep === 2 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 duration-300">
-            <div className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-3.5 sm:rounded-2xl sm:p-5">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 duration-[420ms] ease-out">
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3.5 sm:p-5">
               <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                 <Label htmlFor="co-date" className="text-base font-bold text-neutral-900">
                   Kapan dilaksanakan? <span className="text-red-500">*</span>
@@ -940,7 +1093,7 @@ export function CheckoutForm({
                           className={cn(
                             'flex items-center justify-center rounded-xl border py-2 px-1 text-center text-xs font-semibold tabular-nums transition-all sm:px-3.5',
                             active
-                              ? 'border-primary bg-primary/5 text-primary ring-primary/20 ring-2'
+                              ? 'border-primary bg-primary/5 text-primary ring-primary ring-1'
                               : 'hover:border-primary/40 border-neutral-200 bg-white text-neutral-700',
                           )}
                         >
@@ -975,10 +1128,10 @@ export function CheckoutForm({
                       onClick={() => set('distribution_mode', opt.value)}
                       aria-pressed={active}
                       className={cn(
-                        'relative rounded-2xl border p-4.5 text-left transition-all duration-200',
+                        'relative rounded-lg border p-4 text-left transition-colors',
                         active
-                          ? 'border-primary bg-primary/5 ring-primary/20 shadow-md ring-2'
-                          : 'hover:border-primary/40 border-neutral-200 bg-white hover:shadow-md',
+                          ? 'border-primary bg-primary/5 ring-primary ring-1'
+                          : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
                       )}
                     >
                       <div
@@ -1040,7 +1193,7 @@ export function CheckoutForm({
 
         {/* STEP 3: DATA PEMESAN */}
         {currentStep === 3 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
             {/* <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900">
               <User className="mt-0.5 size-4 shrink-0 text-blue-600" />
               <span>
@@ -1194,8 +1347,8 @@ export function CheckoutForm({
 
         {/* STEP 4: RINGKASAN & KONFIRMASI */}
         {currentStep === 4 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
-            <div className="overflow-hidden rounded-2xl border border-neutral-200">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
+            <div className="overflow-hidden rounded-lg border border-neutral-200">
               <div className="border-b border-neutral-100 bg-neutral-50/80 px-5 py-3">
                 <p className="text-sm font-bold text-neutral-900">Rincian Pesanan</p>
               </div>
@@ -1264,7 +1417,7 @@ export function CheckoutForm({
                 </SummaryRow>
               </dl>
 
-              <div className="from-primary/5 flex items-center justify-between bg-gradient-to-r to-transparent px-5 py-4">
+              <div className="bg-primary/5 flex items-center justify-between border-b border-neutral-200 px-5 py-3.5">
                 <span className="text-sm font-bold text-neutral-900">Total Tagihan:</span>
                 <span className="text-primary text-xl font-extrabold tabular-nums">
                   {formatCurrency(total)}
@@ -1345,7 +1498,7 @@ export function CheckoutForm({
               key="nav-next"
               type="button"
               onClick={nextStep}
-              className="bg-primary shadow-primary/20 hover:bg-primary-dark inline-flex items-center justify-center gap-1 rounded-xl px-4 py-2.5 text-xs font-semibold text-white shadow-md transition-all hover:shadow-lg sm:gap-1.5 sm:px-6 sm:py-3 sm:text-sm"
+              className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-3 text-sm font-semibold text-white transition-colors sm:px-6"
             >
               Lanjut ke {STEPS[currentStep].title} <ChevronRight className="size-4 shrink-0" />
             </button>
@@ -1358,7 +1511,7 @@ export function CheckoutForm({
               type="button"
               onClick={submit}
               disabled={pending || !selected}
-              className="bg-primary shadow-primary/30 hover:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-bold text-white shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 sm:px-7 sm:py-3.5 sm:text-sm"
+              className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:px-7 sm:py-3.5"
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
               {pending ? 'Mengirim pesanan…' : 'Konfirmasi & Kirim Pesanan'}
@@ -1396,8 +1549,8 @@ function StepperButton({
 
 function SuccessPanel({ result }: { result: GuestOrderResult }) {
   return (
-    <div className="mx-auto max-w-xl overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-2xl">
-      <div className="border-b border-emerald-100 bg-gradient-to-b from-emerald-50 via-white to-white px-6 py-8 text-center sm:px-8">
+    <div className="mx-auto max-w-xl overflow-hidden rounded-lg border border-neutral-200 bg-white">
+      <div className="border-b border-neutral-200 px-6 py-8 text-center sm:px-8">
         <span className="inline-flex size-16 items-center justify-center rounded-full bg-emerald-100/80 ring-8 ring-emerald-50">
           <CheckCircle2 className="size-9 text-emerald-600" />
         </span>
@@ -1411,13 +1564,13 @@ function SuccessPanel({ result }: { result: GuestOrderResult }) {
       </div>
 
       <dl className="grid gap-4 px-6 py-6 sm:grid-cols-2 sm:px-8">
-        <div className="rounded-2xl border border-neutral-100 bg-neutral-50/70 px-4 py-3.5">
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3.5">
           <dt className="text-[11px] font-medium text-neutral-500 uppercase">Nomor Pesanan</dt>
           <dd className="mt-1 text-lg font-extrabold tracking-tight text-neutral-900 tabular-nums">
             {result.order_number}
           </dd>
         </div>
-        <div className="rounded-2xl border border-neutral-100 bg-neutral-50/70 px-4 py-3.5">
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3.5">
           <dt className="text-[11px] font-medium text-neutral-500 uppercase">Total Tagihan</dt>
           <dd className="text-primary mt-1 text-lg font-extrabold tracking-tight tabular-nums">
             {formatCurrency(result.total_amount)}
@@ -1428,7 +1581,7 @@ function SuccessPanel({ result }: { result: GuestOrderResult }) {
       <div className="border-t border-neutral-100 px-6 py-6 sm:px-8">
         <Link
           href="/"
-          className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-900 px-5 py-3.5 text-xs font-bold text-white shadow-md transition-all hover:bg-neutral-800"
+          className="inline-flex w-full items-center justify-center rounded-lg bg-neutral-900 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
         >
           Kembali ke Beranda
         </Link>

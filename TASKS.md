@@ -10,7 +10,7 @@
 | Diperbarui | 2026-08-21 |
 | Fase aktif | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`) |
 | Estimasi Phase 1 | **± 80%** (turun dari 85% — lihat *Kenapa estimasi turun* di bawah) |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ · **339 test hijau (25 file)** · **37 migration jalan bersih di lokal ✅ dan seluruhnya sudah ter-push ke cloud ✅** |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ · **364 test hijau (27 file)** · **37 migration jalan bersih di lokal ✅ dan seluruhnya sudah ter-push ke cloud ✅** |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
 
@@ -409,6 +409,58 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [x] `orders.delivery_address` dirakit RPC dari bagian-bagiannya — satu tempat saja yang menyusun teks itu
 - [x] Rem laju per nomor telepon (RPC) **dan** per alamat IP (`lib/security/rate-limit.ts`)
 
+#### Checkout — isian tidak lagi hilang (21 Agustus)
+
+> Rombakan 21 Agustus sebelumnya baru menyentuh landing, header, dan footer.
+> Checkout ditelusuri menyusul, dan celah terbesarnya ternyata bukan tampilan.
+
+- [x] **Isian tersimpan otomatis** (`features/checkout/draft.ts`). Sebelum ini,
+  satu kali muat ulang halaman membuang belasan medan di tiga langkah tanpa
+  peringatan apa pun — dan pemesan tidak punya cara memulihkannya
+- [x] **`sessionStorage`, bukan `localStorage` — keputusan privasi, bukan
+  selera.** Isian ini memuat nama anak, tanggal lahir, nomor telepon, email, dan
+  alamat rumah. `localStorage` meninggalkan semuanya di perangkat sampai ada yang
+  menghapusnya, termasuk di warnet atau ponsel pinjaman. `sessionStorage` habis
+  bersama tabnya
+- [x] **Pemulihan ditawarkan, tidak dipaksakan.** Mendapati kolom sudah terisi
+  data yang tidak diketahui asalnya lebih meresahkan daripada menolong —
+  terlebih bila perangkatnya dipakai berdua. Draft yang berhenti di langkah 1
+  tidak ditawarkan sama sekali: tidak ada yang layak diselamatkan
+- [x] **Draft dibuang begitu pesanan terkirim.** Tanpa ini, membuka checkout lagi
+  akan menawarkan memulihkan pesanan yang **sudah** masuk — dan pemesan bisa
+  mengirimnya dua kali tanpa merasa melakukan sesuatu yang salah
+- [x] Umur draft dibatasi 12 jam. Tanggal pelaksanaan yang dipilih kemarin
+  keburu lewat, dan memulihkannya hanya membuat pemesan menghadapi galat tanggal
+  yang tidak ia mengerti asalnya
+- [x] **`useSyncExternalStore`, bukan `useState` + efek.** `sessionStorage` tidak
+  ada saat render di server; hook inilah yang dirancang untuk sumber data di luar
+  React yang jawabannya berbeda antara server dan klien. Snapshot server
+  mengembalikan `null`, jadi hidrasinya tetap cocok — **diverifikasi**: nol
+  kemunculan banner pemulihan di HTML hasil render server
+- [x] **Hasil bacaan disinggahkan seumur halaman.** Bukan penghematan:
+  `useSyncExternalStore` memanggil `getSnapshot` tiap render dan membandingkannya
+  dengan `Object.is`. Mengurai JSON tiap kali menghasilkan objek baru
+  terus-menerus, yang dibaca React sebagai "berubah lagi" — render tak berujung
+- [x] **Tombol kembali peramban memundurkan langkah**, bukan meninggalkan
+  halaman. Di ponsel, gestur usap-dari-tepi adalah cara paling lazim membatalkan
+  sesuatu — dan tanpa ini gestur itu membuang tiga langkah isian sekaligus.
+  Entri pertama di-`replaceState` supaya langkah 1 tetap bisa ditinggalkan sekali
+  tekan; halaman yang menyandera terbaca sebagai rusak
+- [x] Tombol "Kembali" di layar menempuh jalur yang sama (`history.back()`),
+  jadi tumpukan riwayat tidak menyisakan entri "maju" yang menganggur
+- [x] `beforeunload` sebagai jaring terakhir — sebagian peramban mengabaikannya
+  bila pemesan belum berinteraksi, jadi ia melengkapi draft tersimpan, bukan
+  menggantikannya
+- [x] **Draft dari luar diperlakukan sebagai data tak terpercaya** (`coerceDraft`).
+  Isinya bisa berasal dari versi form sebelum deploy terakhir atau disunting
+  lewat devtools; satu medan yang hilang (mis. `delivery`) membuat komponen
+  menabrak `undefined` saat render — halaman putih, di tengah pengisian, tanpa
+  jejak penyebabnya
+- [x] **25 tes baru** (`checkout-draft.test.ts` 16 · `checkout-form-draft.test.tsx` 9):
+  penyaringan bentuk draft, kedaluwarsa, JSON rusak, penyimpanan yang ditolak
+  peramban, kestabilan snapshot, serta kapan tawaran pemulihan muncul dan kapan
+  justru tidak boleh muncul
+
 #### Belum selesai / ⚠️ perlu keputusan
 - [x] **Qurban dicabut dari pemasaran, fokus ke aqiqah — diputuskan 21 Agustus.**
   Checkout hanya melayani aqiqah (`.eq('type','aqiqah')`), dan kini seluruh
@@ -463,21 +515,41 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 #### Animasi & keresponsifan mobile (21 Agustus)
 
-- [x] **Satu gerakan saja**: naik 10px sambil memudar masuk (`@keyframes rise-in`),
-  0,5 detik, easing melambat di akhir. Tidak ada pantulan, skala, atau geser dari
-  samping — semuanya menarik perhatian ke gerakannya sendiri, bukan ke isinya
-- [x] Jarak tempuhnya sengaja kecil. Gerakan panjang membuat halaman terasa
-  "meloncat" saat digulir cepat di ponsel, dan itulah yang paling sering membuat
-  animasi terasa murahan
+- [x] **Satu gerakan saja**: naik 16px sambil memudar masuk (`@keyframes rise-in`),
+  **0,85 detik**, easing melambat di akhir. Tidak ada pantulan, skala, atau geser
+  dari samping — semuanya menarik perhatian ke gerakannya sendiri, bukan ke isinya
+- [x] **Easing diperbaiki setelah terasa menyentak.** Versi pertama memakai
+  `cubic-bezier(.22,1,.36,1)` (easeOutQuint) yang menempuh ~80% jarak dalam 20%
+  waktu pertama — terbaca sebagai "menyentak lalu menggantung", cepat sekaligus
+  kasar. Diganti `cubic-bezier(.33,1,.68,1)` (easeOutCubic) yang pembagian
+  kecepatannya jauh lebih merata
+- [x] **Durasi & jarak dinaikkan** dari 0,5 detik/10px. Yang terlalu singkat
+  tidak sempat terbaca sebagai gerakan — yang tertangkap mata hanya "sudah
+  telanjur ada". Jaraknya ikut ditambah karena perpindahan yang terlalu kecil
+  membuat easing apa pun tidak terasa bedanya
+- [x] **Pemicu dimajukan** (`rootMargin: 0 0 14% 0`) — dengan gerakan 0,85 detik,
+  memicu tepat saat elemen masuk pandangan berarti pengunjung menangkapnya di
+  tengah jalan, dan bagian yang paling terasa halus (perlambatan di akhir) justru
+  terlewat. Nilai versi pertama (`-8%`) efeknya kebalikan: memundurkan pemicu
+- [x] **Transisi hover diselaraskan** ke 220ms dengan easing yang sama, lewat
+  `--default-transition-*` di `@theme`. Bawaan Tailwind 150ms terbaca sebagai
+  pergantian mendadak dan terasa kaku di sebelah reveal. **Percobaan pertama
+  menuliskannya sebagai `@layer base { a, button { … } }` dan diam-diam tidak
+  berpengaruh** — utilitas `transition-colors` muncul belakangan di bundel dan
+  menimpanya; ketahuan saat memeriksa CSS hasil build, bukan dari kodenya
 - [x] **`<Reveal>` berbasis IntersectionObserver**, tanpa pustaka tambahan —
   memasang pustaka animasi untuk satu gerakan sepanjang 10px tidak sebanding
   dengan tambahan ukuran bundel. Animasi yang langsung jalan saat halaman dimuat
   akan sudah selesai sebelum pengunjung menggulir sampai ke sana
 - [x] **Sekali jalan, lalu berhenti diamati** — elemen yang muncul-hilang
   berulang saat digulir naik-turun terasa gelisah, terutama di ponsel
-- [x] **Jeda antar-anggota ditahan ≤ 240ms.** Pada kelompok enam foto, jeda
-  dihitung `i % 3` bukan `i` — dengan `i * 70` anggota terakhir menunggu 350ms
-  dan sudah terlewat sebelum sempat tampil
+- [x] **Jeda antar-anggota 110ms, ditahan ≤ 220ms** untuk kelompok yang muncul
+  saat digulir. Dihitung `i % 3`, bukan `i` — pada kelompok lima langkah, `i * 110`
+  membuat anggota terakhir menunggu 440ms, dan pada layar lebar kelimanya
+  berjajar sehingga selisih itu terbaca sebagai "menunggu", bukan sebagai urutan.
+  Ketahuan dari memeriksa `animation-delay` di HTML hasil build
+- [x] Hero boleh sampai 360ms karena ia tampil saat halaman dibuka, bukan saat
+  digulir — tidak ada risiko terlewat
 - [x] **`prefers-reduced-motion` dihormati** (`design.md §9`). Termasuk
   `scroll-behavior: smooth` yang sudah ada sejak lama **tanpa guard** — ia paling
   sering terlewat karena bukan animasi CSS melainkan perilaku bawaan peramban.
@@ -493,13 +565,16 @@ Tiga role tetap: **superadmin · admin · vendor**.
   dikurangi (`py-16` dari `py-20`); tombol menu dinaikkan ke 44×44px sesuai
   ambang target sentuh; `active:` state ditambahkan di seluruh tombol karena
   `hover:` tidak berarti apa-apa pada layar sentuh
-- [x] Panel menu mobile memudar & turun saat dibuka (200ms), sebelumnya muncul
-  mendadak. Jawaban FAQ juga memudar masuk — memberi tahu bahwa isi baru muncul,
-  bukan halaman yang meloncat
-- [x] **Terverifikasi di hasil build**: 43 elemen ber-`data-reveal`,
-  `@keyframes rise-in` & blok `prefers-reduced-motion` ikut ter-bundle, guard
-  `<noscript>` terpasang, jeda terlama 240ms, dan **judul serta kesepuluh foto
-  tetap ada di HTML hasil render** — jadi SEO dan pembaca layar tidak terpengaruh
+- [x] Panel menu mobile memudar & turun saat dibuka (320ms), sebelumnya muncul
+  mendadak. Jawaban FAQ juga memudar masuk (380ms) — memberi tahu bahwa isi baru
+  muncul, bukan halaman yang meloncat. Keduanya lebih singkat dari reveal karena
+  dibuka atas permintaan pengguna: yang menunggu jawaban tidak ingin diperlambat
+- [x] **Terverifikasi di hasil build**: `@keyframes rise-in` (16px / 0,85s /
+  easeOutCubic) & blok `prefers-reduced-motion` ikut ter-bundle, token
+  `--default-transition-duration: .22s` benar-benar berlaku, guard `<noscript>`
+  terpasang, jeda terlama 360ms (hero) dan 220ms (saat digulir), serta **judul
+  dan kesepuluh foto tetap ada di HTML hasil render** — jadi SEO dan pembaca
+  layar tidak terpengaruh
 
 #### Foto landing (21 Agustus)
 
@@ -561,7 +636,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] **339 unit test hijau di 25 file** — state machine order & hewan, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, rem laju & normalisasi nomor WhatsApp
+- [x] **364 unit test hijau di 27 file** — state machine order & hewan, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts`
 - [x] **Navigasi < 1024px** — bottom-nav + panel `≡`, disaring per role
 - [x] Penanda aktif sidebar diturunkan dari `pathname`, berhenti di batas segmen
@@ -582,6 +657,29 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [x] Konflik token warna diperbaiki (`app/globals.css`) — satu sumber kebenaran per token di `:root`
 - [x] Sesuai spec: `AppShell`, `KpiCard`, `StatusBadge`, `FilterBar`, `OrderCard`, `ValidationQueue`, `AlertList`, pola halaman list & detail, breakpoint responsif, bahasa Indonesia
 - [x] **Landing dikembalikan ke §1 (*clarity over decoration*) & §4 (radius 8–12px, shadow halus)** — lihat §8. Sebelumnya halaman publik justru jadi bagian yang paling jauh menyimpang dari spec-nya sendiri
+- [ ] **Checkout — sisa telusur UI/UX.** Penyimpanan isian sudah ditutup (§8);
+  yang tersisa, berurut dampaknya ke pemesan:
+  1. **Target sentuh < 44px** — tombol jam (`py-2` ≈ 34px, grid 3 kolom di lebar
+     360px), `StepperButton` jumlah ekor (`size-8` = 32px), dan tab langkah di
+     kepala wizard (`py-1.5` ≈ 28px). Ambang 44px itu sudah ditegakkan di header
+     landing, jadi checkout kini justru yang paling menyimpang
+  2. **Galat tidak sampai ke pembaca layar** — `FieldError` tanpa `role="alert"`
+     dan tanpa `aria-describedby` yang menautkannya ke input; pemakainya hanya
+     mendengar "invalid" tanpa tahu apa yang salah. Perpindahan langkah juga
+     tidak diumumkan dan fokus jatuh ke `<body>`
+  3. **`<Label>` yatim di 7 tempat** — merender `<label>` yang tidak menunjuk
+     kontrol apa pun; untuk grup tombol seharusnya `role="radiogroup"` +
+     `aria-labelledby`
+  4. **Radius & tinggi tombol tidak konsisten** — "Kembali" (`rounded-xl py-2.5`)
+     bersebelahan langsung dengan "Lanjut" (`rounded-lg py-3`); kartu
+     `rounded-lg` tapi input `rounded-xl`
+  5. **Sisa pekerjaan yang belum diberesi** — blok "Instansi Penerima Risalah"
+     dan info WhatsApp dikomentari, tapi `recipient_institution` masih hidup di
+     `Draft`, `FIELD_ANCHOR`, `FIELD_STEP`, dan `schema.ts`. Perlu diputuskan:
+     dipakai atau dicabut
+  6. `notes` diisi di langkah 4 tapi tidak muncul di ringkasan; textarea alamat
+     tanpa `autoComplete`; tidak ada `loading.tsx` untuk halaman `force-dynamic`;
+     `text-neutral-400` pada langkah belum-dicapai ≈2,6:1 (gagal WCAG AA)
 - [ ] ⚠️ **Halaman internal belum ditelusuri dengan ukuran yang sama.** Rombakan
   21 Agustus baru menyentuh landing, header, dan footer. Hitungan di
   `app/(app)`, `features/`, dan `components/{data,layout}`: **62 `rounded-2xl`**,

@@ -51,25 +51,26 @@ export default async function CheckoutPage({
   const maxDate = bookingMaxDate();
 
   return (
-    // Latar abu tipis memberi kedalaman pada kartu-kartu putih di atasnya —
-    // tanpa itu form tampak mengambang di halaman kosong.
-    <div className="min-h-screen bg-neutral-50 pt-20 pb-10 sm:pt-24 sm:pb-16">
-      <div className="mx-auto w-full max-w-6xl px-3 sm:px-6">
-        <header className="mb-6 max-w-2xl sm:mb-10">
-          <span className="text-primary text-xs font-semibold tracking-wide uppercase">
+    // Latar putih polos, sejalan dengan landing. Versi sebelumnya memakai latar
+    // abu agar kartu form tampak "melayang" — sekarang formnya sendiri sudah
+    // datar dan bergaris rambut, jadi tidak ada yang perlu diangkat.
+    <div className="min-h-screen pb-14 sm:pb-20">
+      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+        <header className="border-b border-neutral-200 py-10 sm:py-14">
+          <p className="text-primary text-xs font-semibold tracking-[0.14em] uppercase">
             Pemesanan Mandiri
-          </span>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
-            Pesan Aqiqah
+          </p>
+          <h1 className="mt-4 text-[1.75rem] leading-tight font-bold tracking-tight text-neutral-900 sm:text-4xl">
+            Pesan aqiqah
           </h1>
-          <p className="mt-3 leading-7 text-neutral-600">
+          <p className="mt-3.5 max-w-xl text-base leading-7 text-neutral-600">
             Empat langkah singkat, tanpa perlu membuat akun. Tim kami menghubungi Anda lewat
             WhatsApp untuk konfirmasi dan pembayaran.
           </p>
         </header>
 
         {unavailable ? (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+          <div className="mt-8 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900">
             <AlertTriangle className="mt-0.5 size-5 shrink-0" />
             <div>
               <p className="font-medium">Pemesanan mandiri belum tersedia</p>

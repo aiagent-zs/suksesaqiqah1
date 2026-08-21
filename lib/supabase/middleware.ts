@@ -25,6 +25,7 @@ const PROTECTED_PREFIXES = [
   '/dashboard',
   '/orders',
   '/schedule',
+  '/admin',
   '/validation',
   '/vendors',
   '/users',

@@ -28,6 +28,19 @@
   --color-info: #2563eb;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Durasi & easing bawaan untuk SELURUH utilitas `transition-*`.
+
+     Bawaan Tailwind 150ms dengan easing `cubic-bezier(.4,0,.2,1)` terbaca
+     sebagai pergantian mendadak, dan terasa kaku di sebelah gerakan reveal
+     yang jauh lebih tenang. Disetel di sini — bukan sebagai aturan CSS
+     biasa — karena utilitas `transition-colors` muncul belakangan di bundel
+     dan akan menimpa aturan mana pun yang ditulis di luar `@theme`.
+
+     Easing-nya sama persis dengan `rise-in` (easeOutCubic), jadi hover pada
+     tombol dan kemunculan blok terasa berasal dari sistem gerak yang sama. */
+  --default-transition-duration: 220ms;
+  --default-transition-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 @theme inline {
@@ -150,19 +163,31 @@ html {
    Animasi — sekadar mengiringi, bukan menjadi tontonan
 
    Sejalan dengan `design.md §1` (*clarity over decoration*): satu
-   gerakan saja (naik sedikit sambil memudar masuk), durasi pendek,
-   dan easing yang melambat di akhir. Tidak ada pantulan, tidak ada
-   skala, tidak ada geser dari samping — semuanya menarik perhatian
-   ke gerakannya sendiri, bukan ke isinya.
+   gerakan saja (naik sedikit sambil memudar masuk), dan easing yang
+   melambat di akhir. Tidak ada pantulan, tidak ada skala, tidak ada
+   geser dari samping — semuanya menarik perhatian ke gerakannya
+   sendiri, bukan ke isinya.
 
-   Jarak tempuhnya sengaja kecil (10px). Gerakan panjang membuat
-   halaman terasa "meloncat" saat digulir cepat di ponsel, dan
-   itulah yang paling sering membuat animasi terasa murahan.
+   **Soal easing.** Versi pertama memakai `cubic-bezier(.22,1,.36,1)`
+   (easeOutQuint): ia menempuh ~80% jarak dalam 20% waktu pertama,
+   jadi terbaca sebagai "menyentak lalu menggantung" — cepat sekaligus
+   kasar. Diganti `cubic-bezier(.33,1,.68,1)` (easeOutCubic) yang
+   pembagian kecepatannya jauh lebih merata, sehingga gerakannya
+   terbaca utuh dari awal sampai akhir.
+
+   **Soal durasi & jarak.** 0,85 detik dengan jarak 16px. Versi
+   pertama (0,5 detik / 10px) terlalu singkat untuk sempat terlihat
+   sebagai gerakan — yang tertangkap mata hanya "sudah telanjur ada".
+   Jaraknya pun ditambah karena perpindahan yang terlalu kecil
+   membuat easing apa pun tidak terasa bedanya.
+
+   Batas atasnya tetap dijaga: jarak yang jauh lebih panjang akan
+   membuat halaman terasa "meloncat" saat digulir cepat di ponsel.
    ============================================================ */
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -177,8 +202,16 @@ html {
 }
 
 [data-reveal='shown'] {
-  animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise-in 0.85s cubic-bezier(0.33, 1, 0.68, 1) both;
 }
+
+/* Catatan: durasi & easing bawaan seluruh utilitas `transition-*` disetel
+   lewat `--default-transition-*` di blok `@theme` paling atas berkas ini.
+
+   Menuliskannya sebagai aturan biasa di sini TIDAK bekerja — utilitas
+   `transition-colors` dari Tailwind muncul belakangan di CSS hasil bundel
+   dan menimpanya. Percobaan pertama memakai `@layer base { a, button { … } }`
+   dan diam-diam tidak berpengaruh sama sekali. */
 
 /* ============================================================
    Hormati preferensi pengguna (`design.md §9` — aksesibilitas)

@@ -194,7 +194,7 @@ export function AddressPicker({
   }
 
   return (
-    <div className="animate-in fade-in space-y-5 rounded-2xl border border-neutral-100 bg-neutral-50/60 p-5 duration-200">
+    <div className="animate-in fade-in space-y-5 rounded-lg border border-neutral-200 bg-neutral-50 p-4 duration-300 sm:p-5">
       <div>
         <p className="text-base font-bold text-neutral-900">Alamat Pengiriman</p>
         <p className="mt-0.5 text-xs text-neutral-500">

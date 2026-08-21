@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { primaryNav, siteConfig } from '@/lib/constants/site';
 import { IconClose, IconMenu, IconWhatsApp } from './icons';
@@ -9,6 +10,23 @@ import { Logo } from './Logo';
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
+
+  /**
+   * Seluruh menu utama menunjuk section di landing (`#layanan`, `#paket`, …).
+   *
+   * Header ini juga dipakai di `/checkout`, dan di sana section itu tidak ada
+   * sama sekali — jadi `href="#layanan"` tidak menuju ke mana pun: menunya
+   * **mati total**, dan pengunjung yang sudah masuk halaman checkout tidak
+   * punya jalan kembali ke bagian mana pun di landing selain lewat logo.
+   *
+   * Karena itu anchor-nya diberi awalan path saat kita sedang di luar landing,
+   * sehingga jadi tautan lintas-halaman (`/#layanan`) yang membuka landing lalu
+   * menggulir ke seksinya. Di landing sendiri anchor dibiarkan polos supaya
+   * peramban menggulir mulus tanpa memuat ulang halaman.
+   */
+  const isLanding = pathname === '/';
+  const navHref = (hash: string) => (isLanding ? hash : `/${hash}`);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -24,6 +42,40 @@ export function SiteHeader() {
       document.body.style.overflow = '';
     };
   }, [open]);
+
+  /**
+   * Tutup menu, lalu biarkan peramban menggulir ke anchor-nya.
+   *
+   * Menekan "Paket" di menu mobile memanggil `setOpen(false)` **sekaligus**
+   * melepas navigasi `#paket`. Kunci `overflow: hidden` di atas baru terlepas
+   * setelah React selesai me-render, sementara peramban sudah mencoba menggulir
+   * lebih dulu — dan menggulir di dalam `body` yang masih terkunci tidak
+   * menghasilkan apa-apa. Menunya terasa mati padahal tautannya benar.
+   *
+   * Jadi navigasi bawaannya dicegah, menu ditutup, lalu penggulirannya
+   * dikerjakan sendiri pada frame berikutnya — saat kuncinya sudah lepas.
+   * `history.pushState` dipakai agar alamatnya tetap membawa hash, sehingga
+   * tautannya masih bisa disalin dan dibagikan.
+   */
+  const handleMobileNavClick =
+    (hash: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
+      // Di luar landing tautannya lintas-halaman (`/#paket`) — biarkan Next
+      // yang menanganinya seperti biasa.
+      if (!isLanding) {
+        setOpen(false);
+        return;
+      }
+
+      const target = document.querySelector(hash);
+      if (!target) return; // Section tak ditemukan: jangan cegah apa pun.
+
+      e.preventDefault();
+      setOpen(false);
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ block: 'start' });
+        history.pushState(null, '', hash);
+      });
+    };
 
   return (
     // Latar solid dan garis bawah yang selalu ada. Versi sebelumnya memakai
@@ -44,7 +96,7 @@ export function SiteHeader() {
           {primaryNav.map((item) => (
             <a
               key={item.href}
-              href={item.href}
+              href={navHref(item.href)}
               className="hover:text-primary rounded-md px-3 py-2 text-sm font-medium text-neutral-600 transition-colors"
             >
               {item.label}
@@ -94,17 +146,19 @@ export function SiteHeader() {
         </button>
       </div>
 
-      {/* Menu mobile — memudar & turun sedikit saat dibuka, sepanjang 200ms.
-          Cukup untuk terbaca sebagai "panel ini datang dari header", tanpa
-          menahan pengunjung yang sudah tahu mau ke mana. */}
+      {/* Menu mobile — memudar & turun sedikit saat dibuka. 320ms: cukup untuk
+          terbaca sebagai "panel ini datang dari header" dan selaras dengan
+          gerakan lain di halaman, tanpa menahan pengunjung yang sudah tahu mau
+          ke mana. Panel yang dibuka atas permintaan pengguna memang wajar lebih
+          singkat daripada reveal yang muncul sendiri saat digulir. */}
       {open && (
-        <div className="animate-in fade-in slide-in-from-top-2 border-t border-neutral-200 bg-white duration-200 md:hidden">
+        <div className="animate-in fade-in slide-in-from-top-2 border-t border-neutral-200 bg-white duration-[320ms] ease-out md:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col px-4 py-3 sm:px-6">
             {primaryNav.map((item) => (
               <a
                 key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
+                href={navHref(item.href)}
+                onClick={handleMobileNavClick(item.href)}
                 className="hover:text-primary rounded-lg px-2 py-3.5 text-base font-medium text-neutral-700 transition-colors hover:bg-neutral-50 active:bg-neutral-100"
               >
                 {item.label}

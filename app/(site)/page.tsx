@@ -42,10 +42,16 @@ const orderMessage = (paket?: string) =>
  * jujur pada produknya — yang dijual adalah dokumentasi dan keterlacakan, dan
  * tampilan dokumenter menyampaikan itu lebih baik daripada tampilan promosi.
  *
- * **Animasi** mengikuti aturan yang sama: satu gerakan saja (naik 10px sambil
+ * **Animasi** mengikuti aturan yang sama: satu gerakan saja (naik 16px sambil
  * memudar masuk) lewat `<Reveal>`, dipakai pada blok besar — bukan pada setiap
- * elemen. Jeda antar-anggota satu kelompok ditahan di bawah 200ms supaya
- * pengunjung yang menggulir cepat tidak melewati elemen sebelum ia tampil.
+ * elemen. Durasi & easing-nya diatur terpusat di `app/globals.css`; yang
+ * ditentukan di sini hanya urutan tampilnya lewat `delay`.
+ *
+ * Jeda antar-anggota satu kelompok 110ms — cukup lebar untuk terbaca berurutan
+ * pada gerakan sepanjang 0,85 detik, tapi tetap ditahan agar totalnya tidak
+ * melebihi ~330ms per kelompok. Pemicunya sendiri sudah dimajukan lewat
+ * `rootMargin`, jadi jeda itu terbayar sebelum elemennya terlihat.
+ *
  * Seluruhnya mati sendiri saat pengguna memilih "kurangi gerakan" di setelan
  * sistem (lihat `app/globals.css`).
  */
@@ -75,8 +81,9 @@ function Hero() {
     <section className="border-b border-neutral-200">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:gap-12 sm:px-6 sm:py-20 lg:grid-cols-[1fr_0.85fr] lg:items-end lg:gap-16 lg:py-24">
         {/* Hero tampil bertahap saat halaman dibuka: label → judul → paragraf →
-            tombol → fakta. Jeda 60ms antar-baris cukup untuk terbaca berurutan
-            tanpa membuat pengunjung menunggu. */}
+            tombol → fakta. Jeda 90ms antar-baris — cukup untuk terbaca sebagai
+            urutan, dan berhenti di 360ms supaya isi terpenting halaman ini
+            tidak membuat pengunjung menunggu. */}
         <div>
           <Reveal>
             <p className="text-primary text-xs font-semibold tracking-[0.14em] uppercase">
@@ -87,7 +94,7 @@ function Hero() {
           {/* Ukuran & bobot yang membangun hierarki, bukan gradasi warna.
               `text-[2rem]` di ponsel: `text-4xl` membuat "tebarkan manfaat."
               pecah jadi tiga baris pada lebar 360px. */}
-          <Reveal delay={60}>
+          <Reveal delay={90}>
             <h1 className="mt-5 text-[2rem] leading-[1.1] font-bold tracking-tight text-neutral-900 sm:text-5xl lg:text-6xl">
               Tunaikan ibadah,
               <br />
@@ -95,7 +102,7 @@ function Hero() {
             </h1>
           </Reveal>
 
-          <Reveal delay={120}>
+          <Reveal delay={180}>
             <p className="mt-5 max-w-xl text-base leading-7 text-neutral-600 sm:mt-6 sm:text-lg sm:leading-8">
               Aqiqah yang dikerjakan sesuai syariat dan dicatat di setiap tahapnya. Anda memantau
               prosesnya, lalu menerima laporan pelaksanaan berisi bukti — tanpa perlu bertanya.
@@ -104,7 +111,7 @@ function Hero() {
 
           {/* Tombol selebar layar di ponsel — target sentuh besar
               (`design.md §6`: "aksi 1-tap"). */}
-          <Reveal delay={180}>
+          <Reveal delay={270}>
             <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row">
               <Link
                 href="/checkout"
@@ -129,7 +136,7 @@ function Hero() {
               tidak menuntut perhatian sebesar kartu. Di ponsel dibuat dua kolom
               agar tidak jadi tiga baris penuh yang mendorong foto terlalu jauh
               ke bawah. */}
-          <Reveal delay={240}>
+          <Reveal delay={360}>
             <dl className="mt-9 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-neutral-200 pt-6 text-sm sm:flex sm:flex-wrap sm:gap-x-8">
               {[
                 { value: 'Tanpa akun', label: 'Pesan langsung di web' },
@@ -147,7 +154,7 @@ function Hero() {
 
         {/* Foto dalam bingkai datar bergaris rambut — tanpa bayangan tebal,
             tanpa sudut membulat besar. */}
-        <Reveal as="figure" delay={120} className="lg:pb-1">
+        <Reveal as="figure" delay={180} className="lg:pb-1">
           <div className="overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
             <SitePhoto
               src={landingPhotos.hero.src}
@@ -187,7 +194,7 @@ function ServicesSection() {
         {services.map((s, i) => (
           <Reveal
             key={s.title}
-            delay={i * 70}
+            delay={i * 110}
             className="px-0 py-7 sm:py-8 md:px-7 md:first:pl-0 md:last:pr-0"
           >
             <Icon name={s.icon} className="text-primary h-7 w-7" />
@@ -213,7 +220,7 @@ function PackagesSection() {
 
       <div className="mt-10 grid gap-px overflow-hidden rounded-lg border border-neutral-200 bg-neutral-200 sm:mt-12 lg:grid-cols-3">
         {aqiqahPrograms.map((p, i) => (
-          <Reveal key={p.slug} as="article" delay={i * 70} className="flex flex-col bg-white">
+          <Reveal key={p.slug} as="article" delay={i * 110} className="flex flex-col bg-white">
             <div className="overflow-hidden bg-neutral-100">
               <SitePhoto
                 src={p.photo.src}
@@ -332,7 +339,17 @@ function ProcessSection() {
             mengambang di sudut kartu. */}
         <ol className="mt-10 grid gap-px bg-white/15 sm:mt-14 sm:grid-cols-2 lg:grid-cols-5">
           {processSteps.map((step, i) => (
-            <Reveal key={step.step} as="li" delay={i * 60} className="bg-primary-dark p-5 sm:p-6">
+            // Lima langkah — dibatasi `i % 3` seperti kelompok lain, jadi jeda
+            // terbesarnya 220ms, bukan 440ms. Tanpa batas ini langkah terakhir
+            // baru muncul hampir setengah detik sesudah yang pertama, dan pada
+            // layar lebar kelimanya berjajar sehingga perbedaannya kentara
+            // sebagai "menunggu", bukan sebagai urutan.
+            <Reveal
+              key={step.step}
+              as="li"
+              delay={(i % 3) * 110}
+              className="bg-primary-dark p-5 sm:p-6"
+            >
               <span className="text-accent block text-2xl font-bold tabular-nums">{step.step}</span>
               <h3 className="mt-3 text-base font-semibold">{step.title}</h3>
               <p className="mt-2 text-sm leading-6 text-white/70">{step.description}</p>
@@ -366,7 +383,7 @@ function GallerySection() {
           // Jeda dihitung per baris, bukan per foto: dengan enam foto, `i * 70`
           // membuat yang terakhir menunggu 350ms — sudah terlewat saat digulir.
           // `i % 3` menahan jeda maksimum di 140ms untuk semua ukuran layar.
-          <Reveal key={photo.src} as="figure" delay={(i % 3) * 70}>
+          <Reveal key={photo.src} as="figure" delay={(i % 3) * 110}>
             <div className="overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
               <SitePhoto
                 src={photo.src}
@@ -406,7 +423,7 @@ function FeaturesSection() {
 
       <div className="mt-10 grid gap-x-10 gap-y-7 sm:mt-12 sm:grid-cols-2 sm:gap-y-9 lg:grid-cols-3">
         {features.map((f, i) => (
-          <Reveal key={f.title} delay={(i % 3) * 70} className="border-t border-neutral-200 pt-5">
+          <Reveal key={f.title} delay={(i % 3) * 110} className="border-t border-neutral-200 pt-5">
             <div className="flex items-center gap-2.5">
               <Icon name={f.icon} className="text-primary h-5 w-5 shrink-0" />
               <h3 className="text-base font-semibold text-neutral-900">{f.title}</h3>
@@ -453,7 +470,7 @@ function FaqSection() {
             </summary>
             {/* Jawaban ikut memudar masuk saat dibuka — memberi tahu bahwa isi
                 baru muncul, bukan halaman yang meloncat. */}
-            <p className="animate-in fade-in slide-in-from-top-1 mt-3 max-w-2xl text-sm leading-7 text-neutral-600 duration-300">
+            <p className="animate-in fade-in slide-in-from-top-1 mt-3 max-w-2xl text-sm leading-7 text-neutral-600 duration-[380ms] ease-out">
               {faq.answer}
             </p>
           </details>
@@ -539,7 +556,7 @@ function Section({
 
 function SectionIntro({ title, lead }: { title: string; lead: string }) {
   return (
-    <Reveal delay={60} className="mt-4 max-w-2xl">
+    <Reveal delay={90} className="mt-4 max-w-2xl">
       <h2 className="text-[1.75rem] leading-tight font-bold tracking-tight text-neutral-900 sm:text-4xl">
         {title}
       </h2>

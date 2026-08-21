@@ -39,9 +39,11 @@ export type RevealProps = {
    * Penundaan sebelum elemen ini muncul, dalam milidetik.
    *
    * Dipakai untuk memberi jeda antar-anggota satu kelompok, sehingga kartu
-   * berjajar tampil berurutan alih-alih serentak. Tahan diri: di atas ~200ms
-   * pengunjung yang menggulir cepat sudah melewati elemennya sebelum sempat
-   * tampil, dan yang tertinggal justru kesan halaman lambat.
+   * berjajar tampil berurutan alih-alih serentak. Tahan diri: jeda yang panjang
+   * membuat pengunjung yang menggulir cepat melewati elemennya sebelum sempat
+   * tampil, dan yang tertinggal justru kesan halaman lambat. Di halaman ini
+   * jeda terbesar 240ms, dan pemicunya sudah dimajukan lewat `rootMargin`
+   * supaya jeda itu terbayar sebelum elemennya terlihat.
    */
   delay?: number;
 };
@@ -77,10 +79,16 @@ export function Reveal({ children, as, className, delay = 0 }: RevealProps) {
         }
       },
       {
-        // Sedikit sebelum benar-benar masuk layar, supaya gerakannya sudah
-        // selesai saat elemen berada di tengah pandangan.
-        rootMargin: '0px 0px -8% 0px',
-        threshold: 0.08,
+        // Kotak deteksi diperpanjang ~14% ke bawah layar, jadi elemen mulai
+        // bergerak SEBELUM benar-benar terlihat. Dengan gerakan sepanjang 0,85
+        // detik, memicu tepat saat elemen masuk pandangan berarti pengunjung
+        // menangkapnya di tengah jalan — dan bagian yang paling terasa halus,
+        // yaitu perlambatan di akhir, justru terlewat.
+        //
+        // Nilainya negatif pada versi pertama (`-8%`), yang efeknya kebalikan:
+        // pemicunya jadi lebih lambat, bukan lebih awal.
+        rootMargin: '0px 0px 14% 0px',
+        threshold: 0,
       },
     );
 
