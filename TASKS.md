@@ -10,7 +10,7 @@
 | Diperbarui | 2026-08-21 |
 | Fase aktif | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`) |
 | Estimasi Phase 1 | **± 80%** (turun dari 85% — lihat *Kenapa estimasi turun* di bawah) |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ (1 warning lama) · `npm run build` ✅ · **339 test hijau (25 file)** · **37 migration jalan bersih di lokal ✅ dan seluruhnya sudah ter-push ke cloud ✅** |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ · **339 test hijau (25 file)** · **37 migration jalan bersih di lokal ✅ dan seluruhnya sudah ter-push ke cloud ✅** |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
 
@@ -430,6 +430,77 @@ Tiga role tetap: **superadmin · admin · vendor**.
   Rangkaiannya berbeda dari aqiqah — tidak ada "aqiqah untuk siapa", dan
   penyalurannya lazimnya massal, bukan per pemesan
 
+#### Landing dirombak — editorial, bukan dekoratif (21 Agustus)
+
+- [x] **Kembali ke `design.md §1` — *clarity over decoration*.** Tampilan
+  sebelumnya justru melanggar spec-nya sendiri: `design.md §4` menetapkan radius
+  **8–12px** dan *"shadow halus"*, sementara halamannya memakai `rounded-3xl`
+  dan `shadow-2xl` bertumpuk
+- [x] Yang dibuang, semuanya karena menarik perhatian ke dirinya sendiri alih-alih
+  ke isinya: teks bergradasi (`bg-clip-text`) yang menurunkan keterbacaan judul,
+  gumpalan blur dekoratif (`blur-3xl`), bayangan tebal, tombol pil
+  (`rounded-full`), dan `hover:-translate-y` di tiap kartu
+- [x] Penggantinya: hierarki tipografi yang tegas, garis rambut sebagai pemisah
+  (`divide-*`, `border-y`), rata kiri alih-alih rata tengah, dan satu warna
+  aksen dipakai hemat. Section diberi penanda urutan bernomor (01–06) supaya
+  halaman yang panjang tetap terasa punya posisi, tanpa berganti-ganti warna latar
+- [x] **Bentuk ini lebih jujur pada produknya.** Yang dijual keterlacakan dan
+  dokumentasi — tampilan dokumenter menyampaikan itu lebih baik daripada
+  tampilan promosi
+- [x] Keterangan galeri pindah ke **bawah** foto, tidak lagi ditumpuk di atasnya
+  lewat gradasi gelap: teks di atas foto keterbacaannya bergantung pada seterang
+  apa foto yang nanti diunggah — dan foto itu belum ada saat halaman ini ditulis
+- [x] **Header: dua tombol jadi satu.** Sebelumnya "Pesan Online" dan "Pesan
+  Sekarang" berdampingan — pengunjung harus menebak bedanya. WhatsApp turun jadi
+  tautan biasa, menyisakan satu aksi utama
+- [x] Label "Terpopuler" jadi label teks kecil di dalam kartu, bukan pita
+  mengambang yang menggeser tata letak kartunya
+- [x] **Terverifikasi**: nol kemunculan `bg-clip-text`, `blur-3xl`, `shadow-2xl`,
+  `rounded-3xl`, `hover:-translate-y`, dan `backdrop-blur` di HTML hasil render
+- [x] Warning lint lama ikut tertutup (`siteConfig` tak terpakai di `Logo.tsx`,
+  beserta prop `light` yang ternyata memilih dua warna yang sama persis) —
+  **lint kini nol warning**
+
+#### Animasi & keresponsifan mobile (21 Agustus)
+
+- [x] **Satu gerakan saja**: naik 10px sambil memudar masuk (`@keyframes rise-in`),
+  0,5 detik, easing melambat di akhir. Tidak ada pantulan, skala, atau geser dari
+  samping — semuanya menarik perhatian ke gerakannya sendiri, bukan ke isinya
+- [x] Jarak tempuhnya sengaja kecil. Gerakan panjang membuat halaman terasa
+  "meloncat" saat digulir cepat di ponsel, dan itulah yang paling sering membuat
+  animasi terasa murahan
+- [x] **`<Reveal>` berbasis IntersectionObserver**, tanpa pustaka tambahan —
+  memasang pustaka animasi untuk satu gerakan sepanjang 10px tidak sebanding
+  dengan tambahan ukuran bundel. Animasi yang langsung jalan saat halaman dimuat
+  akan sudah selesai sebelum pengunjung menggulir sampai ke sana
+- [x] **Sekali jalan, lalu berhenti diamati** — elemen yang muncul-hilang
+  berulang saat digulir naik-turun terasa gelisah, terutama di ponsel
+- [x] **Jeda antar-anggota ditahan ≤ 240ms.** Pada kelompok enam foto, jeda
+  dihitung `i % 3` bukan `i` — dengan `i * 70` anggota terakhir menunggu 350ms
+  dan sudah terlewat sebelum sempat tampil
+- [x] **`prefers-reduced-motion` dihormati** (`design.md §9`). Termasuk
+  `scroll-behavior: smooth` yang sudah ada sejak lama **tanpa guard** — ia paling
+  sering terlewat karena bukan animasi CSS melainkan perilaku bawaan peramban.
+  Isinya tetap tampil: `[data-reveal]` dikembalikan ke `opacity: 1`, jadi
+  mematikan animasi tidak pernah berarti menyembunyikan konten
+- [x] **Jaring pengaman JavaScript mati.** `[data-reveal]` lahir `opacity: 0`,
+  jadi tanpa JS seluruh isi halaman akan tak terlihat — halaman kosong yang
+  tampak rusak. Ditutup `<noscript>` di `app/(site)/layout.tsx`, ditambah
+  fallback di `Reveal` bila `IntersectionObserver` tidak tersedia
+- [x] **Mobile**: ukuran judul hero diturunkan ke `2rem` (pada `text-4xl`,
+  "tebarkan manfaat." pecah jadi tiga baris di lebar 360px); strip fakta jadi
+  dua kolom agar tidak mendorong foto terlalu jauh ke bawah; padding section
+  dikurangi (`py-16` dari `py-20`); tombol menu dinaikkan ke 44×44px sesuai
+  ambang target sentuh; `active:` state ditambahkan di seluruh tombol karena
+  `hover:` tidak berarti apa-apa pada layar sentuh
+- [x] Panel menu mobile memudar & turun saat dibuka (200ms), sebelumnya muncul
+  mendadak. Jawaban FAQ juga memudar masuk — memberi tahu bahwa isi baru muncul,
+  bukan halaman yang meloncat
+- [x] **Terverifikasi di hasil build**: 43 elemen ber-`data-reveal`,
+  `@keyframes rise-in` & blok `prefers-reduced-motion` ikut ter-bundle, guard
+  `<noscript>` terpasang, jeda terlama 240ms, dan **judul serta kesepuluh foto
+  tetap ada di HTML hasil render** — jadi SEO dan pembaca layar tidak terpengaruh
+
 #### Foto landing (21 Agustus)
 
 - [x] **Komponen `SitePhoto`** — merender foto bila berkasnya ada di `public/`,
@@ -510,6 +581,17 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 - [x] Konflik token warna diperbaiki (`app/globals.css`) — satu sumber kebenaran per token di `:root`
 - [x] Sesuai spec: `AppShell`, `KpiCard`, `StatusBadge`, `FilterBar`, `OrderCard`, `ValidationQueue`, `AlertList`, pola halaman list & detail, breakpoint responsif, bahasa Indonesia
+- [x] **Landing dikembalikan ke §1 (*clarity over decoration*) & §4 (radius 8–12px, shadow halus)** — lihat §8. Sebelumnya halaman publik justru jadi bagian yang paling jauh menyimpang dari spec-nya sendiri
+- [ ] ⚠️ **Halaman internal belum ditelusuri dengan ukuran yang sama.** Rombakan
+  21 Agustus baru menyentuh landing, header, dan footer. Hitungan di
+  `app/(app)`, `features/`, dan `components/{data,layout}`: **62 `rounded-2xl`**,
+  2 `rounded-3xl`, 2 `shadow-xl`, 1 `shadow-2xl` — seluruhnya di luar rentang
+  radius 8–12px yang diminta §4. Yang menenangkan: `bg-clip-text` dan `blur-3xl`
+  **nol** di sana, jadi yang perlu dirapikan hanya radius & bayangan, bukan
+  dekorasi. Belum dikerjakan karena ini halaman staf — tidak dilihat pemesan,
+  dan menyentuh 60+ tempat sekaligus lebih baik jadi satu pekerjaan tersendiri
+- [x] **`prefers-reduced-motion` ditegakkan global** (§9) — sebelumnya
+  `scroll-behavior: smooth` berjalan tanpa guard sama sekali
 - [ ] **§8 State & Feedback — bagian terlemah.** Tidak ada toast, `Skeleton`, `loading.tsx`/`error.tsx`, konfirmasi aksi destruktif, maupun banner "Mode offline"
 - [ ] Token semantik `success`/`warning`/`danger`/`info` terdefinisi tapi hampir tak terpakai
 - [ ] Sidebar merender navy `#0b1c30` yang di-hardcode di 11 tempat, sementara token `--sidebar` bernilai hijau dan `design.md §3` tidak menyebut navy sama sekali

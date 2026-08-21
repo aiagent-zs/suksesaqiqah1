@@ -56,16 +56,20 @@ export function SitePhoto({
   sizes,
 }: SitePhotoProps) {
   if (!photoExists(src)) {
+    // Sengaja tenang: kotak abu rata, satu ikon tipis, dan path-nya. Versi
+    // bergaris putus-putus sempat dipakai lalu dilepas — ia menarik perhatian
+    // ke slot yang justru sedang kosong, dan pada halaman yang penuh foto,
+    // sepuluh bingkai putus-putus lebih berisik daripada isinya nanti.
     return (
       <div
         role="img"
         aria-label={`Foto belum tersedia: ${alt}`}
-        className={`flex flex-col items-center justify-center gap-2 border border-dashed border-neutral-300 bg-neutral-100 p-4 text-center ${className ?? ''}`}
+        className={`flex flex-col items-center justify-center gap-2 bg-neutral-100 p-4 text-center ${className ?? ''}`}
         style={{ aspectRatio: `${width} / ${height}` }}
       >
         <svg
           viewBox="0 0 24 24"
-          className="h-7 w-7 shrink-0 text-neutral-400"
+          className="h-6 w-6 shrink-0 text-neutral-300"
           fill="none"
           stroke="currentColor"
           strokeWidth={1.5}
@@ -77,10 +81,7 @@ export function SitePhoto({
           <circle cx="8.5" cy="8.5" r="1.5" />
           <path d="m21 15-5-5L5 21" />
         </svg>
-        <p className="text-[11px] leading-4 font-semibold text-neutral-500">Foto belum diisi</p>
-        <code className="rounded bg-white/80 px-1.5 py-0.5 text-[10px] leading-4 break-all text-neutral-500">
-          public/{src}
-        </code>
+        <code className="text-[10px] leading-4 break-all text-neutral-400">{src}</code>
       </div>
     );
   }

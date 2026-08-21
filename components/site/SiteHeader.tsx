@@ -45,7 +45,7 @@ export function SiteHeader() {
             <a
               key={item.href}
               href={item.href}
-              className="hover:text-primary rounded-full px-3.5 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100"
+              className="hover:text-primary rounded-md px-3 py-2 text-sm font-medium text-neutral-600 transition-colors"
             >
               {item.label}
             </a>
@@ -61,27 +61,32 @@ export function SiteHeader() {
           </Link> */}
           {/* Pemesanan mandiri berdampingan dengan WhatsApp, bukan
               menggantikannya — memilih kanal pemesanan adalah keputusan bisnis. */}
-          <Link
-            href="/checkout"
-            className="hover:border-primary hover:text-primary rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors"
-          >
-            Pesan Online
-          </Link>
           <a
             href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin memesan layanan.')}
             target="_blank"
             rel="noopener noreferrer"
-            className="bg-primary hover:bg-primary-dark inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors"
+            className="hover:text-primary inline-flex items-center gap-2 text-sm font-medium text-neutral-600 transition-colors"
           >
             <IconWhatsApp className="h-4 w-4" />
-            Pesan Sekarang
+            WhatsApp
           </a>
+          {/* Satu tombol utama saja. Sebelumnya ada dua tombol berdampingan —
+              "Pesan Online" dan "Pesan Sekarang" — yang menyulitkan pengunjung
+              menebak bedanya. WhatsApp turun jadi tautan biasa. */}
+          <Link
+            href="/checkout"
+            className="bg-primary hover:bg-primary-dark inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors"
+          >
+            Pesan Online
+          </Link>
         </div>
 
+        {/* 44×44px — ambang target sentuh yang nyaman di ponsel
+            (`design.md §9`: "target sentuh besar"). */}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-neutral-700 transition-colors hover:bg-neutral-100 md:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-neutral-700 transition-colors hover:bg-neutral-100 active:bg-neutral-200 md:hidden"
           aria-label={open ? 'Tutup menu' : 'Buka menu'}
           aria-expanded={open}
         >
@@ -89,16 +94,18 @@ export function SiteHeader() {
         </button>
       </div>
 
-      {/* Menu mobile */}
+      {/* Menu mobile — memudar & turun sedikit saat dibuka, sepanjang 200ms.
+          Cukup untuk terbaca sebagai "panel ini datang dari header", tanpa
+          menahan pengunjung yang sudah tahu mau ke mana. */}
       {open && (
-        <div className="border-t border-neutral-200 bg-white md:hidden">
+        <div className="animate-in fade-in slide-in-from-top-2 border-t border-neutral-200 bg-white duration-200 md:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col px-4 py-3 sm:px-6">
             {primaryNav.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="hover:text-primary rounded-lg px-2 py-3 text-base font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+                className="hover:text-primary rounded-lg px-2 py-3.5 text-base font-medium text-neutral-700 transition-colors hover:bg-neutral-50 active:bg-neutral-100"
               >
                 {item.label}
               </a>
@@ -114,7 +121,7 @@ export function SiteHeader() {
               <Link
                 href="/checkout"
                 onClick={() => setOpen(false)}
-                className="rounded-full border border-neutral-300 px-4 py-2.5 text-center text-sm font-semibold text-neutral-700"
+                className="bg-primary rounded-lg px-4 py-3 text-center text-sm font-semibold text-white"
               >
                 Pesan Online
               </Link>
@@ -122,10 +129,10 @@ export function SiteHeader() {
                 href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin memesan layanan.')}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-primary inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 px-4 py-3 text-sm font-semibold text-neutral-800"
               >
                 <IconWhatsApp className="h-4 w-4" />
-                Pesan Sekarang
+                Tanya via WhatsApp
               </a>
             </div>
           </nav>

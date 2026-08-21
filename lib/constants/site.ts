@@ -41,11 +41,10 @@ export const siteConfig = {
 /**
  * Menu navigasi utama (anchor ke section di landing).
  *
- * "Keunggulan" dilepas dari sini saat Galeri masuk — bukan karena sectionnya
- * hilang (ia tetap ada dan tetap bisa dicapai dengan menggulir), melainkan
- * karena header memuat dua tombol aksi di sebelah kanan, dan enam butir menu
- * membuat keduanya berdesakan pada lebar tablet. Galeri didahulukan karena ia
- * bukti, sedangkan Keunggulan klaim.
+ * Urutannya mengikuti urutan section di halaman, jadi menu ini sekaligus jadi
+ * daftar isi. "Keunggulan" sengaja tidak masuk meski sectionnya ada: ia berisi
+ * klaim, sementara lima butir di bawah membawa pengunjung ke hal yang bisa
+ * diperiksa sendiri — dan header hanya menyisakan ruang untuk lima.
  */
 export const primaryNav = [
   { label: 'Layanan', href: '#layanan' },

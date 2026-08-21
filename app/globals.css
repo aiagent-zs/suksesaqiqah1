@@ -146,6 +146,73 @@ html {
   scroll-padding-top: 5rem;
 }
 
+/* ============================================================
+   Animasi — sekadar mengiringi, bukan menjadi tontonan
+
+   Sejalan dengan `design.md §1` (*clarity over decoration*): satu
+   gerakan saja (naik sedikit sambil memudar masuk), durasi pendek,
+   dan easing yang melambat di akhir. Tidak ada pantulan, tidak ada
+   skala, tidak ada geser dari samping — semuanya menarik perhatian
+   ke gerakannya sendiri, bukan ke isinya.
+
+   Jarak tempuhnya sengaja kecil (10px). Gerakan panjang membuat
+   halaman terasa "meloncat" saat digulir cepat di ponsel, dan
+   itulah yang paling sering membuat animasi terasa murahan.
+   ============================================================ */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Elemen yang menunggu giliran tampil. Ditandai lewat atribut, bukan
+   kelas, supaya tidak bisa tertimpa utilitas Tailwind tanpa sengaja. */
+[data-reveal] {
+  opacity: 0;
+}
+
+[data-reveal='shown'] {
+  animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ============================================================
+   Hormati preferensi pengguna (`design.md §9` — aksesibilitas)
+
+   Sebagian orang memilih "kurangi gerakan" di setelan sistem karena
+   animasi memicu pusing atau mual, bukan karena selera. Di sini
+   seluruh gerakan dimatikan — TERMASUK `scroll-behavior: smooth`
+   di atas, yang justru paling sering terlewat karena ia bukan
+   animasi CSS melainkan perilaku bawaan peramban.
+
+   Isinya tetap tampil: `[data-reveal]` dikembalikan ke `opacity: 1`,
+   jadi mematikan animasi tidak pernah berarti menyembunyikan konten.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  [data-reveal],
+  [data-reveal='shown'] {
+    opacity: 1;
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
