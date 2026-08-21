@@ -1,15 +1,21 @@
 -- =============================================================================
--- Seed 02 — Data demo (NON-PRODUKSI)
--- Tujuan: views KPI (v_open_orders, v_branch_kpi, v_order_progress) mengembalikan
--- data, dan tersedia user tiap role untuk uji Auth (Tahap 2) & RLS (Tahap 3).
+-- Seed 02 — Data demo (LOKAL / NON-PRODUKSI)
 --
--- Password semua akun demo: Password123!
--- JANGAN dipakai di environment produksi.
+-- Tujuannya dua: view KPI mengembalikan angka yang bukan nol, dan tersedia satu
+-- akun per role untuk menguji Auth & RLS.
+--
+-- **Password semua akun demo: Password123!**
+-- Berkas ini TIDAK ikut `supabase db push`, jadi akun-akun ini tidak akan
+-- pernah sampai ke cloud. Superadmin pertama di produksi dibuat lewat dashboard
+-- Supabase, lalu sisanya lewat halaman /users.
 -- =============================================================================
 
--- --- User demo (auth.users) -------------------------------------------------
--- Trigger public.handle_new_user() otomatis membuat baris public.profiles
--- dengan role & branch_id yang diambil dari raw_user_meta_data.
+-- --- Akun demo --------------------------------------------------------------
+--
+-- Trigger `handle_new_user` membuat baris `profiles` otomatis — selalu sebagai
+-- **vendor non-aktif**, apa pun isi metadata. Itu disengaja: kalau role dibaca
+-- dari metadata, siapa pun yang bisa mendaftar mandiri bisa menyisipkan
+-- `{"role":"admin"}`. Peran sesungguhnya disetel lewat UPDATE di bawah.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at,
@@ -25,163 +31,241 @@ select
   extensions.crypt('Password123!', extensions.gen_salt('bf')),
   now(), now(), now(),
   '{"provider": "email", "providers": ["email"]}'::jsonb,
-  jsonb_strip_nulls(
-    jsonb_build_object('full_name', u.full_name, 'role', u.role, 'branch_id', u.branch_id)
-  ),
+  jsonb_strip_nulls(jsonb_build_object('full_name', u.full_name, 'vendor_id', u.vendor_id)),
   '', '', '', ''
 from (
   values
-    -- Id-nya sengaja tidak berubah: seluruh baris demo di bawah (order, jadwal,
-    -- pembayaran, dokumentasi) menunjuk ke id ini. Yang berganti perannya.
-    ('a3000000-0000-4000-8000-000000000001'::uuid, 'superadmin@suksesaqiqah.test','Hasan Superadmin',  'superadmin', null),
-    ('a3000000-0000-4000-8000-000000000002'::uuid, 'superadmin2@suksesaqiqah.test','Rina Superadmin',  'superadmin', null),
-    ('a3000000-0000-4000-8000-000000000003'::uuid, 'admin@suksesaqiqah.test',    'Dewi Admin',         'admin',      null),
-    ('a3000000-0000-4000-8000-000000000004'::uuid, 'admin2@suksesaqiqah.test',   'Agus Admin',         'admin',      'a0000000-0000-4000-8000-000000000001'),
-    ('a3000000-0000-4000-8000-000000000005'::uuid, 'admin3@suksesaqiqah.test',   'Sari Admin',         'admin',      'a0000000-0000-4000-8000-000000000002'),
-    ('a3000000-0000-4000-8000-000000000006'::uuid, 'vendor1@suksesaqiqah.test',  'Budi Vendor',        'vendor',     'a0000000-0000-4000-8000-000000000001'),
-    ('a3000000-0000-4000-8000-000000000007'::uuid, 'vendor2@suksesaqiqah.test',  'Eko Vendor',         'vendor',     'a0000000-0000-4000-8000-000000000002')
-) as u(id, email, full_name, role, branch_id)
+    (
+      'd0000000-0000-4000-8000-000000000001'::uuid,
+      'superadmin@suksesaqiqah.test', 'Sholahuddin (Superadmin)', null::uuid
+    ),
+    (
+      'd0000000-0000-4000-8000-000000000002'::uuid,
+      'admin@suksesaqiqah.test', 'Rani Admin', null::uuid
+    ),
+    (
+      'd0000000-0000-4000-8000-000000000003'::uuid,
+      'dapurberkah@suksesaqiqah.test', 'Hendra Kusuma', 'c0000000-0000-4000-8000-000000000001'::uuid
+    ),
+    (
+      'd0000000-0000-4000-8000-000000000004'::uuid,
+      'rphamanah@suksesaqiqah.test', 'Slamet Riyadi', 'c0000000-0000-4000-8000-000000000002'::uuid
+    )
+) as u(id, email, full_name, vendor_id)
 on conflict (id) do nothing;
 
--- Identity email agar login password berfungsi.
-insert into auth.identities (
-  id, provider_id, user_id, identity_data, provider,
-  last_sign_in_at, created_at, updated_at
-)
-select
-  gen_random_uuid(),
-  u.id::text,
-  u.id,
-  jsonb_build_object(
-    'sub', u.id::text,
-    'email', u.email,
-    'email_verified', true,
-    'phone_verified', false
-  ),
-  'email',
-  now(), now(), now()
-from auth.users u
-where u.email like '%@suksesaqiqah.test'
-on conflict do nothing;
-
--- Vendor lahir non-aktif lewat `handle_new_user` (kerja sama dimulai dari
--- kesepakatan, bukan dari pendaftaran). Untuk data demo keduanya diaktifkan,
--- kalau tidak `auth_role()` mengembalikan NULL dan tidak satu pun order demo
--- terlihat oleh mereka.
-update public.profiles
-set is_active = true
-where id::text like 'a3000000%';
-
-update public.profiles
-set phone = '0812' || right(id::text, 8)
-where id::text like 'a3000000%';
+-- Setel peran & aktifkan. Sama persis dengan yang dikerjakan
+-- `server/actions/users.ts` sesudah memanggil Admin API.
+update public.profiles set role = 'superadmin', is_active = true
+  where id = 'd0000000-0000-4000-8000-000000000001';
+update public.profiles set role = 'admin', is_active = true
+  where id = 'd0000000-0000-4000-8000-000000000002';
+update public.profiles set role = 'vendor', is_active = true
+  where id in (
+    'd0000000-0000-4000-8000-000000000003',
+    'd0000000-0000-4000-8000-000000000004'
+  );
 
 -- --- Peserta ----------------------------------------------------------------
 insert into public.participants (id, name, phone, email, address) values
-  ('a4000000-0000-4000-8000-000000000001', 'Keluarga Bapak Ahmad',  '6281234567801', 'ahmad@example.test',  'Jl. Merdeka No. 10, Bandung'),
-  ('a4000000-0000-4000-8000-000000000002', 'Keluarga Ibu Siti',     '6281234567802', 'siti@example.test',   'Jl. Kenanga No. 4, Jakarta'),
-  ('a4000000-0000-4000-8000-000000000003', 'Keluarga Bapak Rahmat', '6281234567803', 'rahmat@example.test', 'Jl. Melati No. 22, Bandung'),
-  ('a4000000-0000-4000-8000-000000000004', 'Keluarga Ibu Lestari',  '6281234567804', 'lestari@example.test','Jl. Anggrek No. 7, Bekasi')
+  (
+    'e0000000-0000-4000-8000-000000000001', 'Budi Santoso', '081234567890',
+    'budi@example.test', 'Jl. Merdeka No. 1, Bandung'
+  ),
+  (
+    'e0000000-0000-4000-8000-000000000002', 'Siti Aminah', '081298765432',
+    null, 'Jl. Kenanga No. 5, Jakarta Selatan'
+  ),
+  (
+    'e0000000-0000-4000-8000-000000000003', 'Ahmad Fauzi', '081211112222',
+    'ahmad@example.test', null
+  )
 on conflict (id) do nothing;
 
--- --- Order ------------------------------------------------------------------
--- order_number sengaja tidak diisi: di-generate trigger set_orders_order_number.
-insert into public.orders (id, participant_id, branch_id, created_by, status, total_amount, notes, created_at) values
-  ('a5000000-0000-4000-8000-000000000001', 'a4000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000004', 'new',          2300000, 'Order baru, menunggu pembayaran.',        now() - interval '1 day'),
-  ('a5000000-0000-4000-8000-000000000002', 'a4000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000004', 'paid',         2800000, 'DP 50% sudah masuk, menunggu penjadwalan.', now() - interval '3 days'),
-  ('a5000000-0000-4000-8000-000000000003', 'a4000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000004', 'scheduled',    3600000, 'Terjadwal pekan ini.',                    now() - interval '5 days'),
-  ('a5000000-0000-4000-8000-000000000004', 'a4000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000002', 'a3000000-0000-4000-8000-000000000005', 'slaughtering', 2800000, 'Pemotongan berlangsung.',                 now() - interval '7 days'),
-  ('a5000000-0000-4000-8000-000000000005', 'a4000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000002', 'a3000000-0000-4000-8000-000000000005', 'documentation',2300000, 'Menunggu validasi dokumentasi.',          now() - interval '9 days'),
-  ('a5000000-0000-4000-8000-000000000006', 'a4000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000003', 'a3000000-0000-4000-8000-000000000002', 'completed',    3600000, 'Selesai, laporan terkirim.',              now() - interval '20 days')
+-- =============================================================================
+-- Order 1 — Aqiqah KIRIM, sudah berjalan sampai tahap masak
+--
+-- Menempuh percabangan `kirim`: persiapan -> sembelih -> masak -> kirim ->
+-- terkirim. Dua tahap pertama tervalidasi, masak menunggu keputusan admin —
+-- keadaan yang paling berguna untuk menguji layar validasi.
+-- =============================================================================
+insert into public.orders (
+  id, order_number, participant_id, vendor_id, created_by,
+  status, payment_status, total_amount, paid_amount,
+  distribution_mode, aqiqah_for, child_birth_place, child_birth_date,
+  requested_date, requested_time,
+  delivery_province_code, delivery_province, delivery_city_code, delivery_city,
+  delivery_district_code, delivery_district, delivery_village_code, delivery_village,
+  delivery_postal_code, delivery_detail, delivery_address,
+  guest_verified_at, guest_verified_by
+) values (
+  'f0000000-0000-4000-8000-000000000001', 'IA-202608-0001',
+  'e0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001', null,
+  'in_progress'::public.order_status, 'paid'::public.payment_status, 2800000, 2800000,
+  'kirim'::public.distribution_mode, 'laki_laki', 'Bandung', '2026-07-28',
+  current_date + 2, '09:00',
+  '32', 'JAWA BARAT', '32.73', 'KOTA BANDUNG',
+  '32.73.11', 'ANTAPANI', '32.73.11.1001', 'ANTAPANI KIDUL',
+  '40291', 'Jl. Purwakarta No. 88',
+  'Jl. Purwakarta No. 88, Kel. ANTAPANI KIDUL, Kec. ANTAPANI, KOTA BANDUNG, JAWA BARAT 40291',
+  now() - interval '3 days', 'd0000000-0000-4000-8000-000000000002'
+) on conflict (id) do nothing;
+
+insert into public.order_items (order_id, service_id, qty, unit_price, vendor_unit_price, meta) values
+  (
+    'f0000000-0000-4000-8000-000000000001', 'a2000000-0000-4000-8000-000000000002',
+    1, 2800000, 2325000, '{"on_behalf_of": "Muhammad Al-Fatih bin Budi Santoso"}'::jsonb
+  )
+on conflict do nothing;
+
+insert into public.animals (id, order_id, species, tag_code, weight_kg, on_behalf_of, status) values
+  (
+    'a9000000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000001',
+    'kambing'::public.animal_species, 'KMB-001', 28.5, 'Muhammad Al-Fatih bin Budi Santoso', 'slaughtered'::public.animal_status
+  )
 on conflict (id) do nothing;
 
--- --- Item order -------------------------------------------------------------
-insert into public.order_items (order_id, service_id, qty, unit_price, meta) values
-  ('a5000000-0000-4000-8000-000000000001', 'a2000000-0000-4000-8000-000000000001', 1, 2300000, '{"atas_nama": "Muhammad Fatih"}'::jsonb),
-  ('a5000000-0000-4000-8000-000000000002', 'a2000000-0000-4000-8000-000000000002', 1, 2800000, '{"atas_nama": "Aisyah Nur"}'::jsonb),
-  ('a5000000-0000-4000-8000-000000000003', 'a2000000-0000-4000-8000-000000000003', 1, 3600000, '{"atas_nama": "Umar Hafizh"}'::jsonb),
-  ('a5000000-0000-4000-8000-000000000004', 'a2000000-0000-4000-8000-000000000002', 1, 2800000, '{"atas_nama": "Khadijah Zahra"}'::jsonb),
-  ('a5000000-0000-4000-8000-000000000005', 'a2000000-0000-4000-8000-000000000001', 1, 2300000, '{"atas_nama": "Ali Ridwan"}'::jsonb),
-  ('a5000000-0000-4000-8000-000000000006', 'a2000000-0000-4000-8000-000000000003', 1, 3600000, '{"atas_nama": "Fatimah Azzahra"}'::jsonb);
+insert into public.payments (order_id, amount, method, status, recorded_by, verified_by, verified_at, note) values
+  (
+    'f0000000-0000-4000-8000-000000000001', 2800000, 'transfer', 'verified'::public.payment_verification_status,
+    'd0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001',
+    now() - interval '3 days', 'Lunas di muka'
+  )
+on conflict do nothing;
 
--- --- Hewan ------------------------------------------------------------------
-insert into public.animals (id, order_id, tag_code, species, weight_kg, status, on_behalf_of) values
-  ('a6000000-0000-4000-8000-000000000001', 'a5000000-0000-4000-8000-000000000001', 'BDG-K-001', 'kambing', 28.50, 'registered',  'Muhammad Fatih'),
-  ('a6000000-0000-4000-8000-000000000002', 'a5000000-0000-4000-8000-000000000002', 'BDG-K-002', 'kambing', 31.00, 'registered',  'Aisyah Nur'),
-  ('a6000000-0000-4000-8000-000000000003', 'a5000000-0000-4000-8000-000000000003', 'BDG-K-003', 'kambing', 34.20, 'prepared',    'Umar Hafizh'),
-  ('a6000000-0000-4000-8000-000000000004', 'a5000000-0000-4000-8000-000000000004', 'JKT-K-001', 'kambing', 30.10, 'slaughtered', 'Khadijah Zahra'),
-  ('a6000000-0000-4000-8000-000000000005', 'a5000000-0000-4000-8000-000000000004', 'JKT-K-002', 'kambing', 29.80, 'prepared',    'Khadijah Zahra'),
-  ('a6000000-0000-4000-8000-000000000006', 'a5000000-0000-4000-8000-000000000005', 'JKT-K-003', 'kambing', 27.40, 'distributed', 'Ali Ridwan'),
-  ('a6000000-0000-4000-8000-000000000007', 'a5000000-0000-4000-8000-000000000005', 'JKT-K-004', 'kambing', 28.90, 'distributed', 'Ali Ridwan'),
-  ('a6000000-0000-4000-8000-000000000008', 'a5000000-0000-4000-8000-000000000006', 'BKS-K-001', 'kambing', 33.00, 'distributed', 'Fatimah Azzahra'),
-  ('a6000000-0000-4000-8000-000000000009', 'a5000000-0000-4000-8000-000000000006', 'BKS-K-002', 'kambing', 32.10, 'distributed', 'Fatimah Azzahra')
-on conflict (id) do nothing;
-
--- --- Pembayaran (memicu sync orders.paid_amount & payment_status) -----------
-insert into public.payments (order_id, amount, method, status, verified_by, verified_at, note) values
-  ('a5000000-0000-4000-8000-000000000002', 1400000, 'transfer', 'verified', 'a3000000-0000-4000-8000-000000000004', now() - interval '3 days', 'DP 50%'),
-  ('a5000000-0000-4000-8000-000000000003', 3600000, 'transfer', 'verified', 'a3000000-0000-4000-8000-000000000004', now() - interval '5 days', 'Lunas'),
-  ('a5000000-0000-4000-8000-000000000004', 2800000, 'transfer', 'verified', 'a3000000-0000-4000-8000-000000000005', now() - interval '7 days', 'Lunas'),
-  ('a5000000-0000-4000-8000-000000000005', 2300000, 'tunai',    'verified', 'a3000000-0000-4000-8000-000000000005', now() - interval '9 days', 'Lunas'),
-  ('a5000000-0000-4000-8000-000000000006', 3600000, 'transfer', 'verified', 'a3000000-0000-4000-8000-000000000002', now() - interval '20 days', 'Lunas');
-
--- --- Jadwal + PIC -----------------------------------------------------------
-insert into public.schedules (order_id, location_id, pic_user_id, scheduled_date, scheduled_time, status) values
-  ('a5000000-0000-4000-8000-000000000003', 'a1000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000006', (now() + interval '2 days')::date, '08:00', 'planned'),
-  ('a5000000-0000-4000-8000-000000000004', 'a1000000-0000-4000-8000-000000000003', 'a3000000-0000-4000-8000-000000000007', (now() - interval '1 day')::date,  '07:30', 'ongoing'),
-  ('a5000000-0000-4000-8000-000000000005', 'a1000000-0000-4000-8000-000000000004', 'a3000000-0000-4000-8000-000000000007', (now() - interval '3 days')::date, '07:00', 'done'),
-  ('a5000000-0000-4000-8000-000000000006', 'a1000000-0000-4000-8000-000000000005', 'a3000000-0000-4000-8000-000000000006', (now() - interval '18 days')::date,'06:30', 'done')
+insert into public.schedules (order_id, location_id, scheduled_date, scheduled_time, notes) values
+  (
+    'f0000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001',
+    current_date + 2, '09:00', 'Pemesan minta dikabari sebelum berangkat'
+  )
 on conflict (order_id) do nothing;
 
--- --- Catatan pemotongan -----------------------------------------------------
-insert into public.slaughter_records (id, animal_id, performed_by, performed_at, notes) values
-  ('a8000000-0000-4000-8000-000000000001', 'a6000000-0000-4000-8000-000000000004', 'a3000000-0000-4000-8000-000000000007', now() - interval '1 day',   'Pemotongan sesuai syariat, disaksikan keluarga.'),
-  ('a8000000-0000-4000-8000-000000000002', 'a6000000-0000-4000-8000-000000000006', 'a3000000-0000-4000-8000-000000000007', now() - interval '3 days',  'Selesai tepat waktu.'),
-  ('a8000000-0000-4000-8000-000000000003', 'a6000000-0000-4000-8000-000000000007', 'a3000000-0000-4000-8000-000000000007', now() - interval '3 days',  'Selesai tepat waktu.'),
-  ('a8000000-0000-4000-8000-000000000004', 'a6000000-0000-4000-8000-000000000008', 'a3000000-0000-4000-8000-000000000006', now() - interval '18 days', 'Selesai.'),
-  ('a8000000-0000-4000-8000-000000000005', 'a6000000-0000-4000-8000-000000000009', 'a3000000-0000-4000-8000-000000000006', now() - interval '18 days', 'Selesai.')
+-- Daftar tahap: dibuat manual di sini karena trigger `generate_stage_checklist`
+-- hanya menyala pada transisi status ke `assigned`, sementara seed menyisipkan
+-- order yang sudah berstatus `in_progress`.
+insert into public.order_stage_events (
+  order_id, stage, seq, animal_id, status,
+  reported_by, reported_at, occurred_at, notes,
+  validated_by, validated_at
+) values
+  (
+    'f0000000-0000-4000-8000-000000000001', 'persiapan'::public.fulfilment_stage, 1, null, 'validated'::public.stage_event_status,
+    'd0000000-0000-4000-8000-000000000003', now() - interval '2 days',
+    now() - interval '2 days', 'Kambing tiba di RPH, kondisi sehat',
+    'd0000000-0000-4000-8000-000000000002', now() - interval '2 days'
+  ),
+  (
+    'f0000000-0000-4000-8000-000000000001', 'sembelih'::public.fulfilment_stage, 2,
+    'a9000000-0000-4000-8000-000000000001', 'validated'::public.stage_event_status,
+    'd0000000-0000-4000-8000-000000000003', now() - interval '1 day',
+    now() - interval '1 day', 'Disembelih sesuai syariat, disaksikan petugas',
+    'd0000000-0000-4000-8000-000000000002', now() - interval '1 day'
+  ),
+  (
+    -- Menunggu keputusan admin — inilah yang mengisi antrian validasi.
+    'f0000000-0000-4000-8000-000000000001', 'masak'::public.fulfilment_stage, 3, null, 'reported'::public.stage_event_status,
+    'd0000000-0000-4000-8000-000000000003', now() - interval '4 hours',
+    now() - interval '5 hours', 'Diolah jadi gulai dan sate, 110 porsi',
+    null, null
+  ),
+  ('f0000000-0000-4000-8000-000000000001', 'kirim'::public.fulfilment_stage, 4, null, 'pending'::public.stage_event_status, null, null, null, null, null, null),
+  ('f0000000-0000-4000-8000-000000000001', 'terkirim'::public.fulfilment_stage, 5, null, 'pending'::public.stage_event_status, null, null, null, null, null, null)
+on conflict do nothing;
+
+-- =============================================================================
+-- Order 2 — Aqiqah SALUR, baru ditugaskan
+--
+-- Percabangan `salur`: persiapan -> sembelih -> masak -> salur. Seluruh
+-- tahapnya masih menunggu, jadi layar vendor menampilkan daftar kerja kosong
+-- yang siap diisi — dan tombol tahap kedua seharusnya mati.
+-- =============================================================================
+insert into public.orders (
+  id, order_number, participant_id, vendor_id, created_by,
+  status, payment_status, total_amount, paid_amount,
+  distribution_mode, aqiqah_for, child_birth_place, child_birth_date,
+  requested_date, requested_time, recipient_institution,
+  guest_verified_at, guest_verified_by
+) values (
+  'f0000000-0000-4000-8000-000000000002', 'IA-202608-0002',
+  'e0000000-0000-4000-8000-000000000002', 'c0000000-0000-4000-8000-000000000002', null,
+  'assigned'::public.order_status, 'partial'::public.payment_status, 2300000, 1200000,
+  'salur'::public.distribution_mode, 'perempuan', 'Jakarta', '2026-08-05',
+  current_date + 4, '08:00', 'Pesantren Nurul Iman',
+  now() - interval '1 day', 'd0000000-0000-4000-8000-000000000002'
+) on conflict (id) do nothing;
+
+insert into public.order_items (order_id, service_id, qty, unit_price, vendor_unit_price, meta) values
+  (
+    'f0000000-0000-4000-8000-000000000002', 'a2000000-0000-4000-8000-000000000001',
+    1, 2300000, 1950000, '{"on_behalf_of": "Khadijah binti Siti Aminah"}'::jsonb
+  )
+on conflict do nothing;
+
+insert into public.animals (id, order_id, species, tag_code, on_behalf_of, status) values
+  (
+    'a9000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000002',
+    'kambing'::public.animal_species, 'KMB-002', 'Khadijah binti Siti Aminah', 'registered'::public.animal_status
+  )
 on conflict (id) do nothing;
 
--- --- Distribusi -------------------------------------------------------------
-insert into public.distributions (order_id, slaughter_record_id, recipient_name, recipient_area, packages_count, distributed_by, distributed_at, lat, lng) values
-  ('a5000000-0000-4000-8000-000000000005', 'a8000000-0000-4000-8000-000000000002', 'Panti Asuhan Nurul Hidayah', 'Pejaten, Jakarta Selatan', 45, 'a3000000-0000-4000-8000-000000000007', now() - interval '3 days',  -6.291000, 106.836000),
-  ('a5000000-0000-4000-8000-000000000005', 'a8000000-0000-4000-8000-000000000003', 'Warga RW 05',                'Mampang, Jakarta Selatan', 40, 'a3000000-0000-4000-8000-000000000007', now() - interval '3 days',  -6.246000, 106.823000),
-  ('a5000000-0000-4000-8000-000000000006', 'a8000000-0000-4000-8000-000000000004', 'Masjid Baiturrahman',        'Kemang Pratama, Bekasi',   60, 'a3000000-0000-4000-8000-000000000006', now() - interval '18 days', -6.248000, 106.998000),
-  ('a5000000-0000-4000-8000-000000000006', 'a8000000-0000-4000-8000-000000000005', 'Warga RT 03',                'Kemang Pratama, Bekasi',   55, 'a3000000-0000-4000-8000-000000000006', now() - interval '18 days', -6.249000, 106.999000);
+insert into public.payments (order_id, amount, method, status, recorded_by, verified_by, verified_at) values
+  (
+    'f0000000-0000-4000-8000-000000000002', 1200000, 'transfer', 'verified'::public.payment_verification_status,
+    'd0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001',
+    now() - interval '1 day'
+  )
+on conflict do nothing;
 
--- --- Dokumentasi ------------------------------------------------------------
-insert into public.documentations (order_id, animal_id, type, storage_path, caption, stage, status, uploaded_by, reviewed_by, review_note, reviewed_at) values
-  -- Order 4 (slaughtering): baru diunggah, menunggu Supervisor
-  ('a5000000-0000-4000-8000-000000000004', 'a6000000-0000-4000-8000-000000000004', 'photo', 'documentation/JKT/2026/08/order-4/slaughter/11111111-1111-4111-8111-111111111111.jpg', 'Proses pemotongan hewan 1', 'slaughter', 'pending', 'a3000000-0000-4000-8000-000000000007', null, null, null),
-  -- Order 5 (documentation): satu lolos Supervisor, satu masih pending
-  ('a5000000-0000-4000-8000-000000000005', 'a6000000-0000-4000-8000-000000000006', 'photo', 'documentation/JKT/2026/08/order-5/slaughter/22222222-2222-4222-8222-222222222222.jpg', 'Pemotongan disaksikan keluarga', 'slaughter', 'approved_supervisor', 'a3000000-0000-4000-8000-000000000007', 'a3000000-0000-4000-8000-000000000002', null, now() - interval '2 days'),
-  ('a5000000-0000-4000-8000-000000000005', 'a6000000-0000-4000-8000-000000000007', 'photo', 'documentation/JKT/2026/08/order-5/distribution/33333333-3333-4333-8333-333333333333.jpg', 'Distribusi ke panti asuhan', 'distribution', 'pending', 'a3000000-0000-4000-8000-000000000007', null, null, null),
-  -- Order 6 (completed): dokumentasi final approved
-  ('a5000000-0000-4000-8000-000000000006', 'a6000000-0000-4000-8000-000000000008', 'photo', 'documentation/BKS/2026/07/order-6/slaughter/44444444-4444-4444-8444-444444444444.jpg', 'Pemotongan hewan 1', 'slaughter', 'approved', 'a3000000-0000-4000-8000-000000000006', 'a3000000-0000-4000-8000-000000000003', null, now() - interval '17 days'),
-  ('a5000000-0000-4000-8000-000000000006', 'a6000000-0000-4000-8000-000000000009', 'photo', 'documentation/BKS/2026/07/order-6/distribution/55555555-5555-4555-8555-555555555555.jpg', 'Penyerahan ke masjid', 'distribution', 'approved', 'a3000000-0000-4000-8000-000000000006', 'a3000000-0000-4000-8000-000000000003', null, now() - interval '17 days'),
-  ('a5000000-0000-4000-8000-000000000006', null, 'note', null, 'Acara berjalan lancar, keluarga hadir lengkap.', 'general', 'approved', 'a3000000-0000-4000-8000-000000000006', 'a3000000-0000-4000-8000-000000000003', null, now() - interval '17 days');
+insert into public.order_stage_events (order_id, stage, seq, animal_id, status) values
+  ('f0000000-0000-4000-8000-000000000002', 'persiapan'::public.fulfilment_stage, 1, null, 'pending'::public.stage_event_status),
+  ('f0000000-0000-4000-8000-000000000002', 'sembelih'::public.fulfilment_stage, 2, 'a9000000-0000-4000-8000-000000000002', 'pending'::public.stage_event_status),
+  ('f0000000-0000-4000-8000-000000000002', 'masak'::public.fulfilment_stage, 3, null, 'pending'::public.stage_event_status),
+  ('f0000000-0000-4000-8000-000000000002', 'salur'::public.fulfilment_stage, 4, null, 'pending'::public.stage_event_status)
+on conflict do nothing;
+
+-- =============================================================================
+-- Order 3 — order tamu baru, belum diverifikasi
+--
+-- `created_by IS NULL` dan `guest_verified_at IS NULL`: inilah yang mengisi
+-- kartu "Order Tamu Baru" di dashboard dan menguji trigger
+-- `enforce_guest_order_verification` yang menahannya di status `new`.
+-- =============================================================================
+insert into public.orders (
+  id, order_number, participant_id, created_by,
+  status, payment_status, total_amount,
+  distribution_mode, aqiqah_for, child_birth_place, child_birth_date,
+  requested_date, requested_time, notes
+) values (
+  'f0000000-0000-4000-8000-000000000003', 'IA-202608-0003',
+  'e0000000-0000-4000-8000-000000000003', null,
+  'new'::public.order_status, 'unpaid'::public.payment_status, 3600000,
+  'salur'::public.distribution_mode, 'laki_laki', 'Bekasi', '2026-08-12',
+  current_date + 5, '10:00', 'Mohon dihubungi sore hari'
+) on conflict (id) do nothing;
+
+insert into public.order_items (order_id, service_id, qty, unit_price, meta) values
+  (
+    'f0000000-0000-4000-8000-000000000003', 'a2000000-0000-4000-8000-000000000003',
+    1, 3600000, '{"on_behalf_of": "Yusuf bin Ahmad Fauzi"}'::jsonb
+  )
+on conflict do nothing;
+
+insert into public.animals (order_id, species, tag_code, on_behalf_of, status) values
+  (
+    'f0000000-0000-4000-8000-000000000003', 'kambing'::public.animal_species, 'KMB-003',
+    'Yusuf bin Ahmad Fauzi', 'registered'::public.animal_status
+  )
+on conflict do nothing;
 
 -- --- Kendala ----------------------------------------------------------------
-insert into public.issues (order_id, reported_by, severity, title, description, status, resolved_by, resolved_at) values
-  ('a5000000-0000-4000-8000-000000000004', 'a3000000-0000-4000-8000-000000000007', 'medium', 'Timbangan hewan rusak',        'Timbangan di RPH tidak akurat, berat diestimasi manual.',      'in_progress', null, null),
-  ('a5000000-0000-4000-8000-000000000005', 'a3000000-0000-4000-8000-000000000007', 'high',   'Akses jalan tergenang banjir', 'Distribusi ke RW 05 tertunda karena akses jalan tergenang.',   'open',        null, null),
-  ('a5000000-0000-4000-8000-000000000002', 'a3000000-0000-4000-8000-000000000004', 'low',    'Peserta minta ganti tanggal',  'Peserta meminta pergeseran jadwal ke pekan berikutnya.',       'open',        null, null),
-  ('a5000000-0000-4000-8000-000000000006', 'a3000000-0000-4000-8000-000000000006', 'medium', 'Kekurangan box nasi',          'Jumlah box kurang 10, sudah ditambah oleh vendor.',            'resolved',    'a3000000-0000-4000-8000-000000000002', now() - interval '18 days');
-
--- --- Laporan ----------------------------------------------------------------
-insert into public.reports (order_id, pdf_path, generated_by, generated_at, sent_at, version)
-select
-  'a5000000-0000-4000-8000-000000000006',
-  'reports/' || o.order_number || '/v1/' || o.order_number || '.pdf',
-  'n8n',
-  now() - interval '17 days',
-  now() - interval '17 days',
-  1
-from public.orders o
-where o.id = 'a5000000-0000-4000-8000-000000000006';
-
--- --- Notifikasi (outbox) ----------------------------------------------------
-insert into public.notifications (order_id, channel, target, payload, status, sent_at) values
-  ('a5000000-0000-4000-8000-000000000006', 'whatsapp', '6281234567804', '{"template": "report_ready"}'::jsonb, 'sent',   now() - interval '17 days'),
-  ('a5000000-0000-4000-8000-000000000006', 'email',    'lestari@example.test', '{"template": "report_ready"}'::jsonb, 'sent', now() - interval '17 days'),
-  ('a5000000-0000-4000-8000-000000000005', 'dashboard','a3000000-0000-4000-8000-000000000003', '{"template": "doc_review_pending"}'::jsonb, 'queued', null);
+--
+-- Satu kendala terbuka supaya panel dashboard dan pengurutan litmus test
+-- ("yang paling parah dan paling lama menunggu naik ke atas") punya data.
+insert into public.issues (order_id, title, description, severity, status, reported_by) values
+  (
+    'f0000000-0000-4000-8000-000000000001',
+    'Pemesan minta ganti jam pengiriman',
+    'Minta diantar sore, bukan siang. Perlu konfirmasi ke mitra.',
+    'medium'::public.issue_severity, 'open'::public.issue_status, 'd0000000-0000-4000-8000-000000000002'
+  )
+on conflict do nothing;

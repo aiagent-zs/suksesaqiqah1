@@ -81,6 +81,16 @@ function formatDateId(value: string | null | undefined): string {
   }).format(d);
 }
 
+/** Label tahap untuk PDF. Sengaja lokal: modul UI tidak perlu ikut ke bundel PDF. */
+const STAGE_LABEL_PDF: Record<string, string> = {
+  persiapan: 'Persiapan',
+  sembelih: 'Sembelih',
+  masak: 'Masak',
+  salur: 'Salur ke penerima',
+  kirim: 'Pengiriman',
+  terkirim: 'Terkirim',
+};
+
 export function ReportDocument({
   data,
   photos,
@@ -118,7 +128,7 @@ export function ReportDocument({
           <Text style={styles.orderNumber}>
             {data.orderNumber}
             {data.report ? ` · versi ${data.report.version}` : ''}
-            {data.branchName ? ` · ${data.branchName}` : ''}
+            {data.vendorName ? ` · ${data.vendorName}` : ''}
           </Text>
         </View>
 
@@ -132,6 +142,22 @@ export function ReportDocument({
             <View style={styles.row}>
               <Text style={styles.label}>Atas nama</Text>
               <Text style={styles.value}>{onBehalf.join(', ')}</Text>
+            </View>
+          )}
+          {/* Barisnya hilang sama sekali bila kosong, bukan tercetak "-":
+              order qurban tidak punya anak, dan order sebelum 19 Agustus 2026
+              tidak pernah menanyakannya. */}
+          {(data.childBirthPlace || data.childBirthDate) && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Tempat, tanggal lahir</Text>
+              <Text style={styles.value}>
+                {[
+                  data.childBirthPlace,
+                  data.childBirthDate ? formatDateId(data.childBirthDate) : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+              </Text>
             </View>
           )}
           <View style={styles.row}>
@@ -163,23 +189,33 @@ export function ReportDocument({
             <Text style={styles.statusPill}>
               Distribusi {data.progress.animalsDistributed}/{data.progress.animalsTotal} ekor
             </Text>
-            <Text style={styles.statusPill}>{data.progress.packagesTotal} paket tersalurkan</Text>
+            <Text style={styles.statusPill}>
+              {data.progress.stagesValidated}/{data.progress.stagesTotal} tahap tervalidasi
+            </Text>
           </View>
         </View>
 
-        {data.distributions.length > 0 && (
+        {/* Tahap pelaksanaan, urut kejadian. Inilah yang membuat laporan
+            bercerita runtut: pemesan melihat pesanannya disembelih, dimasak,
+            lalu disalurkan atau diantar sampai tujuan. */}
+        {data.stages.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Catatan Distribusi</Text>
+            <Text style={styles.sectionTitle}>Tahap Pelaksanaan</Text>
             <View style={styles.tableHead}>
-              <Text style={{ flex: 2 }}>Area</Text>
-              <Text style={{ flex: 1 }}>Paket</Text>
-              <Text style={{ flex: 1 }}>Tanggal</Text>
+              <Text style={{ flex: 2 }}>Tahap</Text>
+              <Text style={{ flex: 2 }}>Keterangan</Text>
+              <Text style={{ flex: 1 }}>Waktu</Text>
             </View>
-            {data.distributions.map((d, i) => (
+            {data.stages.map((s, i) => (
               <View style={styles.tableRow} key={i}>
-                <Text style={{ flex: 2 }}>{d.recipientArea ?? 'Tidak dicatat'}</Text>
-                <Text style={{ flex: 1 }}>{d.packagesCount}</Text>
-                <Text style={{ flex: 1 }}>{formatDateId(d.distributedAt)}</Text>
+                <Text style={{ flex: 2 }}>{STAGE_LABEL_PDF[s.stage] ?? s.stage}</Text>
+                <Text style={{ flex: 2 }}>
+                  {s.recipientName ?? s.recipientArea ?? s.notes ?? '-'}
+                  {s.packagesCount ? ` (${s.packagesCount} paket)` : ''}
+                </Text>
+                <Text style={{ flex: 1 }}>
+                  {s.occurredAt ? formatDateId(s.occurredAt) : '-'}
+                </Text>
               </View>
             ))}
           </View>

@@ -10,6 +10,14 @@ const uuid = z.string().uuid('Pilihan tidak valid');
  * dan ketersediaan hewan sudah tidak bisa dipegang dari halaman publik, jadi
  * pemesanannya lewat admin.
  */
+/**
+ * Batas jendela pemesanan, dalam hari.
+ *
+ * Angkanya **wajib sama** dengan `app_settings.booking_max_days` yang dibaca
+ * `create_guest_order`. Pernah berselisih (form 30, RPC 7): pemesan memilih
+ * tanggal 20 hari ke depan, lolos seluruh validasi form, lalu ditolak database
+ * saat menekan konfirmasi.
+ */
 export const BOOKING_MAX_DAYS = 7;
 
 /**
@@ -27,6 +35,7 @@ export const BOOKING_TIME_SLOTS = [
   '14:00',
   '15:00',
   '16:00',
+  '17:00',
 ] as const;
 
 /** Batas bawah pemilih tanggal: hari ini menurut WIB. */
@@ -37,6 +46,27 @@ export function bookingMinDate(now?: Date): string {
 /** Batas atas pemilih tanggal: `BOOKING_MAX_DAYS` hari sejak hari ini. */
 export function bookingMaxDate(now?: Date): string {
   return addCalendarDays(todayWib(now), BOOKING_MAX_DAYS);
+}
+
+/**
+ * Batas bawah tanggal lahir anak.
+ *
+ * Bukan usaha menebak umur wajar — aqiqah untuk diri sendiri di usia dewasa itu
+ * lazim, jadi tidak ada batas atas umur. Angka ini hanya menyaring salah ketik
+ * tahun yang tidak mungkin (`0202`, `1089`), dan sama dengan
+ * `orders_child_birth_date_check` di database.
+ */
+export const CHILD_BIRTH_MIN_DATE = '1900-01-01';
+
+/**
+ * Batas atas tanggal lahir: hari ini menurut WIB.
+ *
+ * Sengaja tidak memakai zona waktu peramban pemesan: yang menilai di ujung sana
+ * adalah `create_guest_order` dengan `now() at time zone 'Asia/Jakarta'`, dan
+ * peramban di WIT sudah berada di "besok" tujuh jam lebih awal.
+ */
+export function childBirthMaxDate(now?: Date): string {
+  return todayWib(now);
 }
 
 /**
@@ -139,6 +169,30 @@ export const guestCheckoutSchema = z
     child_name: z.string().trim().min(2, 'Nama anak wajib diisi').max(100, 'Nama terlalu panjang'),
 
     bin_binti: z.string().trim().max(100, 'Nama terlalu panjang').optional().or(z.literal('')),
+
+    /**
+     * Tempat & tanggal lahir anak — keduanya wajib, dan keduanya berhenti di
+     * `orders`, bukan di `animals` seperti namanya.
+     *
+     * Alasannya: satu order boleh berisi dua ekor untuk satu anak yang sama.
+     * Data lahir yang menempel pada hewan berarti fakta yang sama disalin per
+     * ekor, dan suatu hari dua ekor bisa berselisih tanggal lahir untuk anak
+     * yang sama. `aqiqah_for` sudah tinggal di `orders` dengan alasan itu juga.
+     *
+     * Wajib di sini tanpa syarat, mengikuti `child_name`. RPC mewajibkannya
+     * hanya untuk `services.type = 'aqiqah'` — jalur qurban tidak punya anak
+     * untuk dicatat, dan form ini memang tidak melayaninya.
+     */
+    child_birth_place: z
+      .string()
+      .trim()
+      .min(2, 'Tempat lahir anak wajib diisi')
+      .max(100, 'Tempat lahir terlalu panjang'),
+
+    child_birth_date: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Isi tanggal lahir anak'),
 
     name: z.string().trim().min(2, 'Nama pemesan wajib diisi').max(150, 'Nama terlalu panjang'),
 
@@ -292,6 +346,24 @@ export const guestCheckoutSchema = z
         code: 'custom',
         path: ['requested_time'],
         message: 'Pilih salah satu jam pelaksanaan yang tersedia',
+      });
+    }
+
+    // Batas tanggal lahir, dihitung saat parse dengan alasan yang sama seperti
+    // jendela pemesanan di atas: "hari ini" pada proses server yang hidup
+    // berhari-hari tidak boleh dibekukan jadi konstanta modul. Perbandingan
+    // string aman di sini — `YYYY-MM-DD` berurutan secara leksikografis.
+    if (v.child_birth_date > childBirthMaxDate()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['child_birth_date'],
+        message: 'Tanggal lahir tidak boleh di masa depan',
+      });
+    } else if (v.child_birth_date < CHILD_BIRTH_MIN_DATE) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['child_birth_date'],
+        message: 'Periksa lagi tahun lahirnya',
       });
     }
   });

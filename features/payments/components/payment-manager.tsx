@@ -30,7 +30,6 @@ type ActionOutcome = { ok: boolean; error?: { message: string } };
 export function PaymentManager({
   orderId,
   orderNumber,
-  branchCode,
   summary,
   totalAmount,
   paidAmount,
@@ -40,7 +39,6 @@ export function PaymentManager({
 }: {
   orderId: string;
   orderNumber: string;
-  branchCode: string;
   summary: PaymentSummary;
   totalAmount: number;
   paidAmount: number;
@@ -106,7 +104,7 @@ export function PaymentManager({
       setUploading(true);
       try {
         const supabase = createClient();
-        proofPath = buildProofPath(branchCode, orderNumber, crypto.randomUUID(), check.ext);
+        proofPath = buildProofPath(orderNumber, crypto.randomUUID(), check.ext);
 
         const { error: uploadError } = await supabase.storage
           .from(PROOF_BUCKET)

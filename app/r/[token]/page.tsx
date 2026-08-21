@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { CheckCircle2, Download, MapPin, Package, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Download, MapPin, ShieldCheck } from 'lucide-react';
 import { getPublicReport } from '@/server/services/public-report';
 import { ANIMAL_SPECIES_LABEL, DOC_STAGE_LABEL } from '@/lib/constants/order';
 import { formatDate, formatDateTime, formatTime } from '@/lib/format';
@@ -15,6 +15,16 @@ type Params = Promise<{ token: string }>;
 export const metadata = {
   title: 'Laporan Pelaksanaan — Sukses Aqiqah',
   robots: { index: false, follow: false },
+};
+
+/** Label tahap untuk halaman publik. */
+const STAGE_LABEL_PUBLIC: Record<string, string> = {
+  persiapan: 'Persiapan',
+  sembelih: 'Penyembelihan',
+  masak: 'Pengolahan',
+  salur: 'Penyaluran ke penerima',
+  kirim: 'Pengiriman',
+  terkirim: 'Sampai di alamat',
 };
 
 export default async function PublicReportPage({ params }: { params: Params }) {
@@ -52,7 +62,7 @@ export default async function PublicReportPage({ params }: { params: Params }) {
         <p className="mt-2 text-sm text-emerald-800 tabular-nums">
           {report.orderNumber}
           {report.report ? ` · versi ${report.report.version}` : ''}
-          {report.branchName ? ` · ${report.branchName}` : ''}
+          {report.vendorName ? ` · ${report.vendorName}` : ''}
         </p>
         <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs text-emerald-800">
           <ShieldCheck className="size-3.5" />
@@ -71,6 +81,22 @@ export default async function PublicReportPage({ params }: { params: Params }) {
             <div className="flex gap-3">
               <dt className="w-36 shrink-0 text-slate-500">Atas nama</dt>
               <dd className="text-slate-900">{onBehalf.join(', ')}</dd>
+            </div>
+          )}
+          {/* Disembunyikan saat kosong, bukan ditampilkan sebagai "-": order
+              qurban tidak punya anak, dan order sebelum 19 Agustus 2026 tidak
+              pernah menanyakannya. */}
+          {(report.childBirthPlace || report.childBirthDate) && (
+            <div className="flex gap-3">
+              <dt className="w-36 shrink-0 text-slate-500">Tempat, tanggal lahir</dt>
+              <dd className="text-slate-900">
+                {[
+                  report.childBirthPlace,
+                  report.childBirthDate ? formatDate(report.childBirthDate) : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+              </dd>
             </div>
           )}
           <div className="flex gap-3">
@@ -114,7 +140,10 @@ export default async function PublicReportPage({ params }: { params: Params }) {
               label: 'Terdistribusi',
               value: `${report.progress.animalsDistributed}/${report.progress.animalsTotal} ekor`,
             },
-            { label: 'Paket tersalurkan', value: `${report.progress.packagesTotal} paket` },
+            {
+              label: 'Tahap selesai',
+              value: `${report.progress.stagesValidated}/${report.progress.stagesTotal} tahap`,
+            },
           ].map((cell) => (
             <div key={cell.label} className="rounded-xl bg-slate-50 px-4 py-3">
               <p className="text-xs text-slate-500">{cell.label}</p>
@@ -164,23 +193,27 @@ export default async function PublicReportPage({ params }: { params: Params }) {
         </section>
       )}
 
-      {report.distributions.length > 0 && (
+      {report.stages.length > 0 && (
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-base font-semibold text-slate-900">Catatan Distribusi</h2>
-          <ul className="mt-4 divide-y divide-slate-100">
-            {report.distributions.map((d, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+          <h2 className="text-base font-semibold text-slate-900">Tahap Pelaksanaan</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Setiap tahap di bawah sudah diperiksa dan divalidasi tim kami.
+          </p>
+          <ol className="mt-4 divide-y divide-slate-100">
+            {report.stages.map((s, i) => (
+              <li key={i} className="flex items-start justify-between gap-3 py-2.5 text-sm">
                 <div>
-                  <p className="text-slate-900">{d.recipientArea ?? 'Area tidak dicatat'}</p>
-                  <p className="text-xs text-slate-500">{formatDate(d.distributedAt)}</p>
+                  <p className="font-medium text-slate-900">
+                    {STAGE_LABEL_PUBLIC[s.stage] ?? s.stage}
+                  </p>
+                  {s.notes && <p className="mt-0.5 text-xs text-slate-500">{s.notes}</p>}
                 </div>
-                <span className="inline-flex items-center gap-1.5 font-medium text-slate-900 tabular-nums">
-                  <Package className="size-3.5 text-slate-400" />
-                  {d.packagesCount} paket
+                <span className="shrink-0 text-xs text-slate-500 tabular-nums">
+                  {s.occurredAt ? formatDate(s.occurredAt) : '-'}
                 </span>
               </li>
             ))}
-          </ul>
+          </ol>
         </section>
       )}
 

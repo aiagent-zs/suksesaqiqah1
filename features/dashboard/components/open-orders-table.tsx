@@ -13,6 +13,8 @@ import { OrderStatusBadge } from '@/components/data/status-badge';
 import { ISSUE_SEVERITY_META } from '@/lib/constants/order';
 import { formatDate } from '@/lib/format';
 import type { OpenOrderRow } from '../queries';
+import { STAGE_META } from '@/features/stages/sequence';
+import { DISTRIBUTION_MODE_LABEL } from '@/lib/constants/order';
 
 /** Umur order yang dianggap perlu perhatian pada tampilan litmus test. */
 const AGE_WARNING_DAYS = 7;
@@ -63,7 +65,7 @@ export function OpenOrdersTable({ rows }: { rows: OpenOrderRow[] }) {
             <TableHead>Nomor Order</TableHead>
             <TableHead>Peserta</TableHead>
             <TableHead>Lokasi</TableHead>
-            <TableHead>PIC</TableHead>
+            <TableHead>Mitra</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Progres</TableHead>
             <TableHead>Kendala</TableHead>
@@ -80,7 +82,11 @@ export function OpenOrdersTable({ rows }: { rows: OpenOrderRow[] }) {
                 >
                   {row.orderNumber}
                 </Link>
-                <p className="text-muted-foreground mt-0.5 text-xs">{row.branchCode}</p>
+                {row.distributionMode && (
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    {DISTRIBUTION_MODE_LABEL[row.distributionMode]}
+                  </p>
+                )}
               </TableCell>
 
               <TableCell>
@@ -103,15 +109,17 @@ export function OpenOrdersTable({ rows }: { rows: OpenOrderRow[] }) {
               </TableCell>
 
               <TableCell>
-                {row.picName ? (
+                {row.vendorName ? (
                   <>
-                    <p className="text-sm">{row.picName}</p>
-                    {row.picPhone && (
-                      <p className="text-muted-foreground text-xs tabular-nums">{row.picPhone}</p>
+                    <p className="text-sm">{row.vendorName}</p>
+                    {row.vendorPhone && (
+                      <p className="text-muted-foreground text-xs tabular-nums">
+                        {row.vendorPhone}
+                      </p>
                     )}
                   </>
                 ) : (
-                  <span className="text-muted-foreground text-xs">Belum ditunjuk</span>
+                  <span className="text-muted-foreground text-xs">Belum ditugaskan</span>
                 )}
               </TableCell>
 
@@ -122,9 +130,12 @@ export function OpenOrdersTable({ rows }: { rows: OpenOrderRow[] }) {
               <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                 <p className="flex items-center gap-1">
                   <PawPrint className="size-3" />
-                  {row.animalsSlaughtered}/{row.animalsTotal} dipotong
+                  {row.currentStage ? STAGE_META[row.currentStage].label : 'Seluruh tahap selesai'}
                 </p>
-                <p className="mt-0.5">Dok. {Math.round(row.pctDocumentation)}%</p>
+                <p className="mt-0.5">
+                  {Math.round(row.pctStage)}% tahap
+                  {row.stagesRejected > 0 ? ` · ${row.stagesRejected} ditolak` : ''}
+                </p>
               </TableCell>
 
               <TableCell>
@@ -167,7 +178,7 @@ export function OpenOrdersCardList({ rows }: { rows: OpenOrderRow[] }) {
             <p className="flex items-center gap-1.5">
               <MapPin className="size-3.5 shrink-0" />
               {row.locationName ?? 'Belum dijadwalkan'}
-              {row.picName ? ` · ${row.picName}` : ' · PIC belum ditunjuk'}
+              {row.vendorName ? ` · ${row.vendorName}` : ' · Mitra belum ditugaskan'}
             </p>
             <p className="flex items-center gap-1.5">
               <CalendarDays className="size-3.5 shrink-0" />

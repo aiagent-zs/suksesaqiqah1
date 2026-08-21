@@ -39,8 +39,10 @@ type RpcPayload = {
   order_number: string;
   status: ReportData['status'];
   created_at: string;
-  branch_name: string | null;
+  vendor_name: string | null;
   participant_name: string | null;
+  child_birth_place: string | null;
+  child_birth_date: string | null;
   services: Array<{ name: string; qty: number }> | null;
   animals: Array<{
     species: ReportData['animals'][number]['species'];
@@ -57,12 +59,13 @@ type RpcPayload = {
     animals_total: number | null;
     animals_slaughtered: number | null;
     animals_distributed: number | null;
-    packages_total: number | null;
+    stages_total: number | null;
+    stages_validated: number | null;
   } | null;
-  distributions: Array<{
-    recipient_area: string | null;
-    packages_count: number;
-    distributed_at: string;
+  stages: Array<{
+    stage: string;
+    occurred_at: string | null;
+    notes: string | null;
   }> | null;
   documentations: Array<{
     type: ReportData['media'][number]['type'];
@@ -142,8 +145,12 @@ export async function getPublicReport(token: string): Promise<PublicReport | nul
     orderNumber: p.order_number,
     status: p.status,
     createdAt: p.created_at,
-    branchName: p.branch_name,
+    vendorName: p.vendor_name,
     participantName: p.participant_name,
+    // Order lama & order qurban tidak punya keduanya — RPC mengembalikan null,
+    // dan tampilan menyembunyikan barisnya, bukan mencetak "-".
+    childBirthPlace: p.child_birth_place ?? null,
+    childBirthDate: p.child_birth_date ?? null,
     services: p.services ?? [],
     animals: (p.animals ?? []).map((a) => ({
       species: a.species,
@@ -158,16 +165,29 @@ export async function getPublicReport(token: string): Promise<PublicReport | nul
           locationName: p.schedule.location_name,
         }
       : null,
+    // Angkanya datang dari `v_order_progress` lewat RPC — sumber yang sama
+    // dengan `getReportData`, supaya halaman publik dan PDF internal tidak
+    // pernah menyebut angka berbeda untuk order yang sama.
     progress: {
-      animalsTotal: p.progress?.animals_total ?? 0,
-      animalsSlaughtered: p.progress?.animals_slaughtered ?? 0,
-      animalsDistributed: p.progress?.animals_distributed ?? 0,
-      packagesTotal: p.progress?.packages_total ?? 0,
+      animalsTotal: Number(p.progress?.animals_total ?? 0),
+      animalsSlaughtered: Number(p.progress?.animals_slaughtered ?? 0),
+      animalsDistributed: Number(p.progress?.animals_distributed ?? 0),
+      stagesTotal: Number(p.progress?.stages_total ?? 0),
+      stagesValidated: Number(p.progress?.stages_validated ?? 0),
     },
-    distributions: (p.distributions ?? []).map((d) => ({
-      recipientArea: d.recipient_area,
-      packagesCount: d.packages_count ?? 0,
-      distributedAt: d.distributed_at,
+    // Tahap yang sudah tervalidasi — inilah yang membuat halaman ini bercerita
+    // runtut kepada pemesan, bukan sekadar menyatakan "selesai".
+    //
+    // Rincian penerima & jumlah paket sengaja tidak ikut: laporan ini dibagikan
+    // lewat tautan, dan nama penerima manfaat bukan milik pemegang tautan.
+    // Jalur internal (`getReportData`) tetap membawanya.
+    stages: (p.stages ?? []).map((s) => ({
+      stage: s.stage,
+      occurredAt: s.occurred_at,
+      notes: s.notes,
+      packagesCount: null,
+      recipientName: null,
+      recipientArea: null,
     })),
     media,
     report: p.report

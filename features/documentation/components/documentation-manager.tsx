@@ -14,7 +14,7 @@ import { formatDateTime } from '@/lib/format';
 import { DOC_STAGE_LABEL, DOC_TYPE_LABEL, type DocStage } from '@/lib/constants/order';
 import { deleteDocumentation, uploadDocumentation } from '@/server/actions/documentation';
 import { DOC_BUCKET, buildDocPath, checkDocFile } from '../storage';
-import { missingDocumentationStages, REVIEWABLE_DOC_STATUSES } from '../review';
+import { REVIEWABLE_DOC_STATUSES } from '../review';
 import type { DocumentationSummary } from '../queries';
 import { DocPreview } from './doc-preview';
 import { DocReviewActions } from './doc-review-actions';
@@ -31,9 +31,9 @@ export type DocAnimalOption = { id: string; tagCode: string | null };
 export function DocumentationManager({
   orderId,
   orderNumber,
-  branchCode,
   orderCreatedAt,
   summary,
+  missingDocStages,
   animals,
   canUpload,
   canDelete,
@@ -42,9 +42,10 @@ export function DocumentationManager({
 }: {
   orderId: string;
   orderNumber: string;
-  branchCode: string;
   orderCreatedAt: string;
   summary: DocumentationSummary;
+  /** Tahap yang buktinya belum lengkap — dihitung database dari stage_requirements. */
+  missingDocStages: string[];
   animals: DocAnimalOption[];
   canUpload: boolean;
   canDelete: boolean;
@@ -61,16 +62,16 @@ export function DocumentationManager({
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(0);
   const [draft, setDraft] = useState({
-    stage: 'slaughter' as DocStage,
+    stage: 'sembelih' as DocStage,
     animal_id: '',
     caption: '',
     isNote: false,
   });
 
-  const missing = missingDocumentationStages({
-    approvedSlaughter: summary.approvedSlaughter,
-    approvedDistribution: summary.approvedDistribution,
-  });
+  // Tahap yang buktinya masih kurang datang dari server (`v_order_progress`),
+  // bukan dihitung ulang di klien — supaya layar dan gerbang transisi tidak
+  // pernah berbeda pendapat.
+  const missing = missingDocStages.map((s) => DOC_STAGE_LABEL[s as DocStage] ?? s);
   const busy = pending || uploading;
 
   function run(fn: () => Promise<{ ok: boolean; error?: { message: string } }>) {
@@ -86,7 +87,7 @@ export function DocumentationManager({
   }
 
   function resetForm() {
-    setDraft({ stage: 'slaughter', animal_id: '', caption: '', isNote: false });
+    setDraft({ stage: 'sembelih', animal_id: '', caption: '', isNote: false });
     setFile(null);
     setFileKey((k) => k + 1);
     setNotice(null);
@@ -121,8 +122,7 @@ export function DocumentationManager({
       try {
         const supabase = createClient();
         storagePath = buildDocPath({
-          branchCode,
-          orderNumber,
+                  orderNumber,
           orderCreatedAt,
           stage: draft.stage,
           uuid: crypto.randomUUID(),

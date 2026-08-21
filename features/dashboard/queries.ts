@@ -1,65 +1,58 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/database';
-import type {
-  IssueSeverity,
-  OrderStatus,
-  PaymentStatus,
-  ScheduleStatus,
-} from '@/lib/constants/order';
+import type { IssueSeverity, OrderStatus, PaymentStatus } from '@/lib/constants/order';
 import { ISSUE_SEVERITY_ORDER } from '@/lib/constants/order';
+import type { FulfilmentStage, DistributionMode } from '@/features/stages/sequence';
 import type { DashboardFilterInput } from './schema';
-import type { BranchKpi } from './summary';
+import type { VendorKpi } from './summary';
 
 type Views = Database['public']['Views'];
 
 /**
- * Sumber data dashboard: view agregat, bukan tabel mentah (docs/09 section 8 & section 9).
+ * Sumber data dashboard: view agregat, bukan tabel mentah.
  *
  * Semua view memakai `security_invoker = on`, jadi pembatasan baris tetap
- * dikerjakan RLS — query di sini sengaja tidak menambahkan filter cabang
- * sendiri kecuali filter eksplisit yang dipilih pengguna.
+ * dikerjakan RLS — query di sini sengaja tidak menambahkan filter sendiri
+ * kecuali filter eksplisit yang dipilih pengguna. Vendor yang membuka dashboard
+ * hanya melihat order yang ditugaskan padanya, tanpa satu baris kode tambahan.
  */
 
 /**
- * KPI dari `v_branch_kpi`.
+ * KPI per mitra dari `v_vendor_kpi`.
  *
- * View-nya masih beragregasi per cabang dan sengaja dibiarkan begitu — yang
- * dicabut 19 Agustus 2026 adalah **filter**-nya, bukan strukturnya. Dengan satu
- * cabang hasilnya satu baris, dan `aggregateBranchKpi` tetap bekerja apa adanya
- * seandainya suatu saat bertambah lagi.
+ * Menggantikan KPI per cabang. Dengan operasi satu tempat dan banyak mitra,
+ * pertanyaan yang berguna berubah: bukan lagi "cabang mana yang tertinggal",
+ * melainkan "mitra mana yang lambat dan mana yang buktinya sering ditolak".
  */
-export async function getBranchKpi(): Promise<BranchKpi[]> {
+export async function getVendorKpi(): Promise<VendorKpi[]> {
   const supabase = await createClient();
 
-  const query = supabase
-    .from('v_branch_kpi')
+  const { data, error } = await supabase
+    .from('v_vendor_kpi')
     .select('*')
-    .order('open_orders', { ascending: false });
+    .order('orders_open', { ascending: false });
 
-  const { data, error } = await query;
-  if (error) throw new Error(`Gagal memuat KPI cabang: ${error.message}`);
+  if (error) throw new Error(`Gagal memuat KPI mitra: ${error.message}`);
 
   return (data ?? [])
-    .filter((row): row is Views['v_branch_kpi']['Row'] & { branch_id: string } =>
-      Boolean(row.branch_id),
+    .filter((row): row is Views['v_vendor_kpi']['Row'] & { vendor_id: string } =>
+      Boolean(row.vendor_id),
     )
     .map((row) => ({
-      branchId: row.branch_id,
-      branchCode: row.branch_code ?? '-',
-      branchName: row.branch_name ?? '-',
-      totalOrders: row.total_orders ?? 0,
-      openOrders: row.open_orders ?? 0,
-      completedOrders: row.completed_orders ?? 0,
-      onHoldOrders: row.on_hold_orders ?? 0,
-      unpaidOrders: row.unpaid_orders ?? 0,
-      pctSlaughter: Number(row.pct_slaughter ?? 0),
-      pctDistribution: Number(row.pct_distribution ?? 0),
-      pctDocumentation: Number(row.pct_documentation ?? 0),
-      pctReport: Number(row.pct_report ?? 0),
-      openIssues: row.open_issues ?? 0,
-      totalAmount: Number(row.total_amount ?? 0),
-      paidAmount: Number(row.paid_amount ?? 0),
+      vendorId: row.vendor_id,
+      vendorCode: row.vendor_code ?? '-',
+      vendorName: row.vendor_name ?? '-',
+      isActive: row.is_active ?? false,
+      ordersTotal: Number(row.orders_total ?? 0),
+      ordersOpen: Number(row.orders_open ?? 0),
+      ordersCompleted: Number(row.orders_completed ?? 0),
+      ordersOnHold: Number(row.orders_on_hold ?? 0),
+      revenueTotal: Number(row.revenue_total ?? 0),
+      vendorCostTotal: Number(row.vendor_cost_total ?? 0),
+      marginTotal: Number(row.margin_total ?? 0),
+      avgCycleHours: row.avg_cycle_hours === null ? null : Number(row.avg_cycle_hours),
+      ordersWithRejection: Number(row.orders_with_rejection ?? 0),
     }));
 }
 
@@ -68,14 +61,18 @@ export type OpenOrderRow = {
   orderNumber: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
-  branchCode: string;
-  branchName: string;
+  distributionMode: DistributionMode | null;
+  vendorName: string | null;
+  vendorPhone: string | null;
   locationName: string | null;
-  picName: string | null;
-  picPhone: string | null;
   participantName: string;
   scheduledDate: string | null;
-  scheduleStatus: ScheduleStatus | null;
+  /** Tahap yang sedang dikerjakan — jawaban "sampai mana" yang dulu hanya bisa ditebak. */
+  currentStage: FulfilmentStage | null;
+  pctStage: number;
+  stagesRejected: number;
+  /** Tahap yang buktinya belum lengkap, dihitung database dari stage_requirements. */
+  missingDocStages: string[];
   ageDays: number;
   animalsTotal: number;
   animalsSlaughtered: number;
@@ -95,8 +92,9 @@ export type OpenOrdersResult = {
 
 const OPEN_ORDER_SELECT = `
   order_id, order_number, status, payment_status, created_at, age_days,
-  branch_code, branch_name, location_name, pic_name, pic_phone,
-  participant_name, scheduled_date, schedule_status,
+  distribution_mode, vendor_name, vendor_phone, location_name,
+  participant_name, scheduled_date,
+  current_stage, pct_stage, stages_rejected, missing_doc_stages,
   animals_total, animals_slaughtered, pct_documentation, docs_pending_review,
   open_issues, max_open_severity, latest_issue_title
 `;
@@ -107,20 +105,22 @@ function mapOpenOrder(row: Views['v_open_orders']['Row']): OpenOrderRow {
     orderNumber: row.order_number ?? '-',
     status: (row.status ?? 'new') as OrderStatus,
     paymentStatus: (row.payment_status ?? 'unpaid') as PaymentStatus,
-    branchCode: row.branch_code ?? '-',
-    branchName: row.branch_name ?? '-',
+    distributionMode: row.distribution_mode,
+    vendorName: row.vendor_name,
+    vendorPhone: row.vendor_phone,
     locationName: row.location_name,
-    picName: row.pic_name,
-    picPhone: row.pic_phone,
     participantName: row.participant_name ?? '-',
     scheduledDate: row.scheduled_date,
-    scheduleStatus: row.schedule_status,
+    currentStage: row.current_stage,
+    pctStage: Number(row.pct_stage ?? 0),
+    stagesRejected: Number(row.stages_rejected ?? 0),
+    missingDocStages: row.missing_doc_stages ?? [],
     ageDays: row.age_days ?? 0,
-    animalsTotal: row.animals_total ?? 0,
-    animalsSlaughtered: row.animals_slaughtered ?? 0,
+    animalsTotal: Number(row.animals_total ?? 0),
+    animalsSlaughtered: Number(row.animals_slaughtered ?? 0),
     pctDocumentation: Number(row.pct_documentation ?? 0),
-    docsPendingReview: row.docs_pending_review ?? 0,
-    openIssues: row.open_issues ?? 0,
+    docsPendingReview: Number(row.docs_pending_review ?? 0),
+    openIssues: Number(row.open_issues ?? 0),
     maxSeverity: row.max_open_severity,
     latestIssueTitle: row.latest_issue_title,
   };

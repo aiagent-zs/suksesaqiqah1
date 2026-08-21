@@ -1,67 +1,85 @@
 import type { Database } from '@/types/database';
 import { ORDER_STATUS_META, type OrderStatus, type PaymentStatus } from '@/lib/constants/order';
-import { missingDocumentationStages } from '@/features/documentation/review';
 
 type UserRole = Database['public']['Enums']['user_role'];
 
 /**
- * Konteks yang dibutuhkan untuk mengevaluasi precondition transisi.
- * Seluruh angkanya tersedia dari view v_order_progress + keberadaan schedules,
- * jadi satu query detail order sudah cukup untuk menghitung aksi yang tersedia.
+ * Konteks untuk mengevaluasi precondition transisi.
+ *
+ * Seluruh angkanya tersedia dari `v_order_progress`, jadi satu query detail
+ * order sudah cukup untuk menghitung aksi yang tersedia.
  */
 export type OrderGuardContext = {
   paymentStatus: PaymentStatus;
   totalAmount: number;
   paidAmount: number;
-  /** Rasio DP minimum dari app_settings.min_dp_ratio (docs/08 section 2). */
+  /** Rasio DP minimum dari `app_settings.min_dp_ratio`. */
   minDpRatio: number;
-  hasCompleteSchedule: boolean;
+  /** Order dari checkout publik yang belum diverifikasi admin. */
+  isGuestOrder: boolean;
+  guestVerified: boolean;
+  /** Mitra pelaksana sudah ditetapkan. */
+  hasVendor: boolean;
+  hasSchedule: boolean;
   animalsTotal: number;
-  animalsSlaughtered: number;
-  animalsDistributed: number;
-  distributionCount: number;
-  docsApproved: number;
+  /** Dari `v_order_stages`. */
+  stagesTotal: number;
+  stagesValidated: number;
+  stagesRejected: number;
   /**
-   * Dokumentasi ber-status `approved` per tahap — dasar kelengkapan minimum
-   * docs/10 section 5 (dihitung per ORDER, bukan per hewan).
+   * Tahap yang buktinya masih kurang, dihitung database dari
+   * `stage_requirements` menurut mode order. Kosong = lengkap.
    */
-  docsApprovedSlaughter: number;
-  docsApprovedDistribution: number;
+  missingDocStages: string[];
   reportSent: boolean;
 };
 
 export type TransitionRule = {
   to: OrderStatus;
-  /** Role yang boleh memicu transisi ini (docs/07 section 4). */
+  /** Role yang boleh memicu transisi ini. */
   roles: UserRole[];
   /** Mengembalikan alasan penolakan, atau null bila precondition terpenuhi. */
   guard?: (ctx: OrderGuardContext) => string | null;
 };
 
-/** Terpenuhi bila lunas, atau DP >= min_dp_ratio (docs/08 section 2). */
+/** Terpenuhi bila lunas, atau DP >= min_dp_ratio. */
 export function paymentGatePassed(ctx: OrderGuardContext): boolean {
   if (ctx.paymentStatus === 'paid') return true;
   if (ctx.totalAmount <= 0) return false;
   return ctx.paidAmount >= ctx.totalAmount * ctx.minDpRatio;
 }
 
-/** Yang mengurus order dari sisi kami: verifikasi, pembayaran, penjadwalan. */
+/** Yang mengurus order dari sisi kami: verifikasi, pembayaran, penugasan. */
 const OPERATOR: UserRole[] = ['superadmin', 'admin'];
-/** Tahap yang dijalankan di lapangan — vendor ikut menggerakkannya. */
+/** Tahap yang dijalankan di lapangan — mitra ikut menggerakkannya. */
 const FIELD: UserRole[] = ['superadmin', 'admin', 'vendor'];
 
 /**
  * State machine order — sumber kebenaran tunggal untuk transisi status.
- * Mengikuti diagram docs/08 section 2 beserta "Aturan transisi kunci"-nya.
  *
- * Catatan: `on_hold` pada docs hanya digambarkan dari new/paid/scheduled dan
- * kembali ke scheduled. Di sini penahanan diizinkan dari seluruh tahap aktif
- * (issue severity high bisa muncul kapan saja, docs/08 section 6) dan pemulihan
- * dikembalikan ke new/paid/scheduled — guard di bawah tetap mencegah lompatan
- * yang preconditionnya belum terpenuhi.
+ * Rangkaiannya kini **administratif saja**. Pekerjaan lapangan yang bercabang
+ * menurut cara penyaluran hidup di `order_stage_events`, bukan di sini: sebuah
+ * status tidak bisa bercabang, dan tahap `salur` sah terjadi berkali-kali dalam
+ * satu order sementara status tidak bisa berulang.
+ *
+ * Jadi `in_progress` berarti "mitra sedang mengerjakan tahap-tahapnya", dan
+ * rincian sejauh mana dibaca dari `v_order_stages`.
  */
 export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
   new: [
+    {
+      to: 'verified',
+      roles: OPERATOR,
+      guard: (ctx) =>
+        !ctx.isGuestOrder || ctx.guestVerified
+          ? null
+          : 'Order tamu harus diverifikasi lebih dulu di panel verifikasi.',
+    },
+    { to: 'on_hold', roles: OPERATOR },
+    { to: 'cancelled', roles: OPERATOR },
+  ],
+
+  verified: [
     {
       to: 'paid',
       roles: OPERATOR,
@@ -76,11 +94,11 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
 
   paid: [
     {
-      to: 'scheduled',
+      to: 'assigned',
       roles: OPERATOR,
       guard: (ctx) => {
-        if (!ctx.hasCompleteSchedule)
-          return 'Jadwal belum lengkap: tanggal, lokasi, dan PIC wajib diisi.';
+        if (!ctx.hasVendor) return 'Mitra pelaksana belum ditetapkan.';
+        if (ctx.animalsTotal <= 0) return 'Order belum memiliki data hewan.';
         if (!paymentGatePassed(ctx))
           return `Pembayaran belum memenuhi gate: butuh lunas atau DP minimal ${Math.round(ctx.minDpRatio * 100)}%.`;
         return null;
@@ -90,63 +108,42 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
     { to: 'cancelled', roles: OPERATOR },
   ],
 
-  scheduled: [
+  assigned: [
     {
-      to: 'preparation',
-      roles: FIELD,
-      guard: (ctx) => (ctx.animalsTotal > 0 ? null : 'Order belum memiliki data hewan.'),
-    },
-    { to: 'on_hold', roles: OPERATOR },
-  ],
-
-  preparation: [
-    {
-      to: 'slaughtering',
-      roles: FIELD,
-      guard: (ctx) => (ctx.animalsTotal > 0 ? null : 'Order belum memiliki data hewan.'),
-    },
-    { to: 'on_hold', roles: OPERATOR },
-  ],
-
-  slaughtering: [
-    {
-      to: 'distribution',
+      to: 'in_progress',
       roles: FIELD,
       guard: (ctx) =>
-        ctx.animalsSlaughtered > 0
+        ctx.stagesTotal > 0
           ? null
-          : 'Belum ada hewan yang tercatat dipotong (slaughter_records).',
+          : 'Daftar tahap belum terbit — periksa cara penyaluran dan data hewan.',
     },
     { to: 'on_hold', roles: OPERATOR },
   ],
 
-  distribution: [
+  in_progress: [
     {
-      to: 'documentation',
+      to: 'validation',
       roles: FIELD,
-      guard: (ctx) =>
-        ctx.distributionCount > 0 ? null : 'Belum ada catatan distribusi pada order ini.',
+      guard: (ctx) => {
+        if (ctx.stagesTotal === 0) return 'Daftar tahap belum terbit.';
+        if (ctx.stagesValidated < ctx.stagesTotal) {
+          const sisa = ctx.stagesTotal - ctx.stagesValidated;
+          return `Masih ada ${sisa} tahap yang belum tervalidasi.`;
+        }
+        return null;
+      },
     },
     { to: 'on_hold', roles: OPERATOR },
   ],
 
-  documentation: [
+  validation: [
     {
       to: 'reporting',
       roles: OPERATOR,
-      guard: (ctx) => {
-        // docs/10 section 5: minimum 1 bukti pemotongan DAN 1 bukti distribusi,
-        // keduanya sudah tervalidasi penuh. "Ada satu dokumentasi apa pun"
-        // tidak cukup — order bisa lolos tanpa bukti penyerahan sama sekali.
-        const missing = missingDocumentationStages({
-          approvedSlaughter: ctx.docsApprovedSlaughter,
-          approvedDistribution: ctx.docsApprovedDistribution,
-        });
-
-        return missing.length === 0
+      guard: (ctx) =>
+        ctx.missingDocStages.length === 0
           ? null
-          : `Dokumentasi ${missing.join(' & ')} belum ada yang tervalidasi.`;
-      },
+          : `Bukti belum lengkap pada tahap: ${ctx.missingDocStages.join(', ')}.`,
     },
     { to: 'on_hold', roles: OPERATOR },
   ],
@@ -167,6 +164,7 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
 
   on_hold: [
     { to: 'new', roles: OPERATOR },
+    { to: 'verified', roles: OPERATOR },
     {
       to: 'paid',
       roles: OPERATOR,
@@ -174,13 +172,11 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
         paymentGatePassed(ctx) ? null : 'Pembayaran belum memenuhi gate untuk melanjutkan.',
     },
     {
-      to: 'scheduled',
+      to: 'assigned',
       roles: OPERATOR,
-      guard: (ctx) =>
-        ctx.hasCompleteSchedule
-          ? null
-          : 'Jadwal belum lengkap: tanggal, lokasi, dan PIC wajib diisi.',
+      guard: (ctx) => (ctx.hasVendor ? null : 'Mitra pelaksana belum ditetapkan.'),
     },
+    { to: 'in_progress', roles: OPERATOR },
     { to: 'cancelled', roles: OPERATOR },
   ],
 
@@ -198,9 +194,10 @@ export type TransitionOption = {
 
 /**
  * Daftar transisi dari sebuah status, lengkap dengan status boleh/tidaknya.
- * Transisi yang role-nya tidak berhak sama sekali tidak dikembalikan
- * (tombolnya tidak perlu muncul), sedangkan yang gagal precondition tetap
- * dikembalikan sebagai disabled + alasan agar operator tahu apa yang kurang.
+ *
+ * Transisi yang role-nya tidak berhak sama sekali tidak dikembalikan (tombolnya
+ * tidak perlu muncul), sedangkan yang gagal precondition tetap dikembalikan
+ * sebagai disabled + alasan agar operator tahu apa yang kurang.
  */
 export function getTransitionOptions(
   from: OrderStatus,
@@ -223,12 +220,12 @@ export function getTransitionOptions(
 }
 
 export type TransitionCheck =
-  { ok: true } | { ok: false; code: 'FORBIDDEN' | 'CONFLICT'; message: string };
+  | { ok: true }
+  | { ok: false; code: 'FORBIDDEN' | 'CONFLICT'; message: string };
 
 /**
  * Validasi satu transisi. Dipakai server action sebelum melakukan UPDATE.
- * `FORBIDDEN` = role tidak berhak; `CONFLICT` = precondition belum terpenuhi
- * (mengikuti kode error docs/16 section 1).
+ * `FORBIDDEN` = role tidak berhak; `CONFLICT` = precondition belum terpenuhi.
  */
 export function checkTransition(
   from: OrderStatus,
@@ -260,17 +257,9 @@ export function checkTransition(
   return { ok: true };
 }
 
-/** Posisi status pada rangkaian utama; -1 untuk on_hold/cancelled. */
+/** Posisi status dalam rangkaian, untuk stepper. -1 bila di luar rangkaian. */
 export function statusStepIndex(status: OrderStatus): number {
-  return [
-    'new',
-    'paid',
-    'scheduled',
-    'preparation',
-    'slaughtering',
-    'distribution',
-    'documentation',
-    'reporting',
-    'completed',
-  ].indexOf(status);
+  return ['new', 'verified', 'paid', 'assigned', 'in_progress', 'validation', 'reporting', 'completed'].indexOf(
+    status,
+  );
 }

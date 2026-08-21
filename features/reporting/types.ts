@@ -16,10 +16,13 @@ export type ReportAnimal = {
   status: AnimalStatus;
 };
 
-export type ReportDistribution = {
+export type ReportStage = {
+  stage: string;
+  occurredAt: string | null;
+  notes: string | null;
+  packagesCount: number | null;
+  recipientName: string | null;
   recipientArea: string | null;
-  packagesCount: number;
-  distributedAt: string;
 };
 
 export type ReportMedia = {
@@ -35,8 +38,20 @@ export type ReportData = {
   orderNumber: string;
   status: OrderStatus;
   createdAt: string;
-  branchName: string | null;
+  /** Nama mitra pelaksana. Null selama order belum ditugaskan ke mitra mana pun. */
+  vendorName: string | null;
   participantName: string | null;
+  /**
+   * Data lahir anak yang diaqiqahi — pasangan nama pada `animals[].onBehalfOf`.
+   *
+   * Termasuk data minimal meski laporan ini dibagikan lewat tautan: yang ditahan
+   * dari halaman publik adalah kontak peserta (telepon, email, alamat), sedangkan
+   * tempat & tanggal lahir justru pokok ibadah yang sedang dilaporkan.
+   *
+   * Null untuk order qurban dan untuk order sebelum 19 Agustus 2026.
+   */
+  childBirthPlace: string | null;
+  childBirthDate: string | null;
   services: Array<{ name: string; qty: number }>;
   animals: ReportAnimal[];
   schedule: {
@@ -48,9 +63,17 @@ export type ReportData = {
     animalsTotal: number;
     animalsSlaughtered: number;
     animalsDistributed: number;
-    packagesTotal: number;
+    stagesTotal: number;
+    stagesValidated: number;
   };
-  distributions: ReportDistribution[];
+  /**
+   * Tahap yang sudah tervalidasi, urut pelaksanaan.
+   *
+   * Menggantikan daftar distribusi: pada order Aqiqah Kirim, cerita yang perlu
+   * dibaca pemesan bukan "berapa paket disalurkan", melainkan bahwa pesanannya
+   * disembelih, dimasak, diantar, dan sampai.
+   */
+  stages: ReportStage[];
   media: ReportMedia[];
   report: {
     version: number;

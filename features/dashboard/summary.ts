@@ -1,51 +1,50 @@
-/** Satu baris `v_branch_kpi` setelah null-nya dinormalkan (docs/05 section 7). */
-export type BranchKpi = {
-  branchId: string;
-  branchCode: string;
-  branchName: string;
-  totalOrders: number;
-  openOrders: number;
-  completedOrders: number;
-  onHoldOrders: number;
-  unpaidOrders: number;
-  pctSlaughter: number;
-  pctDistribution: number;
-  pctDocumentation: number;
-  pctReport: number;
-  openIssues: number;
-  totalAmount: number;
-  paidAmount: number;
+/** Satu baris `v_vendor_kpi` setelah null-nya dinormalkan. */
+export type VendorKpi = {
+  vendorId: string;
+  vendorCode: string;
+  vendorName: string;
+  isActive: boolean;
+  ordersTotal: number;
+  ordersOpen: number;
+  ordersCompleted: number;
+  ordersOnHold: number;
+  revenueTotal: number;
+  vendorCostTotal: number;
+  marginTotal: number;
+  /** Rata-rata jam dari order dibuat sampai tahap terakhir tervalidasi. */
+  avgCycleHours: number | null;
+  /** Order yang pernah punya laporan tahap ditolak — penanda mutu kerja mitra. */
+  ordersWithRejection: number;
 };
 
-/** KPI inti lintas cabang untuk kartu atas dashboard (docs/09 section 2). */
+/** KPI inti lintas mitra untuk kartu atas dashboard. */
 export type KpiSummary = {
-  totalOrders: number;
-  openOrders: number;
-  completedOrders: number;
-  onHoldOrders: number;
-  unpaidOrders: number;
-  openIssues: number;
-  totalAmount: number;
-  paidAmount: number;
-  pctSlaughter: number;
-  pctDistribution: number;
-  pctDocumentation: number;
-  pctReport: number;
+  ordersTotal: number;
+  ordersOpen: number;
+  ordersCompleted: number;
+  ordersOnHold: number;
+  revenueTotal: number;
+  vendorCostTotal: number;
+  marginTotal: number;
+  /** Persentase margin terhadap tagihan. 0 bila belum ada order. */
+  marginPct: number;
+  avgCycleHours: number | null;
+  ordersWithRejection: number;
+  activeVendors: number;
 };
 
 const EMPTY_SUMMARY: KpiSummary = {
-  totalOrders: 0,
-  openOrders: 0,
-  completedOrders: 0,
-  onHoldOrders: 0,
-  unpaidOrders: 0,
-  openIssues: 0,
-  totalAmount: 0,
-  paidAmount: 0,
-  pctSlaughter: 0,
-  pctDistribution: 0,
-  pctDocumentation: 0,
-  pctReport: 0,
+  ordersTotal: 0,
+  ordersOpen: 0,
+  ordersCompleted: 0,
+  ordersOnHold: 0,
+  revenueTotal: 0,
+  vendorCostTotal: 0,
+  marginTotal: 0,
+  marginPct: 0,
+  avgCycleHours: null,
+  ordersWithRejection: 0,
+  activeVendors: 0,
 };
 
 function round2(value: number): number {
@@ -53,36 +52,44 @@ function round2(value: number): number {
 }
 
 /**
- * Gabungkan KPI beberapa cabang menjadi satu angka lintas cabang.
+ * Gabungkan KPI beberapa mitra menjadi satu angka lintas mitra.
  *
- * Persentase **ditimbang jumlah order**, bukan dirata-rata biasa: setiap
- * `pct_*` di `v_branch_kpi` sudah berupa rata-rata per order di cabang itu,
- * jadi rata-rata polos akan membuat cabang dengan 2 order berbobot sama dengan
- * cabang dengan 200 order. Cabang tanpa order otomatis berbobot nol.
+ * Rata-rata siklus **ditimbang jumlah order**, bukan dirata-rata polos:
+ * `avg_cycle_hours` di `v_vendor_kpi` sudah berupa rata-rata per order milik
+ * mitra itu, jadi rata-rata polos akan membuat mitra dengan 2 order berbobot
+ * sama dengan mitra yang mengerjakan 200. Mitra tanpa order otomatis berbobot
+ * nol — dan sengaja dikeluarkan dari pembagi, supaya mitra yang belum pernah
+ * dapat order tidak menyeret angkanya.
  */
-export function summarizeBranchKpi(rows: BranchKpi[]): KpiSummary {
+export function summarizeVendorKpi(rows: VendorKpi[]): KpiSummary {
   if (rows.length === 0) return EMPTY_SUMMARY;
 
-  const totalOrders = rows.reduce((acc, r) => acc + r.totalOrders, 0);
+  const ordersTotal = rows.reduce((acc, r) => acc + r.ordersTotal, 0);
+  const revenueTotal = rows.reduce((acc, r) => acc + r.revenueTotal, 0);
+  const marginTotal = rows.reduce((acc, r) => acc + r.marginTotal, 0);
 
-  const weighted = (pick: (row: BranchKpi) => number): number => {
-    if (totalOrders === 0) return 0;
-    const sum = rows.reduce((acc, r) => acc + pick(r) * r.totalOrders, 0);
-    return round2(sum / totalOrders);
-  };
+  // Hanya mitra yang punya angka siklus yang ikut dihitung.
+  const withCycle = rows.filter((r) => r.avgCycleHours !== null && r.ordersTotal > 0);
+  const cycleWeight = withCycle.reduce((acc, r) => acc + r.ordersTotal, 0);
+  const avgCycleHours =
+    cycleWeight === 0
+      ? null
+      : round2(
+          withCycle.reduce((acc, r) => acc + (r.avgCycleHours as number) * r.ordersTotal, 0) /
+            cycleWeight,
+        );
 
   return {
-    totalOrders,
-    openOrders: rows.reduce((acc, r) => acc + r.openOrders, 0),
-    completedOrders: rows.reduce((acc, r) => acc + r.completedOrders, 0),
-    onHoldOrders: rows.reduce((acc, r) => acc + r.onHoldOrders, 0),
-    unpaidOrders: rows.reduce((acc, r) => acc + r.unpaidOrders, 0),
-    openIssues: rows.reduce((acc, r) => acc + r.openIssues, 0),
-    totalAmount: rows.reduce((acc, r) => acc + r.totalAmount, 0),
-    paidAmount: rows.reduce((acc, r) => acc + r.paidAmount, 0),
-    pctSlaughter: weighted((r) => r.pctSlaughter),
-    pctDistribution: weighted((r) => r.pctDistribution),
-    pctDocumentation: weighted((r) => r.pctDocumentation),
-    pctReport: weighted((r) => r.pctReport),
+    ordersTotal,
+    ordersOpen: rows.reduce((acc, r) => acc + r.ordersOpen, 0),
+    ordersCompleted: rows.reduce((acc, r) => acc + r.ordersCompleted, 0),
+    ordersOnHold: rows.reduce((acc, r) => acc + r.ordersOnHold, 0),
+    revenueTotal,
+    vendorCostTotal: rows.reduce((acc, r) => acc + r.vendorCostTotal, 0),
+    marginTotal,
+    marginPct: revenueTotal === 0 ? 0 : round2((marginTotal / revenueTotal) * 100),
+    avgCycleHours,
+    ordersWithRejection: rows.reduce((acc, r) => acc + r.ordersWithRejection, 0),
+    activeVendors: rows.filter((r) => r.isActive).length,
   };
 }

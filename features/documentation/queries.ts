@@ -25,8 +25,8 @@ export type DocumentationRow = {
 
 export type DocumentationSummary = {
   rows: DocumentationRow[];
-  approvedSlaughter: number;
-  approvedDistribution: number;
+  /** Jumlah bukti tervalidasi per tahap, mis. `{ sembelih: 2, masak: 1 }`. */
+  approvedByStage: Record<string, number>;
   pendingReview: number;
 };
 
@@ -106,7 +106,7 @@ export async function getOrderDocumentations(orderId: string): Promise<Documenta
     .eq('order_id', orderId)
     .order('created_at', { ascending: false });
 
-  if (error) return { rows: [], approvedSlaughter: 0, approvedDistribution: 0, pendingReview: 0 };
+  if (error) return { rows: [], approvedByStage: {}, pendingReview: 0 };
 
   const raw = (data ?? []) as unknown as RawDoc[];
   const urlByPath = await signPaths(
@@ -118,19 +118,20 @@ export async function getOrderDocumentations(orderId: string): Promise<Documenta
 
   return {
     rows,
-    approvedSlaughter: rows.filter((r) => r.status === 'approved' && r.stage === 'slaughter')
-      .length,
-    approvedDistribution: rows.filter((r) => r.status === 'approved' && r.stage === 'distribution')
-      .length,
-    pendingReview: rows.filter((r) => r.status === 'pending' || r.status === 'approved_supervisor')
-      .length,
+    // Hitungan per tahap tidak lagi diturunkan di sini: gerbang kelengkapan
+    // dibaca dari `v_order_progress.missing_doc_stages`, yang menghitungnya
+    // menurut `stage_requirements` dan cara penyaluran order.
+    approvedByStage: rows.reduce<Record<string, number>>((acc, r) => {
+      if (r.status === 'approved') acc[r.stage] = (acc[r.stage] ?? 0) + 1;
+      return acc;
+    }, {}),
+    pendingReview: rows.filter((r) => r.status === 'pending').length,
   };
 }
 
 export type ValidationQueueItem = DocumentationRow & {
   orderId: string;
   orderNumber: string;
-  branchCode: string;
   participantName: string;
 };
 
@@ -144,9 +145,9 @@ export type ValidationQueueResult = {
 const QUEUE_SELECT = `
   ${DOC_SELECT},
   order:orders!inner (
-    id, order_number, branch_id,
+    id, order_number, vendor_id,
     participant:participants!orders_participant_id_fkey ( name ),
-    branch:branches!orders_branch_id_fkey ( code )
+    vendor:vendors!orders_vendor_id_fkey ( code )
   )
 `;
 
@@ -185,7 +186,7 @@ export async function getValidationQueue(
         id: string;
         order_number: string;
         participant: { name: string } | null;
-        branch: { code: string } | null;
+        vendor: { code: string } | null;
       } | null;
     }
   >;
@@ -200,7 +201,7 @@ export async function getValidationQueue(
       ...mapDoc(r, urlByPath),
       orderId: r.order?.id ?? '',
       orderNumber: r.order?.order_number ?? '-',
-      branchCode: r.order?.branch?.code ?? '-',
+      vendorCode: r.order?.vendor?.code ?? '-',
       participantName: r.order?.participant?.name ?? '-',
     })),
     page,

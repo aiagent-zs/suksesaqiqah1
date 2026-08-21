@@ -3,8 +3,8 @@ import { ArrowRight, PackageSearch } from 'lucide-react';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import { dashboardFilterSchema } from '@/features/dashboard/schema';
-import { getBranchKpi, getIssueBreakdown, getOpenOrders } from '@/features/dashboard/queries';
-import { summarizeBranchKpi } from '@/features/dashboard/summary';
+import { getVendorKpi, getIssueBreakdown, getOpenOrders } from '@/features/dashboard/queries';
+import { summarizeVendorKpi } from '@/features/dashboard/summary';
 import { countPendingGuestOrders } from '@/features/orders/queries';
 import { DashboardFilters } from '@/features/dashboard/components/dashboard-filters';
 import { KpiCards } from '@/features/dashboard/components/kpi-cards';
@@ -53,7 +53,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     : { title: 'Dashboard', subtitle: 'Ringkasan operasional dalam cakupan akses Anda.' };
 
   const [branchRows, openOrders, issues, pendingGuestOrders] = await Promise.all([
-    getBranchKpi(),
+    getVendorKpi(),
     getOpenOrders(filter),
     getIssueBreakdown(),
     // Sengaja di luar `v_branch_kpi`: view itu tidak punya dimensi asal order,
@@ -65,7 +65,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       : Promise.resolve(null),
   ]);
 
-  const summary = summarizeBranchKpi(branchRows);
+  const summary = summarizeVendorKpi(branchRows);
 
   return (
     <div className="space-y-6">

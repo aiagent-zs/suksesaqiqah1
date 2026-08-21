@@ -60,7 +60,7 @@ describe('orderFilterSchema — masukan ngawur', () => {
 describe('orderFilterSchema — masukan sah', () => {
   it('meneruskan nilai yang valid apa adanya', () => {
     const result = orderFilterSchema.parse({
-      status: 'scheduled',
+      status: 'assigned',
       payment_status: 'partial',
       location_id: '3f1a9c62-5f4b-4c1e-9a2d-8e7b6c5d4a3f',
       date_from: '2026-08-01',
@@ -70,7 +70,7 @@ describe('orderFilterSchema — masukan sah', () => {
       page_size: '50',
     });
 
-    expect(result.status).toBe('scheduled');
+    expect(result.status).toBe('assigned');
     expect(result.payment_status).toBe('partial');
     expect(result.location_id).toBe('3f1a9c62-5f4b-4c1e-9a2d-8e7b6c5d4a3f');
     expect(result.date_from).toBe('2026-08-01');

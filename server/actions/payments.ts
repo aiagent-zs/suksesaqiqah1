@@ -21,7 +21,7 @@ type OrderContext = {
   order_number: string;
   total_amount: number;
   paid_amount: number;
-  branch_code: string;
+  vendor_code: string;
 };
 
 async function loadOrderContext(
@@ -31,7 +31,7 @@ async function loadOrderContext(
   const { data } = await supabase
     .from('orders')
     .select(
-      'id, order_number, total_amount, paid_amount, branch:branches!orders_branch_id_fkey ( code )',
+      'id, order_number, total_amount, paid_amount, vendor:vendors!orders_vendor_id_fkey ( code )',
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -43,7 +43,7 @@ async function loadOrderContext(
     order_number: string;
     total_amount: number | string;
     paid_amount: number | string;
-    branch: { code: string } | null;
+    vendor: { code: string } | null;
   };
 
   return {
@@ -51,7 +51,7 @@ async function loadOrderContext(
     order_number: row.order_number,
     total_amount: Number(row.total_amount),
     paid_amount: Number(row.paid_amount),
-    branch_code: row.branch?.code ?? '',
+    vendor_code: row.vendor?.code ?? '',
   };
 }
 
@@ -92,8 +92,8 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ id: 
 
   // Path bukti datang dari klien (unggahan langsung ke Storage), sementara
   // kebijakan bucket hanya membatasi bucket — bukan foldernya. Tanpa cek ini,
-  // seorang admin cabang bisa menautkan bukti milik order cabang lain.
-  if (proof_path && !isProofPathForOrder(proof_path, order.branch_code, order.order_number)) {
+  // seseorang bisa menautkan bukti milik order lain ke pembayaran ini.
+  if (proof_path && !isProofPathForOrder(proof_path, order.order_number)) {
     return {
       ok: false,
       error: {

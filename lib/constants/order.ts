@@ -4,7 +4,6 @@ export type OrderStatus = Database['public']['Enums']['order_status'];
 export type PaymentStatus = Database['public']['Enums']['payment_status'];
 export type AnimalStatus = Database['public']['Enums']['animal_status'];
 export type AnimalSpecies = Database['public']['Enums']['animal_species'];
-export type ScheduleStatus = Database['public']['Enums']['schedule_status'];
 export type IssueSeverity = Database['public']['Enums']['issue_severity'];
 export type IssueStatus = Database['public']['Enums']['issue_status'];
 export type PaymentVerificationStatus = Database['public']['Enums']['payment_verification_status'];
@@ -16,32 +15,33 @@ type StatusMeta = {
 };
 
 /**
- * Urutan sesuai rangkaian workflow (docs/08 section 2), bukan alfabetis.
- * Dipakai untuk stepper progres dan urutan opsi filter.
+ * Urutan rangkaian administratif order, bukan alfabetis.
+ *
+ * Empat status lama (preparation, slaughtering, distribution, documentation)
+ * melebur jadi `in_progress` + `validation`. Rincian pekerjaannya kini terbaca
+ * dari `order_stage_events` — dan **memang harus begitu**, karena tahapannya
+ * bercabang menurut cara penyaluran sementara sebuah status tidak bisa
+ * bercabang. Stepper di layar menampilkan status ini di atas, dengan tahap
+ * lapangan sebagai sub-stepper di bawahnya.
  */
 export const ORDER_STATUS_FLOW: OrderStatus[] = [
   'new',
+  'verified',
   'paid',
-  'scheduled',
-  'preparation',
-  'slaughtering',
-  'distribution',
-  'documentation',
+  'assigned',
+  'in_progress',
+  'validation',
   'reporting',
   'completed',
 ];
 
 export const ORDER_STATUS_META: Record<OrderStatus, StatusMeta> = {
   new: { label: 'Baru', className: 'bg-slate-100 text-slate-700 border-slate-200' },
+  verified: { label: 'Terverifikasi', className: 'bg-sky-50 text-sky-700 border-sky-200' },
   paid: { label: 'Terbayar', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  scheduled: { label: 'Terjadwal', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  preparation: { label: 'Persiapan', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  slaughtering: {
-    label: 'Pemotongan',
-    className: 'bg-violet-50 text-violet-700 border-violet-200',
-  },
-  distribution: { label: 'Distribusi', className: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-  documentation: { label: 'Dokumentasi', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  assigned: { label: 'Mitra Ditetapkan', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  in_progress: { label: 'Dikerjakan', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  validation: { label: 'Validasi', className: 'bg-amber-50 text-amber-700 border-amber-200' },
   reporting: { label: 'Pelaporan', className: 'bg-teal-50 text-teal-700 border-teal-200' },
   completed: { label: 'Selesai', className: 'bg-emerald-600 text-white border-emerald-600' },
   on_hold: { label: 'Ditahan', className: 'bg-orange-50 text-orange-700 border-orange-200' },
@@ -111,12 +111,6 @@ export const ANIMAL_STATUS_META: Record<AnimalStatus, StatusMeta> = {
   },
 };
 
-export const SCHEDULE_STATUS_META: Record<ScheduleStatus, StatusMeta> = {
-  planned: { label: 'Direncanakan', className: 'bg-slate-100 text-slate-700 border-slate-200' },
-  ongoing: { label: 'Berlangsung', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  done: { label: 'Selesai', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-};
-
 /**
  * Urutan tampilan kendala: paling berat lebih dulu — kebalikan urutan enum
  * Postgres (`low` → `high`), karena panel issue dibaca dari yang paling mendesak.
@@ -151,17 +145,17 @@ export type DocStatus = Database['public']['Enums']['doc_status'];
 export type DocStage = Database['public']['Enums']['doc_stage'];
 export type DocType = Database['public']['Enums']['doc_type'];
 
-/** Status validasi 2 tingkat (docs/10 section 6). */
+/**
+ * Status validasi bukti — satu tingkat: vendor unggah, admin memutuskan.
+ *
+ * `approved_supervisor` dari tangga dua tingkat lama sudah tidak ada di enum:
+ * skema dibangun ulang dari nol, jadi tidak ada baris warisan yang perlu
+ * dijaga jalurnya.
+ */
 export const DOC_STATUS_META: Record<DocStatus, StatusMeta> = {
   pending: {
     label: 'Menunggu Validasi',
     className: 'bg-amber-50 text-amber-700 border-amber-200',
-  },
-  approved_supervisor: {
-    // Sisa tangga dua tingkat yang dipendekkan 19 Agustus 2026. Tidak ada lagi
-    // yang membuat status ini; baris lama tetap bisa diselesaikan admin.
-    label: 'Menunggu Validasi (lama)',
-    className: 'bg-blue-50 text-blue-700 border-blue-200',
   },
   approved: {
     label: 'Tervalidasi',
@@ -170,10 +164,18 @@ export const DOC_STATUS_META: Record<DocStatus, StatusMeta> = {
   rejected: { label: 'Ditolak', className: 'bg-red-50 text-red-700 border-red-200' },
 };
 
+/**
+ * Label tahap bukti. Nilainya cerminan `fulfilment_stage` + `umum`, karena
+ * gerbang kelengkapan membandingkan keduanya secara langsung.
+ */
 export const DOC_STAGE_LABEL: Record<DocStage, string> = {
-  slaughter: 'Pemotongan',
-  distribution: 'Distribusi',
-  general: 'Umum',
+  persiapan: 'Persiapan',
+  sembelih: 'Sembelih',
+  masak: 'Masak',
+  salur: 'Salur',
+  kirim: 'Pengiriman',
+  terkirim: 'Terkirim',
+  umum: 'Umum',
 };
 
 export const DOC_TYPE_LABEL: Record<DocType, string> = {

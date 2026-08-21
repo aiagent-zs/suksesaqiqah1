@@ -5,7 +5,7 @@ import type { ReportMedia } from '@/features/reporting/types';
 function media(overrides: Partial<ReportMedia>): ReportMedia {
   return {
     type: 'photo',
-    stage: 'slaughter',
+    stage: 'sembelih',
     caption: null,
     storagePath: 'BDG/2026/08/IA-202608-0001/slaughter/a.jpg',
     url: null,

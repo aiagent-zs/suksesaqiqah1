@@ -40,47 +40,48 @@ describe('checkProofFile', () => {
 });
 
 describe('isProofPathForOrder', () => {
-  const path = buildProofPath('BDG', 'IA-202608-0001', UUID, 'jpg');
+  const path = buildProofPath('IA-202608-0001', UUID, 'jpg');
 
   it('menerima path yang dibangun untuk order yang sama', () => {
-    expect(path).toBe(`BDG/IA-202608-0001/${UUID}.jpg`);
-    expect(isProofPathForOrder(path, 'BDG', 'IA-202608-0001')).toBe(true);
+    expect(path).toBe(`IA-202608-0001/${UUID}.jpg`);
+    expect(isProofPathForOrder(path, 'IA-202608-0001')).toBe(true);
   });
 
-  it('menolak bukti milik order atau cabang lain', () => {
+  it('menolak bukti milik order lain', () => {
     // Kebijakan Storage hanya membatasi bucket, bukan folder — pemeriksaan ini
     // satu-satunya yang mencegah bukti order lain ditautkan ke sini.
-    expect(isProofPathForOrder(path, 'JKT', 'IA-202608-0001')).toBe(false);
-    expect(isProofPathForOrder(path, 'BDG', 'IA-202608-0002')).toBe(false);
+    expect(isProofPathForOrder(path, 'IA-202608-0002')).toBe(false);
+    // Awalan yang mirip tidak boleh lolos: nomor order harus cocok utuh.
+    expect(isProofPathForOrder(path, 'IA-202608-000')).toBe(false);
   });
 
   it('menolak path traversal dan path absolut', () => {
     expect(
-      isProofPathForOrder(`BDG/IA-202608-0001/../../${UUID}.jpg`, 'BDG', 'IA-202608-0001'),
+      isProofPathForOrder(`IA-202608-0001/../../${UUID}.jpg`, 'IA-202608-0001'),
     ).toBe(false);
-    expect(isProofPathForOrder(`/BDG/IA-202608-0001/${UUID}.jpg`, 'BDG', 'IA-202608-0001')).toBe(
+    expect(isProofPathForOrder(`/BDG/IA-202608-0001/${UUID}.jpg`, 'IA-202608-0001')).toBe(
       false,
     );
     expect(
-      isProofPathForOrder(`BDG/IA-202608-0001/${UUID}.jpg/../x.jpg`, 'BDG', 'IA-202608-0001'),
+      isProofPathForOrder(`IA-202608-0001/${UUID}.jpg/../x.jpg`, 'IA-202608-0001'),
     ).toBe(false);
   });
 
   it('menolak nama berkas yang bukan uuid atau berekstensi terlarang', () => {
-    expect(isProofPathForOrder('BDG/IA-202608-0001/bukti.jpg', 'BDG', 'IA-202608-0001')).toBe(
+    expect(isProofPathForOrder('IA-202608-0001/bukti.jpg', 'IA-202608-0001')).toBe(
       false,
     );
-    expect(isProofPathForOrder(`BDG/IA-202608-0001/${UUID}.exe`, 'BDG', 'IA-202608-0001')).toBe(
+    expect(isProofPathForOrder(`IA-202608-0001/${UUID}.exe`, 'IA-202608-0001')).toBe(
       false,
     );
-    expect(isProofPathForOrder(`BDG/IA-202608-0001/${UUID}`, 'BDG', 'IA-202608-0001')).toBe(false);
+    expect(isProofPathForOrder(`IA-202608-0001/${UUID}`, 'IA-202608-0001')).toBe(false);
   });
 
   it('menolak path yang menyertakan nama bucket', () => {
     // Supabase `.from(bucket).upload(path)` sudah menyematkan buckets; path yang
     // ikut membawa prefiks akan tersimpan di folder ganda.
     expect(
-      isProofPathForOrder(`payment-proofs/BDG/IA-202608-0001/${UUID}.jpg`, 'BDG', 'IA-202608-0001'),
+      isProofPathForOrder(`payment-proofs/BDG/IA-202608-0001/${UUID}.jpg`, 'IA-202608-0001'),
     ).toBe(false);
   });
 });

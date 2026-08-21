@@ -26,13 +26,14 @@ export const PROOF_MIME_EXT: Record<string, string> = {
 };
 
 /**
- * Bentuk path yang sah: `{branch_code}/{order_number}/{uuid}.{ext}` (docs/17 section 3).
+ * Bentuk path yang sah: `{order_number}/{uuid}.{ext}`. Segmen cabang dibuang
+ * bersama tabelnya; nomor order sudah unik global.
  *
  * Tiap segmen dibatasi charset sempit, jadi pola ini sekaligus menutup path
  * traversal (`../`) dan path absolut — keduanya tidak mungkin lolos regex ini.
  */
 const PROOF_PATH_PATTERN =
-  /^[A-Za-z0-9_-]{1,16}\/[A-Za-z0-9_-]{1,40}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp|pdf)$/;
+  /^[A-Za-z0-9_-]{1,40}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp|pdf)$/;
 
 export type ProofFileCheck = { ok: true; ext: string } | { ok: false; message: string };
 
@@ -67,27 +68,25 @@ export function checkProofFile(file: { type: string; size: number }): ProofFileC
  * mencegah nama file membocorkan data peserta (docs/17 section 3).
  */
 export function buildProofPath(
-  branchCode: string,
   orderNumber: string,
   uuid: string,
   ext: string,
 ): string {
-  return `${branchCode}/${orderNumber}/${uuid}.${ext}`;
+  return `${orderNumber}/${uuid}.${ext}`;
 }
 
 /**
  * Apakah `path` benar-benar milik order ini?
  *
- * Kebijakan Storage hanya membatasi *bucket*, bukan folder — seorang Admin
- * Cabang yang berhak mengunggah bisa saja mengirim path milik order cabang
- * lain. Server action wajib memanggil ini sebelum menyimpan `proof_path`,
- * memakai branch & nomor order yang dibaca dari database, bukan dari klien.
+ * Kebijakan Storage hanya membatasi *bucket*, bukan folder — siapa pun yang
+ * berhak mengunggah bisa saja mengirim path milik order lain. Server action
+ * wajib memanggil ini sebelum menyimpan `proof_path`, memakai nomor order yang
+ * dibaca dari database, bukan dari klien.
  */
 export function isProofPathForOrder(
   path: string,
-  branchCode: string,
   orderNumber: string,
 ): boolean {
   if (!PROOF_PATH_PATTERN.test(path)) return false;
-  return path.startsWith(`${branchCode}/${orderNumber}/`);
+  return path.startsWith(`${orderNumber}/`);
 }

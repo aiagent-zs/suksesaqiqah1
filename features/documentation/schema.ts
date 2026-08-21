@@ -2,7 +2,22 @@ import { z } from 'zod';
 
 const uuid = z.string().uuid('ID tidak valid');
 
-export const DOC_STAGES = ['slaughter', 'distribution', 'general'] as const;
+/**
+ * Tahap bukti — cerminan `fulfilment_stage` + `umum`.
+ *
+ * Keselarasan ini struktural, bukan kesepakatan tak tertulis: gerbang
+ * kelengkapan di `v_order_progress` membandingkan `documentations.stage`
+ * dengan `stage_requirements.stage` secara langsung.
+ */
+export const DOC_STAGES = [
+  'persiapan',
+  'sembelih',
+  'masak',
+  'salur',
+  'kirim',
+  'terkirim',
+  'umum',
+] as const;
 
 /**
  * Unggah satu dokumentasi (docs/10 section 3).

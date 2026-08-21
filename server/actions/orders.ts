@@ -15,7 +15,7 @@ import {
 } from '@/features/orders/schema';
 import { checkTransition } from '@/features/orders/state-machine';
 import { checkAnimalTransition } from '@/features/orders/animal-state-machine';
-import { getDefaultBranchId, getOrderDetail } from '@/features/orders/queries';
+import { getOrderDetail } from '@/features/orders/queries';
 import type { OrderStatus } from '@/lib/constants/order';
 
 import {
@@ -55,15 +55,6 @@ export async function createOrder(
 
   const supabase = await createClient();
 
-  // Cabang ditentukan di sini, bukan di form: `orders.branch_id` NOT NULL
-  // sementara pemilihnya sudah tidak ada.
-  const branchId = await getDefaultBranchId();
-  if (!branchId) {
-    return internalError('Cabang penampung order belum ada', {
-      message: 'branches kosong — seed 01_master.sql belum dijalankan',
-    });
-  }
-
   // Harga satuan tidak dipercaya dari klien. Katalog `services` adalah satu-
   // satunya sumber harga: layanan wajib aktif, dan `unit_price` yang dikirim
   // form ditimpa harga katalog sebelum masuk RPC. Tanpa ini, siapapun yang bisa
@@ -94,7 +85,6 @@ export async function createOrder(
 
   const pricedPayload = {
     ...payload,
-    branch_id: branchId,
     items: payload.items.map((item) => ({
       ...item,
       unit_price: priceByService.get(item.service_id)!,

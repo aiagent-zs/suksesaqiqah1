@@ -14,6 +14,12 @@ export type GuestOrderInfo = {
   participantName: string | null;
   participantPhone: string | null;
   aqiqahFor: string | null;
+  /**
+   * Data lahir anak yang diaqiqahi. Namanya sendiri tidak di sini — ia tersimpan
+   * pada `animals.on_behalf_of` dan sudah tampil di panel hewan.
+   */
+  childBirthPlace: string | null;
+  childBirthDate: string | null;
   /** Tanggal & jam yang diminta pemesan — bahan menyusun jadwal, bukan jadwalnya. */
   requestedDate: string | null;
   requestedTime: string | null;
@@ -83,6 +89,17 @@ export function GuestOrderPanel({
     details.push({
       label: 'Aqiqah untuk',
       value: AQIQAH_FOR_LABEL[info.aqiqahFor] ?? info.aqiqahFor,
+    });
+  }
+  // Tempat & tanggal lahir: yang dikonfirmasi ulang saat menelepon pemesan,
+  // karena keduanya tercetak di sertifikat dan salah ketik di sini baru
+  // ketahuan setelah dokumennya jadi.
+  if (info.childBirthPlace || info.childBirthDate) {
+    details.push({
+      label: 'Tempat, tanggal lahir anak',
+      value: [info.childBirthPlace, info.childBirthDate ? formatDate(info.childBirthDate) : null]
+        .filter(Boolean)
+        .join(', '),
     });
   }
   // Tanggal yang diminta pemesan: inilah yang dikonfirmasi saat menghubunginya,

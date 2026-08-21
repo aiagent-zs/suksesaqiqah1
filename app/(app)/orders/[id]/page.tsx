@@ -12,25 +12,21 @@ import { GuestOrderPanel } from '@/features/orders/components/guest-order-panel'
 import { PaymentManager } from '@/features/payments/components/payment-manager';
 import { getOrderPayments } from '@/features/payments/queries';
 import { ScheduleManager } from '@/features/schedules/components/schedule-manager';
-import { getScheduleFormOptions } from '@/features/schedules/queries';
-import { SlaughterManager } from '@/features/slaughter/components/slaughter-manager';
-import { getOrderSlaughterRecords } from '@/features/slaughter/queries';
-import { DistributionManager } from '@/features/distribution/components/distribution-manager';
-import { getOrderDistributions } from '@/features/distribution/queries';
+import { getScheduleFormOptions, getVendorOptions } from '@/features/schedules/queries';
+import { StagePanel } from '@/features/stages/components/stage-panel';
+import { getOrderStages } from '@/features/stages/queries';
 import { IssueListPanel } from '@/features/issues/components/issue-list-panel';
 import { getOrderIssues } from '@/features/issues/queries';
 import { DocumentationManager } from '@/features/documentation/components/documentation-manager';
 import { getOrderDocumentations } from '@/features/documentation/queries';
 import {
   canValidateDocumentation,
-  missingDocumentationStages,
 } from '@/features/documentation/review';
 import { ReportManager } from '@/features/reporting/components/report-manager';
 import { getOrderReports } from '@/features/reporting/queries';
 import {
   OrderStatusBadge,
   PaymentStatusBadge,
-  ScheduleStatusBadge,
 } from '@/components/data/status-badge';
 import { ORDER_STATUS_META } from '@/lib/constants/order';
 import { formatCurrency, formatDate, formatDateTime, formatTime } from '@/lib/format';
@@ -52,7 +48,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   const detail = await getOrderDetail(id);
   if (!detail) notFound();
 
-  const { order, participant, branch, items, animals, schedule, guard, creatorName } = detail;
+  const { order, participant, vendor, items, animals, schedule, guard, creatorName } = detail;
 
   // Order tamu: `created_by is null` adalah penanda yang ditulis
   // `create_guest_order` untuk pesanan yang masuk dari halaman publik.
@@ -65,20 +61,18 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
     timeline,
     payments,
     scheduleOptions,
-    slaughterRecords,
-    distributions,
+    vendorOptions,
+    stages,
     documentations,
     reports,
     issues,
   ] = await Promise.all([
     getOrderTimeline(id),
     getOrderPayments(id),
-    // Daftar lokasi & petugas hanya dibutuhkan oleh yang berhak menyunting.
-    canManageSchedule
-      ? getScheduleFormOptions(order.branch_id)
-      : Promise.resolve({ locations: [], pics: [] }),
-    getOrderSlaughterRecords(id),
-    getOrderDistributions(id),
+    // Daftar lokasi hanya dibutuhkan oleh yang berhak menyunting.
+    canManageSchedule ? getScheduleFormOptions() : Promise.resolve({ locations: [] }),
+    canManageSchedule ? getVendorOptions() : Promise.resolve([]),
+    getOrderStages(id),
     getOrderDocumentations(id),
     getOrderReports(id),
     getOrderIssues(id),
@@ -90,22 +84,16 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   const canEditAnimals = canDo(role, 'MANAGE_ANIMALS');
   const canRecordPayment = canDo(role, 'RECORD_PAYMENT');
   const canVerifyPayment = canDo(role, 'VERIFY_PAYMENT');
-  const canRecordFieldWork = canDo(role, 'RECORD_FIELD_WORK');
-  const canDeleteFieldRecord = canDo(role, 'DELETE_FIELD_RECORD');
+  const canReportStageWork = canDo(role, 'REPORT_STAGE');
+  const canValidateStage = canDo(role, 'VALIDATE_STAGE_REPORT');
   const canManageIssues = canDo(role, 'MANAGE_ISSUES');
-  // Hanya hewan yang sudah dipotong yang bisa ditandai tersalurkan.
-  const distributableAnimals = animals
-    .filter((a) => a.status === 'slaughtered')
-    .map((a) => ({ id: a.id, tagCode: a.tag_code, species: a.species }));
   // Vendor tidak pernah melihat data pembayaran (RLS `payments_select`) — uang
   // mengalir antara pembeli dan kami, bukan antara pembeli dan vendor. Panelnya
   // karena itu tidak dirender sama sekali untuk mereka.
   const showPayments = role !== 'vendor';
-  // Kelengkapan yang sama dengan gate `documentation → reporting` (docs/10 §5).
-  const missingDoc = missingDocumentationStages({
-    approvedSlaughter: documentations.approvedSlaughter,
-    approvedDistribution: documentations.approvedDistribution,
-  });
+  // Tahap yang buktinya belum lengkap — dihitung database dari
+  // `stage_requirements` menurut cara penyaluran order.
+  const missingDoc = guard.missingDocStages;
 
   return (
     <div className="space-y-6">
@@ -160,6 +148,8 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             participantName: participant?.name ?? null,
             participantPhone: participant?.phone ?? null,
             aqiqahFor: order.aqiqah_for,
+            childBirthPlace: order.child_birth_place,
+            childBirthDate: order.child_birth_date,
             requestedDate: order.requested_date,
             requestedTime: order.requested_time,
             distributionMode: order.distribution_mode,
@@ -221,18 +211,17 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                     locationAddress: schedule.locationAddress,
                     lat: schedule.lat,
                     lng: schedule.lng,
-                    picUserId: schedule.pic_user_id,
-                    picName: schedule.picName,
                     scheduledDate: schedule.scheduled_date,
                     scheduledTime: schedule.scheduled_time,
-                    status: schedule.status,
                     notes: schedule.notes,
                   }
                 : null
             }
+            vendor={vendor ? { id: vendor.id, name: vendor.name, phone: vendor.phone } : null}
+            vendors={vendorOptions}
             options={scheduleOptions}
             canEdit={canManageSchedule}
-            role={role}
+            canAssign={canDo(role, 'ASSIGN_VENDOR')}
           />
 
           {/* --- Pembayaran --- */}
@@ -240,8 +229,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             <PaymentManager
               orderId={order.id}
               orderNumber={order.order_number}
-              branchCode={branch?.code ?? ''}
-              summary={payments}
+                summary={payments}
               totalAmount={Number(order.total_amount)}
               paidAmount={Number(order.paid_amount)}
               minDpRatio={guard.minDpRatio}
@@ -258,26 +246,12 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             role={role}
           />
 
-          {/* --- Pemotongan --- */}
-          <SlaughterManager
-            animals={animals.map((a) => ({
-              id: a.id,
-              tagCode: a.tag_code,
-              species: a.species,
-              status: a.status,
-            }))}
-            records={slaughterRecords}
-            canRecord={canRecordFieldWork}
-            canDelete={canDeleteFieldRecord}
-          />
-
-          {/* --- Distribusi --- */}
-          <DistributionManager
-            orderId={order.id}
-            summary={distributions}
-            availableAnimals={distributableAnimals}
-            canRecord={canRecordFieldWork}
-            canDelete={canDeleteFieldRecord}
+          {/* --- Tahap pelaksanaan --- */}
+          <StagePanel
+            stages={stages}
+            canReport={canReportStageWork}
+            canValidate={canValidateStage}
+            deliveryAddress={order.delivery_address}
           />
 
           {/* --- Kendala --- */}
@@ -287,9 +261,9 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           <DocumentationManager
             orderId={order.id}
             orderNumber={order.order_number}
-            branchCode={branch?.code ?? ''}
             orderCreatedAt={order.created_at}
             summary={documentations}
+            missingDocStages={missingDoc}
             animals={animals.map((a) => ({ id: a.id, tagCode: a.tag_code }))}
             canUpload={canDo(role, 'UPLOAD_DOCUMENTATION')}
             canDelete={role === 'superadmin' || role === 'admin'}
@@ -388,7 +362,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                 <div>
                   <dt className="text-muted-foreground">Cabang</dt>
                   <dd className="font-medium">
-                    {branch ? `${branch.code} — ${branch.name}` : '-'}
+                    {vendor ? vendor.name : 'Belum ditugaskan'}
                   </dd>
                 </div>
               </div>
@@ -407,7 +381,6 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                         {schedule.locationName ?? 'Lokasi belum diisi'}
                       </dd>
                       <dd className="mt-1">
-                        <ScheduleStatusBadge status={schedule.status} />
                       </dd>
                     </>
                   ) : (
@@ -419,8 +392,8 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               <div className="flex gap-3">
                 <UserCog className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                 <div>
-                  <dt className="text-muted-foreground">PIC Lapangan</dt>
-                  <dd className="font-medium">{schedule?.picName ?? 'Belum ditunjuk'}</dd>
+                  <dt className="text-muted-foreground">Mitra pelaksana</dt>
+                  <dd className="font-medium">{vendor?.name ?? 'Belum ditugaskan'}</dd>
                 </div>
               </div>
             </dl>

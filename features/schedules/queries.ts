@@ -1,6 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
-import type { OrderStatus, ScheduleStatus } from '@/lib/constants/order';
+import type { OrderStatus } from '@/lib/constants/order';
 import { ACTIVE_ORDER_STATUSES } from '@/lib/constants/order';
 import type { ScheduleFilterInput } from './schema';
 
@@ -10,47 +10,36 @@ export type LocationOption = {
   address: string | null;
   lat: number | null;
   lng: number | null;
+  vendorId: string | null;
 };
 
-export type PicOption = {
+export type VendorOption = {
   id: string;
+  code: string;
   name: string;
   phone: string | null;
 };
 
 export type ScheduleFormOptions = {
   locations: LocationOption[];
-  pics: PicOption[];
 };
 
 /**
- * Pilihan lokasi & PIC untuk form jadwal, dibatasi cabang order.
+ * Pilihan lokasi untuk form jadwal.
  *
- * Penyaringan per cabang dilakukan eksplisit di sini, bukan diserahkan ke RLS:
- * `locations` dan `profiles` dapat dibaca lintas cabang oleh role pusat, jadi
- * tanpa filter ini seorang Manager Program bisa tidak sengaja menugaskan
- * petugas Jakarta ke pemotongan di Bandung.
+ * Tidak lagi disaring per cabang — cabang sudah tidak ada. Yang berarti kini
+ * adalah pemiliknya: lokasi milik mitra lain tidak masuk akal untuk order yang
+ * dikerjakan mitra ini. `vendorId` dikembalikan supaya pemanggilnya bisa
+ * menyaring, dan `saveSchedule` memeriksanya lagi di server.
  */
-export async function getScheduleFormOptions(branchId: string): Promise<ScheduleFormOptions> {
+export async function getScheduleFormOptions(): Promise<ScheduleFormOptions> {
   const supabase = await createClient();
 
-  const [{ data: locations }, { data: pics }] = await Promise.all([
-    supabase
-      .from('locations')
-      .select('id, name, address, lat, lng')
-      .eq('branch_id', branchId)
-      .is('deleted_at', null)
-      .order('name'),
-    supabase
-      .from('profiles')
-      .select('id, full_name, phone')
-      // Tidak lagi disaring per cabang: vendor bukan pegawai cabang, dan
-      // `profiles.branch_id` sudah tidak membatasi apa pun sejak tiga role.
-      .eq('role', 'vendor')
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .order('full_name'),
-  ]);
+  const { data: locations } = await supabase
+    .from('locations')
+    .select('id, name, address, lat, lng, vendor_id')
+    .is('deleted_at', null)
+    .order('name');
 
   return {
     locations: (locations ?? []).map((l) => ({
@@ -59,13 +48,28 @@ export async function getScheduleFormOptions(branchId: string): Promise<Schedule
       address: l.address,
       lat: l.lat === null ? null : Number(l.lat),
       lng: l.lng === null ? null : Number(l.lng),
-    })),
-    pics: (pics ?? []).map((p) => ({
-      id: p.id,
-      name: p.full_name ?? '(tanpa nama)',
-      phone: p.phone,
+      vendorId: l.vendor_id,
     })),
   };
+}
+
+/** Mitra aktif untuk dipilih saat penugasan. */
+export async function getVendorOptions(): Promise<VendorOption[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from('vendors')
+    .select('id, code, name, phone')
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .order('name');
+
+  return (data ?? []).map((v) => ({
+    id: v.id,
+    code: v.code,
+    name: v.name,
+    phone: v.phone,
+  }));
 }
 
 export type ScheduleRow = {
@@ -73,16 +77,14 @@ export type ScheduleRow = {
   orderNumber: string;
   orderStatus: OrderStatus;
   participantName: string;
-  branchCode: string;
   scheduledDate: string;
   scheduledTime: string | null;
-  status: ScheduleStatus;
   locationName: string;
   locationAddress: string | null;
   lat: number | null;
   lng: number | null;
-  picName: string | null;
-  picPhone: string | null;
+  vendorName: string | null;
+  vendorPhone: string | null;
   animalsCount: number;
   notes: string | null;
 };
@@ -95,21 +97,21 @@ export type ScheduleListResult = {
 };
 
 const LIST_SELECT = `
-  order_id, scheduled_date, scheduled_time, status, notes,
-  location:locations!inner ( id, name, address, lat, lng, branch_id ),
-  pic:profiles ( id, full_name, phone ),
+  order_id, scheduled_date, scheduled_time, notes,
+  location:locations ( id, name, address, lat, lng, vendor_id ),
   order:orders!inner (
-    order_number, status, branch_id,
+    order_number, status, vendor_id,
     participant:participants!orders_participant_id_fkey ( name ),
-    branch:branches!orders_branch_id_fkey ( code ),
+    vendor:vendors!orders_vendor_id_fkey ( name, phone ),
     animals ( count )
   )
 `;
 
 /**
- * Daftar jadwal per lokasi / petugas / rentang tanggal (`prd.md` FR-S2).
- * Baris ter-scope RLS lewat `can_read_order` — petugas hanya melihat jadwal
- * yang ia pegang.
+ * Daftar jadwal per lokasi / mitra / rentang tanggal.
+ *
+ * Baris ter-scope RLS lewat `can_read_order` — mitra hanya melihat jadwal order
+ * yang ditugaskan padanya.
  */
 export async function listSchedules(filter: ScheduleFilterInput): Promise<ScheduleListResult> {
   const supabase = await createClient();
@@ -122,11 +124,10 @@ export async function listSchedules(filter: ScheduleFilterInput): Promise<Schedu
     .order('scheduled_time', { ascending: true, nullsFirst: true });
 
   if (filter.location_id) query = query.eq('location_id', filter.location_id);
-  if (filter.pic_id) query = query.eq('pic_user_id', filter.pic_id);
-  if (filter.status) query = query.eq('status', filter.status);
+  // Mitra ada di tabel order, bukan di schedules — disaring lewat join.
+  if (filter.vendor_id) query = query.eq('order.vendor_id', filter.vendor_id);
   if (filter.date_from) query = query.gte('scheduled_date', filter.date_from);
   if (filter.date_to) query = query.lte('scheduled_date', filter.date_to);
-  // Cabang ada di tabel order, bukan di schedules — disaring lewat join.
   if (filter.active_only) query = query.in('order.status', ACTIVE_ORDER_STATUSES);
 
   const from = (page - 1) * page_size;
@@ -138,7 +139,6 @@ export async function listSchedules(filter: ScheduleFilterInput): Promise<Schedu
     order_id: string;
     scheduled_date: string;
     scheduled_time: string | null;
-    status: ScheduleStatus;
     notes: string | null;
     location: {
       name: string;
@@ -146,12 +146,11 @@ export async function listSchedules(filter: ScheduleFilterInput): Promise<Schedu
       lat: number | string | null;
       lng: number | string | null;
     } | null;
-    pic: { full_name: string | null; phone: string | null } | null;
     order: {
       order_number: string;
       status: OrderStatus;
       participant: { name: string } | null;
-      branch: { code: string } | null;
+      vendor: { name: string; phone: string | null } | null;
       animals: { count: number }[];
     } | null;
   }>;
@@ -162,18 +161,16 @@ export async function listSchedules(filter: ScheduleFilterInput): Promise<Schedu
       orderNumber: r.order?.order_number ?? '-',
       orderStatus: (r.order?.status ?? 'new') as OrderStatus,
       participantName: r.order?.participant?.name ?? '-',
-      branchCode: r.order?.branch?.code ?? '-',
       scheduledDate: r.scheduled_date,
       scheduledTime: r.scheduled_time,
-      status: r.status,
       locationName: r.location?.name ?? '-',
       locationAddress: r.location?.address ?? null,
       lat:
         r.location?.lat === null || r.location?.lat === undefined ? null : Number(r.location.lat),
       lng:
         r.location?.lng === null || r.location?.lng === undefined ? null : Number(r.location.lng),
-      picName: r.pic?.full_name ?? null,
-      picPhone: r.pic?.phone ?? null,
+      vendorName: r.order?.vendor?.name ?? null,
+      vendorPhone: r.order?.vendor?.phone ?? null,
       animalsCount: r.order?.animals?.[0]?.count ?? 0,
       notes: r.notes,
     })),
@@ -183,23 +180,22 @@ export async function listSchedules(filter: ScheduleFilterInput): Promise<Schedu
   };
 }
 
-/** Opsi lokasi & vendor untuk filter halaman Jadwal. */
+/** Opsi lokasi & mitra untuk filter halaman Jadwal. */
 export async function getScheduleFilterOptions() {
   const supabase = await createClient();
 
-  const [{ data: locations }, { data: pics }] = await Promise.all([
+  const [{ data: locations }, { data: vendors }] = await Promise.all([
     supabase.from('locations').select('id, name').is('deleted_at', null).order('name'),
     supabase
-      .from('profiles')
-      .select('id, full_name')
-      .eq('role', 'vendor')
+      .from('vendors')
+      .select('id, name')
       .eq('is_active', true)
       .is('deleted_at', null)
-      .order('full_name'),
+      .order('name'),
   ]);
 
   return {
     locations: locations ?? [],
-    pics: (pics ?? []).map((p) => ({ id: p.id, name: p.full_name ?? '(tanpa nama)' })),
+    vendors: vendors ?? [],
   };
 }

@@ -49,7 +49,7 @@ export async function generateReport(
 
   const { data: orderRow } = await supabase
     .from('orders')
-    .select('id, order_number, public_token, branch:branches!orders_branch_id_fkey ( code )')
+    .select('id, order_number, public_token, vendor:vendors!orders_vendor_id_fkey ( code )')
     .eq('id', order_id)
     .maybeSingle();
 
@@ -59,21 +59,25 @@ export async function generateReport(
     id: string;
     order_number: string;
     public_token: string;
-    branch: { code: string } | null;
   };
 
   const data = await getReportData(order_id);
   if (!data) return notFound('Data order tidak dapat dimuat.');
 
-  // Kelengkapan yang sama dengan gate `documentation → reporting` (docs/10
-  // section 5). Diperiksa ulang di sini karena laporan bisa dibuat manual kapan
-  // saja, bukan hanya lewat transisi status.
-  const approvedSlaughter = data.media.filter((m) => m.stage === 'slaughter').length;
-  const approvedDistribution = data.media.filter((m) => m.stage === 'distribution').length;
+  // Kelengkapan bukti yang sama dengan gerbang `validation → reporting`.
+  // Diperiksa ulang di sini karena laporan bisa dibuat manual kapan saja,
+  // bukan hanya lewat transisi status. Daftar tahap yang kurang datang dari
+  // `v_order_progress` — satu sumber kebenaran dengan gerbangnya.
+  const { data: progress } = await supabase
+    .from('v_order_progress')
+    .select('missing_doc_stages')
+    .eq('order_id', order_id)
+    .maybeSingle();
 
-  if (!isDocumentationComplete({ approvedSlaughter, approvedDistribution })) {
+  const missingStages = progress?.missing_doc_stages ?? [];
+  if (!isDocumentationComplete(missingStages)) {
     return conflict(
-      'Laporan belum dapat dibuat: butuh minimal 1 bukti pemotongan dan 1 bukti distribusi yang sudah tervalidasi.',
+      `Laporan belum dapat dibuat: bukti belum lengkap pada tahap ${missingStages.join(', ')}.`,
     );
   }
 

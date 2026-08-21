@@ -18,27 +18,33 @@ const clockTime = z
   .transform((v) => v.slice(0, 5));
 
 /**
- * Simpan jadwal satu order (`prd.md` FR-S1).
+ * Simpan jadwal satu order.
  *
  * `schedules.order_id` unik, jadi action-nya bersifat upsert — satu order
- * hanya punya satu jadwal aktif (docs/05 section 4.10).
+ * hanya punya satu jadwal.
  *
- * `pic_user_id` boleh kosong supaya jadwal bisa disimpan bertahap saat PIC
- * belum ditentukan; konsekuensinya guard `paid → scheduled` tetap tertutup
- * sampai ketiganya terisi.
+ * `location_id` boleh kosong: tanggal sering ditetapkan lebih dulu, sementara
+ * lokasi pemotongan baru pasti setelah mitranya menyanggupi. Penugasan mitra
+ * sendiri **tidak** di sini — ia kolom pada order, dan punya action sendiri.
  */
 export const saveScheduleSchema = z.object({
   order_id: uuid,
-  location_id: uuid,
-  pic_user_id: uuid.optional().or(z.literal('')),
+  location_id: uuid.optional().or(z.literal('')),
   scheduled_date: calendarDate,
   scheduled_time: clockTime.optional().or(z.literal('')),
   notes: z.string().trim().max(1000).optional().or(z.literal('')),
 });
 
-export const updateScheduleStatusSchema = z.object({
+/**
+ * Tetapkan mitra pelaksana.
+ *
+ * Dipisah dari penyimpanan jadwal dengan sengaja: inilah yang membuka akses
+ * vendor ke order (`can_read_order` membandingkan `orders.vendor_id`), jadi ia
+ * pantas jadi aksi tersendiri yang terlihat jelas di layar dan di audit.
+ */
+export const assignVendorSchema = z.object({
   order_id: uuid,
-  status: z.enum(['planned', 'ongoing', 'done']),
+  vendor_id: uuid,
 });
 
 /**
@@ -46,10 +52,8 @@ export const updateScheduleStatusSchema = z.object({
  * Seluruhnya `.catch()` — isinya query string yang bisa disunting siapa saja.
  */
 export const scheduleFilterSchema = z.object({
-  // Cabang dicabut sebagai filter — lihat catatan di `orderFilterSchema`.
   location_id: uuid.optional().catch(undefined),
-  pic_id: uuid.optional().catch(undefined),
-  status: z.enum(['planned', 'ongoing', 'done']).optional().catch(undefined),
+  vendor_id: uuid.optional().catch(undefined),
   date_from: calendarDate.optional().catch(undefined),
   date_to: calendarDate.optional().catch(undefined),
   /** `1` = sembunyikan jadwal milik order yang sudah selesai/batal. */
@@ -59,4 +63,5 @@ export const scheduleFilterSchema = z.object({
 });
 
 export type SaveScheduleInput = z.infer<typeof saveScheduleSchema>;
+export type AssignVendorInput = z.infer<typeof assignVendorSchema>;
 export type ScheduleFilterInput = z.infer<typeof scheduleFilterSchema>;

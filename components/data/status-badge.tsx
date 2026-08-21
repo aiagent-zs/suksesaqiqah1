@@ -7,7 +7,6 @@ import {
   ORDER_STATUS_META,
   PAYMENT_STATUS_META,
   PAYMENT_VERIFICATION_META,
-  SCHEDULE_STATUS_META,
   type AnimalStatus,
   type DocStatus,
   type IssueSeverity,
@@ -15,7 +14,6 @@ import {
   type OrderStatus,
   type PaymentStatus,
   type PaymentVerificationStatus,
-  type ScheduleStatus,
 } from '@/lib/constants/order';
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
@@ -45,10 +43,6 @@ export function AnimalStatusBadge({ status }: { status: AnimalStatus }) {
   return <Badge className={meta.className}>{meta.label}</Badge>;
 }
 
-export function ScheduleStatusBadge({ status }: { status: ScheduleStatus }) {
-  const meta = SCHEDULE_STATUS_META[status];
-  return <Badge className={meta.className}>{meta.label}</Badge>;
-}
 
 /** Tingkat keparahan kendala — sama dengan yang dipakai panel dashboard. */
 export function IssueSeverityBadge({ severity }: { severity: IssueSeverity }) {

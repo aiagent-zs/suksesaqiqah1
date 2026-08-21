@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -43,6 +38,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          notes: string | null
           on_behalf_of: string | null
           order_id: string
           species: Database["public"]["Enums"]["animal_species"]
@@ -54,9 +50,10 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          notes?: string | null
           on_behalf_of?: string | null
           order_id: string
-          species?: Database["public"]["Enums"]["animal_species"]
+          species: Database["public"]["Enums"]["animal_species"]
           status?: Database["public"]["Enums"]["animal_status"]
           tag_code?: string | null
           updated_at?: string
@@ -65,6 +62,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          notes?: string | null
           on_behalf_of?: string | null
           order_id?: string
           species?: Database["public"]["Enums"]["animal_species"]
@@ -93,6 +91,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "v_order_progress"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "animals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_stages"
             referencedColumns: ["order_id"]
           },
         ]
@@ -102,70 +107,52 @@ export type Database = {
           description: string | null
           key: string
           updated_at: string
-          updated_by: string | null
           value: Json
         }
         Insert: {
           description?: string | null
           key: string
           updated_at?: string
-          updated_by?: string | null
           value: Json
         }
         Update: {
           description?: string | null
           key?: string
           updated_at?: string
-          updated_by?: string | null
           value?: Json
         }
-        Relationships: [
-          {
-            foreignKeyName: "app_settings_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "app_settings_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
-          },
-        ]
+        Relationships: []
       }
       audit_logs: {
         Row: {
           action: string
           actor_id: string | null
-          after: Json | null
-          before: Json | null
           created_at: string
-          entity: string
-          entity_id: string | null
           id: string
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string
+          table_name: string
         }
         Insert: {
           action: string
           actor_id?: string | null
-          after?: Json | null
-          before?: Json | null
           created_at?: string
-          entity: string
-          entity_id?: string | null
           id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id: string
+          table_name: string
         }
         Update: {
           action?: string
           actor_id?: string | null
-          after?: Json | null
-          before?: Json | null
           created_at?: string
-          entity?: string
-          entity_id?: string | null
           id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string
+          table_name?: string
         }
         Relationships: [
           {
@@ -173,137 +160,6 @@ export type Database = {
             columns: ["actor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "audit_logs_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
-          },
-        ]
-      }
-      branches: {
-        Row: {
-          address: string | null
-          code: string
-          created_at: string
-          deleted_at: string | null
-          id: string
-          is_default: boolean
-          name: string
-          phone: string | null
-          updated_at: string
-        }
-        Insert: {
-          address?: string | null
-          code: string
-          created_at?: string
-          deleted_at?: string | null
-          id?: string
-          is_default?: boolean
-          name: string
-          phone?: string | null
-          updated_at?: string
-        }
-        Update: {
-          address?: string | null
-          code?: string
-          created_at?: string
-          deleted_at?: string | null
-          id?: string
-          is_default?: boolean
-          name?: string
-          phone?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      distributions: {
-        Row: {
-          created_at: string
-          distributed_at: string
-          distributed_by: string | null
-          id: string
-          lat: number | null
-          lng: number | null
-          order_id: string
-          packages_count: number
-          recipient_area: string | null
-          recipient_name: string | null
-          slaughter_record_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          distributed_at?: string
-          distributed_by?: string | null
-          id?: string
-          lat?: number | null
-          lng?: number | null
-          order_id: string
-          packages_count?: number
-          recipient_area?: string | null
-          recipient_name?: string | null
-          slaughter_record_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          distributed_at?: string
-          distributed_by?: string | null
-          id?: string
-          lat?: number | null
-          lng?: number | null
-          order_id?: string
-          packages_count?: number
-          recipient_area?: string | null
-          recipient_name?: string | null
-          slaughter_record_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "distributions_distributed_by_fkey"
-            columns: ["distributed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "distributions_distributed_by_fkey"
-            columns: ["distributed_by"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
-          },
-          {
-            foreignKeyName: "distributions_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "distributions_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["order_id"]
-          },
-          {
-            foreignKeyName: "distributions_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "v_order_progress"
-            referencedColumns: ["order_id"]
-          },
-          {
-            foreignKeyName: "distributions_slaughter_record_id_fkey"
-            columns: ["slaughter_record_id"]
-            isOneToOne: false
-            referencedRelation: "slaughter_records"
             referencedColumns: ["id"]
           },
         ]
@@ -319,8 +175,9 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           stage: Database["public"]["Enums"]["doc_stage"]
+          stage_event_id: string | null
           status: Database["public"]["Enums"]["doc_status"]
-          storage_path: string | null
+          storage_path: string
           type: Database["public"]["Enums"]["doc_type"]
           updated_at: string
           uploaded_by: string | null
@@ -335,8 +192,9 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           stage?: Database["public"]["Enums"]["doc_stage"]
+          stage_event_id?: string | null
           status?: Database["public"]["Enums"]["doc_status"]
-          storage_path?: string | null
+          storage_path: string
           type?: Database["public"]["Enums"]["doc_type"]
           updated_at?: string
           uploaded_by?: string | null
@@ -351,8 +209,9 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           stage?: Database["public"]["Enums"]["doc_stage"]
+          stage_event_id?: string | null
           status?: Database["public"]["Enums"]["doc_status"]
-          storage_path?: string | null
+          storage_path?: string
           type?: Database["public"]["Enums"]["doc_type"]
           updated_at?: string
           uploaded_by?: string | null
@@ -387,6 +246,13 @@ export type Database = {
             referencedColumns: ["order_id"]
           },
           {
+            foreignKeyName: "documentations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_stages"
+            referencedColumns: ["order_id"]
+          },
+          {
             foreignKeyName: "documentations_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
@@ -394,11 +260,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "documentations_reviewed_by_fkey"
-            columns: ["reviewed_by"]
+            foreignKeyName: "documentations_stage_event_id_fkey"
+            columns: ["stage_event_id"]
             isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
+            referencedRelation: "order_stage_events"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "documentations_uploaded_by_fkey"
@@ -406,13 +272,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documentations_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
           },
         ]
       }
@@ -479,22 +338,15 @@ export type Database = {
             referencedColumns: ["order_id"]
           },
           {
-            foreignKeyName: "issues_reported_by_fkey"
-            columns: ["reported_by"]
+            foreignKeyName: "issues_order_id_fkey"
+            columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: "v_order_stages"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "issues_reported_by_fkey"
             columns: ["reported_by"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
-          },
-          {
-            foreignKeyName: "issues_resolved_by_fkey"
-            columns: ["resolved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -503,15 +355,14 @@ export type Database = {
             foreignKeyName: "issues_resolved_by_fkey"
             columns: ["resolved_by"]
             isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
       locations: {
         Row: {
           address: string | null
-          branch_id: string
           created_at: string
           deleted_at: string | null
           id: string
@@ -519,10 +370,10 @@ export type Database = {
           lng: number | null
           name: string
           updated_at: string
+          vendor_id: string | null
         }
         Insert: {
           address?: string | null
-          branch_id: string
           created_at?: string
           deleted_at?: string | null
           id?: string
@@ -530,10 +381,10 @@ export type Database = {
           lng?: number | null
           name: string
           updated_at?: string
+          vendor_id?: string | null
         }
         Update: {
           address?: string | null
-          branch_id?: string
           created_at?: string
           deleted_at?: string | null
           id?: string
@@ -541,28 +392,29 @@ export type Database = {
           lng?: number | null
           name?: string
           updated_at?: string
+          vendor_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "locations_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "locations_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "v_branch_kpi"
-            referencedColumns: ["branch_id"]
-          },
-          {
-            foreignKeyName: "locations_branch_id_fkey"
-            columns: ["branch_id"]
+            foreignKeyName: "locations_vendor_id_fkey"
+            columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "v_open_orders"
-            referencedColumns: ["branch_id"]
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "locations_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "v_vendor_kpi"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "locations_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -571,39 +423,42 @@ export type Database = {
           attempts: number
           channel: Database["public"]["Enums"]["notif_channel"]
           created_at: string
-          error: string | null
+          error_text: string | null
           id: string
           order_id: string | null
           payload: Json
+          recipient: string
           sent_at: string | null
           status: Database["public"]["Enums"]["notif_status"]
-          target: string | null
+          template: string | null
           updated_at: string
         }
         Insert: {
           attempts?: number
           channel: Database["public"]["Enums"]["notif_channel"]
           created_at?: string
-          error?: string | null
+          error_text?: string | null
           id?: string
           order_id?: string | null
           payload?: Json
+          recipient: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["notif_status"]
-          target?: string | null
+          template?: string | null
           updated_at?: string
         }
         Update: {
           attempts?: number
           channel?: Database["public"]["Enums"]["notif_channel"]
           created_at?: string
-          error?: string | null
+          error_text?: string | null
           id?: string
           order_id?: string | null
           payload?: Json
+          recipient?: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["notif_status"]
-          target?: string | null
+          template?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -628,19 +483,26 @@ export type Database = {
             referencedRelation: "v_order_progress"
             referencedColumns: ["order_id"]
           },
+          {
+            foreignKeyName: "notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_stages"
+            referencedColumns: ["order_id"]
+          },
         ]
       }
       order_counters: {
         Row: {
-          last_number: number
+          last_value: number
           period: string
         }
         Insert: {
-          last_number?: number
+          last_value?: number
           period: string
         }
         Update: {
-          last_number?: number
+          last_value?: number
           period?: string
         }
         Relationships: []
@@ -655,6 +517,7 @@ export type Database = {
           service_id: string
           unit_price: number
           updated_at: string
+          vendor_unit_price: number | null
         }
         Insert: {
           created_at?: string
@@ -665,6 +528,7 @@ export type Database = {
           service_id: string
           unit_price?: number
           updated_at?: string
+          vendor_unit_price?: number | null
         }
         Update: {
           created_at?: string
@@ -675,6 +539,7 @@ export type Database = {
           service_id?: string
           unit_price?: number
           updated_at?: string
+          vendor_unit_price?: number | null
         }
         Relationships: [
           {
@@ -699,6 +564,13 @@ export type Database = {
             referencedColumns: ["order_id"]
           },
           {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_stages"
+            referencedColumns: ["order_id"]
+          },
+          {
             foreignKeyName: "order_items_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
@@ -707,15 +579,147 @@ export type Database = {
           },
         ]
       }
+      order_stage_events: {
+        Row: {
+          animal_id: string | null
+          created_at: string
+          id: string
+          lat: number | null
+          lng: number | null
+          meta: Json
+          notes: string | null
+          occurred_at: string | null
+          order_id: string
+          packages_count: number | null
+          recipient_area: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          reported_at: string | null
+          reported_by: string | null
+          review_note: string | null
+          seq: number
+          stage: Database["public"]["Enums"]["fulfilment_stage"]
+          status: Database["public"]["Enums"]["stage_event_status"]
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+          weight_kg: number | null
+        }
+        Insert: {
+          animal_id?: string | null
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          meta?: Json
+          notes?: string | null
+          occurred_at?: string | null
+          order_id: string
+          packages_count?: number | null
+          recipient_area?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          reported_at?: string | null
+          reported_by?: string | null
+          review_note?: string | null
+          seq: number
+          stage: Database["public"]["Enums"]["fulfilment_stage"]
+          status?: Database["public"]["Enums"]["stage_event_status"]
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          weight_kg?: number | null
+        }
+        Update: {
+          animal_id?: string | null
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          meta?: Json
+          notes?: string | null
+          occurred_at?: string | null
+          order_id?: string
+          packages_count?: number | null
+          recipient_area?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          reported_at?: string | null
+          reported_by?: string | null
+          review_note?: string | null
+          seq?: number
+          stage?: Database["public"]["Enums"]["fulfilment_stage"]
+          status?: Database["public"]["Enums"]["stage_event_status"]
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_stage_events_animal_id_fkey"
+            columns: ["animal_id"]
+            isOneToOne: false
+            referencedRelation: "animals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_stage_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_stage_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_open_orders"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_stage_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_progress"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_stage_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_stages"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_stage_events_reported_by_fkey"
+            columns: ["reported_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_stage_events_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           aqiqah_for: string | null
-          branch_id: string
+          child_birth_date: string | null
+          child_birth_place: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           delivery_address: string | null
           delivery_city: string | null
           delivery_city_code: string | null
+          delivery_confirmed_at: string | null
+          delivery_confirmed_ip: string | null
           delivery_detail: string | null
           delivery_district: string | null
           delivery_district_code: string | null
@@ -724,7 +728,9 @@ export type Database = {
           delivery_province_code: string | null
           delivery_village: string | null
           delivery_village_code: string | null
-          distribution_mode: string | null
+          distribution_mode:
+            | Database["public"]["Enums"]["distribution_mode"]
+            | null
           guest_verified_at: string | null
           guest_verified_by: string | null
           id: string
@@ -742,15 +748,20 @@ export type Database = {
           status_reason: string | null
           total_amount: number
           updated_at: string
+          vendor_id: string | null
         }
         Insert: {
           aqiqah_for?: string | null
-          branch_id: string
+          child_birth_date?: string | null
+          child_birth_place?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           delivery_address?: string | null
           delivery_city?: string | null
           delivery_city_code?: string | null
+          delivery_confirmed_at?: string | null
+          delivery_confirmed_ip?: string | null
           delivery_detail?: string | null
           delivery_district?: string | null
           delivery_district_code?: string | null
@@ -759,7 +770,9 @@ export type Database = {
           delivery_province_code?: string | null
           delivery_village?: string | null
           delivery_village_code?: string | null
-          distribution_mode?: string | null
+          distribution_mode?:
+            | Database["public"]["Enums"]["distribution_mode"]
+            | null
           guest_verified_at?: string | null
           guest_verified_by?: string | null
           id?: string
@@ -777,15 +790,20 @@ export type Database = {
           status_reason?: string | null
           total_amount?: number
           updated_at?: string
+          vendor_id?: string | null
         }
         Update: {
           aqiqah_for?: string | null
-          branch_id?: string
+          child_birth_date?: string | null
+          child_birth_place?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           delivery_address?: string | null
           delivery_city?: string | null
           delivery_city_code?: string | null
+          delivery_confirmed_at?: string | null
+          delivery_confirmed_ip?: string | null
           delivery_detail?: string | null
           delivery_district?: string | null
           delivery_district_code?: string | null
@@ -794,7 +812,9 @@ export type Database = {
           delivery_province_code?: string | null
           delivery_village?: string | null
           delivery_village_code?: string | null
-          distribution_mode?: string | null
+          distribution_mode?:
+            | Database["public"]["Enums"]["distribution_mode"]
+            | null
           guest_verified_at?: string | null
           guest_verified_by?: string | null
           id?: string
@@ -812,42 +832,15 @@ export type Database = {
           status_reason?: string | null
           total_amount?: number
           updated_at?: string
+          vendor_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "orders_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "v_branch_kpi"
-            referencedColumns: ["branch_id"]
-          },
-          {
-            foreignKeyName: "orders_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["branch_id"]
-          },
           {
             foreignKeyName: "orders_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
           },
           {
             foreignKeyName: "orders_guest_verified_by_fkey"
@@ -864,11 +857,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "orders_participant_id_fkey"
-            columns: ["participant_id"]
+            foreignKeyName: "orders_vendor_id_fkey"
+            columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "v_open_orders"
-            referencedColumns: ["participant_id"]
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "orders_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "v_vendor_kpi"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "orders_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -880,7 +887,7 @@ export type Database = {
           email: string | null
           id: string
           name: string
-          phone: string | null
+          phone: string
           updated_at: string
         }
         Insert: {
@@ -890,7 +897,7 @@ export type Database = {
           email?: string | null
           id?: string
           name: string
-          phone?: string | null
+          phone: string
           updated_at?: string
         }
         Update: {
@@ -900,7 +907,7 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string
-          phone?: string | null
+          phone?: string
           updated_at?: string
         }
         Relationships: []
@@ -910,10 +917,11 @@ export type Database = {
           amount: number
           created_at: string
           id: string
-          method: string | null
+          method: string
           note: string | null
           order_id: string
           proof_path: string | null
+          recorded_by: string | null
           status: Database["public"]["Enums"]["payment_verification_status"]
           updated_at: string
           verified_at: string | null
@@ -923,10 +931,11 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
-          method?: string | null
+          method: string
           note?: string | null
           order_id: string
           proof_path?: string | null
+          recorded_by?: string | null
           status?: Database["public"]["Enums"]["payment_verification_status"]
           updated_at?: string
           verified_at?: string | null
@@ -936,10 +945,11 @@ export type Database = {
           amount?: number
           created_at?: string
           id?: string
-          method?: string | null
+          method?: string
           note?: string | null
           order_id?: string
           proof_path?: string | null
+          recorded_by?: string | null
           status?: Database["public"]["Enums"]["payment_verification_status"]
           updated_at?: string
           verified_at?: string | null
@@ -968,8 +978,15 @@ export type Database = {
             referencedColumns: ["order_id"]
           },
           {
-            foreignKeyName: "payments_verified_by_fkey"
-            columns: ["verified_by"]
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_stages"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "payments_recorded_by_fkey"
+            columns: ["recorded_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -978,14 +995,13 @@ export type Database = {
             foreignKeyName: "payments_verified_by_fkey"
             columns: ["verified_by"]
             isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
       profiles: {
         Row: {
-          branch_id: string | null
           created_at: string
           deleted_at: string | null
           email: string | null
@@ -995,9 +1011,9 @@ export type Database = {
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
+          vendor_id: string | null
         }
         Insert: {
-          branch_id?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -1007,9 +1023,9 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
+          vendor_id?: string | null
         }
         Update: {
-          branch_id?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -1019,28 +1035,29 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
+          vendor_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profiles_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "v_branch_kpi"
-            referencedColumns: ["branch_id"]
-          },
-          {
-            foreignKeyName: "profiles_branch_id_fkey"
-            columns: ["branch_id"]
+            foreignKeyName: "profiles_vendor_id_fkey"
+            columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "v_open_orders"
-            referencedColumns: ["branch_id"]
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "profiles_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "v_vendor_kpi"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "profiles_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1081,8 +1098,8 @@ export type Database = {
           id: string
           order_id: string
           pdf_path: string | null
-          public_token: string
           sent_at: string | null
+          sent_channel: Database["public"]["Enums"]["notif_channel"] | null
           updated_at: string
           version: number
         }
@@ -1093,8 +1110,8 @@ export type Database = {
           id?: string
           order_id: string
           pdf_path?: string | null
-          public_token?: string
           sent_at?: string | null
+          sent_channel?: Database["public"]["Enums"]["notif_channel"] | null
           updated_at?: string
           version?: number
         }
@@ -1105,12 +1122,19 @@ export type Database = {
           id?: string
           order_id?: string
           pdf_path?: string | null
-          public_token?: string
           sent_at?: string | null
+          sent_channel?: Database["public"]["Enums"]["notif_channel"] | null
           updated_at?: string
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "reports_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reports_order_id_fkey"
             columns: ["order_id"]
@@ -1132,43 +1156,44 @@ export type Database = {
             referencedRelation: "v_order_progress"
             referencedColumns: ["order_id"]
           },
+          {
+            foreignKeyName: "reports_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_stages"
+            referencedColumns: ["order_id"]
+          },
         ]
       }
       schedules: {
         Row: {
           created_at: string
           id: string
-          location_id: string
+          location_id: string | null
           notes: string | null
           order_id: string
-          pic_user_id: string | null
           scheduled_date: string
           scheduled_time: string | null
-          status: Database["public"]["Enums"]["schedule_status"]
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
-          location_id: string
+          location_id?: string | null
           notes?: string | null
           order_id: string
-          pic_user_id?: string | null
           scheduled_date: string
           scheduled_time?: string | null
-          status?: Database["public"]["Enums"]["schedule_status"]
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
-          location_id?: string
+          location_id?: string | null
           notes?: string | null
           order_id?: string
-          pic_user_id?: string | null
           scheduled_date?: string
           scheduled_time?: string | null
-          status?: Database["public"]["Enums"]["schedule_status"]
           updated_at?: string
         }
         Relationships: [
@@ -1180,13 +1205,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "schedules_location_id_fkey"
-            columns: ["location_id"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["location_id"]
-          },
-          {
             foreignKeyName: "schedules_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: true
@@ -1208,18 +1226,11 @@ export type Database = {
             referencedColumns: ["order_id"]
           },
           {
-            foreignKeyName: "schedules_pic_user_id_fkey"
-            columns: ["pic_user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "schedules_pic_user_id_fkey"
-            columns: ["pic_user_id"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
+            foreignKeyName: "schedules_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "v_order_stages"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -1230,7 +1241,6 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
-          margin_amount: number
           meta: Json
           name: string
           price: number
@@ -1238,7 +1248,6 @@ export type Database = {
           sort_order: number
           type: Database["public"]["Enums"]["service_type"]
           updated_at: string
-          vendor_price: number
         }
         Insert: {
           created_at?: string
@@ -1246,7 +1255,6 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
-          margin_amount?: number
           meta?: Json
           name: string
           price?: number
@@ -1254,7 +1262,6 @@ export type Database = {
           sort_order?: number
           type: Database["public"]["Enums"]["service_type"]
           updated_at?: string
-          vendor_price?: number
         }
         Update: {
           created_at?: string
@@ -1262,7 +1269,6 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
-          margin_amount?: number
           meta?: Json
           name?: string
           price?: number
@@ -1270,125 +1276,307 @@ export type Database = {
           sort_order?: number
           type?: Database["public"]["Enums"]["service_type"]
           updated_at?: string
-          vendor_price?: number
         }
         Relationships: []
       }
-      slaughter_records: {
+      stage_requirements: {
         Row: {
-          animal_id: string
-          created_at: string
-          id: string
-          notes: string | null
-          performed_at: string
-          performed_by: string | null
-          updated_at: string
+          label: string
+          min_docs: number
+          requires_geo: boolean
+          stage: Database["public"]["Enums"]["fulfilment_stage"]
         }
         Insert: {
-          animal_id: string
-          created_at?: string
-          id?: string
-          notes?: string | null
-          performed_at?: string
-          performed_by?: string | null
-          updated_at?: string
+          label: string
+          min_docs?: number
+          requires_geo?: boolean
+          stage: Database["public"]["Enums"]["fulfilment_stage"]
         }
         Update: {
-          animal_id?: string
+          label?: string
+          min_docs?: number
+          requires_geo?: boolean
+          stage?: Database["public"]["Enums"]["fulfilment_stage"]
+        }
+        Relationships: []
+      }
+      vendor_coverage: {
+        Row: {
+          created_at: string
+          level: number
+          region_code: string
+          region_name: string
+          vendor_id: string
+        }
+        Insert: {
           created_at?: string
-          id?: string
-          notes?: string | null
-          performed_at?: string
-          performed_by?: string | null
-          updated_at?: string
+          level: number
+          region_code: string
+          region_name: string
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          level?: number
+          region_code?: string
+          region_name?: string
+          vendor_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "slaughter_records_animal_id_fkey"
-            columns: ["animal_id"]
-            isOneToOne: false
-            referencedRelation: "animals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "slaughter_records_performed_by_fkey"
-            columns: ["performed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "slaughter_records_performed_by_fkey"
-            columns: ["performed_by"]
+            foreignKeyName: "vendor_coverage_vendor_id_fkey"
+            columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "v_open_orders"
-            referencedColumns: ["pic_user_id"]
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "vendor_coverage_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "v_vendor_kpi"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "vendor_coverage_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
           },
         ]
       }
-    }
-    Views: {
-      v_branch_kpi: {
+      vendor_services: {
         Row: {
-          branch_code: string | null
-          branch_id: string | null
-          branch_name: string | null
-          completed_orders: number | null
-          on_hold_orders: number | null
-          open_issues: number | null
-          open_orders: number | null
-          paid_amount: number | null
-          pct_distribution: number | null
-          pct_documentation: number | null
-          pct_report: number | null
-          pct_slaughter: number | null
-          total_amount: number | null
-          total_orders: number | null
-          unpaid_orders: number | null
+          created_at: string
+          id: string
+          is_offered: boolean
+          lead_time_hours: number | null
+          max_qty: number | null
+          meta: Json
+          min_qty: number
+          notes: string | null
+          service_id: string
+          updated_at: string
+          vendor_id: string
+          vendor_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_offered?: boolean
+          lead_time_hours?: number | null
+          max_qty?: number | null
+          meta?: Json
+          min_qty?: number
+          notes?: string | null
+          service_id: string
+          updated_at?: string
+          vendor_id: string
+          vendor_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_offered?: boolean
+          lead_time_hours?: number | null
+          max_qty?: number | null
+          meta?: Json
+          min_qty?: number
+          notes?: string | null
+          service_id?: string
+          updated_at?: string
+          vendor_id?: string
+          vendor_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_services_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "v_open_orders"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "vendor_services_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "v_vendor_kpi"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "vendor_services_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors: {
+        Row: {
+          address: string | null
+          address_detail: string | null
+          agreement_end: string | null
+          agreement_number: string | null
+          agreement_start: string | null
+          bank_account_name: string | null
+          bank_account_no: string | null
+          bank_name: string | null
+          city: string | null
+          city_code: string | null
+          code: string
+          created_at: string
+          daily_capacity: number | null
+          deleted_at: string | null
+          district: string | null
+          district_code: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          lat: number | null
+          legal_name: string | null
+          lng: number | null
+          name: string
+          notes: string | null
+          npwp: string | null
+          owner_name: string | null
+          phone: string
+          postal_code: string | null
+          province: string | null
+          province_code: string | null
+          service_modes: Database["public"]["Enums"]["distribution_mode"][]
+          updated_at: string
+          village: string | null
+          village_code: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          address_detail?: string | null
+          agreement_end?: string | null
+          agreement_number?: string | null
+          agreement_start?: string | null
+          bank_account_name?: string | null
+          bank_account_no?: string | null
+          bank_name?: string | null
+          city?: string | null
+          city_code?: string | null
+          code: string
+          created_at?: string
+          daily_capacity?: number | null
+          deleted_at?: string | null
+          district?: string | null
+          district_code?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          lat?: number | null
+          legal_name?: string | null
+          lng?: number | null
+          name: string
+          notes?: string | null
+          npwp?: string | null
+          owner_name?: string | null
+          phone: string
+          postal_code?: string | null
+          province?: string | null
+          province_code?: string | null
+          service_modes?: Database["public"]["Enums"]["distribution_mode"][]
+          updated_at?: string
+          village?: string | null
+          village_code?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          address_detail?: string | null
+          agreement_end?: string | null
+          agreement_number?: string | null
+          agreement_start?: string | null
+          bank_account_name?: string | null
+          bank_account_no?: string | null
+          bank_name?: string | null
+          city?: string | null
+          city_code?: string | null
+          code?: string
+          created_at?: string
+          daily_capacity?: number | null
+          deleted_at?: string | null
+          district?: string | null
+          district_code?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          lat?: number | null
+          legal_name?: string | null
+          lng?: number | null
+          name?: string
+          notes?: string | null
+          npwp?: string | null
+          owner_name?: string | null
+          phone?: string
+          postal_code?: string | null
+          province?: string | null
+          province_code?: string | null
+          service_modes?: Database["public"]["Enums"]["distribution_mode"][]
+          updated_at?: string
+          village?: string | null
+          village_code?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }
+    }
+    Views: {
       v_open_orders: {
         Row: {
           age_days: number | null
-          animals_distributed: number | null
+          age_hours: number | null
           animals_slaughtered: number | null
           animals_total: number | null
-          branch_code: string | null
-          branch_id: string | null
-          branch_name: string | null
           created_at: string | null
+          current_stage: Database["public"]["Enums"]["fulfilment_stage"] | null
+          distribution_mode:
+            | Database["public"]["Enums"]["distribution_mode"]
+            | null
           docs_pending_review: number | null
+          is_guest_order: boolean | null
           latest_issue_title: string | null
-          location_address: string | null
-          location_id: string | null
-          location_lat: number | null
-          location_lng: number | null
           location_name: string | null
           max_open_severity:
             | Database["public"]["Enums"]["issue_severity"]
             | null
+          missing_doc_stages: string[] | null
+          needs_verification: boolean | null
           open_issues: number | null
           order_id: string | null
           order_number: string | null
           paid_amount: number | null
-          participant_id: string | null
           participant_name: string | null
           participant_phone: string | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
-          pct_distribution: number | null
           pct_documentation: number | null
-          pct_slaughter: number | null
-          pic_name: string | null
-          pic_phone: string | null
-          pic_user_id: string | null
-          report_sent: boolean | null
-          schedule_id: string | null
-          schedule_status: Database["public"]["Enums"]["schedule_status"] | null
+          pct_stage: number | null
+          requested_date: string | null
+          requested_time: string | null
           scheduled_date: string | null
           scheduled_time: string | null
+          stages_rejected: number | null
+          stages_total: number | null
+          stages_validated: number | null
           status: Database["public"]["Enums"]["order_status"] | null
           total_amount: number | null
+          vendor_id: string | null
+          vendor_name: string | null
+          vendor_phone: string | null
         }
         Relationships: []
       }
@@ -1397,55 +1585,41 @@ export type Database = {
           animals_distributed: number | null
           animals_slaughtered: number | null
           animals_total: number | null
-          branch_id: string | null
           created_at: string | null
-          distribution_count: number | null
+          current_stage: Database["public"]["Enums"]["fulfilment_stage"] | null
+          delivery_confirmed: boolean | null
+          delivery_confirmed_at: string | null
+          distribution_mode:
+            | Database["public"]["Enums"]["distribution_mode"]
+            | null
           docs_approved: number | null
           docs_pending_review: number | null
           docs_total: number | null
-          documentation_ready: boolean | null
-          max_open_severity:
-            | Database["public"]["Enums"]["issue_severity"]
-            | null
+          max_open_severity: string | null
+          missing_doc_stages: string[] | null
           open_issues: number | null
           order_id: string | null
           order_number: string | null
-          packages_total: number | null
           paid_amount: number | null
           participant_id: string | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
-          pct_distribution: number | null
           pct_documentation: number | null
-          pct_slaughter: number | null
+          pct_stage: number | null
           report_count: number | null
           report_generated: boolean | null
           report_sent: boolean | null
           report_sent_at: string | null
+          stages_in_sequence: number | null
+          stages_pending: number | null
+          stages_rejected: number | null
+          stages_reported: number | null
+          stages_total: number | null
+          stages_validated: number | null
           status: Database["public"]["Enums"]["order_status"] | null
           total_amount: number | null
+          vendor_id: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "orders_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "v_branch_kpi"
-            referencedColumns: ["branch_id"]
-          },
-          {
-            foreignKeyName: "orders_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "v_open_orders"
-            referencedColumns: ["branch_id"]
-          },
           {
             foreignKeyName: "orders_participant_id_fkey"
             columns: ["participant_id"]
@@ -1454,59 +1628,131 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "orders_participant_id_fkey"
-            columns: ["participant_id"]
+            foreignKeyName: "orders_vendor_id_fkey"
+            columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "v_open_orders"
-            referencedColumns: ["participant_id"]
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "orders_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "v_vendor_kpi"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "orders_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
           },
         ]
       }
+      v_order_stages: {
+        Row: {
+          current_stage: Database["public"]["Enums"]["fulfilment_stage"] | null
+          distribution_mode:
+            | Database["public"]["Enums"]["distribution_mode"]
+            | null
+          first_reported_at: string | null
+          last_validated_at: string | null
+          order_id: string | null
+          pct_stage: number | null
+          stages_in_sequence: number | null
+          stages_pending: number | null
+          stages_rejected: number | null
+          stages_reported: number | null
+          stages_total: number | null
+          stages_validated: number | null
+        }
+        Relationships: []
+      }
+      v_vendor_kpi: {
+        Row: {
+          avg_cycle_hours: number | null
+          is_active: boolean | null
+          margin_total: number | null
+          orders_completed: number | null
+          orders_on_hold: number | null
+          orders_open: number | null
+          orders_total: number | null
+          orders_with_rejection: number | null
+          revenue_total: number | null
+          vendor_code: string | null
+          vendor_cost_total: number | null
+          vendor_id: string | null
+          vendor_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      auth_branch_id: { Args: never; Returns: string }
       auth_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      auth_vendor_id: { Args: never; Returns: string }
+      booking_max_days: { Args: never; Returns: number }
       can_read_order: { Args: { p_order_id: string }; Returns: boolean }
       can_write_order: { Args: { p_order_id: string }; Returns: boolean }
+      confirm_delivery: {
+        Args: { p_ip?: string; p_token: string }
+        Returns: Json
+      }
       create_guest_order: { Args: { p_payload: Json }; Returns: Json }
       create_order: { Args: { p_payload: Json }; Returns: Json }
-      get_public_branches: { Args: never; Returns: Json }
+      fulfilment_sequence: {
+        Args: { p_mode: Database["public"]["Enums"]["distribution_mode"] }
+        Returns: Database["public"]["Enums"]["fulfilment_stage"][]
+      }
       get_public_report: { Args: { p_token: string }; Returns: Json }
-      is_order_pic: { Args: { p_order_id: string }; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       is_superadmin: { Args: never; Returns: boolean }
       min_dp_ratio: { Args: never; Returns: number }
-      next_order_number: { Args: { p_at?: string }; Returns: string }
+      next_order_number: { Args: never; Returns: string }
     }
     Enums: {
       animal_species: "kambing" | "domba" | "sapi"
       animal_status: "registered" | "prepared" | "slaughtered" | "distributed"
-      doc_stage: "slaughter" | "distribution" | "general"
-      doc_status: "pending" | "approved_supervisor" | "approved" | "rejected"
+      distribution_mode: "salur" | "kirim"
+      doc_stage:
+        | "persiapan"
+        | "sembelih"
+        | "masak"
+        | "salur"
+        | "kirim"
+        | "terkirim"
+        | "umum"
+      doc_status: "pending" | "approved" | "rejected"
       doc_type: "photo" | "video" | "note"
+      fulfilment_stage:
+        | "persiapan"
+        | "sembelih"
+        | "masak"
+        | "salur"
+        | "kirim"
+        | "terkirim"
       issue_severity: "low" | "medium" | "high"
       issue_status: "open" | "in_progress" | "resolved"
       notif_channel: "whatsapp" | "email" | "dashboard"
       notif_status: "queued" | "sent" | "failed"
       order_status:
         | "new"
+        | "verified"
         | "paid"
-        | "scheduled"
-        | "preparation"
-        | "slaughtering"
-        | "distribution"
-        | "documentation"
+        | "assigned"
+        | "in_progress"
+        | "validation"
         | "reporting"
         | "completed"
         | "on_hold"
         | "cancelled"
       payment_status: "unpaid" | "partial" | "paid"
       payment_verification_status: "pending" | "verified" | "rejected"
-      schedule_status: "planned" | "ongoing" | "done"
       service_type: "aqiqah" | "qurban" | "sedekah_daging" | "nasi_box"
+      stage_event_status: "pending" | "reported" | "validated" | "rejected"
       user_role: "superadmin" | "admin" | "vendor"
     }
     CompositeTypes: {
@@ -1640,21 +1886,37 @@ export const Constants = {
     Enums: {
       animal_species: ["kambing", "domba", "sapi"],
       animal_status: ["registered", "prepared", "slaughtered", "distributed"],
-      doc_stage: ["slaughter", "distribution", "general"],
-      doc_status: ["pending", "approved_supervisor", "approved", "rejected"],
+      distribution_mode: ["salur", "kirim"],
+      doc_stage: [
+        "persiapan",
+        "sembelih",
+        "masak",
+        "salur",
+        "kirim",
+        "terkirim",
+        "umum",
+      ],
+      doc_status: ["pending", "approved", "rejected"],
       doc_type: ["photo", "video", "note"],
+      fulfilment_stage: [
+        "persiapan",
+        "sembelih",
+        "masak",
+        "salur",
+        "kirim",
+        "terkirim",
+      ],
       issue_severity: ["low", "medium", "high"],
       issue_status: ["open", "in_progress", "resolved"],
       notif_channel: ["whatsapp", "email", "dashboard"],
       notif_status: ["queued", "sent", "failed"],
       order_status: [
         "new",
+        "verified",
         "paid",
-        "scheduled",
-        "preparation",
-        "slaughtering",
-        "distribution",
-        "documentation",
+        "assigned",
+        "in_progress",
+        "validation",
         "reporting",
         "completed",
         "on_hold",
@@ -1662,9 +1924,10 @@ export const Constants = {
       ],
       payment_status: ["unpaid", "partial", "paid"],
       payment_verification_status: ["pending", "verified", "rejected"],
-      schedule_status: ["planned", "ongoing", "done"],
       service_type: ["aqiqah", "qurban", "sedekah_daging", "nasi_box"],
+      stage_event_status: ["pending", "reported", "validated", "rejected"],
       user_role: ["superadmin", "admin", "vendor"],
     },
   },
 } as const
+

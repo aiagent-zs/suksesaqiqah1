@@ -26,13 +26,19 @@ export const DOC_MIME_EXT: Record<string, { ext: string; type: DocType }> = {
 };
 
 /**
- * `{branch_code}/{YYYY}/{MM}/{order_number}/{stage}/{uuid}.{ext}` (docs/17 section 3).
+ * `{YYYY}/{MM}/{order_number}/{stage}/{uuid}.{ext}`
+ *
+ * Segmen cabang dibuang bersama tabelnya, dan sengaja **tidak** diganti kode
+ * mitra: kode mitra bisa berubah, dan admin bisa memindahkan order ke mitra
+ * lain — keduanya membuat prefix menunjuk pemilik yang sudah tidak relevan.
+ * `order_number` unik global dan tidak pernah berubah seumur hidup order, jadi
+ * pemeriksaan kepemilikan di bawah justru jadi lebih kuat.
  *
  * Charset tiap segmen sengaja sempit sehingga pola ini sekaligus menutup path
  * traversal dan path absolut.
  */
 const DOC_PATH_PATTERN =
-  /^[A-Za-z0-9_-]{1,16}\/\d{4}\/(?:0[1-9]|1[0-2])\/[A-Za-z0-9_-]{1,40}\/(?:slaughter|distribution|general)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp|mp4)$/;
+  /^\d{4}\/(?:0[1-9]|1[0-2])\/[A-Za-z0-9_-]{1,40}\/(?:persiapan|sembelih|masak|salur|kirim|terkirim|umum)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp|mp4)$/;
 
 export type DocFileCheck =
   { ok: true; ext: string; type: DocType; oversizePhoto: boolean } | { ok: false; message: string };
@@ -69,7 +75,6 @@ export function checkDocFile(file: { type: string; size: number }): DocFileCheck
  * tersebar ke dua bulan hanya karena diunggah lewat tengah malam.
  */
 export function buildDocPath(params: {
-  branchCode: string;
   orderNumber: string;
   orderCreatedAt: string;
   stage: DocStage;
@@ -80,7 +85,7 @@ export function buildDocPath(params: {
   const year = String(d.getUTCFullYear());
   const month = String(d.getUTCMonth() + 1).padStart(2, '0');
 
-  return `${params.branchCode}/${year}/${month}/${params.orderNumber}/${params.stage}/${params.uuid}.${params.ext}`;
+  return `${year}/${month}/${params.orderNumber}/${params.stage}/${params.uuid}.${params.ext}`;
 }
 
 /**
@@ -92,12 +97,11 @@ export function buildDocPath(params: {
  */
 export function isDocPathForOrder(
   path: string,
-  branchCode: string,
   orderNumber: string,
   stage: DocStage,
 ): boolean {
   if (!DOC_PATH_PATTERN.test(path)) return false;
 
   const segments = path.split('/');
-  return segments[0] === branchCode && segments[3] === orderNumber && segments[4] === stage;
+  return segments[2] === orderNumber && segments[3] === stage;
 }

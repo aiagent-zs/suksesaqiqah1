@@ -11,18 +11,17 @@ import { z } from 'zod';
  * agregat tanpa dimensi tanggal, jadi menambah periode berarti mengubah view
  * (migration) — dan schema satu pintu di Bani (TEAM_PLAN section 1.2).
  *
- * Filter cabang dicabut 19 Agustus 2026 — lihat catatan di `orderFilterSchema`.
+ * Filter cabang dicabut bersama tabelnya — lihat catatan di `orderFilterSchema`.
  */
 export const dashboardFilterSchema = z.object({
   status: z
     .enum([
       'new',
+      'verified',
       'paid',
-      'scheduled',
-      'preparation',
-      'slaughtering',
-      'distribution',
-      'documentation',
+      'assigned',
+      'in_progress',
+      'validation',
       'reporting',
       'on_hold',
     ])

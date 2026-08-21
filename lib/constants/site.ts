@@ -13,8 +13,15 @@ const whatsappNumber = rawWhatsapp.replace(/[^0-9]/g, '');
 export const siteConfig = {
   name: 'Sukses Aqiqah',
   tagline: 'Tunaikan Ibadah, Tebarkan Manfaat',
+  /**
+   * Qurban sengaja tidak disebut di seluruh materi pemasaran (21 Agustus 2026).
+   * Checkout hanya melayani aqiqah, jadi memasarkan Qurban berarti mengarahkan
+   * pengunjung ke tawaran yang tidak bisa dipesan. Enum `service_type` dan
+   * `SPECIES_BY_SERVICE_TYPE` di sisi kode **tetap** menyimpan qurban — yang
+   * dicabut adalah pemasarannya, bukan kemampuannya.
+   */
   description:
-    'Layanan Aqiqah, Qurban, dan Sedekah Daging yang syar’i, amanah, dan terdokumentasi. ' +
+    'Layanan Aqiqah dan Sedekah Daging yang syar’i, amanah, dan terdokumentasi. ' +
     'Pantau setiap tahap secara real-time dan terima laporan transparan tanpa perlu bertanya.',
   url: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'halo@zakatsukses.org',
@@ -31,11 +38,20 @@ export const siteConfig = {
 } as const;
 
 /** Menu navigasi utama (anchor ke section di landing). */
+/**
+ * Menu navigasi utama (anchor ke section di landing).
+ *
+ * "Keunggulan" dilepas dari sini saat Galeri masuk — bukan karena sectionnya
+ * hilang (ia tetap ada dan tetap bisa dicapai dengan menggulir), melainkan
+ * karena header memuat dua tombol aksi di sebelah kanan, dan enam butir menu
+ * membuat keduanya berdesakan pada lebar tablet. Galeri didahulukan karena ia
+ * bukti, sedangkan Keunggulan klaim.
+ */
 export const primaryNav = [
   { label: 'Layanan', href: '#layanan' },
   { label: 'Paket', href: '#paket' },
   { label: 'Proses', href: '#proses' },
-  { label: 'Keunggulan', href: '#keunggulan' },
+  { label: 'Galeri', href: '#galeri' },
   { label: 'FAQ', href: '#faq' },
 ] as const;
 
@@ -53,27 +69,98 @@ export const footerNav = {
   ],
 } as const;
 
-/** Layanan inti (01_PROJECT_VISION). */
+/**
+ * Layanan inti (01_PROJECT_VISION).
+ *
+ * Qurban dicabut 21 Agustus 2026 — checkout hanya melayani aqiqah, jadi
+ * memasarkannya berarti menjanjikan yang tidak bisa dipesan. Ikonnya
+ * (`IconQurban`) sengaja dibiarkan hidup di `components/site/icons.tsx`: yang
+ * berubah adalah keputusan pemasaran, dan ikon itu akan dibutuhkan lagi utuh
+ * ketika Qurban dibuka.
+ */
 export const services = [
   {
     icon: 'aqiqah',
-    title: 'Aqiqah',
+    title: 'Aqiqah Kirim',
     description:
-      'Tunaikan aqiqah putra-putri Anda secara syar’i. Kambing sehat, pemotongan sesuai syariat, dan masakan siap antar ke keluarga maupun penerima manfaat.',
-  },
-  {
-    icon: 'qurban',
-    title: 'Qurban',
-    description:
-      'Ibadah qurban yang amanah dengan hewan tervalidasi dan distribusi daging tepat sasaran hingga ke pelosok yang membutuhkan.',
+      'Masakan aqiqah diantar langsung ke alamat Anda, siap disajikan untuk keluarga dan tetangga. Anda mengonfirmasi sendiri saat pesanan sampai.',
   },
   {
     icon: 'sedekah',
-    title: 'Sedekah Daging',
+    title: 'Aqiqah Salur',
     description:
-      'Berbagi daging berkualitas kapan saja di luar momen aqiqah dan qurban — manfaat yang terus mengalir untuk sesama.',
+      'Daging aqiqah disalurkan tim kami kepada penghafal Qur’an dan dhuafa, lengkap dengan bukti penyaluran yang bisa Anda telusuri.',
+  },
+  {
+    icon: 'aqiqah',
+    title: 'Nasi Box Aqiqah',
+    description:
+      'Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji — dipesan bersama paket aqiqah Anda lewat tim kami.',
   },
 ] as const;
+
+/* ------------------------------------------------------------------ */
+/* Foto landing                                                        */
+/* ------------------------------------------------------------------ */
+/**
+ * Seluruh foto landing didaftarkan di sini — satu tempat untuk melihat berkas
+ * apa saja yang ditunggu, tanpa menyisir komponen satu per satu.
+ *
+ * Selama berkasnya belum ada di `public/`, `<SitePhoto>` merender kotak abu
+ * bertuliskan path yang diharapkan. Jadi menambahkan foto **cukup dengan
+ * menaruh berkasnya di path yang tertulis** — tidak ada kode yang perlu diubah.
+ *
+ * Ukuran `width`/`height` menentukan rasio kotak placeholder dan mencegah
+ * pergeseran tata letak saat gambar sungguhan masuk. Foto boleh beresolusi
+ * lebih besar dari angka ini — yang penting **rasionya sama**, kalau tidak
+ * gambarnya akan terpotong oleh `object-cover`.
+ */
+export const landingPhotos = {
+  /** Foto utama di hero. Lanskap; wajah/objek penting jangan di tepi bawah. */
+  hero: {
+    src: 'images/landing/hero.jpg',
+    alt: 'Tim Sukses Aqiqah menyiapkan pesanan aqiqah',
+    width: 1200,
+    height: 900,
+  },
+  /**
+   * Galeri dokumentasi — enam foto berurutan mengikuti tahapan sungguhan di
+   * sistem (`fulfilment_sequence`), supaya yang dilihat pengunjung di landing
+   * sama dengan yang nanti ia terima di laporan pelaksanaan.
+   */
+  gallery: [
+    {
+      src: 'images/landing/galeri-1-persiapan.jpg',
+      alt: 'Pemeriksaan kesehatan kambing sebelum disembelih',
+      caption: 'Persiapan & pemeriksaan hewan',
+    },
+    {
+      src: 'images/landing/galeri-2-sembelih.jpg',
+      alt: 'Proses penyembelihan sesuai syariat',
+      caption: 'Penyembelihan sesuai syariat',
+    },
+    {
+      src: 'images/landing/galeri-3-masak.jpg',
+      alt: 'Pengolahan daging aqiqah di dapur mitra',
+      caption: 'Pengolahan di dapur mitra',
+    },
+    {
+      src: 'images/landing/galeri-4-kemas.jpg',
+      alt: 'Masakan aqiqah dikemas rapi sebelum diantar',
+      caption: 'Pengemasan rapi & higienis',
+    },
+    {
+      src: 'images/landing/galeri-5-kirim.jpg',
+      alt: 'Pesanan aqiqah diantar ke alamat pemesan',
+      caption: 'Diantar ke alamat Anda',
+    },
+    {
+      src: 'images/landing/galeri-6-salur.jpg',
+      alt: 'Penyaluran daging aqiqah kepada penerima manfaat',
+      caption: 'Disalurkan ke penerima manfaat',
+    },
+  ],
+} as const;
 
 /** Program Aqiqah — harga dari 28_HARGA_PROGRAM. */
 export const aqiqahPrograms = [
@@ -82,6 +169,11 @@ export const aqiqahPrograms = [
     name: 'Ekonomi',
     price: 2_300_000,
     popular: false,
+    /** Foto masakan paket ini; rasio 4:3 seperti `landingPhotos`. */
+    photo: {
+      src: 'images/landing/paket-ekonomi.jpg',
+      alt: 'Sajian masakan paket Aqiqah Ekonomi',
+    },
     tagline: 'Ibadah aqiqah lengkap dengan harga paling terjangkau.',
     features: [
       '1 ekor kambing sehat & tersertifikasi',
@@ -96,6 +188,10 @@ export const aqiqahPrograms = [
     name: 'Favorit',
     price: 2_800_000,
     popular: true,
+    photo: {
+      src: 'images/landing/paket-favorit.jpg',
+      alt: 'Sajian masakan paket Aqiqah Favorit',
+    },
     tagline: 'Pilihan paling diminati — seimbang antara porsi dan nilai.',
     features: [
       'Kambing ukuran lebih besar',
@@ -110,6 +206,10 @@ export const aqiqahPrograms = [
     name: 'Premium',
     price: 3_600_000,
     popular: false,
+    photo: {
+      src: 'images/landing/paket-premium.jpg',
+      alt: 'Sajian masakan paket Aqiqah Premium',
+    },
     tagline: 'Porsi lebih besar dan layanan paling lengkap.',
     features: [
       'Kambing premium ukuran besar',
@@ -206,7 +306,7 @@ export const faqs = [
   {
     question: 'Apa itu Sukses Aqiqah?',
     answer:
-      'Sukses Aqiqah adalah layanan Aqiqah, Qurban, dan Sedekah Daging dari Zakat Sukses yang mengedepankan proses syar’i, amanah, dan terdokumentasi lengkap — sehingga Anda dapat memantau ibadah dan menerima laporan yang transparan.',
+      'Sukses Aqiqah adalah layanan Aqiqah dan Sedekah Daging dari Zakat Sukses yang mengedepankan proses syar’i, amanah, dan terdokumentasi lengkap — sehingga Anda dapat memantau ibadah dan menerima laporan yang transparan.',
   },
   {
     question: 'Bagaimana cara memesan?',

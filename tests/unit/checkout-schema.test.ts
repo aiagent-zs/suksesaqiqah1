@@ -24,6 +24,11 @@ const valid = {
   requested_time: BOOKING_TIME_SLOTS[0],
   child_name: 'Fatih',
   bin_binti: 'bin Ahmad',
+  child_birth_place: 'Bandung',
+  // Tanggal statis, bukan dihitung dari hari ini seperti `requested_date`:
+  // batasnya "tidak boleh di masa depan", dan tanggal di masa lalu tetap di
+  // masa lalu berapa pun lamanya berkas ini dipakai.
+  child_birth_date: '2026-01-15',
   name: 'Budi Santoso',
   phone: '081234567890',
   email: 'budi@example.com',
@@ -100,6 +105,43 @@ describe('guestCheckoutSchema', () => {
   it('mewajibkan nama anak', () => {
     expect(guestCheckoutSchema.safeParse({ ...valid, child_name: '' }).success).toBe(false);
     expect(guestCheckoutSchema.safeParse({ ...valid, child_name: ' A ' }).success).toBe(false);
+  });
+
+  it('mewajibkan tempat & tanggal lahir anak', () => {
+    expect(guestCheckoutSchema.safeParse({ ...valid, child_birth_place: '' }).success).toBe(false);
+    expect(guestCheckoutSchema.safeParse({ ...valid, child_birth_place: ' B ' }).success).toBe(
+      false,
+    );
+    expect(guestCheckoutSchema.safeParse({ ...valid, child_birth_date: '' }).success).toBe(false);
+    expect(guestCheckoutSchema.safeParse({ ...valid, child_birth_date: undefined }).success).toBe(
+      false,
+    );
+  });
+
+  it('menolak tanggal lahir yang tidak masuk akal', () => {
+    // Bentuk yang bukan YYYY-MM-DD ditolak sebelum perbandingan tanggal.
+    expect(
+      guestCheckoutSchema.safeParse({ ...valid, child_birth_date: '15-01-2026' }).success,
+    ).toBe(false);
+
+    // Masa depan: dihitung terhadap hari ini menurut WIB, sama seperti RPC.
+    expect(
+      guestCheckoutSchema.safeParse({
+        ...valid,
+        child_birth_date: addCalendarDays(bookingMinDate(), 1),
+      }).success,
+    ).toBe(false);
+
+    // Lahir hari ini masih sah — bayi yang baru lahir pagi ini tetap boleh
+    // diaqiqahi, dan batasnya inklusif.
+    expect(
+      guestCheckoutSchema.safeParse({ ...valid, child_birth_date: bookingMinDate() }).success,
+    ).toBe(true);
+
+    // Salah ketik tahun yang tidak mungkin.
+    expect(
+      guestCheckoutSchema.safeParse({ ...valid, child_birth_date: '0202-01-15' }).success,
+    ).toBe(false);
   });
 
   it('mewajibkan pilihan tahap 1 dan tahap 4', () => {

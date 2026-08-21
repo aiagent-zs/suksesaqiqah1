@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { NAV_ITEMS, isNavItemActive } from './nav-items';
+import { isNavItemActive, navItemsForRole } from './nav-items';
+import type { Database } from '@/types/database';
+
+type UserRole = Database['public']['Enums']['user_role'];
 
 const ITEM_BASE =
   'flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all';
@@ -26,18 +28,19 @@ const ITEM_INACTIVE =
  * Server Component tidak bisa membaca URL saat ini, dan itu memang disengaja
  * Next agar state layout bertahan lintas navigasi.
  */
-export function SidebarNav() {
+export function SidebarNav({ role }: { role: UserRole | undefined }) {
   const pathname = usePathname();
+  const items = navItemsForRole(role);
 
   return (
     // `min-h-0 overflow-y-auto`: sidebar berbagi tinggi layar dengan brand,
     // ringkasan profil, dan tombol keluar. Di layar pendek — atau saat menu
-    // bertambah pada Tahap 11 — daftar inilah yang menggulir, bukan seluruh
+    // bertambah — daftar inilah yang menggulir, bukan seluruh
     // sidebar; tombol keluar harus tetap terlihat. `min-h-0` wajib: tanpa itu
     // anak flex menolak menyusut di bawah tinggi kontennya dan `overflow` tidak
     // pernah aktif.
     <nav aria-label="Navigasi utama" className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
-      {NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const active = isNavItemActive(pathname, item.href);
         const Icon = item.icon;
 
@@ -56,12 +59,7 @@ export function SidebarNav() {
         );
       })}
 
-      {/* Halamannya belum ada (Tahap 11 · Master Data). Sengaja belum masuk
-          NAV_ITEMS supaya tidak pernah bisa tampil aktif. */}
-      <a href="#" className={cn(ITEM_BASE, ITEM_INACTIVE)}>
-        <Settings className="h-4 w-4 shrink-0" />
-        <span>Pengaturan</span>
-      </a>
+
     </nav>
   );
 }
