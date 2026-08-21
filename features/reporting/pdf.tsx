@@ -128,7 +128,7 @@ export function ReportDocument({
           <Text style={styles.orderNumber}>
             {data.orderNumber}
             {data.report ? ` · versi ${data.report.version}` : ''}
-            {data.branchName ? ` · ${data.branchName}` : ''}
+            {data.vendorName ? ` · ${data.vendorName}` : ''}
           </Text>
         </View>
 

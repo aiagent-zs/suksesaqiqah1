@@ -62,7 +62,7 @@ export default async function PublicReportPage({ params }: { params: Params }) {
         <p className="mt-2 text-sm text-emerald-800 tabular-nums">
           {report.orderNumber}
           {report.report ? ` · versi ${report.report.version}` : ''}
-          {report.branchName ? ` · ${report.branchName}` : ''}
+          {report.vendorName ? ` · ${report.vendorName}` : ''}
         </p>
         <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs text-emerald-800">
           <ShieldCheck className="size-3.5" />

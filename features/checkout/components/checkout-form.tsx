@@ -40,7 +40,7 @@ import type { CheckoutPackage, GuestOrderResult, NasiBoxPackage, RegionOption } 
 
 const SERVICE_TYPE_LABEL: Record<string, string> = {
   aqiqah: 'Aqiqah',
-  qurban: 'Qurban',
+  // qurban: 'Qurban',
 };
 
 const MAX_QTY = 20;
@@ -87,15 +87,16 @@ type Draft = {
  * menyembunyikan bahwa paket dan nasi box saling memengaruhi total.
  */
 const STEPS = [
-  { id: 1, title: 'Pesanan', icon: Package, description: 'Paket, jumlah ekor, nasi box' },
+  { id: 1, title: 'Pesanan', shortTitle: 'Pesanan', icon: Package, description: 'Paket, jumlah ekor, nasi box' },
   {
     id: 2,
     title: 'Jadwal & Penyaluran',
+    shortTitle: 'Jadwal',
     icon: CalendarClock,
     description: 'Tanggal, jam, cara kirim',
   },
-  { id: 3, title: 'Data Pemesan', icon: User, description: 'Kontak & nama anak' },
-  { id: 4, title: 'Ringkasan', icon: ClipboardCheck, description: 'Periksa lalu konfirmasi' },
+  { id: 3, title: 'Data Pemesan', shortTitle: 'Data', icon: User, description: 'Kontak & nama anak' },
+  { id: 4, title: 'Ringkasan', shortTitle: 'Ringkasan', icon: ClipboardCheck, description: 'Periksa lalu konfirmasi' },
 ];
 
 /**
@@ -509,34 +510,34 @@ export function CheckoutForm({
   const progressPct = (currentStep / STEPS.length) * 100;
 
   return (
-    <div className="mx-auto max-w-4xl overflow-hidden rounded-3xl border border-neutral-200/80 bg-white shadow-xl shadow-neutral-900/5 transition-all">
+    <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-xl shadow-neutral-900/5 transition-all sm:rounded-3xl">
       {/* Modal / Wizard Header */}
-      <div className="from-primary/5 to-primary/5 relative border-b border-neutral-100 bg-gradient-to-r via-white px-6 py-6 sm:px-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="from-primary/5 to-primary/5 relative border-b border-neutral-100 bg-gradient-to-r via-white px-4 py-4 sm:px-8 sm:py-6">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="bg-primary/10 text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide">
-              <Sparkles className="size-3.5" /> Modal Pemesanan Aqiqah & Qurban
+            <span className="bg-primary/10 text-primary inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide sm:px-3 sm:py-1 sm:text-xs">
+              <Sparkles className="size-3 sm:size-3.5" /> Modal Pemesanan Aqiqah
             </span>
-            <h2 className="mt-2 text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl">
+            <h2 className="mt-1.5 text-lg font-bold tracking-tight text-neutral-900 sm:text-2xl">
               Checkout Pesanan Mandiri
             </h2>
           </div>
           {/* Total ikut di kepala wizard, bukan hanya di langkah terakhir:
               pemesan mengubah paket & jumlah di langkah 1, jadi di situlah
               angkanya paling dibutuhkan. */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden items-center gap-2 rounded-2xl bg-neutral-100/80 px-4 py-2 text-xs font-medium text-neutral-600 backdrop-blur-sm sm:flex">
               <ShieldCheck className="size-4 text-emerald-600" />
               <span>Tanpa Perlu Login Akun</span>
             </div>
             <div
               aria-live="polite"
-              className="border-primary/15 bg-primary/5 rounded-2xl border px-4 py-2 text-right"
+              className="border-primary/15 bg-primary/5 rounded-xl border px-3 py-1.5 text-right sm:rounded-2xl sm:px-4 sm:py-2"
             >
-              <p className="text-[10px] font-medium tracking-wide text-neutral-500 uppercase">
+              <p className="text-[9px] font-medium tracking-wide text-neutral-500 uppercase sm:text-[10px]">
                 Total
               </p>
-              <p className="text-primary text-base font-bold tracking-tight tabular-nums">
+              <p className="text-primary text-sm font-bold tracking-tight tabular-nums sm:text-base">
                 {formatCurrency(total)}
               </p>
             </div>
@@ -544,7 +545,7 @@ export function CheckoutForm({
         </div>
 
         {/* Stepper Nav & Progress Bar */}
-        <div className="mt-6">
+        <div className="mt-4 sm:mt-6">
           <div className="mb-2 flex items-center justify-between text-xs font-semibold text-neutral-500">
             <span>
               Langkah {currentStep} dari {STEPS.length}
@@ -558,7 +559,7 @@ export function CheckoutForm({
             />
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mt-3 grid grid-cols-4 gap-1.5 sm:mt-4 sm:gap-2.5">
             {STEPS.map((step) => {
               const Icon = step.icon;
               const isCurrent = step.id === currentStep;
@@ -574,7 +575,7 @@ export function CheckoutForm({
                     }
                   }}
                   className={cn(
-                    'flex items-center gap-2.5 rounded-2xl border p-2.5 text-left transition-all sm:px-3.5 sm:py-3',
+                    'flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center transition-all sm:flex-row sm:items-start sm:justify-start sm:gap-2.5 sm:rounded-2xl sm:px-3.5 sm:py-3 sm:text-left',
                     isCurrent
                       ? 'border-primary bg-primary/10 text-primary ring-primary/20 font-semibold shadow-sm ring-2'
                       : isPassed
@@ -584,7 +585,7 @@ export function CheckoutForm({
                 >
                   <div
                     className={cn(
-                      'flex size-7 shrink-0 items-center justify-center rounded-xl text-xs font-bold transition-all',
+                      'flex size-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-all sm:size-7 sm:rounded-xl',
                       isCurrent
                         ? 'bg-primary text-white shadow-sm'
                         : isPassed
@@ -593,14 +594,19 @@ export function CheckoutForm({
                     )}
                   >
                     {isPassed ? (
-                      <Check className="size-4 stroke-[3]" />
+                      <Check className="size-3 stroke-[3] sm:size-4" />
                     ) : (
-                      <Icon className="size-3.5" />
+                      <Icon className="size-3 sm:size-3.5" />
                     )}
                   </div>
-                  <div className="hidden min-w-0 sm:block">
-                    <p className="truncate text-xs font-medium">{step.title}</p>
-                    <p className="truncate text-[10px] opacity-75">{step.description}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-[10px] font-semibold leading-tight sm:text-xs">
+                      <span className="sm:hidden">{step.shortTitle}</span>
+                      <span className="hidden sm:inline">{step.title}</span>
+                    </p>
+                    <p className="hidden truncate text-[10px] opacity-75 sm:block">
+                      {step.description}
+                    </p>
                   </div>
                 </button>
               );
@@ -620,19 +626,19 @@ export function CheckoutForm({
           if (currentStep < STEPS.length) nextStep();
         }}
         onKeyDown={handleEnterKey}
-        className="p-6 sm:p-8"
+        className="p-2 sm:p-4"
       >
         {/* STEP 1: PESANAN — aqiqah untuk, paket & jumlah ekor, nasi box.
             Ketiganya dulu langkah terpisah; disatukan karena masing-masing
             hanya menuntut satu klik dan total tagihannya saling memengaruhi. */}
         {currentStep === 1 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-7 duration-300">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
             <div>
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                 <Label className="text-base font-bold text-neutral-900">Aqiqah untuk siapa?</Label>
                 <span className="text-xs text-neutral-500">Menentukan anjuran jumlah ekor</span>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 {AQIQAH_FOR_OPTIONS.map((opt) => {
                   const active = draft.aqiqah_for === opt.value;
                   return (
@@ -642,7 +648,7 @@ export function CheckoutForm({
                       onClick={() => pickAqiqahFor(opt.value)}
                       aria-pressed={active}
                       className={cn(
-                        'relative flex items-center gap-3 rounded-2xl border p-4.5 text-left transition-all duration-200',
+                        'relative flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-200 sm:rounded-2xl sm:p-4.5',
                         active
                           ? 'border-primary bg-primary/5 ring-primary/20 shadow-md ring-2'
                           : 'hover:border-primary/40 border-neutral-200 bg-white hover:shadow-md',
@@ -650,14 +656,14 @@ export function CheckoutForm({
                     >
                       <div
                         className={cn(
-                          'flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors',
+                          'flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors sm:size-11',
                           active ? 'bg-primary text-white' : 'bg-neutral-100 text-neutral-500',
                         )}
                       >
                         <Baby className="size-5" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-neutral-900">{opt.label}</p>
+                      <div className="min-w-0 pr-4">
+                        <p className="text-sm font-bold text-neutral-900 sm:text-base">{opt.label}</p>
                         <p className="mt-0.5 text-xs text-neutral-500">{opt.hint}</p>
                       </div>
                       {active && (
@@ -672,14 +678,15 @@ export function CheckoutForm({
               {fieldErrors.aqiqah_for && <FieldError message={fieldErrors.aqiqah_for} />}
             </div>
 
-            <div className="border-t border-neutral-100 pt-6">
-              <div className="mb-3 flex items-center justify-between">
+            {/* PAKET */}
+            <div className="border-t border-neutral-100 pt-5 sm:pt-6">
+              <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                 <Label className="text-base font-bold text-neutral-900">Pilih Paket</Label>
                 <span className="text-xs text-neutral-500">
                   Harga net termasuk olahan &amp; laporan
                 </span>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {packages.map((pkg) => {
                   const active = pkg.id === draft.service_id;
                   return (
@@ -689,7 +696,7 @@ export function CheckoutForm({
                       onClick={() => pickPackage(pkg)}
                       aria-pressed={active}
                       className={cn(
-                        'group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200',
+                        'group relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all duration-200 sm:rounded-2xl sm:p-4.5',
                         active
                           ? 'border-primary bg-primary/5 ring-primary/20 shadow-md ring-2'
                           : 'hover:border-primary/40 border-neutral-200 bg-white hover:shadow-md',
@@ -711,14 +718,14 @@ export function CheckoutForm({
                             </span>
                           )}
                         </div>
-                        <p className="mt-2 font-bold text-neutral-900">{pkg.name}</p>
+                        <p className="mt-2 text-sm font-bold text-neutral-900 sm:text-base">{pkg.name}</p>
                         {pkg.description && (
                           <p className="mt-1 line-clamp-2 text-xs text-neutral-500">
                             {pkg.description}
                           </p>
                         )}
                       </div>
-                      <p className="text-primary mt-3 text-lg font-extrabold tabular-nums">
+                      <p className="text-primary mt-2.5 text-base font-extrabold tabular-nums sm:mt-3 sm:text-lg">
                         {formatCurrency(pkg.price)}
                       </p>
                     </button>
@@ -728,10 +735,10 @@ export function CheckoutForm({
               {fieldErrors.service_id && <FieldError message={fieldErrors.service_id} />}
             </div>
 
-            <div className="grid gap-6 rounded-2xl border border-neutral-100 bg-neutral-50/60 p-5 sm:grid-cols-2">
+            <div className="grid gap-4 rounded-xl border border-neutral-100 bg-neutral-50/60 p-3.5 sm:gap-6 sm:rounded-2xl sm:p-5 sm:grid-cols-2">
               <div>
                 <Label className="text-sm font-semibold text-neutral-800">Jenis Hewan</Label>
-                <div className="mt-2.5 inline-flex rounded-xl bg-neutral-200/60 p-1">
+                <div className="mt-2 inline-flex rounded-xl bg-neutral-200/60 p-1">
                   {speciesOptions.map((s) => (
                     <button
                       key={s}
@@ -739,7 +746,7 @@ export function CheckoutForm({
                       onClick={() => set('species', s)}
                       aria-pressed={draft.species === s}
                       className={cn(
-                        'rounded-lg px-4 py-2 text-xs font-semibold transition-all',
+                        'rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all sm:px-4 sm:py-2',
                         draft.species === s
                           ? 'bg-white text-neutral-900 shadow-sm'
                           : 'text-neutral-600 hover:text-neutral-900',
@@ -753,7 +760,7 @@ export function CheckoutForm({
 
               <div>
                 <Label className="text-sm font-semibold text-neutral-800">Jumlah Ekor</Label>
-                <div className="mt-2.5 inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white p-1 shadow-sm">
+                <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white p-1 shadow-sm">
                   <StepperButton
                     label="Kurangi jumlah"
                     disabled={draft.qty <= 1}
@@ -761,7 +768,7 @@ export function CheckoutForm({
                   >
                     <Minus className="size-4" />
                   </StepperButton>
-                  <span className="w-12 text-center text-base font-bold text-neutral-900 tabular-nums">
+                  <span className="w-10 text-center text-base font-bold text-neutral-900 tabular-nums sm:w-12">
                     {draft.qty}
                   </span>
                   <StepperButton
@@ -882,9 +889,9 @@ export function CheckoutForm({
 
         {/* STEP 2: JADWAL & PENYALURAN */}
         {currentStep === 2 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
-            <div className="rounded-2xl border border-neutral-100 bg-neutral-50/60 p-5">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 duration-300">
+            <div className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-3.5 sm:rounded-2xl sm:p-5">
+              <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                 <Label htmlFor="co-date" className="text-base font-bold text-neutral-900">
                   Kapan dilaksanakan? <span className="text-red-500">*</span>
                 </Label>
@@ -893,7 +900,7 @@ export function CheckoutForm({
                 </span>
               </div>
 
-              <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-4 sm:gap-5 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="co-date" className="text-sm font-semibold text-neutral-800">
                     Tanggal
@@ -912,7 +919,7 @@ export function CheckoutForm({
                     aria-required
                     aria-invalid={Boolean(fieldErrors.requested_date)}
                     onChange={(e) => set('requested_date', e.target.value)}
-                    className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                    className="mt-2 h-11 rounded-xl border-neutral-200 text-sm shadow-sm sm:h-12"
                   />
                   {fieldErrors.requested_date && (
                     <FieldError message={fieldErrors.requested_date} />
@@ -921,7 +928,7 @@ export function CheckoutForm({
 
                 <div>
                   <Label className="text-sm font-semibold text-neutral-800">Jam</Label>
-                  <div id="co-time" className="mt-2.5 flex flex-wrap gap-2">
+                  <div id="co-time" className="mt-2 grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
                     {BOOKING_TIME_SLOTS.map((slot) => {
                       const active = draft.requested_time === slot;
                       return (
@@ -931,7 +938,7 @@ export function CheckoutForm({
                           onClick={() => set('requested_time', slot)}
                           aria-pressed={active}
                           className={cn(
-                            'rounded-xl border px-3.5 py-2 text-xs font-semibold tabular-nums transition-all',
+                            'flex items-center justify-center rounded-xl border py-2 px-1 text-center text-xs font-semibold tabular-nums transition-all sm:px-3.5',
                             active
                               ? 'border-primary bg-primary/5 text-primary ring-primary/20 ring-2'
                               : 'hover:border-primary/40 border-neutral-200 bg-white text-neutral-700',
@@ -955,10 +962,10 @@ export function CheckoutForm({
             </div>
 
             <div>
-              <Label className="mb-3 block text-base font-bold text-neutral-900">
+              <Label className="mb-2.5 block text-base font-bold text-neutral-900">
                 Cara Penyaluran
               </Label>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 {DISTRIBUTION_OPTIONS.map((opt) => {
                   const active = draft.distribution_mode === opt.value;
                   return (
@@ -1034,13 +1041,13 @@ export function CheckoutForm({
         {/* STEP 3: DATA PEMESAN */}
         {currentStep === 3 && (
           <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
-            <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900">
+            {/* <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900">
               <User className="mt-0.5 size-4 shrink-0 text-blue-600" />
               <span>
                 Tim kami menghubungi nomor WhatsApp ini untuk konfirmasi pesanan, bukti transfer,
                 dan jadwal pelaksanaan.
               </span>
-            </div>
+            </div> */}
 
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
@@ -1311,12 +1318,12 @@ export function CheckoutForm({
         )}
 
         {/* Modal Controls / Navigation Bar */}
-        <div className="mt-8 flex items-center justify-between border-t border-neutral-100 pt-6">
+        <div className="mt-6 flex items-center justify-between gap-2 border-t border-neutral-100 pt-4 sm:mt-8 sm:pt-6">
           {currentStep > 1 ? (
             <button
               type="button"
               onClick={prevStep}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-300 bg-white px-5 py-3 text-xs font-semibold text-neutral-700 shadow-sm transition-all hover:bg-neutral-50"
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-neutral-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 sm:gap-1.5 sm:px-5 sm:py-3"
             >
               <ChevronLeft className="size-4" /> Kembali
             </button>
@@ -1338,9 +1345,9 @@ export function CheckoutForm({
               key="nav-next"
               type="button"
               onClick={nextStep}
-              className="bg-primary shadow-primary/20 hover:bg-primary-dark inline-flex items-center gap-1.5 rounded-xl px-6 py-3 text-xs font-semibold text-white shadow-md transition-all hover:shadow-lg"
+              className="bg-primary shadow-primary/20 hover:bg-primary-dark inline-flex items-center justify-center gap-1 rounded-xl px-4 py-2.5 text-xs font-semibold text-white shadow-md transition-all hover:shadow-lg sm:gap-1.5 sm:px-6 sm:py-3 sm:text-sm"
             >
-              Lanjut ke {STEPS[currentStep].title} <ChevronRight className="size-4" />
+              Lanjut ke {STEPS[currentStep].title} <ChevronRight className="size-4 shrink-0" />
             </button>
           ) : (
             /* `type="button"` + onClick, bukan `type="submit"`: pesanan tercatat
@@ -1351,7 +1358,7 @@ export function CheckoutForm({
               type="button"
               onClick={submit}
               disabled={pending || !selected}
-              className="bg-primary shadow-primary/30 hover:bg-primary-dark inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+              className="bg-primary shadow-primary/30 hover:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-bold text-white shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 sm:px-7 sm:py-3.5 sm:text-sm"
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
               {pending ? 'Mengirim pesanan…' : 'Konfirmasi & Kirim Pesanan'}

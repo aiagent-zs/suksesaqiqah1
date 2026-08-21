@@ -4,6 +4,7 @@ import {
   aqiqahPrograms,
   faqs,
   features,
+  landingPhotos,
   nasiBoxPackages,
   processSteps,
   services,
@@ -11,6 +12,7 @@ import {
 } from '@/lib/constants/site';
 import { formatIDR } from '@/lib/format/currency';
 import { Icon, IconArrowRight, IconCheck, IconWhatsApp } from '@/components/site/icons';
+import { SitePhoto } from '@/components/site/SitePhoto';
 
 export const metadata: Metadata = {
   title: `${siteConfig.name} — ${siteConfig.tagline}`,
@@ -30,6 +32,9 @@ export default function LandingPage() {
       <FeaturesSection />
       <PackagesSection />
       <ProcessSection />
+      {/* Galeri sengaja tepat setelah Proses: bagian itu menjanjikan setiap
+          tahap terdokumentasi, dan galerilah buktinya. */}
+      <GallerySection />
       <FaqSection />
       <CtaSection />
     </>
@@ -58,69 +63,101 @@ function Hero() {
       />
 
       <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="border-primary/20 text-primary-dark inline-flex items-center gap-2 rounded-full border bg-white/80 px-4 py-1.5 text-xs font-semibold shadow-sm backdrop-blur">
-            <span className="bg-accent h-1.5 w-1.5 animate-pulse rounded-full" />
-            Aqiqah · Qurban · Sedekah Daging
-          </span>
-
-          <h1 className="mt-7 text-[2.5rem] leading-[1.1] font-bold tracking-tight text-neutral-900 sm:text-6xl md:text-7xl">
-            Tunaikan Ibadah,
-            <br />
-            <span className="from-primary to-success bg-gradient-to-r bg-clip-text text-transparent">
-              Tebarkan Manfaat
+        {/* Dua kolom sejak lg: teks di kiri, foto di kanan. Di bawah itu foto
+            turun ke bawah teks — bukan disembunyikan, karena justru di layar
+            kecil sebuah foto paling cepat menjelaskan layanan ini. */}
+        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
+          <div className="text-center lg:text-left">
+            <span className="border-primary/20 text-primary-dark inline-flex items-center gap-2 rounded-full border bg-white/80 px-4 py-1.5 text-xs font-semibold shadow-sm backdrop-blur">
+              <span className="bg-accent h-1.5 w-1.5 animate-pulse rounded-full" />
+              Aqiqah Syar’i · Terdokumentasi · Tepat Waktu
             </span>
-          </h1>
 
-          <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-neutral-600">
-            Layanan Aqiqah, Qurban, dan Sedekah Daging yang syar’i dan amanah. Pantau setiap tahap
-            secara real-time dan terima laporan pelaksanaan yang transparan — tanpa perlu bertanya.
-          </p>
+            <h1 className="mt-7 text-[2.5rem] leading-[1.1] font-bold tracking-tight text-neutral-900 sm:text-6xl">
+              Tunaikan Ibadah,
+              <br />
+              <span className="from-primary to-success bg-gradient-to-r bg-clip-text text-transparent">
+                Tebarkan Manfaat
+              </span>
+            </h1>
 
-          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            {/* Pemesanan mandiri jadi aksi utama; WhatsApp tetap sejajar di
-                sebelahnya untuk yang ingin bertanya lebih dulu. */}
-            <Link
-              href="/checkout"
-              className="bg-primary shadow-primary/25 hover:bg-primary-dark group inline-flex w-full items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-semibold text-white shadow-xl transition-all hover:shadow-2xl sm:w-auto"
-            >
-              Pesan Online Sekarang
-              <IconArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <a
-              href={siteConfig.whatsapp.href(orderMessage())}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:border-primary hover:text-primary inline-flex w-full items-center justify-center gap-2 rounded-full border border-neutral-300 bg-white/80 px-8 py-4 text-base font-semibold text-neutral-800 backdrop-blur transition-colors sm:w-auto"
-            >
-              <IconWhatsApp className="h-5 w-5" />
-              Tanya via WhatsApp
-            </a>
+            <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-neutral-600 lg:mx-0">
+              Layanan aqiqah yang syar’i dan amanah. Pantau setiap tahap secara real-time dan terima
+              laporan pelaksanaan yang transparan — tanpa perlu bertanya.
+            </p>
+
+            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
+              {/* Pemesanan mandiri jadi aksi utama; WhatsApp tetap sejajar di
+                  sebelahnya untuk yang ingin bertanya lebih dulu. */}
+              <Link
+                href="/checkout"
+                className="bg-primary shadow-primary/25 hover:bg-primary-dark group inline-flex w-full items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-semibold text-white shadow-xl transition-all hover:shadow-2xl sm:w-auto"
+              >
+                Pesan Online Sekarang
+                <IconArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <a
+                href={siteConfig.whatsapp.href(orderMessage())}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:border-primary hover:text-primary inline-flex w-full items-center justify-center gap-2 rounded-full border border-neutral-300 bg-white/80 px-8 py-4 text-base font-semibold text-neutral-800 backdrop-blur transition-colors sm:w-auto"
+              >
+                <IconWhatsApp className="h-5 w-5" />
+                Tanya via WhatsApp
+              </a>
+            </div>
+
+            <p className="mt-5 text-xs text-neutral-500">
+              Tanpa perlu membuat akun · Pembayaran dikonfirmasi tim kami
+            </p>
           </div>
 
-          <p className="mt-5 text-xs text-neutral-500">
-            Tanpa perlu membuat akun · Pembayaran dikonfirmasi tim kami
-          </p>
-
-          {/* Stat strip */}
-          <dl className="mx-auto mt-14 grid max-w-2xl grid-cols-3 gap-3 sm:gap-4">
-            {[
-              { value: '100%', label: 'Syar’i & tersertifikasi' },
-              { value: 'Real-time', label: 'Pantau status order' },
-              { value: '< 1 menit', label: 'Laporan otomatis' },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="rounded-2xl border border-white/70 bg-white/80 px-3 py-4 shadow-sm backdrop-blur transition-shadow hover:shadow-md"
-              >
-                <dt className="text-primary text-lg font-bold tracking-tight sm:text-2xl">
-                  {s.value}
-                </dt>
-                <dd className="mt-1 text-xs leading-5 text-neutral-600 sm:text-sm">{s.label}</dd>
+          {/* Foto hero. `priority` karena berada di layar awal — tanpa itu
+              Next menundanya dan bagian kanan sempat kosong saat dimuat. */}
+          <div className="relative">
+            <div className="border-primary/10 overflow-hidden rounded-3xl border bg-white shadow-2xl shadow-neutral-900/10">
+              <SitePhoto
+                src={landingPhotos.hero.src}
+                alt={landingPhotos.hero.alt}
+                width={landingPhotos.hero.width}
+                height={landingPhotos.hero.height}
+                priority
+                sizes="(min-width: 1024px) 46vw, 100vw"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            {/* Sematan kecil di sudut foto — mengulang janji inti halaman ini
+                tepat di sebelah buktinya. */}
+            <div className="ring-primary/10 absolute -bottom-5 -left-3 hidden items-center gap-2.5 rounded-2xl bg-white/95 px-4 py-3 shadow-xl ring-1 backdrop-blur sm:flex">
+              <span className="bg-success/10 text-success flex size-9 items-center justify-center rounded-xl">
+                <IconCheck className="h-5 w-5" />
+              </span>
+              <div className="text-left">
+                <p className="text-sm font-bold text-neutral-900">Setiap tahap berbukti</p>
+                <p className="text-xs text-neutral-500">Foto & video tervalidasi</p>
               </div>
-            ))}
-          </dl>
+            </div>
+          </div>
         </div>
+
+        {/* Stat strip — tetap selebar halaman di bawah kedua kolom. */}
+        <dl className="mx-auto mt-16 grid max-w-2xl grid-cols-3 gap-3 sm:gap-4 lg:mt-20">
+          {[
+            { value: '100%', label: 'Syar’i & tersertifikasi' },
+            { value: 'Real-time', label: 'Pantau status order' },
+            { value: '< 1 menit', label: 'Laporan otomatis' },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl border border-white/70 bg-white/80 px-3 py-4 text-center shadow-sm backdrop-blur transition-shadow hover:shadow-md"
+            >
+              <dt className="text-primary text-lg font-bold tracking-tight sm:text-2xl">
+                {s.value}
+              </dt>
+              <dd className="mt-1 text-xs leading-5 text-neutral-600 sm:text-sm">{s.label}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </section>
   );
@@ -134,7 +171,7 @@ function ServicesSection() {
     <section id="layanan" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
       <SectionHeading
         eyebrow="Layanan Kami"
-        title="Satu platform untuk tiga ibadah"
+        title="Pilih cara aqiqah Anda ditunaikan"
         subtitle="Dari niat hingga daging sampai ke penerima manfaat — semuanya terkelola rapi dan terdokumentasi."
       />
       <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -212,10 +249,23 @@ function PackagesSection() {
             }`}
           >
             {p.popular && (
-              <span className="bg-accent text-accent-foreground absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-4 py-1.5 text-xs font-bold tracking-wide shadow-lg">
+              <span className="bg-accent text-accent-foreground absolute -top-3.5 left-1/2 z-10 -translate-x-1/2 rounded-full px-4 py-1.5 text-xs font-bold tracking-wide shadow-lg">
                 Paling Diminati
               </span>
             )}
+
+            {/* Foto sajian paket. Rasio 3:2 sengaja lebih pendek dari hero —
+                kartunya sudah panjang oleh daftar fitur di bawah. */}
+            <div className="mb-5 overflow-hidden rounded-2xl bg-neutral-100">
+              <SitePhoto
+                src={p.photo.src}
+                alt={p.photo.alt}
+                width={600}
+                height={400}
+                sizes="(min-width: 1024px) 30vw, (min-width: 640px) 50vw, 100vw"
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            </div>
 
             <h3 className="text-primary text-sm font-semibold tracking-wide uppercase">
               Aqiqah {p.name}
@@ -359,6 +409,57 @@ function ProcessSection() {
           ))}
         </ol>
       </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Galeri Dokumentasi                                                  */
+/* ------------------------------------------------------------------ */
+/**
+ * Enam foto berurutan mengikuti tahapan sungguhan di sistem — inilah bukti
+ * dari klaim "terdokumentasi" yang diulang di beberapa bagian halaman ini.
+ * Urutannya sama dengan `fulfilment_sequence()` di database, jadi yang dilihat
+ * pengunjung di sini persis bentuk laporan yang nanti ia terima.
+ */
+function GallerySection() {
+  return (
+    <section id="galeri" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <SectionHeading
+        eyebrow="Dokumentasi"
+        title="Lihat sendiri setiap tahapnya"
+        subtitle="Foto di bawah adalah tahapan yang sama persis dengan yang Anda terima di laporan pelaksanaan — bukan foto ilustrasi."
+      />
+
+      <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {landingPhotos.gallery.map((photo, i) => (
+          <figure
+            key={photo.src}
+            className="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100 shadow-sm transition-shadow hover:shadow-xl"
+          >
+            <SitePhoto
+              src={photo.src}
+              alt={photo.alt}
+              width={800}
+              height={600}
+              sizes="(min-width: 1024px) 31vw, (min-width: 640px) 47vw, 100vw"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+            {/* Keterangan duduk di atas gradasi, bukan di bawah foto: kisi ini
+                sudah rapat, dan baris teks tambahan akan memecah ritmenya. */}
+            <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-neutral-900/85 via-neutral-900/45 to-transparent p-4 pt-10">
+              <span className="text-accent text-[10px] font-bold tracking-widest uppercase">
+                Tahap {String(i + 1).padStart(2, '0')}
+              </span>
+              <p className="mt-0.5 text-sm font-semibold text-white">{photo.caption}</p>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+
+      <p className="mt-8 text-center text-sm text-neutral-500">
+        Setiap bukti divalidasi tim kami sebelum tahap berikutnya bisa dimulai.
+      </p>
     </section>
   );
 }

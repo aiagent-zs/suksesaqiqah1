@@ -14,8 +14,8 @@ export function SiteFooter() {
           <div className="max-w-xs">
             <Logo />
             <p className="mt-4 text-sm leading-6 text-neutral-600">
-              {siteConfig.tagline}. Layanan Aqiqah, Qurban, dan Sedekah Daging yang syar’i, amanah,
-              dan terdokumentasi.
+              {siteConfig.tagline}. Layanan Aqiqah dan Sedekah Daging yang syar’i, amanah, dan
+              terdokumentasi.
             </p>
           </div>
 

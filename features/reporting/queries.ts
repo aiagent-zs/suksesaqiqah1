@@ -69,7 +69,7 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
       `
       order_number, status, created_at,
       child_birth_place, child_birth_date,
-      branch:branches!orders_branch_id_fkey ( name ),
+      vendor:vendors!orders_vendor_id_fkey ( name ),
       participant:participants!orders_participant_id_fkey ( name ),
       items:order_items ( qty, service:services ( name ) ),
       animals ( species, tag_code, on_behalf_of, status ),
@@ -90,7 +90,7 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
     created_at: string;
     child_birth_place: string | null;
     child_birth_date: string | null;
-    branch: { name: string } | null;
+    vendor: { name: string } | null;
     participant: { name: string } | null;
     items: Array<{ qty: number; service: { name: string } | null }>;
     animals: Array<{
@@ -125,7 +125,9 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
       .order('created_at', { ascending: true }),
     supabase
       .from('v_order_progress')
-      .select('animals_total, animals_slaughtered, animals_distributed, stages_total, stages_validated')
+      .select(
+        'animals_total, animals_slaughtered, animals_distributed, stages_total, stages_validated',
+      )
       .eq('order_id', orderId)
       .maybeSingle(),
   ]);
@@ -134,7 +136,7 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
     orderNumber: r.order_number,
     status: r.status,
     createdAt: r.created_at,
-    branchName: r.branch?.name ?? null,
+    vendorName: r.vendor?.name ?? null,
     participantName: r.participant?.name ?? null,
     childBirthPlace: r.child_birth_place,
     childBirthDate: r.child_birth_date,
@@ -157,6 +159,12 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
       animalsSlaughtered: Number(progress?.animals_slaughtered ?? 0),
       animalsDistributed: Number(progress?.animals_distributed ?? 0),
       stagesValidated: Number(progress?.stages_validated ?? 0),
+      // `stages_total` menghitung BARIS tahap, dan `stages_validated` menghitung
+      // baris juga — keduanya harus menghitung hal yang sama. `stages_in_sequence`
+      // (jumlah tahap dalam rangkaian mode) sengaja tidak dipakai di sini: tahap
+      // `sembelih` terbit satu baris per ekor, jadi order 3 ekor bermode `kirim`
+      // punya 7 baris untuk 5 tahap, dan mencampur keduanya mencetak "7/5 tahap".
+      // Penyebut yang sama dipakai `get_public_report`.
       stagesTotal: Number(progress?.stages_total ?? 0),
     },
     // Tahap yang sudah tervalidasi — inilah yang membuat laporan bercerita

@@ -50,10 +50,9 @@ const LIST_SELECT = `
   id, order_number, status, payment_status, total_amount, paid_amount, created_at,
   created_by, guest_verified_at,
   participant:participants!orders_participant_id_fkey ( id, name, phone ),
-  branch:branches!orders_branch_id_fkey ( id, code, name ),
-  schedule:schedules ( scheduled_date, scheduled_time, status,
-    location:locations ( id, name ),
-    pic:profiles ( id, full_name )
+  vendor:vendors!orders_vendor_id_fkey ( id, code, name ),
+  schedule:schedules ( scheduled_date, scheduled_time,
+    location:locations ( id, name )
   ),
   animals ( count )
 `;
@@ -68,8 +67,8 @@ export type OrderListRow = {
   created_at: string;
   participantName: string;
   participantPhone: string | null;
-  branchCode: string;
-  branchName: string;
+  vendorCode: string;
+  vendorName: string;
   locationName: string | null;
   picName: string | null;
   scheduledDate: string | null;
@@ -95,8 +94,8 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
   const supabase = await createClient();
   const { page, page_size } = filter;
 
-  // Filter lokasi/PIC ada di tabel schedules → butuh inner join agar bisa difilter.
-  const needsScheduleJoin = Boolean(filter.location_id || filter.pic_id);
+  // Filter lokasi ada di tabel schedules → butuh inner join agar bisa difilter.
+  const needsScheduleJoin = Boolean(filter.location_id);
   const select = needsScheduleJoin
     ? LIST_SELECT.replace('schedule:schedules (', 'schedule:schedules!inner (')
     : LIST_SELECT;
@@ -117,7 +116,6 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
   if (filter.date_from) query = query.gte('created_at', startOfDayWib(filter.date_from));
   if (filter.date_to) query = query.lt('created_at', endOfDayExclusiveWib(filter.date_to));
   if (filter.location_id) query = query.eq('schedules.location_id', filter.location_id);
-  if (filter.pic_id) query = query.eq('schedules.pic_user_id', filter.pic_id);
 
   const q = filter.q?.trim();
   if (q) {
@@ -164,11 +162,10 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
     created_by: string | null;
     guest_verified_at: string | null;
     participant: { id: string; name: string; phone: string | null } | null;
-    branch: { id: string; code: string; name: string } | null;
+    vendor: { id: string; code: string; name: string } | null;
     schedule: {
       scheduled_date: string | null;
       location: { id: string; name: string } | null;
-      pic: { id: string; full_name: string | null } | null;
     } | null;
     animals: { count: number }[];
   }>;
@@ -184,10 +181,10 @@ export async function listOrders(filter: OrderFilterInput): Promise<OrderListRes
       created_at: r.created_at,
       participantName: r.participant?.name ?? '-',
       participantPhone: r.participant?.phone ?? null,
-      branchCode: r.branch?.code ?? '-',
-      branchName: r.branch?.name ?? '-',
+      vendorCode: r.vendor?.code ?? '-',
+      vendorName: r.vendor?.name ?? '-',
       locationName: r.schedule?.location?.name ?? null,
-      picName: r.schedule?.pic?.full_name ?? null,
+      picName: null,
       scheduledDate: r.schedule?.scheduled_date ?? null,
       animalsCount: r.animals?.[0]?.count ?? 0,
       isGuest: r.created_by === null,

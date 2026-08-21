@@ -11,6 +11,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
+  icons: {
+    icon: '/icon.svg',
+  },
+
   title: {
     default: `${siteConfig.name} — ${siteConfig.tagline}`,
     template: `%s — ${siteConfig.name}`,
@@ -18,7 +22,7 @@ export const metadata: Metadata = {
   description: siteConfig.description,
   keywords: [
     'aqiqah',
-    'qurban',
+    'aqiqah anak',
     'sedekah daging',
     'aqiqah syar’i',
     'jasa aqiqah',

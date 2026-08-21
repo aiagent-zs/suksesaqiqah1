@@ -49,7 +49,7 @@ export async function generateReport(
 
   const { data: orderRow } = await supabase
     .from('orders')
-    .select('id, order_number, public_token, branch:branches!orders_branch_id_fkey ( code )')
+    .select('id, order_number, public_token, vendor:vendors!orders_vendor_id_fkey ( code )')
     .eq('id', order_id)
     .maybeSingle();
 

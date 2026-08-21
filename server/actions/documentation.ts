@@ -48,7 +48,7 @@ export async function uploadDocumentation(input: unknown): Promise<ActionResult<
 
   const { data: orderRow } = await supabase
     .from('orders')
-    .select('id, order_number, created_at, branch:branches!orders_branch_id_fkey ( code )')
+    .select('id, order_number, created_at, vendor:vendors!orders_vendor_id_fkey ( code )')
     .eq('id', order_id)
     .maybeSingle();
 
@@ -58,7 +58,7 @@ export async function uploadDocumentation(input: unknown): Promise<ActionResult<
     id: string;
     order_number: string;
     created_at: string;
-    branch: { code: string } | null;
+    vendor: { code: string } | null;
   };
 
   // Kebijakan `storage_documentation_insert` hanya menuntut pengunggah punya

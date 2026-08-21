@@ -25,12 +25,6 @@ export type ReportStage = {
   recipientArea: string | null;
 };
 
-export type ReportDistribution = {
-  recipientArea: string | null;
-  packagesCount: number;
-  distributedAt: string;
-};
-
 export type ReportMedia = {
   type: DocType;
   stage: DocStage;
@@ -44,7 +38,8 @@ export type ReportData = {
   orderNumber: string;
   status: OrderStatus;
   createdAt: string;
-  branchName: string | null;
+  /** Nama mitra pelaksana. Null selama order belum ditugaskan ke mitra mana pun. */
+  vendorName: string | null;
   participantName: string | null;
   /**
    * Data lahir anak yang diaqiqahi — pasangan nama pada `animals[].onBehalfOf`.

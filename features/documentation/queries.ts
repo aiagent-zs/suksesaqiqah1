@@ -145,9 +145,9 @@ export type ValidationQueueResult = {
 const QUEUE_SELECT = `
   ${DOC_SELECT},
   order:orders!inner (
-    id, order_number, branch_id,
+    id, order_number, vendor_id,
     participant:participants!orders_participant_id_fkey ( name ),
-    branch:branches!orders_branch_id_fkey ( code )
+    vendor:vendors!orders_vendor_id_fkey ( code )
   )
 `;
 
@@ -186,7 +186,7 @@ export async function getValidationQueue(
         id: string;
         order_number: string;
         participant: { name: string } | null;
-        branch: { code: string } | null;
+        vendor: { code: string } | null;
       } | null;
     }
   >;
@@ -201,7 +201,7 @@ export async function getValidationQueue(
       ...mapDoc(r, urlByPath),
       orderId: r.order?.id ?? '',
       orderNumber: r.order?.order_number ?? '-',
-      branchCode: r.order?.branch?.code ?? '-',
+      vendorCode: r.order?.vendor?.code ?? '-',
       participantName: r.order?.participant?.name ?? '-',
     })),
     page,

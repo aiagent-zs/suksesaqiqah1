@@ -56,7 +56,7 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
     supabase
       .from('services')
       .select('id, type, name, slug, description, price')
-      .in('type', ['aqiqah', 'qurban'])
+      .eq('type', 'aqiqah')
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('sort_order', { ascending: true }),

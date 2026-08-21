@@ -6,9 +6,9 @@ import { CheckoutForm } from '@/features/checkout/components/checkout-form';
 export const metadata = {
   // Tanpa akhiran nama situs: root layout sudah menempelkannya lewat
   // `title.template` (`%s — Sukses Aqiqah`).
-  title: 'Pesan Aqiqah & Qurban',
+  title: 'Pesan Aqiqah',
   description:
-    'Pesan paket Aqiqah dan Qurban Sukses Aqiqah secara mandiri, tanpa perlu membuat akun.',
+    'Pesan paket Aqiqah Sukses Aqiqah secara mandiri, tanpa perlu membuat akun.',
 };
 
 /**
@@ -53,14 +53,14 @@ export default async function CheckoutPage({
   return (
     // Latar abu tipis memberi kedalaman pada kartu-kartu putih di atasnya —
     // tanpa itu form tampak mengambang di halaman kosong.
-    <div className="min-h-screen bg-neutral-50">
-      <div className="mx-auto w-full max-w-6xl px-4 py-12 md:px-6 md:py-16">
-        <header className="mb-10 max-w-2xl">
+    <div className="min-h-screen bg-neutral-50 pt-20 pb-10 sm:pt-24 sm:pb-16">
+      <div className="mx-auto w-full max-w-6xl px-3 sm:px-6">
+        <header className="mb-6 max-w-2xl sm:mb-10">
           <span className="text-primary text-xs font-semibold tracking-wide uppercase">
             Pemesanan Mandiri
           </span>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
-            Pesan Aqiqah &amp; Qurban
+            Pesan Aqiqah
           </h1>
           <p className="mt-3 leading-7 text-neutral-600">
             Empat langkah singkat, tanpa perlu membuat akun. Tim kami menghubungi Anda lewat
