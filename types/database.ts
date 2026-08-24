@@ -424,6 +424,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["notif_channel"]
           created_at: string
           error_text: string | null
+          event_key: string | null
           id: string
           order_id: string | null
           payload: Json
@@ -438,6 +439,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["notif_channel"]
           created_at?: string
           error_text?: string | null
+          event_key?: string | null
           id?: string
           order_id?: string | null
           payload?: Json
@@ -452,6 +454,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["notif_channel"]
           created_at?: string
           error_text?: string | null
+          event_key?: string | null
           id?: string
           order_id?: string | null
           payload?: Json
@@ -1704,6 +1707,17 @@ export type Database = {
       }
       create_guest_order: { Args: { p_payload: Json }; Returns: Json }
       create_order: { Args: { p_payload: Json }; Returns: Json }
+      enqueue_notification: {
+        Args: {
+          p_channel: Database["public"]["Enums"]["notif_channel"]
+          p_event_key: string
+          p_order_id: string
+          p_payload?: Json
+          p_recipient: string
+          p_template: string
+        }
+        Returns: string
+      }
       fulfilment_sequence: {
         Args: { p_mode: Database["public"]["Enums"]["distribution_mode"] }
         Returns: Database["public"]["Enums"]["fulfilment_stage"][]

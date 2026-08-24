@@ -9,6 +9,8 @@ import { countPendingGuestOrders } from '@/features/orders/queries';
 import { DashboardFilters } from '@/features/dashboard/components/dashboard-filters';
 import { KpiCards } from '@/features/dashboard/components/kpi-cards';
 import { IssuePanel } from '@/features/dashboard/components/issue-panel';
+import { getPendingAlerts } from '@/features/notifications/queries';
+import { AlertPanel } from '@/features/notifications/components/alert-panel';
 import {
   OpenOrdersCardList,
   OpenOrdersTable,
@@ -65,6 +67,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       : Promise.resolve(null),
   ]);
 
+  // Outbox notifikasi. RLS-nya menuntut `is_staff()`, jadi vendor mendapat
+  // array kosong tanpa penjagaan tambahan di sini — dan panelnya sendiri sudah
+  // menangani keadaan kosong, jadi tidak perlu dirender bersyarat.
+  const alerts = await getPendingAlerts();
+
   const summary = summarizeVendorKpi(branchRows);
 
   return (
@@ -87,6 +94,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       </header>
 
       <KpiCards summary={summary} pendingGuestOrders={pendingGuestOrders} />
+
+      {/* Ditaruh tepat di bawah KPI: kartu menjawab *berapa*, panel ini
+          menjawab *yang mana* dan membawa langsung ke barisnya. */}
+      <AlertPanel alerts={alerts} />
 
       <DashboardFilters filter={filter} />
 

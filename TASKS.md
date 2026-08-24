@@ -10,7 +10,7 @@
 | Diperbarui                       | 2026-08-24                                                                                                                                                                                                                                           |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                             |
 | Estimasi Phase 1                 | **± 83%** (dari 80% — rantai end-to-end kini terbukti otomatis di lokal, lihat _Perbaikan 24 Agustus_)                                                                                                                                               |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(18 rute)** · **381 unit test hijau (28 file)** · **95 tes integrasi hijau (7 file) terhadap Postgres lokal** · **38 migration jalan bersih dari nol di lokal ✅ dan seluruhnya selaras di cloud ✅** · **jendela pemesanan baru terbukti ditegakkan di cloud lewat jalur `anon`** ✅ |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(18 rute)** · **386 unit test hijau (29 file)** · **104 tes integrasi hijau (8 file) terhadap Postgres lokal** · **39 migration jalan bersih di lokal ✅; 38 selaras di cloud, yang ke-39 belum di-push ⚠️** · **jendela pemesanan baru terbukti ditegakkan di cloud lewat jalur `anon`** ✅ |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
 
@@ -435,14 +435,48 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ---
 
-## 6. Tahap 8 · Automation & Notification — **± 5%** — _Bani_
+## 6. Tahap 8 · Automation & Notification — **± 45%** — _Bani_
 
 - [x] Tabel `notifications` + enum channel/status
-- [ ] Outbox notifikasi + worker pengirim
-- [ ] Alert in-app di dashboard (`docs/12`)
+- [x] **Outbox terisi — 24 Agustus.** Tabelnya ada sejak 20 Agustus tapi **nol
+      referensi** di seluruh `server/`, `features/`, dan `app/` — tidak ada satu
+      pun yang pernah menulis ke sana. `20260824020000` menutupnya dengan enam
+      trigger: bukti diunggah, bukti ditolak, laporan terbit, kendala `high`,
+      order tamu masuk, dan tahap `kirim` tervalidasi
+- [x] **Pemicunya trigger, bukan server action.** Peristiwanya datang dari lebih
+      dari satu jalan — aksi staf, RPC `create_guest_order`, `confirm_delivery`
+      dari halaman bertoken, dan nanti worker n8n. Di lapisan aplikasi, setiap
+      jalan baru harus ingat memanggilnya, dan yang lupa **tidak menghasilkan
+      galat** — cuma notifikasi yang diam-diam tidak pernah terbit
+- [x] **Idempotensi lewat `event_key`** (`docs/12 §4`), index unik parsial.
+      Terbukti: bukti yang ditolak → caption dikoreksi → ditolak lagi hanya
+      menerbitkan **satu** notifikasi. Tanpa ini vendor menerima dua pesan untuk
+      satu peristiwa. Pengecualian yang disengaja: `report_ready` memuat nomor
+      versi di kuncinya, sebab generate ulang memang mengubah isi laporan
+- [x] **Alert in-app di dashboard** (`docs/12 §2`) — panel "Perlu Tindakan" di
+      bawah kartu KPI. Kartu menjawab *berapa*, panel ini menjawab **yang mana**
+      dan membawa langsung ke barisnya (`/validation` untuk bukti, `/orders/{id}`
+      untuk sisanya). Dibatasi `queued`: yang sudah terkirim bukan lagi tugas
+- [x] **Notifikasi konfirmasi terkirim** — celah yang tercatat terbuka sejak
+      `confirm_delivery()` dibuat: fungsinya ada, tapi tidak ada yang memberi
+      tahu pemesan bahwa ia perlu menekannya. Kini terbit otomatis begitu tahap
+      `kirim` divalidasi, lengkap dengan `public_token` di payload sehingga
+      pesan WA bisa dirakit tanpa membaca ulang tabel `orders`
+- [x] **Tombol "Kirim WA" per baris** — pesannya dirakit di server dari template
+      `docs/12 §5`, nomornya lewat `whatsAppHref()` yang sudah ada. Tombolnya
+      **tidak dirender** bila nomor tidak bisa dinormalkan; tautan yang membuka
+      WhatsApp ke nomor kosong lebih buruk daripada tidak ada tombol
+- [x] **14 tes baru** — 9 integrasi (`notification-outbox.test.ts`: idempotensi,
+      kendala `low`/`medium` tidak memicu, order staf tidak memicu, mode `salur`
+      tidak pernah meminta konfirmasi, generate ulang justru memicu lagi) + 5
+      unit (`alert-panel.test.tsx`)
+- [ ] **Worker pengirim** — pengiriman masih manual-klik. Yang berubah: tidak
+      ada lagi yang terlewat, sebab semuanya tercatat sebagai antrian
 - [ ] Workflow n8n: reminder H-1, generate & kirim laporan (`docs/18`)
-- [ ] **Notifikasi konfirmasi terkirim** — `confirm_delivery()` sudah ada, tapi tidak ada yang memberi tahu pemesan bahwa ia perlu menekannya
+- [ ] Realtime pada panel alert — saat ini butuh muat ulang halaman
 - [ ] Folder `automation/` masih kosong (`.gitkeep`)
+- [ ] ⚠️ **`20260824020000` belum di-push ke cloud** — sudah jalan bersih di
+      lokal, tetapi panel di produksi akan tetap kosong sampai `npm run db:push`
 
 ---
 
@@ -931,7 +965,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
 | **1** | **Isi 10 foto landing** → `public/images/landing/`                                                   | Halaman kini memajang 10 kotak abu bertuliskan nama berkas yang ditunggu. Daftar lengkap beserta rasio & ukuran ada di `public/images/landing/README.md`. Tidak ada kode yang perlu diubah — begitu berkasnya ditaruh, fotonya langsung tampil. **Galeri sebaiknya foto pelaksanaan sungguhan**: halamannya menulis "bukan foto ilustrasi"                                                                                                           | Pemilik usaha |
 | 2     | **Uji alur penuh di cloud** — _jalankan `full-flow.test.ts` dengan `TEST_DB_URL` diarahkan ke cloud_ | Alurnya sudah terbukti di lokal (§0), jadi yang tersisa membuktikannya di sana. **Butuh keputusan lebih dulu**: tes ini menulis baris, dan cloud sudah berisi 3 order + 2 pembayaran. Pilihannya — pakai project Supabase terpisah untuk staging, atau jalankan di cloud produksi dengan sadar bahwa `inRollback` membatalkan tiap transaksi (tetapi `order_counters` dan sequence tetap maju). Ini pula yang menahan butir Definition of Done (§12) | Bani          |
 | 3     | **`tests/e2e/` masih kosong** (§10)                                                                  | Lapisan yang tersisa sesudah unit + integrasi: alur order → laporan lewat UI sungguhan (`docs/21`). Nilainya kini berbeda dari sebelumnya — rantai databasenya sudah terbukti, jadi e2e tinggal menjaga lapisan yang belum tersentuh: formulir, navigasi, dan unggahan berkas                                                                                                                                                                        | Awalin        |
-| 4     | **Automation & Notification** (Tahap 8)                                                              | Menahan **empat** hal: pengiriman laporan, notifikasi validasi dokumentasi, notifikasi WA yang sudah dijanjikan halaman checkout, dan pemberitahuan agar pemesan menekan konfirmasi terkirim                                                                                                                                                                                                                                                         | Bani          |
+| 4     | **Worker pengirim** (sisa Tahap 8)                                                                   | Outbox & alert in-app **selesai 24 Agustus** — peristiwanya kini tercatat dan tidak ada lagi yang terlewat, tetapi pengirimannya masih manual-klik. Yang tersisa: worker yang membaca antrian queued dan benar-benar mengirim. Butuh keputusan kredensial (n8n vs di dalam app) — lihat §6                                                                                                                                                                                                                                                         | Bani          |
 | 5     | **PWA** (kamera, kompresi klien, antrian offline)                                                    | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai vendor di lapangan                                                                                                                                                                                                                                                                                                                                                                        | Awalin        |
 | 6     | **`design.md §8`** — toast, `loading.tsx`/`error.tsx`, `Skeleton`                                    | Celah design system yang paling terasa pengguna; murah dan menyentuh seluruh halaman                                                                                                                                                                                                                                                                                                                                                                 | Awalin        |
 | 7     | Realtime + filter periode dashboard                                                                  | Penyempurnaan, bukan penghalang                                                                                                                                                                                                                                                                                                                                                                                                                      | Awalin        |
