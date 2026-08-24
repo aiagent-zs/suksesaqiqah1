@@ -185,11 +185,9 @@ describe('menulis draft', () => {
 
   it('tidak melempar ketika penyimpanan ditolak peramban', async () => {
     const { emptyDraft, saveDraft } = await freshModule();
-    const setItem = vi
-      .spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => {
-        throw new Error('QuotaExceededError');
-      });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
 
     // Penyimpanan penuh atau dimatikan di setelan. Pemesan tetap harus bisa
     // menyelesaikan pesanannya — yang hilang cuma jaring pengamannya.

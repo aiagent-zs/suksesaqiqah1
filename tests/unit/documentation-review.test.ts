@@ -169,16 +169,28 @@ describe('isDocPathForOrder', () => {
       ),
     ).toBe(false);
     expect(
-      isDocPathForOrder(`2026/13/IA-202608-0001/sembelih/${UUID}.jpg`, 'IA-202608-0001', 'sembelih'),
+      isDocPathForOrder(
+        `2026/13/IA-202608-0001/sembelih/${UUID}.jpg`,
+        'IA-202608-0001',
+        'sembelih',
+      ),
     ).toBe(false);
     expect(
-      isDocPathForOrder(`2026/08/IA-202608-0001/sembelih/${UUID}.exe`, 'IA-202608-0001', 'sembelih'),
+      isDocPathForOrder(
+        `2026/08/IA-202608-0001/sembelih/${UUID}.exe`,
+        'IA-202608-0001',
+        'sembelih',
+      ),
     ).toBe(false);
   });
 
   it('menolak tahap yang tidak dikenal di path', () => {
     expect(
-      isDocPathForOrder(`2026/08/IA-202608-0001/slaughter/${UUID}.jpg`, 'IA-202608-0001', 'sembelih'),
+      isDocPathForOrder(
+        `2026/08/IA-202608-0001/slaughter/${UUID}.jpg`,
+        'IA-202608-0001',
+        'sembelih',
+      ),
     ).toBe(false);
   });
 });

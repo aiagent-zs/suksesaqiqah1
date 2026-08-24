@@ -56,24 +56,16 @@ describe('isProofPathForOrder', () => {
   });
 
   it('menolak path traversal dan path absolut', () => {
-    expect(
-      isProofPathForOrder(`IA-202608-0001/../../${UUID}.jpg`, 'IA-202608-0001'),
-    ).toBe(false);
-    expect(isProofPathForOrder(`/BDG/IA-202608-0001/${UUID}.jpg`, 'IA-202608-0001')).toBe(
+    expect(isProofPathForOrder(`IA-202608-0001/../../${UUID}.jpg`, 'IA-202608-0001')).toBe(false);
+    expect(isProofPathForOrder(`/BDG/IA-202608-0001/${UUID}.jpg`, 'IA-202608-0001')).toBe(false);
+    expect(isProofPathForOrder(`IA-202608-0001/${UUID}.jpg/../x.jpg`, 'IA-202608-0001')).toBe(
       false,
     );
-    expect(
-      isProofPathForOrder(`IA-202608-0001/${UUID}.jpg/../x.jpg`, 'IA-202608-0001'),
-    ).toBe(false);
   });
 
   it('menolak nama berkas yang bukan uuid atau berekstensi terlarang', () => {
-    expect(isProofPathForOrder('IA-202608-0001/bukti.jpg', 'IA-202608-0001')).toBe(
-      false,
-    );
-    expect(isProofPathForOrder(`IA-202608-0001/${UUID}.exe`, 'IA-202608-0001')).toBe(
-      false,
-    );
+    expect(isProofPathForOrder('IA-202608-0001/bukti.jpg', 'IA-202608-0001')).toBe(false);
+    expect(isProofPathForOrder(`IA-202608-0001/${UUID}.exe`, 'IA-202608-0001')).toBe(false);
     expect(isProofPathForOrder(`IA-202608-0001/${UUID}`, 'IA-202608-0001')).toBe(false);
   });
 

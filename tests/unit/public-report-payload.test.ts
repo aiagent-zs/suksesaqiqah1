@@ -30,10 +30,7 @@ describe('payload get_public_report sama antara SQL dan TypeScript', () => {
    * kemunculan pertama akan menguji versi yang sudah pensiun.
    */
   const sql = (() => {
-    const files = [
-      '20260820001100_public_rpc.sql',
-      '20260821010000_public_report_progress.sql',
-    ];
+    const files = ['20260820001100_public_rpc.sql', '20260821010000_public_report_progress.sql'];
     const last = files
       .map((f) => readFileSync(join(migrationsDir, f), 'utf8'))
       .filter((body) => body.includes('function public.get_public_report'))

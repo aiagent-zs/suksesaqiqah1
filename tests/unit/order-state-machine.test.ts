@@ -35,17 +35,13 @@ describe('gate pembayaran', () => {
 
   it('lolos bila DP mencapai rasio minimum', () => {
     expect(
-      paymentGatePassed(
-        ctx({ paymentStatus: 'partial', paidAmount: 1_400_000, minDpRatio: 0.5 }),
-      ),
+      paymentGatePassed(ctx({ paymentStatus: 'partial', paidAmount: 1_400_000, minDpRatio: 0.5 })),
     ).toBe(true);
   });
 
   it('tertahan bila DP kurang dari rasio minimum', () => {
     expect(
-      paymentGatePassed(
-        ctx({ paymentStatus: 'partial', paidAmount: 1_000_000, minDpRatio: 0.5 }),
-      ),
+      paymentGatePassed(ctx({ paymentStatus: 'partial', paidAmount: 1_000_000, minDpRatio: 0.5 })),
     ).toBe(false);
   });
 

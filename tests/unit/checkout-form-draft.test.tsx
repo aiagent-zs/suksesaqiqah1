@@ -124,7 +124,11 @@ function stored() {
 function seed(step: number, draft: Record<string, unknown>) {
   window.sessionStorage.setItem(
     DRAFT_KEY,
-    JSON.stringify({ savedAt: Date.now(), step, draft: { ...emptyDraft(PACKAGES[0].id), ...draft } }),
+    JSON.stringify({
+      savedAt: Date.now(),
+      step,
+      draft: { ...emptyDraft(PACKAGES[0].id), ...draft },
+    }),
   );
 }
 
@@ -142,7 +146,11 @@ function advanceToStep2() {
  */
 beforeAll(async () => {
   await import('@/features/checkout/components/checkout-form');
-}, 30_000);
+  // 90 detik, bukan 30: ambang lama cukup selama suite hanya berisi unit test,
+  // tetapi `npm run test:all` menjalankan 33 berkas yang berebut CPU dan
+  // pemanasan ini kadang melewatinya — gagal karena beban mesin, bukan karena
+  // ada yang rusak. Ini bukan pengukuran perilaku, jadi ambangnya boleh longgar.
+}, 90_000);
 
 beforeEach(() => {
   createGuestOrderAction.mockClear();
@@ -246,9 +254,7 @@ describe('tombol kembali peramban', () => {
     });
     // jsdom memproses `popstate` secara asinkron pada antrean tugas.
     act(() => {
-      window.dispatchEvent(
-        Object.assign(new PopStateEvent('popstate', { state: { saStep: 1 } })),
-      );
+      window.dispatchEvent(Object.assign(new PopStateEvent('popstate', { state: { saStep: 1 } })));
     });
 
     expect(document.getElementById('co-date')).toBeNull();

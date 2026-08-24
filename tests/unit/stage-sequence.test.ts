@@ -27,9 +27,7 @@ describe('urutan tahap sama antara SQL dan TypeScript', () => {
   );
 
   function sequenceFromSql(mode: 'salur' | 'kirim'): string[] {
-    const line = sql
-      .split('\n')
-      .find((l) => l.trim().startsWith(`when '${mode}'`));
+    const line = sql.split('\n').find((l) => l.trim().startsWith(`when '${mode}'`));
     if (!line) throw new Error(`Baris urutan untuk mode ${mode} tidak ditemukan di migration.`);
 
     const inside = line.slice(line.indexOf('[') + 1, line.indexOf(']'));

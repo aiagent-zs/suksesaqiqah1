@@ -269,3 +269,25 @@ insert into public.issues (order_id, title, description, severity, status, repor
     'medium'::public.issue_severity, 'open'::public.issue_status, 'd0000000-0000-4000-8000-000000000002'
   )
 on conflict do nothing;
+
+-- --- Selaraskan penghitung nomor order --------------------------------------
+--
+-- Ketiga order di atas memakai nomor **hardcode** (`IA-202608-0001..0003`) agar
+-- ID-nya stabil dan bisa diacu tes maupun dokumentasi. Konsekuensinya:
+-- `next_order_number()` tidak pernah ikut terpanggil, jadi `order_counters`
+-- tertinggal di 0 — dan order berikutnya yang dibuat lewat aplikasi akan
+-- meminta nomor `0001` yang sudah terpakai, lalu ditolak
+-- `orders_order_number_key`.
+--
+-- Baris ini menutup celah itu: penghitung disetel ke nomor tertinggi yang
+-- benar-benar terpakai pada periodenya, diturunkan dari `orders` (bukan angka
+-- yang ditulis ulang di sini) supaya tetap benar kalau order demo ditambah.
+insert into public.order_counters (period, last_value)
+select
+  substring(order_number from 4 for 6),
+  max(substring(order_number from 11 for 4)::int)
+from public.orders
+where order_number ~ '^IA-[0-9]{6}-[0-9]{4}$'
+group by 1
+on conflict (period) do update
+  set last_value = greatest(public.order_counters.last_value, excluded.last_value);
