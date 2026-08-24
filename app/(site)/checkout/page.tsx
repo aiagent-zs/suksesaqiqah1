@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { getCheckoutOptions } from '@/features/checkout/queries';
 import { bookingMaxDate, bookingMinDate } from '@/features/checkout/schema';
+import { todayWib } from '@/lib/format/date-range';
 import { CheckoutForm } from '@/features/checkout/components/checkout-form';
 
 export const metadata = {
@@ -20,8 +21,8 @@ export const metadata = {
  * Selalu dirender ulang. Dua alasan sekarang: katalog dan harga berubah dari
  * sisi admin, dan halaman yang ter-cache akan memajang harga lama (angkanya
  * tetap tidak mengikat — RPC membaca ulang dari database — tapi selisihnya
- * membingungkan pemesan); dan sejak pemesan memilih tanggal, batas
- * "hari ini … 7 hari ke depan" ikut dihitung di sini, jadi halaman yang
+ * membingungkan pemesan); dan sejak pemesan memilih tanggal, jendela
+ * `BOOKING_MIN_DAYS … BOOKING_MAX_DAYS` ikut dihitung di sini, jadi halaman yang
  * ter-cache akan menawarkan jendela tanggal milik kemarin.
  */
 export const dynamic = 'force-dynamic';
@@ -49,12 +50,23 @@ export default async function CheckoutPage({
   // dengan yang ditegakkan `create_guest_order`.
   const minDate = bookingMinDate();
   const maxDate = bookingMaxDate();
+  // Hari ini, terpisah dari batas bawah pemesanan: sejak ada jeda persiapan
+  // `minDate` tidak lagi bernilai hari ini, sementara batas atas tanggal lahir
+  // anak tetap hari ini.
+  const today = todayWib();
 
   return (
     // Latar putih polos, sejalan dengan landing. Versi sebelumnya memakai latar
     // abu agar kartu form tampak "melayang" — sekarang formnya sendiri sudah
     // datar dan bergaris rambut, jadi tidak ada yang perlu diangkat.
-    <div className="min-h-screen pb-14 sm:pb-20">
+    <div className="relative min-h-screen pb-14 sm:pb-20">
+      {/* Tekstur yang sama dengan hero landing, memudar cepat ke bawah — dua
+          halaman ini terasa berasal dari sistem yang sama, dan formnya sendiri
+          tetap di atas latar putih polos supaya isian mudah dibaca. */}
+      <div
+        aria-hidden
+        className="bg-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 [mask-image:radial-gradient(100%_80%_at_20%_0%,black,transparent_75%)]"
+      />
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
         <header className="border-b border-neutral-200 py-10 sm:py-14">
           <p className="text-primary text-xs font-semibold tracking-[0.14em] uppercase">
@@ -86,6 +98,7 @@ export default async function CheckoutPage({
             provinces={provinces}
             minDate={minDate}
             maxDate={maxDate}
+            today={today}
             initialServiceId={preselected?.id}
           />
         )}

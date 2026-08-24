@@ -57,8 +57,9 @@ const NASI_BOXES: NasiBoxPackage[] = [
 ];
 const PROVINCES: RegionOption[] = [{ code: '32', name: 'Jawa Barat' }];
 
+const TODAY = '2026-08-15';
 const MIN_DATE = '2026-08-19';
-const MAX_DATE = '2026-08-26';
+const MAX_DATE = '2026-09-14';
 const PICKED_DATE = '2026-08-21';
 const PICKED_TIME = '09:00';
 
@@ -90,6 +91,7 @@ async function mount() {
         provinces={PROVINCES}
         minDate={MIN_DATE}
         maxDate={MAX_DATE}
+        today={TODAY}
       />,
     );
   });

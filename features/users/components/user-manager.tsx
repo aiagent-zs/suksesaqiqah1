@@ -96,7 +96,7 @@ export function UserManager({
       )}
 
       {showForm && (
-        <div className="border-border bg-card grid gap-3 rounded-2xl border p-4 shadow-sm sm:grid-cols-2">
+        <div className="border-border bg-card grid gap-3 rounded-lg border p-4 shadow-sm sm:grid-cols-2">
           <div>
             <Label htmlFor="u-name">Nama lengkap</Label>
             <Input
@@ -238,7 +238,7 @@ export function UserManager({
         </div>
       )}
 
-      <ul className="border-border bg-card divide-border divide-y rounded-2xl border shadow-sm">
+      <ul className="border-border bg-card divide-border divide-y rounded-lg border shadow-sm">
         {users.map((u) => (
           <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
             <div className="min-w-0">

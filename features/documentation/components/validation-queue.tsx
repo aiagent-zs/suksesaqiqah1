@@ -53,7 +53,7 @@ export function ValidationQueue({
           const isOwnUpload = item.uploaderId === currentUserId;
 
           return (
-            <li key={item.id} className="border-border bg-card rounded-2xl border p-4 shadow-sm">
+            <li key={item.id} className="border-border bg-card rounded-lg border p-4 shadow-sm">
               <div className="flex gap-4">
                 <DocPreview doc={item} />
 

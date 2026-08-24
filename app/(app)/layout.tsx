@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           komponen ini yang membuat waktunya tepat (lib/auth/idle.ts) */}
       <IdleLogout />
 
-      <div className="flex min-h-screen bg-[#f8f9ff] text-[#0b1c30]">
+      <div className="flex min-h-screen bg-background text-foreground">
         {/* Sidebar 260px sesuai design.md.
 
             `sticky top-0 h-screen`: sidebar tetap di tempat saat halaman
@@ -32,9 +32,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             Sengaja `sticky`, bukan `fixed`: elemennya tetap menempati kolomnya
             sendiri di flex row, jadi konten utama tidak perlu diberi offset
             kiri yang harus dijaga tetap sama dengan lebar sidebar. */}
-        <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col border-r border-slate-800 bg-[#0b1c30] text-white lg:flex">
+        <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-white lg:flex">
           {/* Header Brand */}
-          <div className="border-b border-slate-800/80 p-6">
+          <div className="border-b border-sidebar-border/80 p-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#16A34A] to-[#059669] shadow-md">
                 <ShieldCheck className="h-6 w-6 text-white" />
@@ -51,7 +51,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* User Profile Summary */}
-          <div className="border-b border-slate-800/80 bg-slate-900/50 px-5 py-4">
+          <div className="border-b border-sidebar-border/80 bg-sidebar-accent/50 px-5 py-4">
             <p className="mb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
               Staf Terotentikasi
             </p>
@@ -69,7 +69,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <SidebarNav role={session.profile?.role} />
 
           {/* Footer Logout */}
-          <div className="border-t border-slate-800 p-4">
+          <div className="border-t border-sidebar-border p-4">
             <form action={logout}>
               <button
                 type="submit"
@@ -85,7 +85,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         {/* Main Content Area */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Header Mobile */}
-          <header className="flex items-center justify-between border-b border-slate-800 bg-[#0b1c30] px-4 py-3 text-white lg:hidden">
+          <header className="flex items-center justify-between border-b border-sidebar-border bg-sidebar px-4 py-3 text-white lg:hidden">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-emerald-400" />
               <p className="text-sm font-bold">Sukses Aqiqah</p>

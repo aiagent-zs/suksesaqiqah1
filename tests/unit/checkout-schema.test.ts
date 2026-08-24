@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOOKING_MAX_DAYS,
+  BOOKING_MIN_DAYS,
   BOOKING_TIME_SLOTS,
   bookingMaxDate,
   bookingMinDate,
   guestCheckoutSchema,
   SPECIES_BY_SERVICE_TYPE,
 } from '@/features/checkout/schema';
-import { addCalendarDays } from '@/lib/format/date-range';
+import { addCalendarDays, todayWib } from '@/lib/format/date-range';
 
 const SERVICE_ID = 'a2000000-0000-4000-8000-000000000001';
 
@@ -20,7 +21,9 @@ const valid = {
   distribution_mode: 'salur',
   // Jendela pemesanan dihitung ulang tiap parse, jadi acuannya ikut dihitung
   // di sini — tanggal yang dibekukan jadi konstanta akan basi besok pagi.
-  requested_date: addCalendarDays(bookingMinDate(), 1),
+  // Dipatok ke batas bawah: jeda persiapan menutup beberapa hari pertama, jadi
+  // "besok" bukan lagi tanggal yang sah.
+  requested_date: bookingMinDate(),
   requested_time: BOOKING_TIME_SLOTS[0],
   child_name: 'Fatih',
   bin_binti: 'bin Ahmad',
@@ -128,15 +131,22 @@ describe('guestCheckoutSchema', () => {
     expect(
       guestCheckoutSchema.safeParse({
         ...valid,
-        child_birth_date: addCalendarDays(bookingMinDate(), 1),
+        child_birth_date: addCalendarDays(todayWib(), 1),
       }).success,
     ).toBe(false);
 
     // Lahir hari ini masih sah — bayi yang baru lahir pagi ini tetap boleh
     // diaqiqahi, dan batasnya inklusif.
+    expect(guestCheckoutSchema.safeParse({ ...valid, child_birth_date: todayWib() }).success).toBe(
+      true,
+    );
+
+    // Batasnya hari ini, BUKAN `bookingMinDate()`. Keduanya dulu bernilai sama,
+    // jadi peran itu sempat dipinjam — sejak ada jeda persiapan, meminjamnya
+    // lagi akan meloloskan tanggal lahir yang belum terjadi.
     expect(
       guestCheckoutSchema.safeParse({ ...valid, child_birth_date: bookingMinDate() }).success,
-    ).toBe(true);
+    ).toBe(false);
 
     // Salah ketik tahun yang tidak mungkin.
     expect(
@@ -312,7 +322,7 @@ describe('alamat pengiriman terstruktur', () => {
 });
 
 describe('jendela tanggal pemesanan', () => {
-  it('menerima hari ini dan hari ke-7', () => {
+  it('menerima kedua ujung jendela', () => {
     for (const date of [bookingMinDate(), bookingMaxDate()]) {
       expect(guestCheckoutSchema.safeParse({ ...valid, requested_date: date }).success, date).toBe(
         true,
@@ -321,19 +331,54 @@ describe('jendela tanggal pemesanan', () => {
   });
 
   it('menolak tanggal kemarin', () => {
-    const yesterday = addCalendarDays(bookingMinDate(), -1);
+    const yesterday = addCalendarDays(todayWib(), -1);
     expect(guestCheckoutSchema.safeParse({ ...valid, requested_date: yesterday }).success).toBe(
       false,
     );
   });
 
-  it('menolak tanggal di luar 7 hari', () => {
-    const tooFar = addCalendarDays(bookingMinDate(), BOOKING_MAX_DAYS + 1);
+  it('menolak hari pengisian dan 3 hari sesudahnya', () => {
+    // Inti aturannya: mengisi form tanggal 10 berarti 10, 11, 12, dan 13 semua
+    // tertutup — paling cepat tanggal 14. Diuji per hari, bukan hanya di
+    // ujungnya, supaya jeda yang keliru satu hari pun ketahuan.
+    for (let d = 0; d < BOOKING_MIN_DAYS; d++) {
+      const tooSoon = addCalendarDays(todayWib(), d);
+      expect(
+        guestCheckoutSchema.safeParse({ ...valid, requested_date: tooSoon }).success,
+        tooSoon,
+      ).toBe(false);
+    }
+  });
+
+  it('batas bawah persis BOOKING_MIN_DAYS hari sesudah hari ini', () => {
+    expect(bookingMinDate()).toBe(addCalendarDays(todayWib(), BOOKING_MIN_DAYS));
+  });
+
+  it('menolak tanggal di luar batas atas', () => {
+    const tooFar = addCalendarDays(bookingMaxDate(), 1);
     expect(guestCheckoutSchema.safeParse({ ...valid, requested_date: tooFar }).success).toBe(false);
   });
 
-  it('batas atas persis 7 hari setelah batas bawah', () => {
-    expect(bookingMaxDate()).toBe(addCalendarDays(bookingMinDate(), BOOKING_MAX_DAYS));
+  it('batas atas dihitung dari hari ini, bukan dari batas bawah', () => {
+    // Kalau keduanya ditumpuk (`min + max`), jendelanya diam-diam melar
+    // BOOKING_MIN_DAYS hari lebih jauh daripada yang ditegakkan RPC.
+    expect(bookingMaxDate()).toBe(addCalendarDays(todayWib(), BOOKING_MAX_DAYS));
+  });
+
+  it('pesan galat membedakan "sudah lewat" dari "terlalu mepet"', () => {
+    // Dua kekeliruan berbeda: yang satu salah baca kalender, yang satu belum
+    // tahu berapa lama persiapannya. Satu pesan untuk keduanya menyesatkan.
+    const lewat = guestCheckoutSchema.safeParse({
+      ...valid,
+      requested_date: addCalendarDays(todayWib(), -1),
+    });
+    const mepet = guestCheckoutSchema.safeParse({ ...valid, requested_date: todayWib() });
+    expect(lewat.success).toBe(false);
+    expect(mepet.success).toBe(false);
+    const pesan = (r: typeof lewat) =>
+      r.success ? '' : r.error.issues.find((i) => i.path[0] === 'requested_date')!.message;
+    expect(pesan(lewat)).toMatch(/sudah lewat/);
+    expect(pesan(mepet)).toMatch(/paling cepat/i);
   });
 
   it('mewajibkan tanggal dan jam', () => {

@@ -26,7 +26,7 @@ const TAB_BASE =
  * berpindah halaman tidak menggeser isi tab 2px.
  */
 const TAB_ACTIVE = 'border-emerald-500 bg-emerald-600/15 text-emerald-400';
-const TAB_INACTIVE = 'border-transparent text-slate-400 active:bg-slate-800/60';
+const TAB_INACTIVE = 'border-transparent text-slate-300 active:bg-sidebar-accent';
 
 const SHEET_ITEM =
   'flex min-h-12 w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors';
@@ -77,7 +77,7 @@ export function MobileNav({
     <Drawer.Root open={open} onOpenChange={setOpen} swipeDirection="down">
       <nav
         aria-label="Navigasi utama"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-[#0b1c30] pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         <ul className="grid grid-cols-5">
           {items.map((item) => {
@@ -120,7 +120,7 @@ export function MobileNav({
         <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center lg:hidden">
           <Drawer.Popup
             className={cn(
-              'w-full rounded-t-2xl border-t border-slate-800 bg-[#0b1c30] pb-[env(safe-area-inset-bottom)] text-white outline-none',
+              'w-full rounded-t-2xl border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] text-white outline-none',
               // Semua state memakai properti `transform` yang sama supaya
               // gerakan seret dan animasi buka/tutup tidak saling menimpa.
               '[transform:translateY(var(--drawer-swipe-movement-y,0px))]',
@@ -150,17 +150,17 @@ export function MobileNav({
 
                 <Drawer.Close
                   aria-label="Tutup menu"
-                  className="flex size-11 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors active:bg-slate-800/60"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-colors active:bg-sidebar-accent"
                 >
                   <X className="h-5 w-5" />
                 </Drawer.Close>
               </div>
 
-              <div className="mt-4 space-y-1 border-t border-slate-800/80 pt-4">
+              <div className="mt-4 space-y-1 border-t border-sidebar-border/80 pt-4">
                 <form action={logout}>
                   <button
                     type="submit"
-                    className={cn(SHEET_ITEM, 'text-slate-400 active:bg-red-950/30')}
+                    className={cn(SHEET_ITEM, 'text-slate-300 active:bg-red-950/30')}
                   >
                     <LogOut className="h-4 w-4 shrink-0" />
                     <span>Keluar Sistem</span>

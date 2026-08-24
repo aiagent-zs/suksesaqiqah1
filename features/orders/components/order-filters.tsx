@@ -32,7 +32,7 @@ export function OrderFilters({ filter }: { filter: OrderFilterInput }) {
     <form
       method="get"
       action="/orders"
-      className="border-border bg-card rounded-2xl border p-4 shadow-sm"
+      className="border-border bg-card rounded-lg border p-4 shadow-sm"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="lg:col-span-2">

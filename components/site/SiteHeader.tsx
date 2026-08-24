@@ -97,7 +97,7 @@ export function SiteHeader() {
             <a
               key={item.href}
               href={navHref(item.href)}
-              className="hover:text-primary rounded-md px-3 py-2 text-sm font-medium text-neutral-600 transition-colors"
+              className="hover:text-primary inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-neutral-600 transition-colors"
             >
               {item.label}
             </a>
@@ -107,7 +107,7 @@ export function SiteHeader() {
         <div className="hidden items-center gap-3 md:flex">
           {/* <Link
             href="/login"
-            className="hover:text-primary rounded-full px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors"
+            className="hover:text-primary inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
           >
             Masuk
           </Link> */}
@@ -127,7 +127,7 @@ export function SiteHeader() {
               menebak bedanya. WhatsApp turun jadi tautan biasa. */}
           <Link
             href="/checkout"
-            className="bg-primary hover:bg-primary-dark inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors"
+            className="bg-primary hover:bg-primary-dark inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98]"
           >
             Pesan Online
           </Link>
@@ -168,7 +168,7 @@ export function SiteHeader() {
               {/* <Link
                 href="/login"
                 onClick={() => setOpen(false)}
-                className="rounded-full border border-neutral-200 px-4 py-2.5 text-center text-sm font-semibold text-neutral-700"
+                className="flex min-h-11 items-center justify-center rounded-lg border border-neutral-200 px-4 text-center text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 active:bg-neutral-100"
               >
                 Masuk
               </Link> */}

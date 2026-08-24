@@ -126,7 +126,7 @@ export function GuestOrderPanel({
 
   return (
     <section
-      className={`overflow-hidden rounded-2xl border shadow-sm ${
+      className={`overflow-hidden rounded-lg border shadow-sm ${
         verified ? 'border-border bg-card' : 'border-amber-300 bg-amber-50'
       }`}
     >

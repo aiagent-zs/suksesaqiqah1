@@ -34,7 +34,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Sea
       <ScheduleFilters filter={filter} locations={options.locations} vendors={options.vendors} />
 
       {result.total === 0 ? (
-        <div className="border-border bg-card flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-16 text-center">
+        <div className="border-border bg-card flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-16 text-center">
           <CalendarOff className="text-muted-foreground size-10" />
           <p className="mt-4 font-medium">Tidak ada jadwal yang cocok</p>
           <p className="text-muted-foreground mt-1 max-w-sm text-sm">

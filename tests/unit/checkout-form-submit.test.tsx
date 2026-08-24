@@ -75,14 +75,14 @@ const NASI_BOXES: NasiBoxPackage[] = [
  */
 const PROVINCES: RegionOption[] = [{ code: '32', name: 'Jawa Barat' }];
 
+/** Hari pengisian form. Batas atas tanggal lahir anak, bukan batas pemesanan. */
+const TODAY = '2026-08-15';
+/** Batas bawah pemesanan: `TODAY` + jeda persiapan (4 hari). */
 const MIN_DATE = '2026-08-19';
-const MAX_DATE = '2026-08-26';
+const MAX_DATE = '2026-09-14';
 const PICKED_DATE = '2026-08-21';
 const PICKED_TIME = '09:00';
-/**
- * Tanggal lahir anak — harus <= `MIN_DATE`, karena batas atasnya "hari ini"
- * dan form membacanya dari prop `minDate` yang sama.
- */
+/** Tanggal lahir anak — harus <= `TODAY`, karena batas atasnya hari ini. */
 const CHILD_BIRTH_DATE = '2026-01-15';
 
 let root: Root | null = null;
@@ -100,6 +100,7 @@ function mount() {
         provinces={PROVINCES}
         minDate={MIN_DATE}
         maxDate={MAX_DATE}
+        today={TODAY}
       />,
     );
   });
@@ -163,6 +164,14 @@ function pressEnter(id: string): { defaultPrevented: boolean } {
   });
   return { defaultPrevented: event.defaultPrevented };
 }
+
+/**
+ * jsdom tidak mengimplementasikan `scrollIntoView` sama sekali — memanggilnya
+ * melempar TypeError. Form memakainya untuk membawa perhatian ke medan yang
+ * ditolak, jadi tiap tes yang memajukan jam sesudah galat akan menabraknya.
+ * Yang diuji di sini perpindahan langkah & fokusnya, bukan pengguliran.
+ */
+Element.prototype.scrollIntoView = vi.fn();
 
 function advanceClock(ms: number) {
   act(() => {
@@ -440,12 +449,40 @@ describe('jadwal pelaksanaan', () => {
     // Atribut `min`/`max` hanya membantu pemilih tanggal peramban; nilainya
     // tetap bisa diketik, jadi penolakannya harus datang dari validasi.
     goToScheduleStep();
-    type('co-date', '2026-09-30');
+    type('co-date', '2026-10-30');
     clickText(PICKED_TIME);
     clickText('Aqiqah Salur');
     clickText('Lanjut ke');
 
-    expect(document.body.textContent).toContain('Maksimal 7 hari ke depan');
+    expect(document.body.textContent).toContain('Maksimal 30 hari ke depan');
+  });
+
+  it('menolak tanggal yang belum melewati jeda persiapan', () => {
+    // Yang paling mungkin dicoba pemesan: hari ini sendiri. Bukan tanggal yang
+    // lewat, jadi pesannya harus soal jeda — bukan "sudah lewat".
+    goToScheduleStep();
+    type('co-date', TODAY);
+    clickText(PICKED_TIME);
+    clickText('Aqiqah Salur');
+    clickText('Lanjut ke');
+
+    expect(document.body.textContent).toContain('Paling cepat 4 hari setelah pemesanan');
+    expect(document.body.textContent).not.toContain('sudah lewat');
+  });
+
+  it('tanggal lahir anak diukur terhadap hari ini, bukan batas bawah pemesanan', () => {
+    // Keduanya dulu satu prop karena nilainya kebetulan sama. Kalau tertukar
+    // lagi, tanggal lahir sampai `MIN_DATE` ikut lolos — padahal empat hari itu
+    // belum terjadi.
+    goToScheduleStep();
+    expect(byId<HTMLInputElement>('co-date').min).toBe(MIN_DATE);
+
+    type('co-date', PICKED_DATE);
+    clickText(PICKED_TIME);
+    clickText('Aqiqah Salur');
+    clickText('Lanjut ke');
+
+    expect(byId<HTMLInputElement>('co-birthdate').max).toBe(TODAY);
   });
 });
 
@@ -548,5 +585,145 @@ describe('pemilih alamat bertingkat', () => {
     for (const key of ['delivery', 'delivery_address', 'delivery_province', 'delivery_city']) {
       expect(payload, key).not.toHaveProperty(key);
     }
+  });
+});
+
+/**
+ * Umpan balik saat isian ditolak.
+ *
+ * Yang dijaga di sini bukan tampilannya, melainkan tiga hal yang mudah patah
+ * diam-diam: galat harus **terdengar** (bukan cuma terlihat), ringkasannya
+ * harus benar-benar **melompat** ke medannya, dan toast harus muncul **lagi**
+ * pada kesalahan yang sama berturut-turut.
+ */
+describe('umpan balik galat', () => {
+  it('menampilkan ringkasan berisi tiap medan yang ditolak', () => {
+    mount();
+    // Langkah 1 tanpa memilih "aqiqah untuk" — satu-satunya yang wajib di sini.
+    clickText('Lanjut ke');
+
+    const summary = [...document.querySelectorAll('[role="alert"]')].find((el) =>
+      el.textContent?.includes('perlu diperbaiki'),
+    );
+    expect(summary, 'ringkasan galat tidak dirender').toBeTruthy();
+    expect(summary!.textContent).toContain('1 isian perlu diperbaiki');
+    // Nama medan yang terbaca orang, bukan kunci payload-nya.
+    expect(summary!.textContent).toContain('Aqiqah untuk');
+    expect(summary!.textContent).not.toContain('aqiqah_for');
+  });
+
+  it('menghitung jamak dengan benar', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    // Langkah 2 dibiarkan kosong: tanggal, jam, dan cara penyaluran.
+    clickText('Lanjut ke');
+
+    const summary = [...document.querySelectorAll('[role="alert"]')].find((el) =>
+      el.textContent?.includes('perlu diperbaiki'),
+    );
+    expect(summary!.textContent).toContain('3 isian perlu diperbaiki');
+  });
+
+  it('galat per medan punya role="alert" dan tertaut ke inputnya', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    clickText('Aqiqah Salur');
+    clickText(PICKED_TIME);
+    clickText('Lanjut ke'); // tanggal masih kosong
+
+    const input = byId<HTMLInputElement>('co-date');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+
+    // Tanpa tautan ini pembaca layar hanya mengumumkan "invalid" — pemakainya
+    // tahu ada yang salah, tanpa pernah tahu apa.
+    const describedBy = input.getAttribute('aria-describedby');
+    expect(describedBy, 'input tidak menunjuk pesan galatnya').toBeTruthy();
+    const message = document.getElementById(describedBy!);
+    expect(message, 'id yang ditunjuk aria-describedby tidak ada').toBeTruthy();
+    expect(message!.getAttribute('role')).toBe('alert');
+    expect(message!.textContent).toContain('Pilih tanggal pelaksanaan');
+  });
+
+  it('menekan baris ringkasan memindahkan langkah ke medan itu', () => {
+    // Berhenti di langkah 3 dengan nomor telepon kosong, lalu coba maju.
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    type('co-date', PICKED_DATE);
+    clickText(PICKED_TIME);
+    clickText('Aqiqah Salur');
+    clickText('Lanjut ke');
+    type('co-name', 'Budi Santoso');
+    type('co-child', 'Fatih');
+    type('co-birthplace', 'Bandung');
+    type('co-birthdate', CHILD_BIRTH_DATE);
+    clickText('Lanjut ke'); // ditahan: telepon kosong
+
+    const row = [...document.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Nomor WhatsApp'),
+    );
+    expect(row, 'baris ringkasan untuk medan yang ditolak tidak ada').toBeTruthy();
+
+    // Pindah ke langkah 1 lewat tabnya (langkah lampau boleh dituju bebas),
+    // supaya yang diuji benar-benar lompatan balik dari ringkasan.
+    const tab1 = [...document.querySelectorAll('button')].find(
+      (b) => b.getAttribute('aria-label') === 'Langkah 1: Pesanan',
+    );
+    act(() => tab1!.click());
+    expect(document.getElementById('co-phone'), 'seharusnya sudah pindah langkah').toBeNull();
+
+    // Ringkasan tetap tampil di langkah mana pun — itulah gunanya menetap.
+    const jump = [...document.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Nomor WhatsApp'),
+    );
+    expect(jump, 'ringkasan hilang saat berpindah langkah').toBeTruthy();
+    act(() => jump!.click());
+    advanceClock(200);
+    expect(byId('co-phone'), 'baris ringkasan tidak membawa kembali ke medannya').toBeTruthy();
+  });
+
+  it('toast muncul lagi pada kesalahan yang sama berturut-turut', () => {
+    mount();
+    clickText('Lanjut ke');
+    const first = document.querySelector('[role="status"]');
+    expect(first, 'toast tidak muncul').toBeTruthy();
+
+    // Tutup, lalu ulangi kesalahan yang sama persis. Kalau kuncinya pesan (dan
+    // bukan penghitung), React melihat nilai identik dan tidak memunculkan
+    // apa pun — pemesan menekan tombol dan tampak tidak terjadi apa-apa.
+    const close = [...document.querySelectorAll('button')].find(
+      (b) => b.getAttribute('aria-label') === 'Tutup pemberitahuan',
+    );
+    act(() => close!.click());
+    expect(document.querySelector('[role="status"]')).toBeNull();
+
+    clickText('Lanjut ke');
+    expect(document.querySelector('[role="status"]')).toBeTruthy();
+  });
+
+  it('toast hilang sendiri setelah 5 detik', () => {
+    mount();
+    clickText('Lanjut ke');
+    expect(document.querySelector('[role="status"]')).toBeTruthy();
+
+    advanceClock(5000); // memicu animasi keluar
+    advanceClock(300); // lalu benar-benar dilepas
+    expect(document.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it('ringkasan hilang begitu isiannya diperbaiki', () => {
+    mount();
+    clickText('Lanjut ke');
+    expect(document.body.textContent).toContain('perlu diperbaiki');
+
+    clickText('Anak Laki-laki');
+    clickText('Lanjut ke');
+    // Sudah di langkah 2 dengan galat langkah 1 yang bersih.
+    const stale = [...document.querySelectorAll('[role="alert"]')].find((el) =>
+      el.textContent?.includes('Aqiqah untuk'),
+    );
+    expect(stale, 'ringkasan lama masih tersisa').toBeFalsy();
   });
 });

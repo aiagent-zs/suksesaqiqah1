@@ -39,7 +39,7 @@ function KpiCard({
   const body = (
     <Card
       className={cn(
-        'h-full gap-3 rounded-2xl border-l-4 py-4 shadow-sm transition-shadow',
+        'h-full gap-3 rounded-lg border-l-4 py-4 shadow-sm transition-shadow',
         accent,
         href && 'hover:shadow-md',
       )}

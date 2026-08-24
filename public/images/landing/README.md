@@ -12,18 +12,34 @@ slot mana yang masih kosong.
 
 | Berkas | Dipakai di | Rasio | Ukuran minimal |
 |--------|-----------|-------|----------------|
-| `hero.jpg` | Hero, sebelah kanan judul | **4:3** | 1200 × 900 |
-| `paket-ekonomi.jpg` | Kartu paket Ekonomi | **3:2** | 600 × 400 |
-| `paket-favorit.jpg` | Kartu paket Favorit | **3:2** | 600 × 400 |
-| `paket-premium.jpg` | Kartu paket Premium | **3:2** | 600 × 400 |
-| `galeri-1-persiapan.jpg` | Galeri — Persiapan & pemeriksaan hewan | **4:3** | 800 × 600 |
-| `galeri-2-sembelih.jpg` | Galeri — Penyembelihan sesuai syariat | **4:3** | 800 × 600 |
-| `galeri-3-masak.jpg` | Galeri — Pengolahan di dapur mitra | **4:3** | 800 × 600 |
-| `galeri-4-kemas.jpg` | Galeri — Pengemasan rapi & higienis | **4:3** | 800 × 600 |
-| `galeri-5-kirim.jpg` | Galeri — Diantar ke alamat Anda | **4:3** | 800 × 600 |
-| `galeri-6-salur.jpg` | Galeri — Disalurkan ke penerima manfaat | **4:3** | 800 × 600 |
+| `hero.webp` | Hero, sebelah kanan judul | **4:3** | 1200 × 900 |
+| `paket-ekonomi.webp` | Kartu paket Ekonomi | **3:2** | 600 × 400 |
+| `paket-favorit.webp` | Kartu paket Favorit | **3:2** | 600 × 400 |
+| `paket-premium.webp` | Kartu paket Premium | **3:2** | 600 × 400 |
+| `galeri-1-persiapan.webp` | Galeri — Persiapan & pemeriksaan hewan | **4:3** | 800 × 600 |
+| `galeri-2-sembelih.webp` | Galeri — Penyembelihan sesuai syariat | **4:3** | 800 × 600 |
+| `galeri-3-masak.webp` | Galeri — Pengolahan di dapur mitra | **4:3** | 800 × 600 |
+| `galeri-4-kemas.webp` | Galeri — Pengemasan rapi & higienis | **4:3** | 800 × 600 |
+| `galeri-5-kirim.webp` | Galeri — Diantar ke alamat Anda | **4:3** | 800 × 600 |
+| `galeri-6-salur.webp` | Galeri — Disalurkan ke penerima manfaat | **4:3** | 800 × 600 |
 
 **Total: 10 foto.**
+
+## Kenapa `.webp`, bukan `.jpg`
+
+WebP memberi mutu setara JPEG pada ukuran berkas ~25-35% lebih kecil, dan yang
+disimpan di repo ini pun jadi ikut ringan.
+
+**Anda tidak perlu memikirkan format saat memotret.** Foto dari kamera atau
+ponsel hampir selalu JPEG; ubah sekali sebelum menaruhnya di sini. Cara paling
+cepat tanpa memasang apa pun: buka <https://squoosh.app> di peramban, jatuhkan
+fotonya, pilih **WebP**, mutu **80**, lalu unduh. Mutu 80 praktis tidak
+terbedakan dari aslinya pada foto, sementara ukurannya turun jauh.
+
+Yang **sudah** ditangani aplikasi, jadi bukan urusan Anda: `next/image`
+mengubah gambar ke AVIF atau WebP sesuai kemampuan peramban pengunjung, dan
+membuat beberapa ukuran otomatis supaya ponsel tidak mengunduh versi desktop.
+Menaruh `.webp` di sini hanya membuat sumbernya ikut ringan sejak awal.
 
 ## Yang perlu diperhatikan
 
@@ -42,7 +58,7 @@ ilustrasi", dan janji itu hanya benar kalau fotonya memang dari pelaksanaan Anda
 sendiri. Kalau ada tahap yang belum sempat difoto, lebih baik biarkan kotak
 abunya dulu daripada diisi foto stok.
 
-**Format.** `.jpg` untuk foto (lebih ringan). Kalau berkas Anda `.png` atau
+**Format.** `.webp` untuk foto (lebih ringan). Kalau berkas Anda `.png` atau
 `.webp`, ganti juga ekstensi di `lib/constants/site.ts` bagian `landingPhotos`
 dan `aqiqahPrograms[].photo`.
 

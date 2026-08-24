@@ -30,6 +30,7 @@ import {
   User,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Toast, type ToastState } from '@/components/ui/toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ANIMAL_SPECIES_LABEL } from '@/lib/constants/order';
@@ -38,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { createGuestOrderAction } from '@/server/actions/checkout';
 import {
   BOOKING_MAX_DAYS,
+  BOOKING_MIN_DAYS,
   BOOKING_TIME_SLOTS,
   CHILD_BIRTH_MIN_DATE,
   SPECIES_BY_SERVICE_TYPE,
@@ -121,6 +123,14 @@ const DISTRIBUTION_OPTIONS = [
  * server, sehingga galat dari zod maupun dari `validateStep` sama-sama tertaut.
  */
 const FIELD_ANCHOR: Record<string, string> = {
+  // Empat yang pertama menunjuk pembungkus grup tombol, bukan `<input>`.
+  // Sebelumnya keempatnya tidak ada di peta sama sekali, jadi galatnya tidak
+  // pernah bisa dilompati — dan ringkasan galat yang bisa diklik menjadikan
+  // celah itu terlihat: barisnya ada, tapi menekannya tidak membawa ke mana pun.
+  aqiqah_for: 'co-aqiqahfor',
+  service_id: 'co-service',
+  qty: 'co-qty',
+  distribution_mode: 'co-distribution',
   child_name: 'co-child',
   bin_binti: 'co-binbinti',
   child_birth_place: 'co-birthplace',
@@ -139,6 +149,40 @@ const FIELD_ANCHOR: Record<string, string> = {
   delivery_detail: 'co-detail',
   recipient_institution: 'co-institution',
   referral_code: 'co-referral',
+};
+
+/**
+ * Nama medan yang layak dibaca orang, untuk ringkasan galat.
+ *
+ * Tanpa ini barisnya berbunyi "delivery_village_code — wajib diisi", yang
+ * menuntut pemesan menebak medan mana yang dimaksud.
+ */
+const FIELD_LABEL: Record<string, string> = {
+  aqiqah_for: 'Aqiqah untuk',
+  service_id: 'Paket',
+  species: 'Jenis hewan',
+  qty: 'Jumlah ekor',
+  nasi_box_service_id: 'Paket nasi box',
+  nasi_box_qty: 'Jumlah nasi box',
+  requested_date: 'Tanggal pelaksanaan',
+  requested_time: 'Jam pelaksanaan',
+  distribution_mode: 'Cara penyaluran',
+  delivery_province_code: 'Provinsi tujuan',
+  delivery_city_code: 'Kabupaten/kota tujuan',
+  delivery_district_code: 'Kecamatan tujuan',
+  delivery_village_code: 'Kelurahan/desa tujuan',
+  delivery_postal_code: 'Kode pos',
+  delivery_detail: 'Alamat lengkap',
+  recipient_institution: 'Instansi penerima',
+  child_name: 'Nama anak',
+  bin_binti: 'Bin / Binti',
+  child_birth_place: 'Tempat lahir anak',
+  child_birth_date: 'Tanggal lahir anak',
+  name: 'Nama pemesan',
+  phone: 'Nomor WhatsApp',
+  email: 'Email',
+  referral_code: 'Kode referral',
+  notes: 'Catatan',
 };
 
 /** Langkah tempat tiap medan tinggal — server tidak tahu soal langkah. */
@@ -175,6 +219,7 @@ export function CheckoutForm({
   provinces,
   minDate,
   maxDate,
+  today,
   initialServiceId,
 }: {
   packages: CheckoutPackage[];
@@ -187,9 +232,20 @@ export function CheckoutForm({
    * Tidak dihitung di sini: memanggil jam di badan komponen melanggar aturan
    * kemurnian React, dan jam peramban pemesan bisa berada di zona waktu mana
    * saja — sementara batas yang ditegakkan `create_guest_order` selalu WIB.
+   *
+   * `minDate` sudah memuat jeda persiapan (`BOOKING_MIN_DAYS`), jadi ia **bukan**
+   * hari ini. Yang butuh hari ini memakai `today`.
    */
   minDate: string;
   maxDate: string;
+  /**
+   * Hari ini menurut WIB — batas atas tanggal lahir anak.
+   *
+   * Dulu `minDate` dipinjam untuk peran ini karena nilainya kebetulan sama.
+   * Sejak ada jeda persiapan keduanya berbeda empat hari, dan meminjamnya lagi
+   * berarti meloloskan tanggal lahir yang belum terjadi.
+   */
+  today: string;
   initialServiceId?: string;
 }) {
   const [pending, startTransition] = useTransition();
@@ -197,6 +253,16 @@ export function CheckoutForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState<GuestOrderResult | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
+  /**
+   * Pemberitahuan sekilas di pojok layar.
+   *
+   * `id` yang naik tiap kali, bukan sekadar pesannya: menekan "Lanjut" dua kali
+   * dengan kesalahan yang sama harus memunculkan toast lagi. Kalau kuncinya
+   * pesan, React melihat nilai yang sama dan tidak menganimasikan apa pun —
+   * pemesan menekan tombol dan tampak tidak terjadi apa-apa.
+   */
+  const [toast, setToast] = useState<ToastState>(null);
+  const toastSeq = useRef(0);
   /**
    * Apakah tombol kirim sudah boleh dianggap benar-benar disengaja.
    *
@@ -392,8 +458,10 @@ export function CheckoutForm({
       // leksikografis, jadi tidak perlu mengurai tanggal — sekaligus tidak
       // memperkenalkan zona waktu peramban ke dalam perbandingan.
       if (!draft.requested_date) errors.requested_date = 'Pilih tanggal pelaksanaan';
-      else if (draft.requested_date < minDate) {
+      else if (draft.requested_date < today) {
         errors.requested_date = 'Tanggal pelaksanaan sudah lewat';
+      } else if (draft.requested_date < minDate) {
+        errors.requested_date = `Paling cepat ${BOOKING_MIN_DAYS} hari setelah pemesanan (${formatDate(minDate)})`;
       } else if (draft.requested_date > maxDate) {
         errors.requested_date = `Maksimal ${BOOKING_MAX_DAYS} hari ke depan`;
       }
@@ -436,11 +504,8 @@ export function CheckoutForm({
         errors.child_birth_place = 'Tempat lahir anak wajib diisi';
       }
 
-      // `minDate` di sini dipinjam sebagai "hari ini menurut WIB" — nilainya
-      // memang itu (`bookingMinDate()` di server). Tanggal lahir tidak butuh
-      // props sendiri selama batas atasnya persis hari ini.
       if (!draft.child_birth_date) errors.child_birth_date = 'Isi tanggal lahir anak';
-      else if (draft.child_birth_date > minDate) {
+      else if (draft.child_birth_date > today) {
         errors.child_birth_date = 'Tanggal lahir tidak boleh di masa depan';
       } else if (draft.child_birth_date < CHILD_BIRTH_MIN_DATE) {
         errors.child_birth_date = 'Periksa lagi tahun lahirnya';
@@ -448,7 +513,9 @@ export function CheckoutForm({
     }
 
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
+    const count = Object.keys(errors).length;
+    if (count > 0) {
+      showErrorToast(count);
       focusFirstError(errors);
       return false;
     }
@@ -456,13 +523,35 @@ export function CheckoutForm({
   }
 
   /**
-   * Bawa perhatian ke medan pertama yang bermasalah. Tanpa ini pesan galat bisa
-   * berada di luar layar dan tombol "Lanjut" tampak tidak merespons.
+   * Munculkan toast penolakan.
+   *
+   * Jumlahnya disebut, bukan sekadar "ada yang salah": pemesan yang tahu
+   * tinggal dua medan akan memperbaikinya, yang tidak tahu berapa cenderung
+   * mengira formnya rusak.
    */
-  function focusFirstError(errors: Record<string, string>) {
-    const anchor = Object.keys(errors)
-      .map((key) => FIELD_ANCHOR[key])
-      .find(Boolean);
+  function showErrorToast(count: number) {
+    toastSeq.current += 1;
+    setToast({
+      id: toastSeq.current,
+      tone: 'error',
+      message:
+        count === 1 ? '1 isian perlu diperbaiki' : `${count} isian perlu diperbaiki`,
+    });
+  }
+
+  /**
+   * Bawa perhatian ke satu medan: pindah langkah bila perlu, gulir ke sana,
+   * lalu fokuskan.
+   *
+   * Dipakai dua jalur — melompat otomatis ke galat pertama, dan menekan satu
+   * baris di ringkasan galat. Keduanya harus berperilaku persis sama, jadi
+   * keduanya lewat sini.
+   */
+  function jumpToField(field: string) {
+    const step = FIELD_STEP[field];
+    if (step && step !== currentStep) setCurrentStep(step);
+
+    const anchor = FIELD_ANCHOR[field];
     if (!anchor) return;
 
     // Jeda kecil, bukan rAF: medannya bisa berada di langkah lain yang baru
@@ -471,8 +560,24 @@ export function CheckoutForm({
     window.setTimeout(() => {
       const el = document.getElementById(anchor);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      (el as HTMLInputElement | null)?.focus({ preventScroll: true });
+      (el as HTMLElement | null)?.focus({ preventScroll: true });
     }, 80);
+  }
+
+  /**
+   * Bawa perhatian ke medan pertama yang bermasalah. Tanpa ini pesan galat bisa
+   * berada di luar layar dan tombol "Lanjut" tampak tidak merespons.
+   *
+   * Urutannya mengikuti `FIELD_STEP` lalu `FIELD_ANCHOR`, bukan urutan kunci
+   * pada objek galat — yang terakhir itu urutan penyisipan, dan bisa menaruh
+   * medan langkah 3 di depan medan langkah 1.
+   */
+  function focusFirstError(errors: Record<string, string>) {
+    const first = Object.keys(errors)
+      .filter((key) => FIELD_ANCHOR[key])
+      .sort((a, b) => (FIELD_STEP[a] ?? 99) - (FIELD_STEP[b] ?? 99))[0];
+    if (!first) return;
+    jumpToField(first);
   }
 
   /**
@@ -607,14 +712,26 @@ export function CheckoutForm({
         setError(result.error.message);
         setFieldErrors(fields);
 
+        // Penolakan dari server kerap datang tanpa rincian per medan (rem laju,
+        // paket keburu dinonaktifkan). Toast-nya harus tetap muncul — dan yang
+        // dibacakan pesan dari server, bukan hitungan medan yang nol.
+        toastSeq.current += 1;
+        const count = Object.keys(fields).length;
+        setToast({
+          id: toastSeq.current,
+          tone: 'error',
+          message:
+            count > 0
+              ? count === 1
+                ? '1 isian perlu diperbaiki'
+                : `${count} isian perlu diperbaiki`
+              : result.error.message,
+        });
+
         // Server memvalidasi seluruh payload sekaligus dan tidak tahu soal
-        // langkah. Kalau medan yang ditolak ada di langkah lain, pindah ke sana
-        // — kalau tidak, pesannya tidak pernah tampil di layar.
-        const step = Object.keys(fields)
-          .map((key) => FIELD_STEP[key])
-          .filter(Boolean)
-          .sort((a, b) => a - b)[0];
-        if (step && step !== currentStep) setCurrentStep(step);
+        // langkah. `focusFirstError` yang memindahkan langkahnya lewat
+        // `jumpToField`, jadi tidak ada lagi perpindahan terpisah di sini —
+        // dulu keduanya menghitung langkah dengan cara berbeda.
         focusFirstError(fields);
         return;
       }
@@ -664,7 +781,7 @@ export function CheckoutForm({
           <p className="text-sm font-medium text-neutral-500">
             Langkah <span className="font-semibold text-neutral-900">{currentStep}</span> dari{' '}
             {STEPS.length}
-            <span className="ml-2 hidden text-neutral-400 sm:inline">
+            <span className="ml-2 hidden text-neutral-500 sm:inline">
               · {STEPS[currentStep - 1]?.title}
             </span>
           </p>
@@ -682,9 +799,9 @@ export function CheckoutForm({
         {/* Bilah kemajuan setipis garis — penanda, bukan hiasan. Persentasenya
             sengaja tidak ditulis: "25% Selesai" pada langkah 1 keliru, karena
             beban tiap langkah tidak sama. */}
-        <div className="mt-3 h-0.5 w-full bg-neutral-200">
+        <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-neutral-200">
           <div
-            className="bg-primary h-full transition-[width] duration-500 ease-out"
+            className="from-primary to-primary/70 h-full rounded-full bg-gradient-to-r transition-[width] duration-500 ease-out"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -701,18 +818,22 @@ export function CheckoutForm({
                 key={step.id}
                 type="button"
                 aria-current={isCurrent ? 'step' : undefined}
+                // Nama yang utuh untuk pembaca layar. Yang terlihat cuma "1."
+                // atau ikon centang bagi langkah yang sudah dilewati — keduanya
+                // tidak memberi tahu langkah ini tentang apa.
+                aria-label={`Langkah ${step.id}: ${step.title}`}
                 onClick={() => {
                   if (step.id < currentStep || validateStep(currentStep)) {
                     goToStep(step.id);
                   }
                 }}
                 className={cn(
-                  'flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs transition-colors sm:justify-start sm:px-2.5',
+                  'flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-1.5 text-xs transition-colors sm:justify-start sm:px-2.5',
                   isCurrent
                     ? 'text-primary bg-primary/8 font-semibold'
                     : isPassed
                       ? 'font-medium text-neutral-700 hover:bg-neutral-100'
-                      : 'text-neutral-400',
+                      : 'text-neutral-500',
                 )}
               >
                 {isPassed ? (
@@ -729,6 +850,11 @@ export function CheckoutForm({
           })}
         </nav>
       </div>
+
+      {/* Ringkasan galat: menetap di atas form, tiap baris melompat ke medannya.
+          Ditaruh sebelum tawaran pemulihan karena galat lebih mendesak — yang
+          satu menghalangi pemesan melanjutkan, yang satu cuma menawarkan. */}
+      <ErrorSummary errors={fieldErrors} labels={FIELD_LABEL} onJump={jumpToField} />
 
       {/*
         Tawaran memulihkan isian yang tertinggal.
@@ -788,10 +914,22 @@ export function CheckoutForm({
           <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
             <div>
               <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
-                <Label className="text-base font-bold text-neutral-900">Aqiqah untuk siapa?</Label>
+                <Label id="co-aqiqahfor-label" className="text-base font-bold text-neutral-900">
+                  Aqiqah untuk siapa?
+                </Label>
                 <span className="text-xs text-neutral-500">Menentukan anjuran jumlah ekor</span>
               </div>
-              <div className="grid gap-2.5 sm:grid-cols-2">
+              <div
+                id="co-aqiqahfor"
+                role="radiogroup"
+                aria-labelledby="co-aqiqahfor-label"
+                aria-invalid={Boolean(fieldErrors.aqiqah_for)}
+                tabIndex={-1}
+                className={cn(
+                  'grid gap-2.5 rounded-lg sm:grid-cols-2',
+                  fieldErrors.aqiqah_for && 'animate-nudge',
+                )}
+              >
                 {AQIQAH_FOR_OPTIONS.map((opt) => {
                   const active = draft.aqiqah_for === opt.value;
                   return (
@@ -799,12 +937,13 @@ export function CheckoutForm({
                       key={opt.value}
                       type="button"
                       onClick={() => pickAqiqahFor(opt.value)}
-                      aria-pressed={active}
+                      role="radio"
+                      aria-checked={active}
                       className={cn(
-                        'relative flex items-center gap-3 rounded-lg border p-3.5 text-left transition-all duration-200 sm:p-4',
+                        'relative flex items-center gap-3 rounded-lg border p-3.5 text-left transition-all duration-200 active:scale-[0.99] sm:p-4',
                         active
-                          ? 'border-primary bg-primary/5 ring-primary ring-1'
-                          : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
+                          ? 'border-primary bg-primary/5 ring-primary shadow-sm ring-1'
+                          : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-sm',
                       )}
                     >
                       <div
@@ -834,12 +973,24 @@ export function CheckoutForm({
             {/* PAKET */}
             <div className="border-t border-neutral-100 pt-5 sm:pt-6">
               <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
-                <Label className="text-base font-bold text-neutral-900">Pilih Paket</Label>
+                <Label id="co-service-label" className="text-base font-bold text-neutral-900">
+                  Pilih Paket
+                </Label>
                 <span className="text-xs text-neutral-500">
                   Harga net termasuk olahan &amp; laporan
                 </span>
               </div>
-              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                id="co-service"
+                role="radiogroup"
+                aria-labelledby="co-service-label"
+                aria-invalid={Boolean(fieldErrors.service_id)}
+                tabIndex={-1}
+                className={cn(
+                  'grid gap-2.5 rounded-lg sm:grid-cols-2 lg:grid-cols-3',
+                  fieldErrors.service_id && 'animate-nudge',
+                )}
+              >
                 {packages.map((pkg) => {
                   const active = pkg.id === draft.service_id;
                   return (
@@ -847,12 +998,13 @@ export function CheckoutForm({
                       key={pkg.id}
                       type="button"
                       onClick={() => pickPackage(pkg)}
-                      aria-pressed={active}
+                      role="radio"
+                      aria-checked={active}
                       className={cn(
-                        'group relative flex flex-col justify-between rounded-lg border p-3.5 text-left transition-all duration-200 sm:p-4',
+                        'group relative flex flex-col justify-between rounded-lg border p-3.5 text-left transition-all duration-200 active:scale-[0.99] sm:p-4',
                         active
-                          ? 'border-primary bg-primary/5 ring-primary ring-1'
-                          : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
+                          ? 'border-primary bg-primary/5 ring-primary shadow-sm ring-1'
+                          : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-sm',
                       )}
                     >
                       <div>
@@ -912,8 +1064,19 @@ export function CheckoutForm({
               </div>
 
               <div>
-                <Label className="text-sm font-semibold text-neutral-800">Jumlah Ekor</Label>
-                <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white p-1 shadow-sm">
+                <Label id="co-qty-label" className="text-sm font-semibold text-neutral-800">
+                  Jumlah Ekor
+                </Label>
+                <div
+                  id="co-qty"
+                  role="group"
+                  aria-labelledby="co-qty-label"
+                  tabIndex={-1}
+                  className={cn(
+                    'mt-2 inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white p-1 shadow-sm',
+                    fieldErrors.qty && 'animate-nudge border-red-300',
+                  )}
+                >
                   <StepperButton
                     label="Kurangi jumlah"
                     disabled={draft.qty <= 1}
@@ -946,7 +1109,7 @@ export function CheckoutForm({
             <div className="border-t border-neutral-100 pt-6">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <Label className="text-base font-bold text-neutral-900">
-                  Nasi Box <span className="font-normal text-neutral-400">(opsional)</span>
+                  Nasi Box <span className="font-normal text-neutral-500">(opsional)</span>
                 </Label>
                 <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
                   <ShoppingBag className="size-3.5 text-blue-600" />
@@ -962,10 +1125,10 @@ export function CheckoutForm({
                   }}
                   aria-pressed={!draft.nasi_box_service_id}
                   className={cn(
-                    'relative rounded-lg border p-4 text-left transition-colors',
+                    'relative rounded-lg border p-4 text-left transition-all active:scale-[0.99]',
                     !draft.nasi_box_service_id
-                      ? 'border-primary bg-primary/5 ring-primary ring-1'
-                      : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
+                      ? 'border-primary bg-primary/5 ring-primary shadow-sm ring-1'
+                      : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-sm',
                   )}
                 >
                   <p className="font-bold text-neutral-900">Tidak pakai</p>
@@ -989,10 +1152,10 @@ export function CheckoutForm({
                       }}
                       aria-pressed={active}
                       className={cn(
-                        'relative rounded-lg border p-4 text-left transition-colors',
+                        'relative rounded-lg border p-4 text-left transition-all active:scale-[0.99]',
                         active
-                          ? 'border-primary bg-primary/5 ring-primary ring-1'
-                          : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
+                          ? 'border-primary bg-primary/5 ring-primary shadow-sm ring-1'
+                          : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-sm',
                       )}
                     >
                       <p className="font-bold text-neutral-900">{box.name}</p>
@@ -1024,8 +1187,9 @@ export function CheckoutForm({
                     inputMode="numeric"
                     value={draft.nasi_box_qty || ''}
                     aria-invalid={Boolean(fieldErrors.nasi_box_qty)}
+                  aria-describedby={fieldErrors.nasi_box_qty ? 'nasi_box_qty-error' : undefined}
                     onChange={(e) => set('nasi_box_qty', Number(e.target.value) || 0)}
-                    className="mt-2 h-12 max-w-40 rounded-xl border-neutral-200 text-sm tabular-nums shadow-sm"
+                    className="mt-2 h-12 max-w-40 rounded-lg border-neutral-200 text-sm tabular-nums shadow-sm"
                   />
                   {selectedBox && draft.nasi_box_qty > 0 && (
                     <p className="mt-2 text-xs text-neutral-600">
@@ -1033,7 +1197,7 @@ export function CheckoutForm({
                       <span className="text-primary font-bold">{formatCurrency(boxSubtotal)}</span>
                     </p>
                   )}
-                  {fieldErrors.nasi_box_qty && <FieldError message={fieldErrors.nasi_box_qty} />}
+                  {fieldErrors.nasi_box_qty && <FieldError id="nasi_box_qty-error" message={fieldErrors.nasi_box_qty} />}
                 </div>
               )}
             </div>
@@ -1049,7 +1213,7 @@ export function CheckoutForm({
                   Kapan dilaksanakan? <span className="text-red-500">*</span>
                 </Label>
                 <span className="text-xs text-neutral-500">
-                  Maksimal {BOOKING_MAX_DAYS} hari ke depan
+                  Paling cepat {formatDate(minDate)} · maksimal {BOOKING_MAX_DAYS} hari ke depan
                 </span>
               </div>
 
@@ -1071,11 +1235,12 @@ export function CheckoutForm({
                     required
                     aria-required
                     aria-invalid={Boolean(fieldErrors.requested_date)}
+                  aria-describedby={fieldErrors.requested_date ? 'requested_date-error' : undefined}
                     onChange={(e) => set('requested_date', e.target.value)}
-                    className="mt-2 h-11 rounded-xl border-neutral-200 text-sm shadow-sm sm:h-12"
+                    className="mt-2 h-11 rounded-lg border-neutral-200 text-sm shadow-sm sm:h-12"
                   />
                   {fieldErrors.requested_date && (
-                    <FieldError message={fieldErrors.requested_date} />
+                    <FieldError id="requested_date-error" message={fieldErrors.requested_date} />
                   )}
                 </div>
 
@@ -1091,10 +1256,10 @@ export function CheckoutForm({
                           onClick={() => set('requested_time', slot)}
                           aria-pressed={active}
                           className={cn(
-                            'flex items-center justify-center rounded-xl border py-2 px-1 text-center text-xs font-semibold tabular-nums transition-all sm:px-3.5',
+                            'flex min-h-11 items-center justify-center rounded-lg border px-1 text-center text-xs font-semibold tabular-nums transition-all active:scale-[0.97] sm:px-3.5',
                             active
-                              ? 'border-primary bg-primary/5 text-primary ring-primary ring-1'
-                              : 'hover:border-primary/40 border-neutral-200 bg-white text-neutral-700',
+                              ? 'border-primary bg-primary text-white shadow-sm'
+                              : 'hover:border-primary/40 border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50',
                           )}
                         >
                           {slot}
@@ -1115,10 +1280,23 @@ export function CheckoutForm({
             </div>
 
             <div>
-              <Label className="mb-2.5 block text-base font-bold text-neutral-900">
+              <Label
+                id="co-distribution-label"
+                className="mb-2.5 block text-base font-bold text-neutral-900"
+              >
                 Cara Penyaluran
               </Label>
-              <div className="grid gap-2.5 sm:grid-cols-2">
+              <div
+                id="co-distribution"
+                role="radiogroup"
+                aria-labelledby="co-distribution-label"
+                aria-invalid={Boolean(fieldErrors.distribution_mode)}
+                tabIndex={-1}
+                className={cn(
+                  'grid gap-2.5 rounded-lg sm:grid-cols-2',
+                  fieldErrors.distribution_mode && 'animate-nudge',
+                )}
+              >
                 {DISTRIBUTION_OPTIONS.map((opt) => {
                   const active = draft.distribution_mode === opt.value;
                   return (
@@ -1126,12 +1304,13 @@ export function CheckoutForm({
                       key={opt.value}
                       type="button"
                       onClick={() => set('distribution_mode', opt.value)}
-                      aria-pressed={active}
+                      role="radio"
+                      aria-checked={active}
                       className={cn(
-                        'relative rounded-lg border p-4 text-left transition-colors',
+                        'relative rounded-lg border p-4 text-left transition-all active:scale-[0.99]',
                         active
-                          ? 'border-primary bg-primary/5 ring-primary ring-1'
-                          : 'border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50',
+                          ? 'border-primary bg-primary/5 ring-primary shadow-sm ring-1'
+                          : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-sm',
                       )}
                     >
                       <div
@@ -1175,14 +1354,14 @@ export function CheckoutForm({
             {/* <div>
               <Label htmlFor="co-institution" className="text-sm font-semibold text-neutral-800">
                 Instansi Penerima Risalah{' '}
-                <span className="font-normal text-neutral-400">(opsional)</span>
+                <span className="font-normal text-neutral-500">(opsional)</span>
               </Label>
               <Input
                 id="co-institution"
                 value={draft.recipient_institution}
                 placeholder="Mis. Panti Asuhan Al-Amin, Masjid Nurul Iman"
                 onChange={(e) => set('recipient_institution', e.target.value)}
-                className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
               />
               {fieldErrors.recipient_institution && (
                 <FieldError message={fieldErrors.recipient_institution} />
@@ -1194,7 +1373,7 @@ export function CheckoutForm({
         {/* STEP 3: DATA PEMESAN */}
         {currentStep === 3 && (
           <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
-            {/* <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900">
+            {/* <div className="flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900">
               <User className="mt-0.5 size-4 shrink-0 text-blue-600" />
               <span>
                 Tim kami menghubungi nomor WhatsApp ini untuk konfirmasi pesanan, bukti transfer,
@@ -1214,11 +1393,12 @@ export function CheckoutForm({
                   required
                   aria-required
                   aria-invalid={Boolean(fieldErrors.name)}
+                  aria-describedby={fieldErrors.name ? 'name-error' : undefined}
                   placeholder="Nama sesuai WhatsApp/KTP"
                   onChange={(e) => set('name', e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
-                {fieldErrors.name && <FieldError message={fieldErrors.name} />}
+                {fieldErrors.name && <FieldError id="name-error" message={fieldErrors.name} />}
               </div>
 
               <div>
@@ -1233,11 +1413,12 @@ export function CheckoutForm({
                   required
                   aria-required
                   aria-invalid={Boolean(fieldErrors.phone)}
+                  aria-describedby={fieldErrors.phone ? 'phone-error' : undefined}
                   placeholder="0812xxxxxxxx"
                   onChange={(e) => set('phone', e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
-                {fieldErrors.phone && <FieldError message={fieldErrors.phone} />}
+                {fieldErrors.phone && <FieldError id="phone-error" message={fieldErrors.phone} />}
               </div>
 
               <div className="sm:col-span-2">
@@ -1252,14 +1433,15 @@ export function CheckoutForm({
                   required
                   aria-required
                   aria-invalid={Boolean(fieldErrors.email)}
+                  aria-describedby={fieldErrors.email ? 'email-error' : undefined}
                   placeholder="email@domain.com"
                   onChange={(e) => set('email', e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
                 <p className="mt-1.5 text-xs text-neutral-500">
                   Dipakai mengirim salinan pesanan dan tautan laporan pelaksanaan.
                 </p>
-                {fieldErrors.email && <FieldError message={fieldErrors.email} />}
+                {fieldErrors.email && <FieldError id="email-error" message={fieldErrors.email} />}
               </div>
 
               <div>
@@ -1272,26 +1454,28 @@ export function CheckoutForm({
                   required
                   aria-required
                   aria-invalid={Boolean(fieldErrors.child_name)}
+                  aria-describedby={fieldErrors.child_name ? 'child_name-error' : undefined}
                   placeholder="Mis. Fatih"
                   onChange={(e) => set('child_name', e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
-                {fieldErrors.child_name && <FieldError message={fieldErrors.child_name} />}
+                {fieldErrors.child_name && <FieldError id="child_name-error" message={fieldErrors.child_name} />}
               </div>
 
               <div>
                 <Label htmlFor="co-binbinti" className="text-sm font-semibold text-neutral-800">
-                  Bin / Binti <span className="font-normal text-neutral-400">(opsional)</span>
+                  Bin / Binti <span className="font-normal text-neutral-500">(opsional)</span>
                 </Label>
                 <Input
                   id="co-binbinti"
                   value={draft.bin_binti}
                   aria-invalid={Boolean(fieldErrors.bin_binti)}
+                  aria-describedby={fieldErrors.bin_binti ? 'bin_binti-error' : undefined}
                   placeholder="Mis. bin Ahmad"
                   onChange={(e) => set('bin_binti', e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
-                {fieldErrors.bin_binti && <FieldError message={fieldErrors.bin_binti} />}
+                {fieldErrors.bin_binti && <FieldError id="bin_binti-error" message={fieldErrors.bin_binti} />}
               </div>
 
               <div>
@@ -1304,12 +1488,13 @@ export function CheckoutForm({
                   required
                   aria-required
                   aria-invalid={Boolean(fieldErrors.child_birth_place)}
+                  aria-describedby={fieldErrors.child_birth_place ? 'child_birth_place-error' : undefined}
                   placeholder="Mis. Bandung"
                   onChange={(e) => set('child_birth_place', e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
                 {fieldErrors.child_birth_place && (
-                  <FieldError message={fieldErrors.child_birth_place} />
+                  <FieldError id="child_birth_place-error" message={fieldErrors.child_birth_place} />
                 )}
               </div>
 
@@ -1317,28 +1502,29 @@ export function CheckoutForm({
                 <Label htmlFor="co-birthdate" className="text-sm font-semibold text-neutral-800">
                   Tanggal Lahir <span className="text-red-500">*</span>
                 </Label>
-                {/* `max` adalah hari ini menurut WIB — `minDate` memang bernilai
-                    itu, dihitung di server. Sama seperti pemilih tanggal
-                    pelaksanaan, atribut ini cuma membantu peramban; penolakan
-                    sungguhannya di `validateStep`, `guestCheckoutSchema`, dan
-                    RPC, karena input `date` bisa diisi lewat keyboard. */}
+                {/* `max` adalah hari ini menurut WIB, dihitung di server. Sama
+                    seperti pemilih tanggal pelaksanaan, atribut ini cuma
+                    membantu peramban; penolakan sungguhannya di `validateStep`,
+                    `guestCheckoutSchema`, dan RPC, karena input `date` bisa
+                    diisi lewat keyboard. */}
                 <Input
                   id="co-birthdate"
                   type="date"
                   min={CHILD_BIRTH_MIN_DATE}
-                  max={minDate}
+                  max={today}
                   value={draft.child_birth_date}
                   required
                   aria-required
                   aria-invalid={Boolean(fieldErrors.child_birth_date)}
+                  aria-describedby={fieldErrors.child_birth_date ? 'child_birth_date-error' : undefined}
                   onChange={(e) => set('child_birth_date', e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm shadow-sm"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
                 <p className="mt-1.5 text-xs text-neutral-500">
                   Dicetak di sertifikat aqiqah bersama nama anak.
                 </p>
                 {fieldErrors.child_birth_date && (
-                  <FieldError message={fieldErrors.child_birth_date} />
+                  <FieldError id="child_birth_date-error" message={fieldErrors.child_birth_date} />
                 )}
               </div>
             </div>
@@ -1429,22 +1615,23 @@ export function CheckoutForm({
               <div>
                 <Label htmlFor="co-referral" className="text-sm font-semibold text-neutral-800">
                   <Tag className="mr-1 inline size-3.5" />
-                  Kode Referral <span className="font-normal text-neutral-400">(opsional)</span>
+                  Kode Referral <span className="font-normal text-neutral-500">(opsional)</span>
                 </Label>
                 <Input
                   id="co-referral"
                   value={draft.referral_code}
                   aria-invalid={Boolean(fieldErrors.referral_code)}
+                  aria-describedby={fieldErrors.referral_code ? 'referral_code-error' : undefined}
                   placeholder="Mis. SA-BUDI"
                   onChange={(e) => set('referral_code', e.target.value)}
-                  className="mt-2 h-12 rounded-xl border-neutral-200 text-sm uppercase shadow-sm"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm uppercase shadow-sm"
                 />
-                {fieldErrors.referral_code && <FieldError message={fieldErrors.referral_code} />}
+                {fieldErrors.referral_code && <FieldError id="referral_code-error" message={fieldErrors.referral_code} />}
               </div>
 
               <div>
                 <Label htmlFor="co-notes" className="text-sm font-semibold text-neutral-800">
-                  Catatan <span className="font-normal text-neutral-400">(opsional)</span>
+                  Catatan <span className="font-normal text-neutral-500">(opsional)</span>
                 </Label>
                 <Textarea
                   id="co-notes"
@@ -1476,7 +1663,7 @@ export function CheckoutForm({
             <button
               type="button"
               onClick={prevStep}
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-neutral-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 sm:gap-1.5 sm:px-5 sm:py-3"
+              className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-neutral-300 bg-white px-3.5 text-xs font-semibold text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 active:scale-[0.98] sm:gap-1.5 sm:px-5"
             >
               <ChevronLeft className="size-4" /> Kembali
             </button>
@@ -1498,7 +1685,7 @@ export function CheckoutForm({
               key="nav-next"
               type="button"
               onClick={nextStep}
-              className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-3 text-sm font-semibold text-white transition-colors sm:px-6"
+              className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98] sm:px-6"
             >
               Lanjut ke {STEPS[currentStep].title} <ChevronRight className="size-4 shrink-0" />
             </button>
@@ -1511,7 +1698,7 @@ export function CheckoutForm({
               type="button"
               onClick={submit}
               disabled={pending || !selected}
-              className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:px-7 sm:py-3.5"
+              className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 sm:min-h-12 sm:px-7"
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
               {pending ? 'Mengirim pesanan…' : 'Konfirmasi & Kirim Pesanan'}
@@ -1519,6 +1706,11 @@ export function CheckoutForm({
           )}
         </div>
       </form>
+
+      {/* Di luar <form> supaya tombol tutupnya tidak pernah ikut terbaca
+          sebagai kontrol form, dan `fixed`-nya tidak terpengaruh transform
+          milik pembungkus mana pun. */}
+      <Toast state={toast} onDismiss={() => setToast(null)} />
     </div>
   );
 }
@@ -1540,7 +1732,7 @@ function StepperButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-8 items-center justify-center rounded-lg text-neutral-700 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-30"
+      className="flex size-11 items-center justify-center rounded-lg text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
     >
       {children}
     </button>
@@ -1590,6 +1782,70 @@ function SuccessPanel({ result }: { result: GuestOrderResult }) {
   );
 }
 
+/**
+ * Ringkasan seluruh medan yang ditolak, menetap di atas form.
+ *
+ * **Kenapa ada, padahal tiap medan sudah punya pesannya sendiri.** Pesan per
+ * medan hanya menolong kalau medannya kebetulan terlihat. Form ini panjang:
+ * menekan "Lanjut" di bawah layar bisa menolak sesuatu yang berada jauh di
+ * atas, dan yang tertangkap pemesan cuma "tombolnya tidak berfungsi". Ringkasan
+ * ini menjawab dua hal sekaligus — **berapa** yang bermasalah dan **di mana**.
+ *
+ * **Tiap baris bisa diklik dan membawa ke medannya.** Daftar galat yang tidak
+ * bisa diklik hanya memindahkan pekerjaan mencari ke pemesan.
+ *
+ * **Menetap, tidak seperti toast.** Keduanya dipakai bersama justru karena
+ * kelemahannya berlawanan: toast terasa tapi menghilang, ringkasan bertahan
+ * tapi bisa terlewat kalau perhatian sedang di bawah layar.
+ */
+function ErrorSummary({
+  errors,
+  labels,
+  onJump,
+}: {
+  errors: Record<string, string>;
+  labels: Record<string, string>;
+  onJump: (field: string) => void;
+}) {
+  const entries = Object.entries(errors).filter(([, message]) => Boolean(message));
+  if (entries.length === 0) return null;
+
+  return (
+    <div
+      role="alert"
+      className="animate-in fade-in slide-in-from-top-2 mt-4 rounded-lg border border-red-200 bg-red-50 p-4 duration-300"
+    >
+      <div className="flex items-start gap-2.5">
+        <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-red-900">
+            {entries.length === 1
+              ? '1 isian perlu diperbaiki'
+              : `${entries.length} isian perlu diperbaiki`}
+          </p>
+          <ul className="mt-2 space-y-1">
+            {entries.map(([field, message]) => (
+              <li key={field}>
+                <button
+                  type="button"
+                  onClick={() => onJump(field)}
+                  className="flex min-h-11 w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs leading-5 text-red-800 transition-colors hover:bg-red-100 sm:min-h-0"
+                >
+                  <span aria-hidden className="mt-1.5 size-1 shrink-0 rounded-full bg-red-400" />
+                  <span className="min-w-0 flex-1">
+                    <span className="font-semibold">{labels[field] ?? field}</span>
+                    <span className="text-red-700"> — {message}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Satu baris rincian di tahap ringkasan. */
 function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -1600,6 +1856,29 @@ function SummaryRow({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-function FieldError({ message }: { message: string }) {
-  return <p className="mt-1 text-xs font-medium text-red-600">{message}</p>;
+/**
+ * Pesan galat satu medan.
+ *
+ * **`role="alert"` supaya galatnya terdengar, bukan hanya terlihat.** Tanpa ini
+ * pemakai pembaca layar hanya mendengar "invalid" dari `aria-invalid` — tahu
+ * ada yang salah, tanpa pernah tahu apa. Pesannya juga ditautkan ke input lewat
+ * `aria-describedby` pada inputnya, jadi ia terbaca lagi setiap kali
+ * fokus kembali ke medan itu.
+ *
+ * Ikonnya bukan hiasan: warna merah saja tidak sampai pada ~8% laki-laki yang
+ * buta warna merah-hijau (`design.md §9`), dan bentuk memberi tanda kedua yang
+ * tidak bergantung pada warna sama sekali.
+ */
+function FieldError({ id, message }: { id?: string; message: string }) {
+  return (
+    <p
+      id={id}
+      role="alert"
+      className="animate-in fade-in slide-in-from-top-1 mt-1.5 flex items-start gap-1.5 text-xs font-medium text-red-600 duration-200"
+    >
+      <AlertCircle className="mt-px size-3.5 shrink-0" />
+      <span>{message}</span>
+    </p>
+  );
 }
+

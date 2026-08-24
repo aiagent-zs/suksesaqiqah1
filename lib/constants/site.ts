@@ -117,7 +117,7 @@ export const services = [
 export const landingPhotos = {
   /** Foto utama di hero. Lanskap; wajah/objek penting jangan di tepi bawah. */
   hero: {
-    src: 'images/landing/hero.jpg',
+    src: 'images/landing/hero.webp',
     alt: 'Tim Sukses Aqiqah menyiapkan pesanan aqiqah',
     width: 1200,
     height: 900,
@@ -129,32 +129,32 @@ export const landingPhotos = {
    */
   gallery: [
     {
-      src: 'images/landing/galeri-1-persiapan.jpg',
+      src: 'images/landing/galeri-1-persiapan.webp',
       alt: 'Pemeriksaan kesehatan kambing sebelum disembelih',
       caption: 'Persiapan & pemeriksaan hewan',
     },
     {
-      src: 'images/landing/galeri-2-sembelih.jpg',
+      src: 'images/landing/galeri-2-sembelih.webp',
       alt: 'Proses penyembelihan sesuai syariat',
       caption: 'Penyembelihan sesuai syariat',
     },
     {
-      src: 'images/landing/galeri-3-masak.jpg',
+      src: 'images/landing/galeri-3-masak.webp',
       alt: 'Pengolahan daging aqiqah di dapur mitra',
       caption: 'Pengolahan di dapur mitra',
     },
     {
-      src: 'images/landing/galeri-4-kemas.jpg',
+      src: 'images/landing/galeri-4-kemas.webp',
       alt: 'Masakan aqiqah dikemas rapi sebelum diantar',
       caption: 'Pengemasan rapi & higienis',
     },
     {
-      src: 'images/landing/galeri-5-kirim.jpg',
+      src: 'images/landing/galeri-5-kirim.webp',
       alt: 'Pesanan aqiqah diantar ke alamat pemesan',
       caption: 'Diantar ke alamat Anda',
     },
     {
-      src: 'images/landing/galeri-6-salur.jpg',
+      src: 'images/landing/galeri-6-salur.webp',
       alt: 'Penyaluran daging aqiqah kepada penerima manfaat',
       caption: 'Disalurkan ke penerima manfaat',
     },
@@ -170,7 +170,7 @@ export const aqiqahPrograms = [
     popular: false,
     /** Foto masakan paket ini; rasio 4:3 seperti `landingPhotos`. */
     photo: {
-      src: 'images/landing/paket-ekonomi.jpg',
+      src: 'images/landing/paket-ekonomi.webp',
       alt: 'Sajian masakan paket Aqiqah Ekonomi',
     },
     tagline: 'Ibadah aqiqah lengkap dengan harga paling terjangkau.',
@@ -188,7 +188,7 @@ export const aqiqahPrograms = [
     price: 2_800_000,
     popular: true,
     photo: {
-      src: 'images/landing/paket-favorit.jpg',
+      src: 'images/landing/paket-favorit.webp',
       alt: 'Sajian masakan paket Aqiqah Favorit',
     },
     tagline: 'Pilihan paling diminati — seimbang antara porsi dan nilai.',
@@ -206,7 +206,7 @@ export const aqiqahPrograms = [
     price: 3_600_000,
     popular: false,
     photo: {
-      src: 'images/landing/paket-premium.jpg',
+      src: 'images/landing/paket-premium.webp',
       alt: 'Sajian masakan paket Aqiqah Premium',
     },
     tagline: 'Porsi lebih besar dan layanan paling lengkap.',

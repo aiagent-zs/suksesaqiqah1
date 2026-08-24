@@ -7,6 +7,22 @@ const nextConfig: NextConfig = {
    * langsung dari node_modules saat runtime server.
    */
   serverExternalPackages: ['@react-pdf/renderer'],
+
+  images: {
+    /**
+     * Format yang dikirim ke peramban, sesuai urutan pilihan.
+     *
+     * `next/image` sudah mengubah gambar ke WebP secara bawaan — apa pun format
+     * berkas aslinya. Yang ditambahkan di sini AVIF: pada foto seperti milik
+     * halaman ini ia biasanya 20-30% lebih kecil lagi daripada WebP pada mutu
+     * setara. Peramban yang tidak mendukungnya jatuh ke WebP dengan sendirinya
+     * lewat negosiasi `Accept`, jadi tidak ada yang perlu ditangani di kode.
+     *
+     * Ongkosnya: penyandian AVIF lebih lambat, dan itu dibayar **sekali** per
+     * ukuran saat permintaan pertama — hasilnya lalu disinggahkan.
+     */
+    formats: ['image/avif', 'image/webp'],
+  },
 };
 
 export default nextConfig;

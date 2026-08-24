@@ -78,8 +78,33 @@ export default function LandingPage() {
 /* ------------------------------------------------------------------ */
 function Hero() {
   return (
-    <section className="border-b border-neutral-200">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:gap-12 sm:px-6 sm:py-20 lg:grid-cols-[1fr_0.85fr] lg:items-end lg:gap-16 lg:py-24">
+    <section className="relative overflow-hidden border-b border-neutral-200">
+      {/* Latar bertekstur. Tiga lapis, dan ketiganya punya alasan:
+
+          1. Kisi besar 56px — rujukan ke kertas bergaris; halaman ini menjual
+             pencatatan, jadi teksturnya ikut mengatakan itu.
+          2. Kisi halus 14px yang hanya menempati sudut kiri atas — kepadatan
+             yang berubah mencegah latar terbaca sebagai satu raster datar.
+          3. Sapuan hijau sangat tipis dari kiri atas, arah yang sama dengan
+             arah baca.
+
+          Semuanya gradient CSS: nol permintaan jaringan. `-z-10` +
+          `aria-hidden` — murni latar, tidak pernah menghalangi klik maupun
+          terbaca pembaca layar. */}
+      <div
+        aria-hidden
+        className="bg-grid pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(120%_90%_at_15%_0%,black,transparent_70%)]"
+      />
+      <div
+        aria-hidden
+        className="bg-grid-fine pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(45%_55%_at_8%_5%,black,transparent)]"
+      />
+      <div
+        aria-hidden
+        className="from-primary/[0.06] pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br via-transparent to-transparent"
+      />
+
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-14 sm:gap-12 sm:px-6 sm:pt-12 sm:pb-20 lg:grid-cols-[1fr_0.85fr] lg:items-end lg:gap-16 lg:pt-14 lg:pb-24">
         {/* Hero tampil bertahap saat halaman dibuka: label → judul → paragraf →
             tombol → fakta. Jeda 90ms antar-baris — cukup untuk terbaca sebagai
             urutan, dan berhenti di 360ms supaya isi terpenting halaman ini
@@ -95,10 +120,15 @@ function Hero() {
               `text-[2rem]` di ponsel: `text-4xl` membuat "tebarkan manfaat."
               pecah jadi tiga baris pada lebar 360px. */}
           <Reveal delay={90}>
-            <h1 className="mt-5 text-[2rem] leading-[1.1] font-bold tracking-tight text-neutral-900 sm:text-5xl lg:text-6xl">
+            <h1 className="mt-3.5 text-[2rem] leading-[1.1] font-bold tracking-tight text-neutral-900 sm:mt-4 sm:text-5xl lg:text-6xl">
               Tunaikan ibadah,
               <br />
-              tebarkan manfaat.
+              {/* Penekanan lewat warna teksnya sendiri — hijau brand, warna yang
+                  memang berarti sesuatu di sistem ini. Sebelumnya frasa ini
+                  diberi garis bawah oranye yang digambar saat tampil: pola
+                  landing-page generik, dan `accent` dipakai untuk sorotan KPI,
+                  bukan untuk menghias judul. */}
+              <span className="text-primary">tebarkan manfaat.</span>
             </h1>
           </Reveal>
 
@@ -115,7 +145,7 @@ function Hero() {
             <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row">
               <Link
                 href="/checkout"
-                className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3.5 text-sm font-semibold text-white transition-colors"
+                className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98]"
               >
                 Pesan online sekarang
                 <IconArrowRight className="h-4 w-4" />
@@ -124,7 +154,7 @@ function Hero() {
                 href={siteConfig.whatsapp.href(orderMessage())}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 px-6 py-3.5 text-sm font-semibold text-neutral-800 transition-colors hover:border-neutral-400 hover:bg-neutral-50 active:bg-neutral-100"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 px-6 py-3.5 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98] active:bg-neutral-100"
               >
                 <IconWhatsApp className="h-4 w-4" />
                 Tanya via WhatsApp
@@ -137,15 +167,18 @@ function Hero() {
               agar tidak jadi tiga baris penuh yang mendorong foto terlalu jauh
               ke bawah. */}
           <Reveal delay={360}>
-            <dl className="mt-9 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-neutral-200 pt-6 text-sm sm:flex sm:flex-wrap sm:gap-x-8">
+            <dl className="mt-9 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 sm:gap-4">
               {[
                 { value: 'Tanpa akun', label: 'Pesan langsung di web' },
                 { value: 'Tiap tahap', label: 'Divalidasi sebelum lanjut' },
                 { value: 'Link laporan', label: 'Dibuka tanpa login' },
               ].map((s) => (
-                <div key={s.value}>
+                // Garis aksen kiri + latar tipis: cukup untuk memisahkan ketiga
+                // fakta ini dari paragraf di atasnya, tanpa jadi tiga kartu
+                // melayang yang menuntut perhatian sebesar CTA di sebelahnya.
+                <div key={s.value} className="border-primary/40 border-l-2 py-0.5 pl-3">
                   <dt className="font-semibold text-neutral-900">{s.value}</dt>
-                  <dd className="mt-0.5 text-neutral-500">{s.label}</dd>
+                  <dd className="mt-0.5 text-xs leading-5 text-neutral-500">{s.label}</dd>
                 </div>
               ))}
             </dl>
@@ -154,8 +187,15 @@ function Hero() {
 
         {/* Foto dalam bingkai datar bergaris rambut — tanpa bayangan tebal,
             tanpa sudut membulat besar. */}
-        <Reveal as="figure" delay={180} className="lg:pb-1">
-          <div className="overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
+        <Reveal as="figure" delay={180} anim="scale" className="group/hero relative lg:pb-1">
+          {/* Bidang warna di belakang foto, digeser sedikit — memberi kedalaman
+              tanpa `shadow-2xl`. `design.md §4` meminta "shadow halus", dan
+              lapisan seperti ini menempuhnya lewat bentuk, bukan lewat blur. */}
+          <div
+            aria-hidden
+            className="bg-primary/10 pointer-events-none absolute -inset-x-2 -bottom-2 top-3 -z-10 rounded-lg"
+          />
+          <div className="overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 shadow-sm">
             <SitePhoto
               src={landingPhotos.hero.src}
               alt={landingPhotos.hero.alt}
@@ -163,7 +203,7 @@ function Hero() {
               height={landingPhotos.hero.height}
               priority
               sizes="(min-width: 1024px) 42vw, 100vw"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-700 group-hover/hero:scale-[1.02]"
             />
           </div>
           <figcaption className="mt-3 flex items-start gap-2 text-xs leading-5 text-neutral-500">
@@ -183,22 +223,26 @@ function Hero() {
 /* ------------------------------------------------------------------ */
 function ServicesSection() {
   return (
-    <Section id="layanan" index="01" eyebrow="Layanan">
+    <Section bg="grid" id="layanan" index="01" eyebrow="Layanan">
       <SectionIntro
         title="Pilih cara aqiqah Anda ditunaikan"
         lead="Keduanya menempuh proses yang sama sampai daging siap; yang berbeda hanya ke mana ia berakhir."
       />
 
-      {/* Dibagi garis, bukan dijadikan tiga kartu melayang. */}
-      <div className="mt-10 grid divide-y divide-neutral-200 border-y border-neutral-200 sm:mt-12 md:grid-cols-3 md:divide-x md:divide-y-0">
+      <div className="mt-10 grid gap-4 sm:mt-12 md:grid-cols-3">
         {services.map((s, i) => (
+          // Kartu bergaris rambut dengan aksen atas yang melebar saat dituju.
+          // Sebelumnya ketiganya cuma dipisah garis pembagi — benar secara spec,
+          // tapi tidak memberi tanda sama sekali mana yang sedang di bawah
+          // kursor pada grid tiga kolom.
           <Reveal
             key={s.title}
             delay={i * 110}
-            className="px-0 py-7 sm:py-8 md:px-7 md:first:pl-0 md:last:pr-0"
+            anim="scale"
+            className="rounded-lg border border-neutral-200 bg-white p-6 transition-colors hover:border-neutral-300 sm:p-7"
           >
             <Icon name={s.icon} className="text-primary h-7 w-7" />
-            <h3 className="mt-4 text-lg font-semibold text-neutral-900 sm:mt-5">{s.title}</h3>
+            <h3 className="mt-5 text-lg font-semibold text-neutral-900">{s.title}</h3>
             <p className="mt-2 text-sm leading-6 text-neutral-600">{s.description}</p>
           </Reveal>
         ))}
@@ -212,7 +256,7 @@ function ServicesSection() {
 /* ------------------------------------------------------------------ */
 function PackagesSection() {
   return (
-    <Section id="paket" index="02" eyebrow="Paket & Harga">
+    <Section bg="tinted" id="paket" index="02" eyebrow="Paket & Harga">
       <SectionIntro
         title="Harga sudah termasuk seluruh prosesnya"
         lead="Pemotongan syar’i, pemasakan, dokumentasi, dan laporan pelaksanaan — tidak ada biaya yang menyusul di belakang."
@@ -220,7 +264,15 @@ function PackagesSection() {
 
       <div className="mt-10 grid gap-px overflow-hidden rounded-lg border border-neutral-200 bg-neutral-200 sm:mt-12 lg:grid-cols-3">
         {aqiqahPrograms.map((p, i) => (
-          <Reveal key={p.slug} as="article" delay={i * 110} className="flex flex-col bg-white">
+          <Reveal
+            key={p.slug}
+            as="article"
+            delay={i * 110}
+            anim="scale"
+            className={`group/card relative flex flex-col bg-white transition-shadow hover:shadow-sm ${
+              p.popular ? 'ring-primary/40 z-10 ring-2' : ''
+            }`}
+          >
             <div className="overflow-hidden bg-neutral-100">
               <SitePhoto
                 src={p.photo.src}
@@ -228,7 +280,7 @@ function PackagesSection() {
                 width={600}
                 height={400}
                 sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
               />
             </div>
 
@@ -238,7 +290,7 @@ function PackagesSection() {
                 {/* Penanda "paling diminati" jadi label teks kecil, bukan pita
                     mengambang yang menggeser tata letak kartunya. */}
                 {p.popular && (
-                  <span className="border-primary/30 text-primary shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                  <span className="bg-accent shrink-0 rounded px-2 py-0.5 text-[10px] font-bold tracking-wide text-neutral-900 uppercase">
                     Terpopuler
                   </span>
                 )}
@@ -260,9 +312,9 @@ function PackagesSection() {
 
               <Link
                 href={`/checkout?paket=${p.slug}`}
-                className={`mt-6 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold transition-colors ${
+                className={`mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition-all active:scale-[0.98] ${
                   p.popular
-                    ? 'bg-primary hover:bg-primary-dark text-white'
+                    ? 'bg-primary hover:bg-primary-dark text-white shadow-sm hover:shadow'
                     : 'border border-neutral-300 text-neutral-800 hover:border-neutral-400 hover:bg-neutral-50'
                 }`}
               >
@@ -277,12 +329,15 @@ function PackagesSection() {
       {/* Nasi Box — tambahan yang menempel pada paket ibadah, bukan pesanan
           berdiri sendiri. Jalurnya tetap WhatsApp: RPC `create_guest_order`
           memang menolak layanan bertipe `nasi_box`. */}
-      <Reveal className="mt-10 rounded-lg border border-neutral-200 p-5 sm:mt-12 sm:p-8">
+      <Reveal
+        anim="scale"
+        className="mt-10 rounded-lg border border-neutral-200 bg-white p-5 sm:mt-12 sm:p-8"
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xl">
             <h3 className="text-base font-semibold text-neutral-900">
               Nasi box aqiqah{' '}
-              <span className="font-normal text-neutral-400">— tambahan opsional</span>
+              <span className="font-normal text-neutral-500">— tambahan opsional</span>
             </h3>
             <p className="mt-1.5 text-sm leading-6 text-neutral-600">
               Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji. Harga per porsi, dipesan
@@ -293,7 +348,7 @@ function PackagesSection() {
             href={siteConfig.whatsapp.href(orderMessage('Nasi Box Aqiqah'))}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-800 transition-colors hover:border-neutral-400 hover:bg-neutral-50"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98]"
           >
             <IconWhatsApp className="h-4 w-4" />
             Tanya nasi box
@@ -320,8 +375,15 @@ function PackagesSection() {
 /* ------------------------------------------------------------------ */
 function ProcessSection() {
   return (
-    <section id="proses" className="bg-primary-dark text-white">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+    <section id="proses" className="bg-primary-dark relative overflow-hidden text-white">
+      {/* Pola titik terang di atas hijau tua. Memberi tekstur pada satu-satunya
+          bidang warna penuh di halaman ini, yang tanpa itu terbaca sebagai
+          blok datar sebesar layar. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(circle,white_1px,transparent_1px)] [background-size:24px_24px]"
+      />
+      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <Reveal>
           <p className="text-xs font-semibold tracking-[0.14em] text-white/50 uppercase">
             03 — Alur Layanan
@@ -348,9 +410,9 @@ function ProcessSection() {
               key={step.step}
               as="li"
               delay={(i % 3) * 110}
-              className="bg-primary-dark p-5 sm:p-6"
+              className="bg-primary-dark relative p-5 sm:p-6"
             >
-              <span className="text-accent block text-2xl font-bold tabular-nums">{step.step}</span>
+              <span className="text-accent block text-3xl font-bold tabular-nums">{step.step}</span>
               <h3 className="mt-3 text-base font-semibold">{step.title}</h3>
               <p className="mt-2 text-sm leading-6 text-white/70">{step.description}</p>
             </Reveal>
@@ -383,22 +445,28 @@ function GallerySection() {
           // Jeda dihitung per baris, bukan per foto: dengan enam foto, `i * 70`
           // membuat yang terakhir menunggu 350ms — sudah terlewat saat digulir.
           // `i % 3` menahan jeda maksimum di 140ms untuk semua ukuran layar.
-          <Reveal key={photo.src} as="figure" delay={(i % 3) * 110}>
-            <div className="overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
+          <Reveal
+            key={photo.src}
+            as="figure"
+            delay={(i % 3) * 110}
+            anim="scale"
+            className="group/photo"
+          >
+            <div className="relative overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 transition-shadow group-hover/photo:shadow-sm">
               <SitePhoto
                 src={photo.src}
                 alt={photo.alt}
                 width={800}
                 height={600}
                 sizes="(min-width: 1024px) 31vw, (min-width: 640px) 47vw, 100vw"
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover transition-transform duration-700 group-hover/photo:scale-[1.04]"
               />
             </div>
             {/* Keterangan di bawah foto, bukan ditumpuk di atasnya lewat
                 gradasi gelap — teks di atas foto selalu bergantung pada
                 seterang apa foto yang nanti diunggah. */}
-            <figcaption className="mt-3 flex gap-3">
-              <span className="text-xs font-semibold text-neutral-400 tabular-nums">
+            <figcaption className="mt-3 flex items-start gap-3">
+              <span className="text-primary text-xs font-bold tabular-nums">
                 {String(i + 1).padStart(2, '0')}
               </span>
               <span className="text-sm font-medium text-neutral-800">{photo.caption}</span>
@@ -415,20 +483,25 @@ function GallerySection() {
 /* ------------------------------------------------------------------ */
 function FeaturesSection() {
   return (
-    <Section id="keunggulan" index="05" eyebrow="Kenapa Kami">
+    <Section bg="tinted" id="keunggulan" index="05" eyebrow="Kenapa Kami">
       <SectionIntro
         title="Ibadah yang bisa Anda telusuri"
         lead="Bukan sekadar jasa potong hewan — setiap tahapnya tercatat, tervalidasi, dan bisa Anda periksa kembali."
       />
 
-      <div className="mt-10 grid gap-x-10 gap-y-7 sm:mt-12 sm:grid-cols-2 sm:gap-y-9 lg:grid-cols-3">
+      <div className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
         {features.map((f, i) => (
-          <Reveal key={f.title} delay={(i % 3) * 110} className="border-t border-neutral-200 pt-5">
+          <Reveal
+            key={f.title}
+            delay={(i % 3) * 110}
+            anim="scale"
+            className="rounded-lg border border-neutral-200 bg-white p-5 transition-colors hover:border-neutral-300 sm:p-6"
+          >
             <div className="flex items-center gap-2.5">
               <Icon name={f.icon} className="text-primary h-5 w-5 shrink-0" />
               <h3 className="text-base font-semibold text-neutral-900">{f.title}</h3>
             </div>
-            <p className="mt-2.5 text-sm leading-6 text-neutral-600">{f.description}</p>
+            <p className="mt-3 text-sm leading-6 text-neutral-600">{f.description}</p>
           </Reveal>
         ))}
       </div>
@@ -441,7 +514,7 @@ function FeaturesSection() {
 /* ------------------------------------------------------------------ */
 function FaqSection() {
   return (
-    <Section id="faq" index="06" eyebrow="FAQ">
+    <Section bg="grid" id="faq" index="06" eyebrow="FAQ">
       <SectionIntro
         title="Pertanyaan yang sering diajukan"
         lead="Belum menemukan jawabannya? Hubungi kami langsung via WhatsApp."
@@ -449,12 +522,15 @@ function FaqSection() {
 
       <Reveal className="mt-10 max-w-3xl divide-y divide-neutral-200 border-y border-neutral-200">
         {faqs.map((faq) => (
-          <details key={faq.question} className="group py-4 sm:py-5 [&_summary]:list-none">
+          <details
+            key={faq.question}
+            className="group open:bg-primary/[0.03] -mx-3 rounded-lg px-3 py-4 transition-colors hover:bg-neutral-50 sm:py-5 [&_summary]:list-none"
+          >
             <summary className="flex cursor-pointer items-start justify-between gap-4 text-left sm:gap-6">
-              <span className="group-hover:text-primary text-[15px] font-medium text-neutral-900 transition-colors sm:text-base">
+              <span className="group-hover:text-primary group-open:text-primary text-[15px] font-medium text-neutral-900 transition-colors sm:text-base">
                 {faq.question}
               </span>
-              <span className="mt-1 shrink-0 text-neutral-400 transition-transform group-open:rotate-45">
+              <span className="text-primary mt-0.5 flex size-7 shrink-0 items-center justify-center transition-transform duration-300 group-open:rotate-45">
                 <svg
                   viewBox="0 0 24 24"
                   className="h-4 w-4"
@@ -485,8 +561,14 @@ function FaqSection() {
 /* ------------------------------------------------------------------ */
 function CtaSection() {
   return (
-    <section className="border-t border-neutral-200 bg-neutral-50">
-      <Reveal className="mx-auto flex max-w-6xl flex-col gap-7 px-4 py-14 sm:gap-8 sm:px-6 sm:py-20 lg:flex-row lg:items-center lg:justify-between">
+    <section className="relative overflow-hidden border-t border-neutral-200 bg-neutral-50">
+      {/* Tekstur yang sama dengan hero, dibalik arahnya — halaman berakhir
+          seperti ia dimulai. */}
+      <div
+        aria-hidden
+        className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(110%_90%_at_85%_100%,black,transparent_70%)]"
+      />
+      <Reveal className="relative mx-auto flex max-w-6xl flex-col gap-7 px-4 py-14 sm:gap-8 sm:px-6 sm:py-20 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-xl">
           <h2 className="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
             Siap menunaikan ibadah Anda?
@@ -499,7 +581,7 @@ function CtaSection() {
         <div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
           <Link
             href="/checkout"
-            className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3.5 text-sm font-semibold text-white transition-colors"
+            className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98]"
           >
             Pesan online sekarang
             <IconArrowRight className="h-4 w-4" />
@@ -508,7 +590,7 @@ function CtaSection() {
             href={siteConfig.whatsapp.href(orderMessage())}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white px-6 py-3.5 text-sm font-semibold text-neutral-800 transition-colors hover:border-neutral-400 active:bg-neutral-100"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white px-6 py-3.5 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 active:scale-[0.98] active:bg-neutral-100"
           >
             <IconWhatsApp className="h-4 w-4" />
             Konsultasi via WhatsApp
@@ -533,19 +615,48 @@ function Section({
   id,
   index,
   eyebrow,
+  bg = 'plain',
   children,
 }: {
   id: string;
   index: string;
   eyebrow: string;
+  /**
+   * Perlakuan latar.
+   *
+   * Halaman ini panjang, dan tujuh section putih berturut-turut terbaca sebagai
+   * satu bentangan tanpa ujung. Tapi selang-seling putih/abu saja juga monoton —
+   * ia jadi pola yang bisa ditebak setelah dua pergantian. Jadi ada tiga:
+   *
+   * `plain` — putih polos.
+   * `tinted` — abu sangat tipis.
+   * `grid` — putih dengan kisi yang menempati satu sudut saja, jadi batas
+   *   sectionnya terasa tanpa pergantian warna sama sekali.
+   */
+  bg?: 'plain' | 'tinted' | 'grid';
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="border-b border-neutral-200">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+    <section
+      id={id}
+      className={`relative overflow-hidden border-b border-neutral-200 ${
+        bg === 'tinted' ? 'bg-neutral-50/70' : 'bg-white'
+      }`}
+    >
+      {bg === 'grid' && (
+        <div
+          aria-hidden
+          className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(80%_70%_at_100%_0%,black,transparent_65%)]"
+        />
+      )}
+      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <Reveal>
-          <p className="text-xs font-semibold tracking-[0.14em] text-neutral-400 uppercase">
-            {index} — <span className="text-primary">{eyebrow}</span>
+          <p className="flex items-center gap-3 text-xs font-semibold tracking-[0.14em] text-neutral-500 uppercase">
+            <span className="tabular-nums">{index}</span>
+            {/* Garis penghubung antara nomor dan nama bagian. Menggantikan tanda
+                hubung "—": bentuknya menuntun mata ke kanan, ke arah baca. */}
+            <span aria-hidden className="bg-primary/30 h-px w-6 sm:w-10" />
+            <span className="text-primary">{eyebrow}</span>
           </p>
         </Reveal>
         {children}
@@ -560,7 +671,7 @@ function SectionIntro({ title, lead }: { title: string; lead: string }) {
       <h2 className="text-[1.75rem] leading-tight font-bold tracking-tight text-neutral-900 sm:text-4xl">
         {title}
       </h2>
-      <p className="mt-3.5 text-base leading-7 text-neutral-600 sm:mt-4">{lead}</p>
+      <p className="mt-4 text-base leading-7 text-neutral-600">{lead}</p>
     </Reveal>
   );
 }

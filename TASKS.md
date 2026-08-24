@@ -10,7 +10,7 @@
 | Diperbarui                       | 2026-08-24                                                                                                                                                                                                                                           |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                             |
 | Estimasi Phase 1                 | **± 83%** (dari 80% — rantai end-to-end kini terbukti otomatis di lokal, lihat _Perbaikan 24 Agustus_)                                                                                                                                               |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · **364 unit test hijau (27 file)** · **93 tes integrasi hijau (7 file) terhadap Postgres lokal** · **37 migration jalan bersih di lokal ✅ dan seluruhnya sudah ter-push ke cloud ✅** |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(18 rute)** · **381 unit test hijau (28 file)** · **95 tes integrasi hijau (7 file) terhadap Postgres lokal** · **38 migration jalan bersih dari nol di lokal ✅ dan seluruhnya selaras di cloud ✅** · **jendela pemesanan baru terbukti ditegakkan di cloud lewat jalur `anon`** ✅ |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
 
@@ -473,6 +473,31 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [x] Order tamu ditandai `created_by IS NULL` + gerbang verifikasi admin lewat trigger
 - [x] **Cara penyaluran kini wajib dan menyetir tahapan** — bukan lagi sekadar penentu wajib-tidaknya alamat
 - [x] **`BOOKING_MAX_DAYS` diseragamkan.** Klien mengizinkan 30 hari sementara RPC menolak di atas 7 — pemesan lolos seluruh validasi form lalu ditolak database. Keduanya kini membaca `app_settings.booking_max_days`
+- [x] **Jeda persiapan minimum — 24 Agustus.** Sebelumnya pemesan boleh memilih
+      **hari ini** sebagai tanggal pelaksanaan; hewan perlu dicari dan disiapkan,
+      mitra perlu dijadwalkan, jadi order hari-yang-sama tidak pernah benar-benar
+      bisa dikerjakan — yang terjadi hanya admin menelepon balik untuk memundurkan
+      tanggal. Kini hari pengisian form **dan 3 hari sesudahnya** ditolak: mengisi
+      tanggal 10 paling cepat mendapat tanggal 14. Batas atas ikut dilonggarkan
+      7 → 30 hari, sebab jendela lama hanya menyisakan 3 tanggal setelah jeda
+      diberlakukan. Angkanya di `app_settings.booking_min_days` lewat
+      `booking_min_days()`, mengikuti pola yang sudah dipakai batas atas.
+      **Terverifikasi di Postgres lokal**: 38 migration jalan bersih dari nol,
+      `booking_min_days()` = 4 dan `booking_max_days()` = 30 terbaca dari
+      `app_settings`. Tiga tes integrasi menjaganya — tiap hari dalam jeda
+      ditolak satu per satu (jeda yang meleset sehari hanya terlihat di hari
+      terakhir), dan tanggal persis di batas bawah **diterima**, supaya jeda yang
+      kelebihan sehari tidak lolos tanpa jejak
+- [x] **Peran `minDate` dipisah.** Form dulu meminjam prop `minDate` untuk dua
+      hal — batas bawah pemesanan **dan** "hari ini" sebagai batas atas tanggal
+      lahir anak — karena nilainya kebetulan sama. Dengan jeda persiapan keduanya
+      berbeda empat hari, dan meminjamnya lagi berarti meloloskan tanggal lahir
+      yang belum terjadi. Prop `today` kini berdiri sendiri, dengan tes yang
+      menuntut `co-birthdate.max` tetap hari ini
+- [x] **Pesan galat dipisah** antara "sudah lewat" dan "belum melewati jeda" —
+      dua kekeliruan dengan jalan keluar berbeda: yang satu cukup ganti tanggal,
+      yang satu memang harus menghubungi admin. RPC menyebutkan tanggal terdekat
+      yang bisa dipilih, bukan hanya jumlah harinya
 - [x] Alamat pengiriman terstruktur dari `regions` (91.599 wilayah Kemendagri); nama ikut disimpan, bukan hanya kode, karena alamat pada order adalah rekaman sejarah
 - [x] Kebenaran kode wilayah ditegakkan saat penulisan (sejalur dari kodenya sendiri), bukan lewat FK
 - [x] `orders.delivery_address` dirakit RPC dari bagian-bagiannya — satu tempat saja yang menyusun teks itu
@@ -689,7 +714,31 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [ ] Affiliate / Referral UI — `referral_code` sudah diterima checkout, belum ada yang mengolahnya
 - [ ] Chatbot + human handoff → `docs/26`
 - [ ] **Notifikasi WhatsApp otomatis** ke pemesan. Halaman checkout **menjanjikan** "tim kami menghubungi Anda lewat WhatsApp"; yang ada baru tombol manual. Bergantung Tahap 8
+- [x] **Jendela pemesanan terverifikasi di cloud (24 Agustus).** `20260824010000`
+      sudah ada di remote (38/38 migration selaras). Diuji lewat jalur `anon`
+      dengan kunci publik, bukan service role — jadi yang terbukti adalah jalan
+      yang sungguh ditempuh pengunjung: H+0…H+3 semuanya ditolak dengan pesan
+      yang menyebut tanggal terdekat ("paling cepat … tanggal 28-08-2026"), H+31
+      ditolak batas atas, dan **H+4 berhasil membuat order** — penolakan saja
+      tidak membuktikan apa pun kalau batas bawahnya ikut tertutup.
+      `booking_min_days()` = 4 dan `booking_max_days()` = 30 terbaca `anon`
+- [x] **Bug penghitung nomor order di cloud ditemukan & ditutup (24 Agustus).**
+      Terungkap justru karena uji batas bawah di atas: H+4 lolos seluruh gerbang
+      lalu ditolak `orders_order_number_key` — `order_counters.last_value` = 2
+      sementara order seed sudah sampai `IA-202608-0003`, jadi **checkout
+      berikutnya dari pengunjung mana pun pasti gagal**. Perbaikan seed-nya sudah
+      ada di `02_demo.sql`, tetapi seed **tidak ikut `db push`**, jadi cloud yang
+      di-seed sebelum perbaikan itu tetap membawa penghitung basi. Diselaraskan
+      dengan pernyataan yang sama seperti seed — nilainya diturunkan dari
+      `orders`, bukan angka yang diketik. Order uji dihapus dan penghitung
+      dikembalikan; cloud kembali ke 3 order, `last_value` = 3
 - [ ] ⚠️ Belum diverifikasi dengan pemesanan sungguhan dari pengunjung anonim di cloud
+      (yang di atas dilakukan lewat skrip, bukan orang lewat halaman checkout)
+- [ ] **Pelajaran yang belum ditutup: seed tidak ikut `db push`.** Dua kali
+      berturut-turut celah muncul dari sini. Belum ada yang menjaga bahwa
+      `order_counters` di cloud selaras dengan `orders` — pemeriksaannya sepele
+      (`max(order_number)` vs `last_value`), tapi sekarang hanya ketahuan saat
+      ada yang mencoba memesan
 
 > **Pertentangan dokumen — sudah diputuskan di lapangan.** `prd.md §7.3` FR-C2 menetapkan guest checkout sebagai **M (Must)**, sementara `docs/01 §6` dan `docs/23 §6` mencantumkannya sebagai out of scope. Aturan otoritas memenangkan `prd.md`, dan kodenya sudah ada sejak 11 Agustus — jadi kedua bagian `docs/` itu kini bukan sekadar usang, melainkan **salah**.
 
@@ -728,46 +777,149 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [x] Konflik token warna diperbaiki (`app/globals.css`) — satu sumber kebenaran per token di `:root`
 - [x] Sesuai spec: `AppShell`, `KpiCard`, `StatusBadge`, `FilterBar`, `OrderCard`, `ValidationQueue`, `AlertList`, pola halaman list & detail, breakpoint responsif, bahasa Indonesia
 - [x] **Landing dikembalikan ke §1 (_clarity over decoration_) & §4 (radius 8–12px, shadow halus)** — lihat §8. Sebelumnya halaman publik justru jadi bagian yang paling jauh menyimpang dari spec-nya sendiri
-- [ ] **Checkout — sisa telusur UI/UX.** Penyimpanan isian sudah ditutup (§8);
-      yang tersisa, berurut dampaknya ke pemesan:
-  1. **Target sentuh < 44px** — tombol jam (`py-2` ≈ 34px, grid 3 kolom di lebar
-     360px), `StepperButton` jumlah ekor (`size-8` = 32px), dan tab langkah di
-     kepala wizard (`py-1.5` ≈ 28px). Ambang 44px itu sudah ditegakkan di header
-     landing, jadi checkout kini justru yang paling menyimpang
-  2. **Galat tidak sampai ke pembaca layar** — `FieldError` tanpa `role="alert"`
-     dan tanpa `aria-describedby` yang menautkannya ke input; pemakainya hanya
-     mendengar "invalid" tanpa tahu apa yang salah. Perpindahan langkah juga
-     tidak diumumkan dan fokus jatuh ke `<body>`
-  3. **`<Label>` yatim di 7 tempat** — merender `<label>` yang tidak menunjuk
-     kontrol apa pun; untuk grup tombol seharusnya `role="radiogroup"` +
-     `aria-labelledby`
-  4. **Radius & tinggi tombol tidak konsisten** — "Kembali" (`rounded-xl py-2.5`)
-     bersebelahan langsung dengan "Lanjut" (`rounded-lg py-3`); kartu
-     `rounded-lg` tapi input `rounded-xl`
-  5. **Sisa pekerjaan yang belum diberesi** — blok "Instansi Penerima Risalah"
-     dan info WhatsApp dikomentari, tapi `recipient_institution` masih hidup di
-     `Draft`, `FIELD_ANCHOR`, `FIELD_STEP`, dan `schema.ts`. Perlu diputuskan:
-     dipakai atau dicabut
-  6. `notes` diisi di langkah 4 tapi tidak muncul di ringkasan; textarea alamat
-     tanpa `autoComplete`; tidak ada `loading.tsx` untuk halaman `force-dynamic`;
-     `text-neutral-400` pada langkah belum-dicapai ≈2,6:1 (gagal WCAG AA)
-- [ ] ⚠️ **Halaman internal belum ditelusuri dengan ukuran yang sama.** Rombakan
-      21 Agustus baru menyentuh landing, header, dan footer. Hitungan di
-      `app/(app)`, `features/`, dan `components/{data,layout}`: **62 `rounded-2xl`**,
-      2 `rounded-3xl`, 2 `shadow-xl`, 1 `shadow-2xl` — seluruhnya di luar rentang
-      radius 8–12px yang diminta §4. Yang menenangkan: `bg-clip-text` dan `blur-3xl`
-      **nol** di sana, jadi yang perlu dirapikan hanya radius & bayangan, bukan
-      dekorasi. Belum dikerjakan karena ini halaman staf — tidak dilihat pemesan,
-      dan menyentuh 60+ tempat sekaligus lebih baik jadi satu pekerjaan tersendiri
+- [x] **Kedalaman dikembalikan tanpa melanggar spec (24 Agustus).** Rombakan 21
+      Agustus ternyata ditarik terlalu jauh — halamannya patuh sampai terbaca
+      datar. Yang ditambahkan: latar bertekstur (pola titik & sapuan warna dari
+      gradient CSS, nol permintaan jaringan), latar section berselang-seling,
+      ikon berlatar warna pada kartu layanan/keunggulan/galeri, garis aksen di
+      bawah judul yang digambar dari kiri, bidang warna di belakang foto hero
+      sebagai pengganti bayangan tebal, dan lencana status berdenyut. **Keempat
+      larangan tetap nol** — `bg-clip-text`, `blur-3xl`, `shadow-2xl`,
+      `rounded-2xl`/`3xl` — diverifikasi dari HTML yang benar-benar dirender,
+      bukan dari grep sumber. `design.md §1` diberi catatan batas supaya spec
+      dan kode tidak berselisih lagi
+- [x] **Gerakan dibuat dua arah & berulang (24 Agustus).** Dua keluhan, dua
+      akar: `observer.unobserve()` membuat animasi hanya sekali seumur halaman —
+      menggulir balik menampilkan halaman yang sepenuhnya diam; dan arah
+      gerakannya selalu sama tanpa peduli arah gulir, sehingga saat menggulir
+      naik isinya terbaca didorong berlawanan dengan tangan. Sekarang arah
+      gerakan mengikuti arah gulir, dan blok tampil lagi tiap kali masuk layar.
+      Reset hanya setelah blok benar-benar lepas layar (`intersectionRatio === 0`),
+      jadi kegelisahan yang dulu dihindari `unobserve` tetap tidak terjadi.
+      Durasi dipendekkan 0,85 → 0,62 detik dan easing dilembutkan ke easeOutQuad:
+      sejak gerakannya berulang, durasi lama terbaca sebagai penundaan.
+      Satu listener `scroll` dipakai bersama seluruh `Reveal` (halaman ini punya
+      43) dengan ambang 4px untuk menelan getaran gulir inersia di ponsel.
+      **5 tes baru** (`reveal.test.ts`) menjaga keempat perilaku itu
+- [x] **Garis aksen & pola titik dicabut, latar divariasikan (24 Agustus).**
+      Putaran lanjutan sesudah masukan bahwa hero masih terbaca generik. Yang
+      dicabut: **garis oranye di bawah "tebarkan manfaat."** dan garis serupa di
+      bawah **tiap judul section** (10 kemunculan) — bentuknya pola
+      landing-page generik, dan warnanya `accent` yang di sistem ini berarti
+      sorotan KPI, jadi memakainya untuk menghias judul menghabiskan arti warna
+      itu. Penekanan kini lewat `text-primary` pada frasa kuncinya. Keyframe
+      `draw-line` ikut dibuang supaya tidak jadi jalan yang mengundang pemakaian
+      ulang. **Pola titik** diganti kisi garis tipis dua kepadatan — titik
+      seragam adalah tekstur paling umum di halaman produk mana pun, sementara
+      kisi punya alasan di sini: halaman ini menjual pencatatan. **Jarak
+      navbar→teks** dirapatkan (`py-14/20/24` → `pt-8/12/14`); header setinggi
+      64px sudah memberi ruang putihnya sendiri. **Latar section jadi tiga
+      perlakuan** (`plain`/`tinted`/`grid`), sebab selang-seling dua nilai jadi
+      pola yang bisa ditebak setelah dua pergantian
+- [x] **Pengayaan yang terbaca "AI slop" dicabut (24 Agustus).** Ditambahkan
+      pada putaran sebelumnya lalu dibuang karena semuanya pola landing-page
+      generik: lencana titik berdenyut (menandakan "live" padahal tidak ada yang
+      live), kotak ikon yang berbalik hijau penuh saat hover, garis atas kartu
+      yang melebar, latar berdenyut pelan, dan gradasi pada tiap kartu. Yang
+      dipertahankan hanya yang menerangkan sesuatu: pola titik statis di hero,
+      latar section berselang-seling, garis aksen di bawah judul, dan zoom halus
+      pada foto — penanda kartu mana yang sedang dituju di grid. Patokannya
+      dicatat di `design.md §1` sebagai uji tetap
+- [x] **Gambar landing pindah ke `.webp` + AVIF (24 Agustus).** Sepuluh path di
+      `site.ts` kini `.webp`, dan `next.config.ts` menyajikan
+      `['image/avif', 'image/webp']`. Catatan yang perlu diketahui: `next/image`
+      **sudah** mengubah gambar ke WebP secara bawaan apa pun format sumbernya —
+      jadi yang benar-benar baru di sini adalah AVIF (biasanya 20-30% lebih kecil
+      lagi) dan sumber di repo yang ikut ringan. Peramban tanpa dukungan AVIF
+      jatuh ke WebP sendiri lewat negosiasi `Accept`
+- [x] **Sistem gerak diperluas (24 Agustus).** `rise-scale` (kartu — naik +
+      membesar 2%), `slide-in-left` (deret langkah proses; arahnya ikut
+      menyampaikan urutan), `draw-line` (aksen judul), `soft-pulse` (latar).
+      `<Reveal anim="...">` memilihnya lewat atribut, bukan kelas, supaya tidak
+      bisa tertimpa utilitas Tailwind. Easing-nya satu untuk semua
+      (`cubic-bezier(.33,1,.68,1)`), jadi seluruh halaman terbaca berasal dari
+      satu sistem gerak. Semuanya mati pada `prefers-reduced-motion` lewat
+      aturan sapu-bersih yang sudah ada — diverifikasi ada di CSS bundel
+- [x] **Placeholder foto dirapikan.** Sepuluh slot kosong sebelumnya kotak abu
+      rata bertuliskan nama berkas; dengan sepuluh sekaligus halamannya terbaca
+      belum jadi. Kini bergradasi tipis + pola titik + ikon berlatar, jadi
+      terasa disengaja alih-alih rusak — tanpa menyamar sebagai foto sungguhan.
+      **Ini menutupi gejala, bukan sebabnya**: `public/images/landing/` masih
+      berisi README saja, dan mengisi 10 foto itu tetap pekerjaan nomor 1 di §11.
+      README-nya kini menyebut `.webp` beserta cara mengubahnya tanpa memasang
+      perkakas apa pun
+- [x] **Checkout — umpan balik galat & target sentuh ditutup (24 Agustus).**
+      Empat dari enam butir telusur UI/UX beres; sisanya di butir terpisah
+      di bawah. Yang dikerjakan:
+  1. **Target sentuh ≥ 44px** — tombol jam, `StepperButton` jumlah ekor, dan tab
+     langkah semuanya naik ke `min-h-11`/`size-11`. Ambang yang sudah ditegakkan
+     di header landing kini berlaku juga di checkout
+  2. **Galat sampai ke pembaca layar** — `FieldError` kini `role="alert"`,
+     ditautkan ke inputnya lewat `aria-describedby` di 10 medan, dan diberi ikon
+     supaya tandanya tidak hanya warna (≈8% laki-laki buta warna merah-hijau).
+     Tab langkah dapat `aria-label` utuh — sebelumnya yang terbaca cuma "1." atau
+     ikon centang
+  3. **`role="radiogroup"` + `aria-labelledby`** pada tiga grup tombol
+     (aqiqah untuk, paket, cara penyaluran); `aria-pressed` diganti
+     `aria-checked` karena ketiganya pilihan tunggal, bukan tombol tekan
+  4. **Radius & tinggi tombol seragam** — "Kembali" dan "Lanjut" sama-sama
+     `rounded-lg min-h-11`; input ikut `rounded-lg`, jadi kartu, tombol, dan
+     input berada di radius yang sama
+  6. `text-neutral-400` (≈2,6:1, gagal AA) **nol** di checkout maupun landing —
+     diverifikasi dari HTML yang benar-benar dirender, bukan dari grep sumber
+- [x] **Umpan balik galat: toast + ringkasan yang bisa diklik (24 Agustus).**
+      Keduanya dipakai bersama justru karena kelemahannya berlawanan — toast
+      terasa tapi menghilang, ringkasan bertahan tapi bisa terlewat kalau
+      perhatian sedang di bawah layar. Ringkasan menetap di atas form,
+      menyebut **berapa** yang bermasalah dan **di mana**, dan tiap barisnya
+      melompat ke medannya lewat `jumpToField` — jalur yang sama dengan lompatan
+      otomatis, supaya keduanya tidak bisa menyimpang. `FIELD_ANCHOR` dilengkapi
+      empat medan grup yang sebelumnya tidak ada di peta sama sekali, jadi
+      galatnya tidak pernah bisa dilompati. **7 tes baru** menjaga: ringkasan
+      memakai nama medan yang terbaca orang (bukan `aqiqah_for`), hitungan
+      jamaknya benar, `aria-describedby` benar-benar menunjuk id yang ada, baris
+      ringkasan sungguh memindahkan langkah, dan toast muncul **lagi** pada
+      kesalahan yang sama berturut-turut (penghitung, bukan pesan, sebagai kunci)
+- [x] **Gerakan: `nudge` & `toast-in` di `globals.css`** — dua keyframe saja, dan
+      keduanya menerangkan sesuatu. Goyangan medan 4px sekali jalan; lebih lebar
+      terbaca sebagai "rusak", bukan "periksa lagi". Sumbunya horizontal karena
+      arah itu tidak dipakai gerakan lain, jadi tidak tertukar dengan `rise-in`
+      yang vertikal. Gerak tekan (`active:scale-[0.98]`) ditambahkan pada seluruh
+      CTA landing, header, dan checkout: di ponsel `hover:` tidak pernah menyala,
+      jadi tanpa itu tombol terasa mati saat disentuh. Semuanya ikut mati lewat
+      blok `prefers-reduced-motion` yang sudah ada
+- [x] **Halaman internal dirapikan ke radius spec (24 Agustus).** 46 `rounded-2xl`
+      (24px) di `app/(app)`, `features/`, dan `components/{data,layout}` diganti
+      `rounded-lg` (12px, batas atas §4) di **21 berkas** — kini **nol** tersisa.
+      `rounded-3xl`, `shadow-xl`, dan `shadow-2xl` ternyata sudah nol sejak
+      sebelumnya: yang terhitung di revisi lalu adalah kemunculan di dalam **teks
+      komentar**, bukan kelas yang dirender. Halaman ini terlindung auth (307 ke
+      login) sehingga tidak bisa dirender tanpa sesi, jadi buktinya `npm run build`
+      hijau untuk seluruh 18 rute
 - [x] **`prefers-reduced-motion` ditegakkan global** (§9) — sebelumnya
       `scroll-behavior: smooth` berjalan tanpa guard sama sekali
-- [ ] **§8 State & Feedback — bagian terlemah.** Tidak ada toast, `Skeleton`, `loading.tsx`/`error.tsx`, konfirmasi aksi destruktif, maupun banner "Mode offline"
+- [ ] **§8 State & Feedback — sebagian tertutup.** **Toast sudah ada**
+      (`components/ui/toast.tsx`), tapi baru dipakai checkout; halaman staf masih
+      memakai pesan sebaris. Yang belum sama sekali: `Skeleton`,
+      `loading.tsx`/`error.tsx`, konfirmasi aksi destruktif, dan banner
+      "Mode offline"
 - [ ] Token semantik `success`/`warning`/`danger`/`info` terdefinisi tapi hampir tak terpakai
-- [ ] Sidebar merender navy `#0b1c30` yang di-hardcode di 11 tempat, sementara token `--sidebar` bernilai hijau dan `design.md §3` tidak menyebut navy sama sekali
-- [ ] `text-accent-dark` (`#c98800`) di atas putih ~3,4:1 — gagal WCAG AA untuk teks kecil
+- [x] **Navy sidebar disatukan ke token (24 Agustus).** `#0b1c30` sebelumnya
+      ditulis ulang di lima tempat sementara `--sidebar` justru bernilai hijau dan
+      tidak dibaca siapa pun. Token kini bernilai navy yang memang tampil, dan
+      `bg-[#0b1c30]`/`border-slate-800`/`bg-slate-900` diganti `bg-sidebar`/
+      `border-sidebar-border`/`bg-sidebar-accent` — **nol** nilai hardcode tersisa.
+      Tampilannya tidak berubah; yang berubah hanya jumlah tempat yang harus
+      disentuh untuk mengubahnya
+- [x] **`text-accent-dark` ternyata tidak dipakai di mana pun** — yang tersisa
+      hanya definisi tokennya di `globals.css`, jadi tidak ada teks yang gagal
+      kontras karenanya. Diperiksa ulang 24 Agustus, bukan diperbaiki
 - [ ] `DataTable` belum punya sort per kolom & klik-baris; `Timeline`, `EmptyState`, `MediaGallery` masih inline
 - [ ] `MediaUploader` masih `<input type="file">` polos — digabung ke pekerjaan PWA (§9)
-- [ ] Blok `.dark` di `globals.css` adalah **kode mati**
+- [ ] Blok `.dark` di `globals.css` — **bukan kode mati sepenuhnya**: varian
+      `dark:` masih dirujuk `components/ui/button.tsx`. Yang benar: tidak ada yang
+      pernah memasang kelas `.dark`, jadi cabang itu tidak pernah menyala.
+      Diperiksa ulang 24 Agustus
 - [ ] `design.md §2` menyebut Radix & Recharts; kenyataannya `@base-ui/react` dan bar CSS buatan sendiri
 
 ---

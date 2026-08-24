@@ -108,7 +108,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
       </div>
 
       {/* --- Header --- */}
-      <header className="border-border bg-card rounded-2xl border p-5 shadow-sm">
+      <header className="border-border bg-card rounded-lg border p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight tabular-nums">
@@ -165,7 +165,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {/* --- Item layanan --- */}
-          <section className="border-border bg-card overflow-hidden rounded-2xl border shadow-sm">
+          <section className="border-border bg-card overflow-hidden rounded-lg border shadow-sm">
             <div className="border-border border-b px-5 py-4">
               <h2 className="text-base font-semibold">Item Layanan</h2>
             </div>
@@ -283,7 +283,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           />
 
           {/* --- Riwayat --- */}
-          <section className="border-border bg-card rounded-2xl border shadow-sm">
+          <section className="border-border bg-card rounded-lg border shadow-sm">
             <div className="border-border border-b px-5 py-4">
               <h2 className="text-base font-semibold">Riwayat</h2>
               <p className="text-muted-foreground mt-0.5 text-sm">
@@ -333,7 +333,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
 
         {/* --- Sidebar kanan --- */}
         <div className="space-y-6">
-          <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
+          <section className="border-border bg-card rounded-lg border p-5 shadow-sm">
             <h2 className="text-base font-semibold">Aksi Status</h2>
             <p className="text-muted-foreground mt-0.5 mb-4 text-sm">
               Transisi mengikuti state machine docs/08.
@@ -341,7 +341,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             <StatusActions orderId={order.id} options={transitions} />
           </section>
 
-          <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
+          <section className="border-border bg-card rounded-lg border p-5 shadow-sm">
             <h2 className="text-base font-semibold">Ringkasan</h2>
             <dl className="mt-4 space-y-3.5 text-sm">
               <div className="flex gap-3">
@@ -403,7 +403,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               sengaja tidak diduplikasi di sini agar tidak ada dua sumber
               tampilan untuk nilai yang sama. */}
           {!showPayments && (
-            <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
+            <section className="border-border bg-card rounded-lg border p-5 shadow-sm">
               <h2 className="flex items-center gap-2 text-base font-semibold">
                 <Receipt className="text-muted-foreground size-4" />
                 Pembayaran
@@ -415,7 +415,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           )}
 
           {order.notes && (
-            <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
+            <section className="border-border bg-card rounded-lg border p-5 shadow-sm">
               <h2 className="text-base font-semibold">Catatan</h2>
               <p className="text-muted-foreground mt-2 text-sm whitespace-pre-wrap">
                 {order.notes}

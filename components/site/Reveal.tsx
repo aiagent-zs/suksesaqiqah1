@@ -4,20 +4,29 @@ import { useEffect, useRef } from 'react';
 import type { ElementType, ReactNode } from 'react';
 
 /**
- * Memunculkan isinya saat tergulir ke layar — naik sedikit sambil memudar.
+ * Memunculkan isinya saat tergulir ke layar — dan **memunculkannya lagi** saat
+ * tergulir balik.
  *
- * **Kenapa IntersectionObserver, bukan animasi yang langsung jalan.** Animasi
- * yang berjalan saat halaman dimuat akan sudah selesai sebelum pengunjung
- * menggulir sampai ke sana; yang ia lihat cuma elemen diam. Observer membuat
- * gerakannya terjadi tepat saat bagian itu masuk pandangan.
+ * **Kenapa berulang, padahal versi sebelumnya sekali jalan.** Versi lama
+ * memanggil `observer.unobserve()` begitu elemen tampil, dengan alasan elemen
+ * yang muncul-hilang berulang terasa gelisah. Alasannya benar, tapi obatnya
+ * terlalu keras: akibatnya menggulir balik ke atas menampilkan halaman yang
+ * sepenuhnya diam, dan bagian yang sudah terlewat tidak pernah hidup lagi.
+ *
+ * Yang dipakai sekarang menyelesaikan keduanya:
+ *
+ * 1. **Arah gerakan mengikuti arah gulir.** Menggulir ke bawah, elemen datang
+ *    dari bawah; menggulir ke atas, ia datang dari atas. Gerakan yang melawan
+ *    arah gulir itulah yang dulu terbaca "kaku" — isinya seolah didorong
+ *    berlawanan dengan tangan yang menggulir.
+ * 2. **Reset hanya setelah elemen benar-benar lepas dari layar.** Selama masih
+ *    terlihat sebagian, statusnya tidak disentuh. Ini yang mencegah kegelisahan
+ *    yang dikhawatirkan versi lama: menggoyang layar sedikit di sekitar batas
+ *    tidak memicu apa pun.
  *
  * **Tanpa dependensi tambahan.** Observer sudah ada di semua peramban sasaran;
- * memasang pustaka animasi untuk satu gerakan sepanjang 10px tidak sebanding
- * dengan tambahan ukuran bundel-nya.
- *
- * **Sekali jalan, lalu berhenti diamati.** Elemen yang muncul-hilang berulang
- * saat digulir naik-turun cepat terasa gelisah, terutama di ponsel. Setelah
- * tampil, elemennya dilepas dari observer dan tidak pernah dianimasikan lagi.
+ * memasang pustaka animasi untuk gerakan sependek ini tidak sebanding dengan
+ * tambahan ukuran bundel-nya.
  *
  * **Aman ketika JavaScript mati atau lambat.** Nilai awal `data-reveal` dipasang
  * di server sebagai atribut, dan CSS-nya menyembunyikan elemen — jadi kalau
@@ -36,19 +45,55 @@ export type RevealProps = {
   as?: ElementType;
   className?: string;
   /**
+   * Jenis gerakannya.
+   *
+   * `rise` (bawaan) — bergeser searah gulir sambil memudar; aman untuk teks.
+   * `scale` — bergeser + membesar 1,5%, jadi blok terasa maju ke depan. Untuk
+   *   kartu, **bukan** untuk teks: teks yang berubah skala terbaca buram selama
+   *   animasi berjalan.
+   */
+  anim?: 'rise' | 'scale';
+  /**
    * Penundaan sebelum elemen ini muncul, dalam milidetik.
    *
    * Dipakai untuk memberi jeda antar-anggota satu kelompok, sehingga kartu
    * berjajar tampil berurutan alih-alih serentak. Tahan diri: jeda yang panjang
    * membuat pengunjung yang menggulir cepat melewati elemennya sebelum sempat
-   * tampil, dan yang tertinggal justru kesan halaman lambat. Di halaman ini
-   * jeda terbesar 240ms, dan pemicunya sudah dimajukan lewat `rootMargin`
-   * supaya jeda itu terbayar sebelum elemennya terlihat.
+   * tampil, dan yang tertinggal justru kesan halaman lambat.
    */
   delay?: number;
 };
 
-export function Reveal({ children, as, className, delay = 0 }: RevealProps) {
+/**
+ * Arah gulir terakhir, dipakai bersama oleh seluruh `<Reveal>` di halaman.
+ *
+ * Satu listener untuk semua, bukan satu per komponen: halaman ini memasang
+ * lebih dari 40 `Reveal`, dan 40 listener `scroll` yang menghitung hal yang
+ * persis sama adalah pemborosan yang terasa di ponsel.
+ */
+let scrollDir: 'down' | 'up' = 'down';
+let lastY = 0;
+let listening = false;
+
+function startTracking() {
+  if (listening || typeof window === 'undefined') return;
+  listening = true;
+  lastY = window.scrollY;
+  window.addEventListener(
+    'scroll',
+    () => {
+      const y = window.scrollY;
+      // Ambang 4px menelan getaran kecil dari gulir inersia di ponsel, yang
+      // tanpa itu membuat arahnya berbalik-balik saat halaman hampir berhenti.
+      if (Math.abs(y - lastY) < 4) return;
+      scrollDir = y > lastY ? 'down' : 'up';
+      lastY = y;
+    },
+    { passive: true },
+  );
+}
+
+export function Reveal({ children, as, className, delay = 0, anim = 'rise' }: RevealProps) {
   const Tag = as ?? 'div';
   const ref = useRef<HTMLElement>(null);
 
@@ -56,38 +101,45 @@ export function Reveal({ children, as, className, delay = 0 }: RevealProps) {
     const el = ref.current;
     if (!el) return;
 
-    const show = () => {
-      el.dataset.reveal = 'shown';
-    };
+    startTracking();
 
     // Peramban tanpa IntersectionObserver: tampilkan saja. Halaman yang isinya
     // tak pernah terlihat jauh lebih buruk daripada halaman tanpa animasi.
     if (typeof IntersectionObserver === 'undefined') {
-      show();
+      el.dataset.reveal = 'shown';
       return;
     }
 
-    // Sudah berada di layar saat komponen dipasang (mis. hero, atau pengunjung
-    // membuka tautan #anchor langsung ke tengah halaman) — tampilkan tanpa
-    // menunggu putaran observer berikutnya.
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          show();
-          observer.unobserve(entry.target);
+          if (entry.isIntersecting) {
+            if (el.dataset.reveal === 'shown') continue;
+            // Arah gerakan ditetapkan saat elemen mau tampil, bukan sekali di
+            // awal: pengunjung bisa berganti arah kapan saja, dan yang harus
+            // dicocokkan adalah arah pada saat itu.
+            el.dataset.revealFrom = scrollDir;
+            el.dataset.reveal = 'shown';
+            continue;
+          }
+
+          // Lepas dari layar — siapkan untuk tampil lagi nanti. `intersectionRatio`
+          // nol memastikan ini hanya terjadi setelah elemen benar-benar keluar,
+          // bukan saat tepinya masih menyentuh layar.
+          if (entry.intersectionRatio === 0) {
+            el.dataset.reveal = '';
+          }
         }
       },
       {
-        // Kotak deteksi diperpanjang ~14% ke bawah layar, jadi elemen mulai
-        // bergerak SEBELUM benar-benar terlihat. Dengan gerakan sepanjang 0,85
-        // detik, memicu tepat saat elemen masuk pandangan berarti pengunjung
-        // menangkapnya di tengah jalan — dan bagian yang paling terasa halus,
-        // yaitu perlambatan di akhir, justru terlewat.
+        // Kotak deteksi diperpanjang ke bawah supaya elemen mulai bergerak
+        // sebelum benar-benar terlihat — bagian yang paling terasa halus,
+        // yaitu perlambatan di akhir, jadi tidak terlewat.
         //
-        // Nilainya negatif pada versi pertama (`-8%`), yang efeknya kebalikan:
-        // pemicunya jadi lebih lambat, bukan lebih awal.
-        rootMargin: '0px 0px 14% 0px',
+        // Ke atas TIDAK diperpanjang: itulah tepi tempat elemen dianggap lepas
+        // saat digulir turun, dan memperpanjangnya membuat elemen ter-reset
+        // padahal masih terlihat di layar.
+        rootMargin: '0px 0px 12% 0px',
         threshold: 0,
       },
     );
@@ -100,6 +152,10 @@ export function Reveal({ children, as, className, delay = 0 }: RevealProps) {
     <Tag
       ref={ref}
       data-reveal=""
+      // Atribut, bukan kelas: CSS-nya memilih keyframe lewat
+      // `[data-reveal-anim='...']`, jadi tidak bisa tertimpa utilitas Tailwind
+      // tanpa sengaja. `rise` tidak perlu penanda — ia yang bawaan.
+      data-reveal-anim={anim === 'rise' ? undefined : anim}
       style={delay ? { animationDelay: `${delay}ms` } : undefined}
       className={className}
     >

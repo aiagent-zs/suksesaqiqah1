@@ -33,7 +33,7 @@ export function IssuePanel({
   };
 
   return (
-    <Card className="rounded-2xl shadow-sm">
+    <Card className="rounded-lg shadow-sm">
       <CardHeader className="border-b pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <AlertTriangle className="text-muted-foreground size-4" />

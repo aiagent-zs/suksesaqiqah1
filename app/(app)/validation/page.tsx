@@ -34,7 +34,7 @@ export default async function ValidationPage({ searchParams }: { searchParams: S
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">Validasi Dokumentasi</h1>
         </header>
-        <div className="border-border bg-card flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-16 text-center">
+        <div className="border-border bg-card flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-16 text-center">
           <ShieldOff className="text-muted-foreground size-10" />
           <p className="mt-4 font-medium">Role Anda bukan validator dokumentasi</p>
           <p className="text-muted-foreground mt-1 max-w-md text-sm">
@@ -73,7 +73,7 @@ export default async function ValidationPage({ searchParams }: { searchParams: S
       <form
         method="get"
         action="/validation"
-        className="border-border bg-card rounded-2xl border p-4 shadow-sm"
+        className="border-border bg-card rounded-lg border p-4 shadow-sm"
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -107,7 +107,7 @@ export default async function ValidationPage({ searchParams }: { searchParams: S
       </form>
 
       {result.total === 0 ? (
-        <div className="border-border bg-card flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-16 text-center">
+        <div className="border-border bg-card flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-16 text-center">
           <ShieldCheck className="text-primary size-10" />
           <p className="mt-4 font-medium">Antrian bersih</p>
           <p className="text-muted-foreground mt-1 max-w-sm text-sm">

@@ -4,12 +4,18 @@ import { addCalendarDays, todayWib } from '@/lib/format/date-range';
 const uuid = z.string().uuid('Pilihan tidak valid');
 
 /**
- * Sejauh mana ke depan pemesan boleh memilih tanggal pelaksanaan.
+ * Jeda persiapan minimum, dalam hari, dari hari pemesanan ke tanggal
+ * pelaksanaan.
  *
- * Angka yang sama ditegakkan di `create_guest_order`. Di luar jendela ini harga
- * dan ketersediaan hewan sudah tidak bisa dipegang dari halaman publik, jadi
- * pemesanannya lewat admin.
+ * `4` berarti hari pengisian form **dan 3 hari sesudahnya** tidak bisa dipilih:
+ * mengisi tanggal 10 paling cepat mendapat tanggal 14. Hewan perlu dicari dan
+ * disiapkan, dan mitra perlu dijadwalkan — sebelum ini pemesan bisa memilih
+ * hari yang sama, dan yang terjadi hanya admin menelepon balik.
+ *
+ * Angkanya **wajib sama** dengan `app_settings.booking_min_days`.
  */
+export const BOOKING_MIN_DAYS = 4;
+
 /**
  * Batas jendela pemesanan, dalam hari.
  *
@@ -18,7 +24,7 @@ const uuid = z.string().uuid('Pilihan tidak valid');
  * tanggal 20 hari ke depan, lolos seluruh validasi form, lalu ditolak database
  * saat menekan konfirmasi.
  */
-export const BOOKING_MAX_DAYS = 7;
+export const BOOKING_MAX_DAYS = 30;
 
 /**
  * Jam pelaksanaan yang ditawarkan form.
@@ -38,9 +44,14 @@ export const BOOKING_TIME_SLOTS = [
   '17:00',
 ] as const;
 
-/** Batas bawah pemilih tanggal: hari ini menurut WIB. */
+/**
+ * Batas bawah pemilih tanggal: `BOOKING_MIN_DAYS` hari sejak hari ini WIB.
+ *
+ * **Bukan** "hari ini" — sejak ada jeda persiapan keduanya berbeda. Yang butuh
+ * hari ini (batas atas tanggal lahir anak) memakai `todayWib()` langsung.
+ */
 export function bookingMinDate(now?: Date): string {
-  return todayWib(now);
+  return addCalendarDays(todayWib(now), BOOKING_MIN_DAYS);
 }
 
 /** Batas atas pemilih tanggal: `BOOKING_MAX_DAYS` hari sejak hari ini. */
@@ -327,11 +338,19 @@ export const guestCheckoutSchema = z
     // Jendela pemesanan dihitung saat parse, bukan saat modul dimuat: proses
     // server hidup berhari-hari, jadi batas yang dibekukan di konstanta modul
     // akan menolak "besok" begitu tanggal berganti.
-    if (v.requested_date < bookingMinDate()) {
+    if (v.requested_date < todayWib()) {
       ctx.addIssue({
         code: 'custom',
         path: ['requested_date'],
         message: 'Tanggal pelaksanaan sudah lewat',
+      });
+    } else if (v.requested_date < bookingMinDate()) {
+      // Dipisah dari "sudah lewat": pemesan yang memilih besok tidak keliru soal
+      // kalender, ia hanya belum tahu berapa lama persiapannya.
+      ctx.addIssue({
+        code: 'custom',
+        path: ['requested_date'],
+        message: `Pelaksanaan paling cepat ${BOOKING_MIN_DAYS} hari setelah pemesanan. Untuk yang lebih mendesak, hubungi admin.`,
       });
     } else if (v.requested_date > bookingMaxDate()) {
       ctx.addIssue({

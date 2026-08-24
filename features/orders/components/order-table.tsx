@@ -41,7 +41,7 @@ function GuestBadge({ verifiedAt }: { verifiedAt: string | null }) {
 /** Tabel order untuk desktop (docs/14 section 6: tabel penuh di > 1024px). */
 export function OrderTable({ rows }: { rows: OrderListRow[] }) {
   return (
-    <div className="border-border bg-card hidden overflow-hidden rounded-2xl border shadow-sm lg:block">
+    <div className="border-border bg-card hidden overflow-hidden rounded-lg border shadow-sm lg:block">
       <Table>
         <TableHeader>
           <TableRow>
@@ -127,7 +127,7 @@ export function OrderCardList({ rows }: { rows: OrderListRow[] }) {
         <Link
           key={row.id}
           href={`/orders/${row.id}`}
-          className="border-border bg-card hover:border-primary/40 block rounded-2xl border p-4 shadow-sm transition-colors"
+          className="border-border bg-card hover:border-primary/40 block rounded-lg border p-4 shadow-sm transition-colors"
         >
           <div className="flex items-start justify-between gap-3">
             <div>

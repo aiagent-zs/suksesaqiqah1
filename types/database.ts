@@ -1695,6 +1695,7 @@ export type Database = {
       }
       auth_vendor_id: { Args: never; Returns: string }
       booking_max_days: { Args: never; Returns: number }
+      booking_min_days: { Args: never; Returns: number }
       can_read_order: { Args: { p_order_id: string }; Returns: boolean }
       can_write_order: { Args: { p_order_id: string }; Returns: boolean }
       confirm_delivery: {

@@ -86,7 +86,7 @@ export function StagePanel({
 
   if (stages.length === 0) {
     return (
-      <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
+      <section className="border-border bg-card rounded-lg border p-5 shadow-sm">
         <h2 className="text-base font-semibold">Tahap Pelaksanaan</h2>
         <p className="text-muted-foreground mt-2 text-sm">
           Daftar tahap terbit otomatis setelah mitra pelaksana ditetapkan.
@@ -96,7 +96,7 @@ export function StagePanel({
   }
 
   return (
-    <section className="border-border bg-card rounded-2xl border shadow-sm">
+    <section className="border-border bg-card rounded-lg border shadow-sm">
       <div className="border-border border-b px-5 py-4">
         <h2 className="text-base font-semibold">Tahap Pelaksanaan</h2>
         <p className="text-muted-foreground mt-0.5 text-sm">

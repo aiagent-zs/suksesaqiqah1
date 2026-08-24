@@ -20,7 +20,7 @@ export default async function UsersPage() {
 
   if (!canDo(session.profile?.role, 'MANAGE_USERS')) {
     return (
-      <div className="border-border bg-card rounded-2xl border p-10 text-center shadow-sm">
+      <div className="border-border bg-card rounded-lg border p-10 text-center shadow-sm">
         <ShieldOff className="text-muted-foreground mx-auto size-8" />
         <h1 className="mt-3 text-lg font-semibold">Pengelolaan akun dibatasi</h1>
         <p className="text-muted-foreground mx-auto mt-1.5 max-w-md text-sm">

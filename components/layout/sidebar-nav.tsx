@@ -19,7 +19,7 @@ const ITEM_BASE =
  */
 const ITEM_ACTIVE = 'border-l-4 border-emerald-500 bg-emerald-600/20 text-emerald-400';
 const ITEM_INACTIVE =
-  'border-l-4 border-transparent text-slate-400 hover:bg-slate-800/60 hover:text-white';
+  'border-l-4 border-transparent text-slate-300 hover:bg-sidebar-accent hover:text-white';
 
 /**
  * Navigasi sidebar desktop (≥ lg).

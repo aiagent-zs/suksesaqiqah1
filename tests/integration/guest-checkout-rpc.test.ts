@@ -369,6 +369,44 @@ describe('create_guest_order — penolakan', () => {
     });
   });
 
+  it('menolak hari pengisian dan tiap hari sebelum jeda persiapan terpenuhi', async () => {
+    // Aturannya: mengisi tanggal 10 menutup 10, 11, 12, 13 — paling cepat 14.
+    // Diuji per hari, bukan hanya di ujungnya: jeda yang meleset satu hari
+    // hanya terlihat di hari terakhir yang seharusnya masih ditolak.
+    await inRollback(async (tx) => {
+      await actAs(tx, null, 'anon');
+      const [{ min }] = await tx<{ min: number }[]>`
+        select public.booking_min_days()::int as min
+      `;
+      expect(min).toBeGreaterThan(0);
+
+      for (let d = 0; d < min; d++) {
+        const payload = validPayload({ requested_date: await wibDate(tx, d) });
+        const failure = await expectFailureInSavepoint(
+          tx,
+          (sp) => sp`select public.create_guest_order(${sp.json(payload)}::jsonb)`,
+        );
+        expect(failure.message, `H+${d}`).toMatch(/paling cepat/i);
+      }
+    });
+  });
+
+  it('menerima tanggal persis di batas bawah', async () => {
+    // Pasangan tes di atas: tanpa ini, jeda yang kelebihan satu hari lolos
+    // tanpa jejak — semua penolakannya tetap benar.
+    await inRollback(async (tx) => {
+      await actAs(tx, null, 'anon');
+      const [{ min }] = await tx<{ min: number }[]>`
+        select public.booking_min_days()::int as min
+      `;
+      const result = await callCreate(
+        tx,
+        validPayload({ requested_date: await wibDate(tx, min) }),
+      );
+      expect(result.order_number).toMatch(/^IA-\d{6}-\d{4}$/);
+    });
+  });
+
   it('menolak wilayah tujuan yang tidak dikenali', async () => {
     await inRollback(async (tx) => {
       await actAs(tx, null, 'anon');

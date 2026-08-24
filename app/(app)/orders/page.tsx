@@ -48,7 +48,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Searc
       <OrderFilters filter={filter} />
 
       {result.total === 0 ? (
-        <div className="border-border bg-card flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-16 text-center">
+        <div className="border-border bg-card flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-16 text-center">
           <PackageSearch className="text-muted-foreground size-10" />
           <p className="mt-4 font-medium">Tidak ada order yang cocok</p>
           <p className="text-muted-foreground mt-1 max-w-sm text-sm">

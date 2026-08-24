@@ -37,10 +37,10 @@
      biasa — karena utilitas `transition-colors` muncul belakangan di bundel
      dan akan menimpa aturan mana pun yang ditulis di luar `@theme`.
 
-     Easing-nya sama persis dengan `rise-in` (easeOutCubic), jadi hover pada
+     Easing-nya sama dengan gerakan reveal (easeOutQuad), jadi hover pada
      tombol dan kemunculan blok terasa berasal dari sistem gerak yang sama. */
-  --default-transition-duration: 220ms;
-  --default-transition-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  --default-transition-duration: 200ms;
+  --default-transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 @theme inline {
@@ -114,13 +114,17 @@
      `--radius` polos — utilitas `rounded-*` memakai `--radius-*` di
      `@theme inline` — tapi nilainya dijaga tetap di dalam rentang spec. */
   --radius: 0.75rem;
-  --sidebar: #004d1f;
+  /* Navy sidebar. Nilainya sudah dipakai di layar sejak lama, tetapi
+     ditulis ulang sebagai `bg-[#0b1c30]` di lima tempat sementara token ini
+     justru bernilai hijau dan tidak dibaca siapa pun. Disatukan ke sini
+     supaya ada satu tempat untuk mengubahnya — tampilannya tidak berubah. */
+  --sidebar: #0b1c30;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #62df7d;
   --sidebar-primary-foreground: #002109;
-  --sidebar-accent: #006b2c;
+  --sidebar-accent: #15273e;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #005a25;
+  --sidebar-border: #1e293b;
   --sidebar-ring: #62df7d;
 }
 
@@ -184,10 +188,56 @@ html {
    Batas atasnya tetap dijaga: jarak yang jauh lebih panjang akan
    membuat halaman terasa "meloncat" saat digulir cepat di ponsel.
    ============================================================ */
-@keyframes rise-in {
+/* Elemen yang menunggu giliran tampil. Ditandai lewat atribut, bukan
+   kelas, supaya tidak bisa tertimpa utilitas Tailwind tanpa sengaja. */
+[data-reveal] {
+  opacity: 0;
+}
+
+/* Durasi 0,62 detik — dipendekkan dari 0,85.
+
+   Sejak animasinya berulang tiap kali elemen masuk layar, gerakan sepanjang
+   itu terbaca sebagai penundaan: pengunjung yang menggulir balik harus
+   menunggu isi yang sudah pernah ia lihat. Cukup panjang untuk terbaca
+   sebagai gerakan, cukup pendek untuk tidak menghalangi.
+
+   Easing `cubic-bezier(.22,.61,.36,1)` (easeOutQuad) lebih lembut di awal
+   daripada easeOutCubic yang dipakai sebelumnya, jadi tidak ada sentakan di
+   titik mulai — itu yang paling terasa ketika gerakan yang sama berulang. */
+[data-reveal='shown'] {
+  animation: rise-from-below 0.62s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+[data-reveal='shown'][data-reveal-from='up'] {
+  animation-name: rise-from-above;
+}
+
+/* ============================================================
+   Gerakan & tekstur untuk halaman publik
+
+   Lapisan ini ditambahkan setelah rombakan 21 Agustus terbukti
+   ditarik terlalu jauh: halamannya patuh pada `design.md §1`
+   (*clarity over decoration*) sampai terbaca datar. Yang dikoreksi
+   bukan prinsipnya, melainkan anggapan bahwa "tanpa dekorasi"
+   berarti "tanpa kedalaman".
+
+   Aturan yang dipegang: setiap gerakan di sini **menerangkan
+   sesuatu** — arah baca, urutan, atau apa yang sedang dituju.
+   Yang tetap TIDAK dipakai: teks bergradasi (menurunkan
+   keterbacaan judul), blur dekoratif, dan shadow tebal —
+   ketiganya menarik perhatian ke dirinya sendiri.
+   ============================================================ */
+
+/* Bergeser searah gulir sambil memudar.
+
+   Dua arah, dan itulah intinya: gerakan yang MELAWAN arah gulir
+   terbaca kaku — isinya seolah didorong berlawanan dengan tangan
+   yang menggulir. Menggulir turun, elemen datang dari bawah;
+   menggulir naik, ia datang dari atas. */
+@keyframes rise-from-below {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(22px);
   }
   to {
     opacity: 1;
@@ -195,14 +245,123 @@ html {
   }
 }
 
-/* Elemen yang menunggu giliran tampil. Ditandai lewat atribut, bukan
-   kelas, supaya tidak bisa tertimpa utilitas Tailwind tanpa sengaja. */
-[data-reveal] {
-  opacity: 0;
+@keyframes rise-from-above {
+  from {
+    opacity: 0;
+    transform: translateY(-22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-[data-reveal='shown'] {
-  animation: rise-in 0.85s cubic-bezier(0.33, 1, 0.68, 1) both;
+/* Sama, dengan pembesaran 1,5% supaya kartu terasa maju ke depan.
+   Angkanya sengaja kecil: di atas ~3% teks di dalam kartu terbaca
+   buram selama animasi berjalan. */
+@keyframes rise-scale-from-below {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes rise-scale-from-above {
+  from {
+    opacity: 0;
+    transform: translateY(-26px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-reveal='shown'][data-reveal-anim='scale'] {
+  animation-name: rise-scale-from-below;
+}
+
+[data-reveal='shown'][data-reveal-anim='scale'][data-reveal-from='up'] {
+  animation-name: rise-scale-from-above;
+}
+
+/* Latar bergaris — kisi tipis seperti kertas milimeter.
+
+   Menggantikan pola titik yang sempat dipakai: titik seragam adalah
+   tekstur paling umum di halaman produk mana pun, dan justru itu yang
+   membuatnya terbaca sebagai template. Kisi garis punya alasan di sini
+   — halaman ini menjual **pencatatan**, dan kertas bergaris adalah
+   rujukan visual yang paling dekat dengan itu.
+
+   Dibuat dari dua `linear-gradient`, bukan berkas gambar: nol
+   permintaan jaringan, dan warnanya ikut token. */
+.bg-grid {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--primary) 10%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* Kisi yang sama, seperempat ukuran — dipakai bertumpuk di atas yang
+   besar supaya kepadatannya berubah dan tidak terbaca sebagai satu
+   raster datar. */
+.bg-grid-fine {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--primary) 5%, transparent) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+/* ============================================================
+   Gerakan untuk umpan balik form
+
+   Dua hal saja, dan keduanya menerangkan sesuatu — bukan hiasan:
+
+   `nudge` menggoyang medan yang ditolak. Jaraknya kecil (4px) dan
+   sekali jalan; goyangan yang lebih lebar terbaca sebagai "rusak",
+   bukan "periksa lagi". Sumbunya horizontal karena arah itu tidak
+   pernah dipakai gerakan lain di halaman ini, jadi tidak tertukar
+   dengan reveal yang bergerak vertikal.
+
+   `toast-in` memunculkan pemberitahuan dari bawah. Jaraknya lebih
+   panjang (12px) sebab ia datang dari luar layar, bukan muncul di
+   tempatnya sendiri.
+
+   Keduanya dimatikan oleh blok `prefers-reduced-motion` di bawah —
+   yang menyapu seluruh animasi, jadi tidak perlu didaftar ulang.
+   ============================================================ */
+@keyframes nudge {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+
+.animate-nudge {
+  animation: nudge 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px); }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.28s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.animate-toast-out {
+  animation: toast-out 0.2s cubic-bezier(0.33, 1, 0.68, 1) both;
 }
 
 /* Catatan: durasi & easing bawaan seluruh utilitas `transition-*` disetel
@@ -256,4 +415,4 @@ html {
   html {
     @apply font-sans;
   }
-}
+}

@@ -54,7 +54,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="id" className={`${inter.variable} h-full antialiased`}>
+    // `suppressHydrationWarning` hanya untuk `<html>` sendiri — ekstensi peramban
+    // (QuillBot, Grammarly, penerjemah) menyuntik atribut seperti
+    // `data-qb-installed` ke elemen ini sebelum React sempat hidrasi, dan
+    // selisihnya dilaporkan sebagai galat hidrasi yang tidak berasal dari kode
+    // mana pun di sini. Aman karena jangkauannya **satu tingkat**: isi halaman
+    // tetap diperiksa seperti biasa, jadi ini tidak bisa menutupi selisih
+    // sungguhan di dalam aplikasi.
+    <html lang="id" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="flex min-h-full flex-col bg-white text-neutral-900">{children}</body>
     </html>
   );
