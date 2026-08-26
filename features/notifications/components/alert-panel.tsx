@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { AlertActions } from './alert-actions';
 import type { AlertItem } from '../queries';
 
 /**
@@ -45,6 +46,10 @@ const URGENT = new Set(['issue_high', 'documentation_rejected']);
  * otomatis belum ada (Tahap 8 belum selesai), jadi untuk sekarang admin
  * menekannya sendiri — tapi pesannya dirakit server dan nomornya sudah
  * dinormalkan, jadi tidak ada lagi yang mengetik ulang.
+ *
+ * **Barisnya hilang setelah ditandai selesai** (`AlertActions`). Tanpa itu
+ * panel hanya bertambah panjang: query dibatasi `queued`, jadi baris yang tidak
+ * pernah ditandai akan mendorong notifikasi baru keluar dari layar.
  */
 export function AlertPanel({ alerts }: { alerts: AlertItem[] }) {
   if (alerts.length === 0) {
@@ -100,18 +105,8 @@ export function AlertPanel({ alerts }: { alerts: AlertItem[] }) {
                 </p>
               </div>
 
-              <div className="flex shrink-0 items-center gap-1.5">
-                {alert.waHref ? (
-                  <a
-                    href={alert.waHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100"
-                  >
-                    <MessageCircle className="size-3.5" />
-                    Kirim WA
-                  </a>
-                ) : null}
+              <div className="flex shrink-0 items-start gap-1.5">
+                <AlertActions id={alert.id} waHref={alert.waHref} />
                 {alert.href ? (
                   <Link
                     href={alert.href}

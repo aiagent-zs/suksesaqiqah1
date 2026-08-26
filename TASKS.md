@@ -466,17 +466,28 @@ Tiga role tetap: **superadmin · admin · vendor**.
       `docs/12 §5`, nomornya lewat `whatsAppHref()` yang sudah ada. Tombolnya
       **tidak dirender** bila nomor tidak bisa dinormalkan; tautan yang membuka
       WhatsApp ke nomor kosong lebih buruk daripada tidak ada tombol
-- [x] **14 tes baru** — 9 integrasi (`notification-outbox.test.ts`: idempotensi,
+- [x] **18 tes baru** — 11 integrasi (`notification-outbox.test.ts`: idempotensi,
       kendala `low`/`medium` tidak memicu, order staf tidak memicu, mode `salur`
-      tidak pernah meminta konfirmasi, generate ulang justru memicu lagi) + 5
-      unit (`alert-panel.test.tsx`)
+      tidak pernah meminta konfirmasi, generate ulang justru memicu lagi,
+      penandaan kedua tidak menggeser `sent_at`) + 7 unit (`alert-panel.test.tsx`)
+- [x] **Antrian bisa dikosongkan (26 Agustus)** — sampai hari ini **tidak ada
+      satu pun** penulis `status = 'sent'` di seluruh repo; `from('notifications')`
+      cuma punya satu hasil, dan itu `.select()`. Akibatnya klik "Kirim WA"
+      meninggalkan barisnya `queued` selamanya: panel tidak pernah menyusut, dan
+      dengan `limit 8` notifikasi lama mendorong yang baru keluar dari layar.
+      `markNotificationSent` menutupnya — dikunci `.eq('status','queued')` supaya
+      penekanan kedua tidak menggeser `sent_at`, dan "Kirim WA" menandai
+      sekaligus agar tidak ada langkah kedua yang bisa dilupakan
 - [ ] **Worker pengirim** — pengiriman masih manual-klik. Yang berubah: tidak
-      ada lagi yang terlewat, sebab semuanya tercatat sebagai antrian
+      ada lagi yang terlewat, sebab semuanya tercatat sebagai antrian.
+      ⚠️ "Selesai" saat ini berarti *admin sudah dibawa ke WhatsApp*, bukan bukti
+      pesannya terkirim — ganti dengan status dari worker/webhook
 - [ ] Workflow n8n: reminder H-1, generate & kirim laporan (`docs/18`)
 - [ ] Realtime pada panel alert — saat ini butuh muat ulang halaman
 - [ ] Folder `automation/` masih kosong (`.gitkeep`)
-- [ ] ⚠️ **`20260824020000` belum di-push ke cloud** — sudah jalan bersih di
-      lokal, tetapi panel di produksi akan tetap kosong sampai `npm run db:push`
+- [x] **`20260824020000` sudah di cloud (26 Agustus)** — 39/39 migration selaras
+      (`supabase migration list`). Trigger outbox kini aktif di produksi, panel
+      "Perlu Tindakan" terisi dari peristiwa nyata
 
 ---
 

@@ -150,6 +150,15 @@ export const CAPABILITIES = {
   /** Generate & kirim laporan */
   GENERATE_REPORT: STAFF,
 
+  /**
+   * Tandai notifikasi outbox sudah ditangani (`docs/12` section 2).
+   *
+   * Sama dengan RLS `notifications_write` yang menuntut `is_staff()`: vendor
+   * bahkan tidak bisa membaca outbox, jadi menawarkan tombolnya pada mereka
+   * hanya akan menghasilkan aksi yang pasti ditolak database.
+   */
+  MANAGE_NOTIFICATIONS: STAFF,
+
   /** Kelola master data & user */
   MANAGE_MASTER_DATA: ['superadmin'] as UserRole[],
 

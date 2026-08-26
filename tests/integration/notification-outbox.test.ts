@@ -237,3 +237,78 @@ describe('outbox — laporan & konfirmasi terkirim', () => {
     });
   });
 });
+/**
+ * Penandaan "sudah ditangani" — sisi tulis outbox.
+ *
+ * Pengiriman masih manual sampai worker Tahap 8 ada, jadi yang memindahkan
+ * baris keluar dari antrian adalah admin yang menekan tombolnya. Yang diuji di
+ * sini bukan tombolnya (itu di `tests/unit/alert-panel.test.tsx`), melainkan
+ * penguncian optimistik `.eq('status','queued')` yang dipakai server action —
+ * satu-satunya hal yang mencegah penekanan kedua menggeser `sent_at`.
+ */
+describe('outbox — penandaan sudah ditangani', () => {
+  it('penandaan kedua tidak menggeser sent_at', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+
+      await tx`
+        insert into public.documentations (order_id, stage, type, storage_path, status)
+        values (${orderId}, 'persiapan', 'photo', 'a/b.webp', 'pending')
+      `;
+      const [notif] = await notifsOf(tx, orderId);
+      expect(notif.status).toBe('queued');
+
+      // Persis kondisi yang dipakai `markNotificationSent`.
+      const first = await tx`
+        update public.notifications
+        set status = 'sent', sent_at = now(), error_text = null
+        where id = ${notif.id} and status = 'queued'
+        returning sent_at
+      `;
+      expect(first).toHaveLength(1);
+
+      // Penekanan kedua: tidak boleh ada baris yang tersentuh, sebab statusnya
+      // bukan lagi `queued`. Tanpa syarat itu, `sent_at` akan bergeser ke waktu
+      // sekarang dan jejak kapan notifikasi benar-benar ditangani hilang.
+      const second = await tx`
+        update public.notifications
+        set status = 'sent', sent_at = now(), error_text = null
+        where id = ${notif.id} and status = 'queued'
+        returning sent_at
+      `;
+      expect(second, 'penandaan kedua ikut menulis — sent_at bisa bergeser').toHaveLength(0);
+
+      const [after] = await tx<{ sent_at: Date | null }[]>`
+        select sent_at from public.notifications where id = ${notif.id}
+      `;
+      expect(after.sent_at?.toISOString()).toBe(
+        (first[0] as { sent_at: Date }).sent_at.toISOString(),
+      );
+    });
+  });
+
+  it('baris yang ditandai hilang dari antrian panel', async () => {
+    // `getPendingAlerts` menyaring `status = 'queued'`. Kalau penandaan tidak
+    // benar-benar memindahkan statusnya, panel tidak akan pernah menyusut.
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+
+      await tx`
+        insert into public.documentations (order_id, stage, type, storage_path, status)
+        values (${orderId}, 'persiapan', 'photo', 'a/b.webp', 'pending')
+      `;
+      const [notif] = await notifsOf(tx, orderId);
+
+      await tx`
+        update public.notifications
+        set status = 'sent', sent_at = now()
+        where id = ${notif.id} and status = 'queued'
+      `;
+
+      const queued = (await notifsOf(tx, orderId)).filter((r) => r.status === 'queued');
+      expect(queued.some((r) => r.id === notif.id)).toBe(false);
+    });
+  });
+});
