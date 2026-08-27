@@ -83,7 +83,16 @@ export const vendorSchema = z.object({
 });
 
 export const createVendorSchema = vendorSchema;
-export const updateVendorSchema = vendorSchema.extend({ id: uuid });
+
+/**
+ * Sunting mitra.
+ *
+ * `code` sengaja **tidak** ikut: ia melekat pada mitra sejak didaftarkan dan
+ * dipakai membaca daftar secara sekilas. Mengubahnya berarti baris yang sama
+ * tampil dengan identitas berbeda di layar orang lain yang belum memuat ulang,
+ * dan tidak ada satu pun kebutuhan operasi yang menuntutnya.
+ */
+export const updateVendorSchema = vendorSchema.omit({ code: true }).extend({ id: uuid });
 
 export type CreateVendorInput = z.infer<typeof createVendorSchema>;
 export type UpdateVendorInput = z.infer<typeof updateVendorSchema>;
@@ -111,3 +120,25 @@ export const vendorServiceSchema = z.object({
 export type VendorServiceInput = z.infer<typeof vendorServiceSchema>;
 
 export const deleteVendorServiceSchema = z.object({ id: uuid });
+
+/**
+ * Wilayah layanan mitra (`vendor_coverage`).
+ *
+ * Dikirim sebagai daftar utuh, bukan satu-per-satu: yang dikehendaki operator
+ * adalah "mitra ini melayani wilayah-wilayah **ini**", dan menyimpannya sebagai
+ * satu keadaan membuat penghapusan tidak perlu aksi tersendiri.
+ *
+ * `region_name` ikut dikirim hanya sebagai isyarat; server tetap membacanya
+ * ulang dari `regions` berdasarkan kode — nama yang dipercaya dari klien bisa
+ * tidak cocok dengan kodenya, dan yang dibaca orang adalah namanya.
+ */
+export const saveVendorCoverageSchema = z.object({
+  vendor_id: uuid,
+  region_codes: z
+    .array(regionCode)
+    .max(200, 'Terlalu banyak wilayah dipilih')
+    // Kode ganda akan ditolak primary key `(vendor_id, region_code)`; disaring
+    // di sini supaya pengguna tidak melihat galat database untuk sesuatu yang
+    // sudah jelas maksudnya.
+    .transform((codes) => [...new Set(codes)]),
+});

@@ -1,6 +1,7 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/database';
+import type { RegionOption } from '@/features/checkout/queries';
 
 type DistributionMode = Database['public']['Enums']['distribution_mode'];
 
@@ -99,6 +100,154 @@ export async function listVendors(): Promise<VendorRow[]> {
   });
 }
 
+/**
+ * Satu mitra utuh — seluruh kolom yang bisa disunting.
+ *
+ * Berbeda dari `VendorRow` yang sengaja ramping untuk daftar: formulir sunting
+ * perlu setiap medan yang diterima `vendorSchema`, termasuk delapan yang tidak
+ * pernah tampil di daftar (nama badan hukum, NPWP, periode perjanjian, nama
+ * pemilik rekening, dan empat kode wilayah).
+ */
+export type VendorDetail = {
+  id: string;
+  code: string;
+  name: string;
+  legalName: string | null;
+  ownerName: string | null;
+  npwp: string | null;
+  phone: string;
+  whatsapp: string | null;
+  email: string | null;
+  provinceCode: string | null;
+  provinceName: string | null;
+  cityCode: string | null;
+  cityName: string | null;
+  districtCode: string | null;
+  districtName: string | null;
+  villageCode: string | null;
+  villageName: string | null;
+  postalCode: string | null;
+  addressDetail: string | null;
+  address: string | null;
+  agreementNumber: string | null;
+  agreementStart: string | null;
+  agreementEnd: string | null;
+  dailyCapacity: number | null;
+  serviceModes: DistributionMode[];
+  bankName: string | null;
+  bankAccountNo: string | null;
+  bankAccountName: string | null;
+  notes: string | null;
+  isActive: boolean;
+  accountEmail: string | null;
+  accountActive: boolean | null;
+  ordersOpen: number;
+};
+
+export async function getVendorDetail(vendorId: string): Promise<VendorDetail | null> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from('vendors')
+    .select(
+      `id, code, name, legal_name, owner_name, npwp, phone, whatsapp, email,
+       province_code, province, city_code, city, district_code, district,
+       village_code, village, postal_code, address_detail, address,
+       agreement_number, agreement_start, agreement_end, daily_capacity,
+       service_modes, bank_name, bank_account_no, bank_account_name, notes, is_active,
+       account:profiles!profiles_vendor_id_fkey ( email, is_active )`,
+    )
+    .eq('id', vendorId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  const s = data as unknown as VendorDetailRaw & {
+    account: Array<{ email: string | null; is_active: boolean }> | null;
+  };
+  const account = s.account?.[0] ?? null;
+
+  // Order berjalan menentukan boleh-tidaknya mitra dinonaktifkan; dihitung di
+  // sini supaya tombolnya bisa menjelaskan diri sebelum ditekan, bukan menolak
+  // sesudahnya.
+  const { count } = await supabase
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('vendor_id', vendorId)
+    .not('status', 'in', '("completed","cancelled")')
+    .is('deleted_at', null);
+
+  return {
+    id: s.id,
+    code: s.code,
+    name: s.name,
+    legalName: s.legal_name,
+    ownerName: s.owner_name,
+    npwp: s.npwp,
+    phone: s.phone,
+    whatsapp: s.whatsapp,
+    email: s.email,
+    provinceCode: s.province_code,
+    provinceName: s.province,
+    cityCode: s.city_code,
+    cityName: s.city,
+    districtCode: s.district_code,
+    districtName: s.district,
+    villageCode: s.village_code,
+    villageName: s.village,
+    postalCode: s.postal_code,
+    addressDetail: s.address_detail,
+    address: s.address,
+    agreementNumber: s.agreement_number,
+    agreementStart: s.agreement_start,
+    agreementEnd: s.agreement_end,
+    dailyCapacity: s.daily_capacity,
+    serviceModes: s.service_modes ?? [],
+    bankName: s.bank_name,
+    bankAccountNo: s.bank_account_no,
+    bankAccountName: s.bank_account_name,
+    notes: s.notes,
+    isActive: s.is_active,
+    accountEmail: account?.email ?? null,
+    accountActive: account ? account.is_active : null,
+    ordersOpen: count ?? 0,
+  };
+}
+
+type VendorDetailRaw = {
+  id: string;
+  code: string;
+  name: string;
+  legal_name: string | null;
+  owner_name: string | null;
+  npwp: string | null;
+  phone: string;
+  whatsapp: string | null;
+  email: string | null;
+  province_code: string | null;
+  province: string | null;
+  city_code: string | null;
+  city: string | null;
+  district_code: string | null;
+  district: string | null;
+  village_code: string | null;
+  village: string | null;
+  postal_code: string | null;
+  address_detail: string | null;
+  address: string | null;
+  agreement_number: string | null;
+  agreement_start: string | null;
+  agreement_end: string | null;
+  daily_capacity: number | null;
+  service_modes: DistributionMode[];
+  bank_name: string | null;
+  bank_account_no: string | null;
+  bank_account_name: string | null;
+  notes: string | null;
+  is_active: boolean;
+};
+
 export type VendorServiceRow = {
   id: string;
   serviceId: string;
@@ -148,6 +297,48 @@ export async function getVendorServices(vendorId: string): Promise<VendorService
       };
     })
     .sort((a, b) => a.serviceName.localeCompare(b.serviceName));
+}
+
+export type CoverageRow = {
+  regionCode: string;
+  regionName: string;
+  level: number;
+};
+
+/** Wilayah layanan satu mitra, terurut sebagaimana dibaca orang. */
+export async function getVendorCoverage(vendorId: string): Promise<CoverageRow[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from('vendor_coverage')
+    .select('region_code, region_name, level')
+    .eq('vendor_id', vendorId)
+    .order('region_name');
+
+  return (data ?? []).map((r) => ({
+    regionCode: r.region_code,
+    regionName: r.region_name,
+    level: r.level,
+  }));
+}
+
+/**
+ * Provinsi untuk pemilih alamat mitra.
+ *
+ * Tingkat teratas saja — 38 baris. Tiga tingkat di bawahnya diambil peramban
+ * lewat `fetchRegionChildren` saat induknya dipilih, pola yang sama dengan
+ * checkout: memuat 91.599 wilayah di muka jelas bukan pilihan.
+ */
+export async function listProvinces(): Promise<RegionOption[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from('regions')
+    .select('code, name')
+    .eq('level', 1)
+    .order('name', { ascending: true });
+
+  return (data ?? []).map((r) => ({ code: r.code, name: r.name }));
 }
 
 /** Katalog paket untuk dipilih saat menambah modal mitra. */

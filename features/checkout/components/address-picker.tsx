@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { fetchRegionChildren } from '../regions';
+import { useRegionCascade } from '../use-region-cascade';
 import type { RegionOption } from '../queries';
 
 /**
@@ -89,67 +88,23 @@ export function AddressPicker({
 }) {
   const { province_code, city_code, district_code } = value;
 
-  /**
-   * Isi daftar, dikunci **kode induknya** — bukan tingkatnya.
-   *
-   * Kunci itu yang menyelesaikan balapan: mengganti provinsi dua kali dengan
-   * cepat membuat dua permintaan berjalan bersamaan, dan yang lebih lambat bisa
-   * mendarat belakangan. Kalau hasilnya disimpan per tingkat, daftar kabupaten
-   * provinsi **pertama** akan menimpa yang kedua dan pemesan memilih kota yang
-   * bukan bagian dari provinsinya. Disimpan per induk, hasil yang tidak lagi
-   * relevan cukup mengendap tanpa pernah ditampilkan.
-   *
-   * Sekaligus jadi singgahan: kembali ke provinsi yang tadi sudah dibuka tidak
-   * menimbulkan permintaan baru.
-   */
-  const [byParent, setByParent] = useState<Record<string, RegionOption[]>>({});
-  const [failed, setFailed] = useState<Record<string, true>>({});
-  /** Induk yang permintaannya sedang berjalan — penjaga agar tidak dobel. */
-  const inFlight = useRef<Set<string>>(new Set());
+  // Pemuatan bertingkat & penanganan balapannya di `use-region-cascade`, dipakai
+  // bersama pemilih alamat mitra.
+  const cascade = useRegionCascade([province_code, city_code, district_code]);
 
-  useEffect(() => {
-    for (const parent of [province_code, city_code, district_code]) {
-      if (!parent) continue;
-      if (parent in byParent || failed[parent] || inFlight.current.has(parent)) continue;
-
-      inFlight.current.add(parent);
-      fetchRegionChildren(parent)
-        .then((rows) => setByParent((prev) => ({ ...prev, [parent]: rows })))
-        .catch(() => setFailed((prev) => ({ ...prev, [parent]: true })))
-        .finally(() => inFlight.current.delete(parent));
-    }
-  }, [province_code, city_code, district_code, byParent, failed]);
-
-  /**
-   * Isi & keadaan tiap tingkat **diturunkan**, tidak disimpan terpisah.
-   *
-   * Mengosongkan daftar saat induknya dilepas karena itu tidak butuh setState
-   * sama sekali: tanpa induk, tidak ada yang bisa ditampilkan.
-   */
   function stateOf(level: Level) {
-    const parent = value[PARENT_OF[level]];
-    if (!parent) return { parent: '', options: [] as RegionOption[], loading: false };
-    return {
-      parent,
-      options: byParent[parent] ?? [],
-      loading: !(parent in byParent) && !failed[parent],
-    };
+    return cascade.stateOf(value[PARENT_OF[level]]);
   }
 
   /** Tingkat yang daftarnya gagal dimuat — untuk pesan & tombol coba lagi. */
   const failedLevel =
-    (['city', 'district', 'village'] as const).find((l) => failed[value[PARENT_OF[l]]]) ?? null;
+    (['city', 'district', 'village'] as const).find((l) =>
+      cascade.hasFailed(value[PARENT_OF[l]]),
+    ) ?? null;
 
   function retry() {
     if (!failedLevel) return;
-    // Cukup dilepas dari daftar gagal: efek di atas melihat induknya belum
-    // pernah berhasil dimuat lalu mencoba lagi.
-    const parent = value[PARENT_OF[failedLevel]];
-    setFailed((prev) => {
-      const next = { ...prev };
-      delete next[parent];
-      return next;
-    });
+    cascade.retry(value[PARENT_OF[failedLevel]]);
   }
 
   /**

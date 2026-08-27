@@ -220,13 +220,26 @@ export const aqiqahPrograms = [
   },
 ] as const;
 
-/** Paket Nasi Box Aqiqah — harga per box dari 28_HARGA_PROGRAM. */
+/**
+ * Paket Nasi Box Aqiqah — harga per box dari 28_HARGA_PROGRAM.
+ *
+ * `slug` wajib sama persis dengan `services.slug` di database, sebab itulah
+ * yang menjembatani kartu di halaman ini dengan katalog yang benar-benar
+ * ditagih (`/checkout?paket={slug}` dicocokkan sebagai slug, bukan id).
+ *
+ * Dua di antaranya pernah menyimpang: `paket-c-favorit` dan `paket-e-premium`
+ * membawa akhiran yang tidak pernah ada di katalog. Harganya kebetulan benar
+ * dan slug nasi box belum dipakai sebagai tautan, jadi tidak ada yang rusak di
+ * layar — tetapi begitu nasi box ditautkan dengan pola `?paket=` yang sama
+ * seperti paket aqiqah, dua dari lima akan diam-diam jatuh ke paket pertama
+ * tanpa galat apa pun. Dijaga `landing-catalogue.test.ts`.
+ */
 export const nasiBoxPackages = [
   { slug: 'paket-a', name: 'Paket A', price: 21_000, popular: false },
   { slug: 'paket-b', name: 'Paket B', price: 27_000, popular: false },
-  { slug: 'paket-c-favorit', name: 'Paket C', price: 32_000, popular: true },
+  { slug: 'paket-c', name: 'Paket C', price: 32_000, popular: true },
   { slug: 'paket-d', name: 'Paket D', price: 45_000, popular: false },
-  { slug: 'paket-e-premium', name: 'Paket E', price: 70_000, popular: false },
+  { slug: 'paket-e', name: 'Paket E', price: 70_000, popular: false },
 ] as const;
 
 /** Tahapan layanan (08_WORKFLOW_MAP / 27_PAGE_MENU). */

@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, MapPin, Phone, Plus, UserX } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { DISTRIBUTION_MODE_LABEL } from '@/features/stages/sequence';
-import { createVendor, setVendorActive } from '@/server/actions/vendors';
+import { createVendor } from '@/server/actions/vendors';
 import type { VendorRow } from '../queries';
 
 const EMPTY = {
@@ -266,7 +267,9 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
           <li key={v.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{v.name}</span>
+                <Link href={`/vendors/${v.id}`} className="font-medium hover:underline">
+                  {v.name}
+                </Link>
                 <span className="text-muted-foreground text-xs tabular-nums">{v.code}</span>
                 {!v.isActive && (
                   <Badge className="border-slate-200 bg-slate-100 text-slate-600">Non-aktif</Badge>
@@ -312,15 +315,15 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
               )}
             </div>
 
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={pending}
-              onClick={() => run(() => setVendorActive({ id: v.id, is_active: !v.isActive }))}
+            {/* Aktif/non-aktif pindah ke halaman detail: di sana jumlah order
+                berjalan sudah terbaca, jadi tombolnya bisa menjelaskan diri
+                sebelum ditekan alih-alih menolak sesudahnya. */}
+            <Link
+              href={`/vendors/${v.id}`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >
-              {v.isActive ? 'Nonaktifkan' : 'Aktifkan'}
-            </Button>
+              Kelola
+            </Link>
           </li>
         ))}
 

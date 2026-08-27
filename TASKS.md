@@ -10,7 +10,7 @@
 | Diperbarui                       | 2026-08-27                                                                                                                                                                                                                                           |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                             |
 | Estimasi Phase 1                 | **± 83%** (dari 80% — rantai end-to-end kini terbukti otomatis di lokal, lihat _Perbaikan 24 Agustus_)                                                                                                                                               |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(18 rute)** · **376 unit test hijau (28 file)** · **113 tes integrasi hijau (9 file) terhadap Postgres lokal** · **40 migration jalan bersih di lokal ✅; 39 selaras di cloud, yang ke-40 belum di-push ⚠️** |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(19 rute)** · **405 unit test hijau (30 file)** · **127 tes integrasi hijau (10 file) terhadap Postgres lokal** · **40 migration jalan bersih di lokal ✅ dan 40/40 selaras di cloud ✅** · **kolom `animals.status` terbukti hilang di cloud & `get_public_report` diuji lewat jalur `anon`** ✅ |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
 
@@ -377,8 +377,12 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ### Harus dikejar
 
-- [ ] ⚠️ Seluruh butir di atas belum diverifikasi di cloud; `20260827010000`
-      belum di-push (40 migration di lokal, 39 di cloud)
+- [x] **`20260827010000` sudah di cloud (27 Agustus)** — 40/40 migration selaras.
+      Diverifikasi langsung di sana, bukan hanya tercatat: `animals.status`
+      mengembalikan `42703 column does not exist`, `get_public_report` dipanggil
+      lewat jalur `anon` mengembalikan blok `progress` utuh tanpa `status` per
+      ekor, dan `anon` tetap membaca nol baris dari `orders`
+- [ ] ⚠️ Butir Tahap 4 lainnya belum diverifikasi di cloud
 
 ---
 
@@ -458,7 +462,11 @@ Tiga role tetap: **superadmin · admin · vendor**.
       modal), **rata-rata siklus per order**, dan **berapa order yang buktinya pernah
       ditolak** — pertanyaan yang berguna ketika operasi satu tempat dan yang banyak
       mitranya. Inilah yang membuat `vendor_services` punya arti: modal berbeda antar
-      mitra, jadi margin tidak bisa dihitung dari satu kolom di `services`
+      mitra, jadi margin tidak bisa dihitung dari satu kolom di `services`.
+      ⚠️ **Koreksi 27 Agustus:** angkanya jalan sejak 20 Agustus, tetapi
+      masukannya baru bisa diisi hari ini — `vendor_services` tidak punya satu
+      pun layar sampai `/vendors/{id}` dibuat (§10), jadi margin yang dilaporkan
+      selama ini sebesar seluruh nilai order
 - [x] Kartu operasional: Order Tertunda, Kendala Terbuka, Belum Lunas, Order Ditahan, Order Tamu Baru
 - [x] Agregat lintas mitra **ditimbang jumlah order**, bukan rata-rata polos
 - [x] Panel kendala per tingkat keparahan + 5 sorotan teratas
@@ -548,6 +556,36 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 - [x] Landing page, SEO dasar (`sitemap.xml`, `robots.txt`, metadata)
 - [x] Katalog `services` di DB + grant baca untuk `anon`
+- [x] **Katalog landing diselaraskan dengan database — 27 Agustus.** Halaman
+      publik tidak membaca database sama sekali; seluruh paket & harganya
+      hardcode di `lib/constants/site.ts`. Keputusan yang wajar (halaman statis,
+      nol query), tapi berarti dua daftar dijaga sinkron oleh tangan — dan
+      keduanya **sudah menyimpang**: `paket-c-favorit` dan `paket-e-premium` di
+      landing membawa akhiran yang tidak pernah ada di katalog (aslinya
+      `paket-c` dan `paket-e`). Harga ketiga paket aqiqah dan kelima nasi box
+      terbukti sama; yang salah hanya dua slug itu
+- [x] **Kenapa penyimpangan slug lebih senyap daripada salah harga.** `?paket=`
+      dicocokkan sebagai slug, dan `checkout/page.tsx:41` **sengaja mengabaikan**
+      slug tak dikenal lalu jatuh ke paket pertama — perilaku yang benar untuk
+      tautan usang, tapi berarti tombol "Pesan" yang salah arah tidak
+      menghasilkan galat apa pun. Hari ini belum ada yang rusak di layar sebab
+      slug nasi box baru dipakai sebagai `key` React, bukan tautan; begitu nasi
+      box ditautkan dengan pola yang sama, dua dari lima akan diam-diam salah
+- [x] **`landing-catalogue.test.ts` — 13 tes.** Membaca
+      `20260820001200_reference_data.sql` **langsung**, bukan salinan (pola yang
+      sama dengan `stage-sequence.test.ts`). Dipilih berkas migration, bukan
+      `supabase/seed/`: yang ini ikut ke semua environment lewat `db push`,
+      sementara seed hanya jalan lokal. Dijaga dua arah — slug landing wajib ada
+      di katalog **dan** seluruh paket aktif wajib dipasarkan; qurban ditegaskan
+      tetap tidak dipasarkan (keputusan 21 Agustus). Terbukti menangkap bugnya:
+      slug lama dikembalikan sementara, dua tes langsung merah
+- [ ] ⚠️ **Tiga paket aktif belum punya modal mitra mana pun** — `paket-d`,
+      `paket-e`, `qurban-sapi-patungan`. Untuk ketiganya `margin_total` di
+      dashboard terbaca sebesar **seluruh nilai order**. Panel modal di
+      `/vendors/{id}` sudah bisa mengisinya; tinggal dijalankan orang
+- [ ] ⚠️ **`RPHJKT` hanya melayani `salur`** — satu-satunya mitra di Jakarta.
+      Order Aqiqah Kirim ke sana akan ditolak `assignVendor`, sementara landing
+      memasarkan "Aqiqah Kirim" tanpa batas wilayah
 
 #### Guest Checkout
 
@@ -842,11 +880,44 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] **376 unit test hijau di 28 file** — state machine order, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp
+- [x] **405 unit test hijau di 30 file** — state machine order, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, **katalog landing vs `services` di migration**, alur & path dokumentasi, kapabilitas, **schema master mitra**, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts`
 - [x] **Navigasi < 1024px** — bottom-nav + panel `≡`, disaring per role
 - [x] Penanda aktif sidebar diturunkan dari `pathname`, berhenti di batas segmen
 - [x] **Link mati "Pengaturan" sudah tertutup** — `/users` & `/vendors` kini ada, dan menu disaring per role
+- [x] **CRUD mitra dilengkapi — 27 Agustus.** `/vendors` ternyata baru C dan
+      sebagian U: dari lima server action mitra, **tiga tidak punya satu pun
+      pemanggil** (`updateVendor`, `saveVendorService`, `deleteVendorService`),
+      begitu pula dua query (`getVendorServices`, `getServiceOptions`).
+      Akarnya satu — `app/(app)/vendors/[id]/page.tsx` tidak pernah dibuat,
+      sampai-sampai `revalidatePath('/vendors/{id}')` di dalam action menunjuk
+      rute yang tidak ada. Yang ditutup:
+  - **Mitra tidak bisa disunting sama sekali.** Salah ketik nomor telepon,
+        ganti rekening, perpanjang perjanjian — semuanya hanya lewat dashboard
+        Supabase. Halaman detail + `VendorEditForm` menutupnya
+  - **`vendor_services` tidak bisa diisi lewat aplikasi**, padahal
+        `v_vendor_kpi.margin_total` jatuh dari sana lewat
+        `order_items.vendor_unit_price`. Selama kosong, **dashboard melaporkan
+        margin sebesar seluruh nilai order**. KPI margin (§5) angkanya jalan,
+        tapi masukannya tidak pernah bisa diisi operator
+  - **8 dari 22 medan skema tidak pernah bisa diisi** — formulir pendaftaran
+        merender 13. Termasuk keempat kode wilayah, dan tanpa itu
+        `resolveAddress()` mengembalikan `address: null` sehingga hanya alamat
+        mentah yang tersimpan
+  - **`vendor_coverage` nol referensi** di seluruh `server/`, `features/`, dan
+        `app/` sejak lahir 20 Agustus — tabelnya kosong selamanya.
+        `saveVendorCoverage` + panel wilayah menutupnya; nama wilayah dibaca
+        ulang dari `regions`, tidak dipercaya dari klien
+  - **`updateVendorSchema` kini `omit({ code })`.** `rowFrom()` menyusun `code`
+        untuk kedua aksi, jadi menyunting mitra akan menulis `undefined` ke
+        kolom `not null`
+  - **Logika cascade wilayah diekstrak** ke `use-region-cascade.ts`, dipakai
+        bersama checkout. Yang dibagi hanya keadaannya — penanganan balapan saat
+        provinsi diganti cepat — bukan tampilannya; menyalinnya berarti dua
+        salinan logika halus yang harus sinkron
+  - **30 tes baru** — 14 integrasi (`vendor-master.test.ts`: RLS ketiga tabel,
+        admin baca-tapi-tidak-ubah, cascade vs restrict) + 16 unit
+        (`vendor-schema.test.ts`)
 - [x] **`tests/integration/` terisi — 113 tes di 9 berkas** (27 Agustus). Kelima trigger sasaran (`generate_stage_checklist`, `enforce_stage_order`, `enforce_stage_review`, `enforce_vendor_assignment`, `enforce_animal_delete`) plus `create_guest_order`, `get_public_report`, `confirm_delivery`, outbox notifikasi, progres hewan dari tahap, dan alur penuh kedua percabangan. Prasyarat & rancangannya di `tests/integration/README.md`
 - [x] **RLS per role terjaga — 21 tes** (`rls.test.ts`, 24 Agustus). Yang dibuktikan: vendor A tidak melihat order/tahap/bukti/jadwal/kendala/laporan milik vendor B; order tanpa mitra tidak terbaca vendor mana pun; pembayaran & notifikasi tertutup dari vendor; **admin tidak dapat mengubah role** (termasuk dirinya sendiri) sementara superadmin bisa; vendor tidak dapat memindahkan dirinya ke mitra lain; bukti `approved` dan kendala tidak dapat dihapus siapa pun; `anon` membaca `services`+`regions` tetapi ditolak pada `orders`/`profiles`/`payments`; dan **view KPI menghormati RLS pemanggilnya** (`security_invoker`)
 - [ ] `tests/e2e/` masih kosong (`.gitkeep`) — target: alur order → laporan end-to-end (`docs/21`)

@@ -7,6 +7,7 @@ import { canDo } from '@/server/auth/capabilities';
 import {
   createVendorSchema,
   deleteVendorServiceSchema,
+  saveVendorCoverageSchema,
   setVendorActiveSchema,
   updateVendorSchema,
   vendorServiceSchema,
@@ -74,13 +75,19 @@ async function resolveAddress(
   return { names, address: parts.length > 0 ? parts.join(', ') : null };
 }
 
+/**
+ * Kolom mitra dari input yang sudah tervalidasi.
+ *
+ * `code` sengaja tidak ikut: ia hanya ada saat pendaftaran, dan `updateVendor`
+ * memang tidak menerimanya (lihat `updateVendorSchema`). Menyusunnya di sini
+ * akan menulis `undefined` ke kolom `not null` saat menyunting.
+ */
 function rowFrom(
   v: Record<string, unknown>,
   names: { province?: string | null; city?: string | null; district?: string | null; village?: string | null },
   address: string | null,
 ) {
   return {
-    code: v.code as string,
     name: v.name as string,
     legal_name: (v.legal_name as string) || null,
     owner_name: (v.owner_name as string) || null,
@@ -131,7 +138,7 @@ export async function createVendor(input: unknown): Promise<ActionResult<{ id: s
 
   const { data, error } = await supabase
     .from('vendors')
-    .insert(rowFrom(v, names, address))
+    .insert({ code: v.code, ...rowFrom(v, names, address) })
     .select('id')
     .maybeSingle();
 
@@ -178,6 +185,7 @@ export async function updateVendor(input: unknown): Promise<ActionResult<null>> 
   if ((data ?? []).length === 0) return notFound('Mitra tidak ditemukan.');
 
   revalidatePath('/vendors');
+  revalidatePath(`/vendors/${id}`);
   return { ok: true, data: null };
 }
 
@@ -228,6 +236,7 @@ export async function setVendorActive(input: unknown): Promise<ActionResult<null
   if ((data ?? []).length === 0) return notFound('Mitra tidak ditemukan.');
 
   revalidatePath('/vendors');
+  revalidatePath(`/vendors/${id}`);
   return { ok: true, data: null };
 }
 
@@ -272,6 +281,7 @@ export async function saveVendorService(input: unknown): Promise<ActionResult<nu
   if ((data ?? []).length === 0) return forbidden('Penyimpanan ditolak.');
 
   revalidatePath(`/vendors/${v.vendor_id}`);
+  revalidatePath('/dashboard');
   return { ok: true, data: null };
 }
 
@@ -297,5 +307,99 @@ export async function deleteVendorService(input: unknown): Promise<ActionResult<
   if ((data ?? []).length === 0) return notFound('Baris tidak ditemukan.');
 
   revalidatePath(`/vendors/${(data ?? [])[0].vendor_id}`);
+  revalidatePath('/dashboard');
+  return { ok: true, data: null };
+}
+
+// =============================================================================
+// Wilayah layanan
+// =============================================================================
+
+/**
+ * Simpan wilayah layanan satu mitra sebagai satu keadaan utuh.
+ *
+ * Hapus-lalu-sisipkan, bukan selisih per baris: yang dikirim layar adalah
+ * daftar lengkap "mitra ini melayani wilayah ini", dan menghitung selisihnya di
+ * sini hanya menambah kode untuk hasil yang sama. Tabelnya kecil — lazimnya
+ * belasan baris per mitra.
+ *
+ * Nama wilayah dibaca ulang dari `regions`, tidak dipercaya dari klien: yang
+ * dibaca orang adalah namanya, jadi nama yang boleh dikirim sendiri berarti
+ * cakupan tercatat bisa berbeda dari wilayah yang sebenarnya dipilih. Alasan
+ * yang sama dipakai `resolveAddress` di atas dan `create_guest_order` di RPC.
+ */
+export async function saveVendorCoverage(input: unknown): Promise<ActionResult<null>> {
+  const session = await requireAuth();
+
+  if (!canDo(session.profile?.role, 'MANAGE_VENDORS')) {
+    return forbidden('Wilayah layanan mitra hanya dapat diubah superadmin.');
+  }
+
+  const parsed = saveVendorCoverageSchema.safeParse(input);
+  if (!parsed.success) return validationError(parsed.error);
+  const { vendor_id, region_codes } = parsed.data;
+
+  const supabase = await createClient();
+
+  const { data: vendor } = await supabase
+    .from('vendors')
+    .select('id')
+    .eq('id', vendor_id)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (!vendor) return notFound('Mitra tidak ditemukan.');
+
+  let rows: Array<{
+    vendor_id: string;
+    region_code: string;
+    region_name: string;
+    level: number;
+  }> = [];
+
+  if (region_codes.length > 0) {
+    const { data: regions, error: regionError } = await supabase
+      .from('regions')
+      .select('code, name, level')
+      .in('code', region_codes);
+
+    if (regionError) return internalError('Gagal memuat wilayah', regionError);
+
+    const found = new Map((regions ?? []).map((r) => [r.code, r]));
+    // Kode yang tidak ada di `regions` ditolak di sini, bukan didiamkan:
+    // tabelnya tanpa FK (disengaja, lihat migration 02), jadi baris ngawur akan
+    // tersimpan diam-diam dan baru terasa saat pencocokan order tidak menemukan
+    // mitra mana pun.
+    const unknown = region_codes.filter((c) => !found.has(c));
+    if (unknown.length > 0) {
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: `Wilayah tidak dikenali: ${unknown.slice(0, 3).join(', ')}.`,
+          fields: { region_codes: 'Ada kode wilayah yang tidak dikenali.' },
+        },
+      };
+    }
+
+    rows = region_codes.map((code) => {
+      const r = found.get(code)!;
+      return { vendor_id, region_code: code, region_name: r.name, level: r.level };
+    });
+  }
+
+  const { error: deleteError } = await supabase
+    .from('vendor_coverage')
+    .delete()
+    .eq('vendor_id', vendor_id);
+
+  if (deleteError) return internalError('Gagal memperbarui wilayah layanan', deleteError);
+
+  if (rows.length > 0) {
+    const { error: insertError } = await supabase.from('vendor_coverage').insert(rows);
+    if (insertError) return internalError('Gagal menyimpan wilayah layanan', insertError);
+  }
+
+  revalidatePath(`/vendors/${vendor_id}`);
   return { ok: true, data: null };
 }
