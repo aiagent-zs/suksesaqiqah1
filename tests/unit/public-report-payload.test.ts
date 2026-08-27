@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -28,10 +28,18 @@ describe('payload get_public_report sama antara SQL dan TypeScript', () => {
    * Definisi fungsi yang benar-benar berlaku adalah yang **terakhir** —
    * `create or replace` di migration yang lebih baru menimpa yang lama. Mencari
    * kemunculan pertama akan menguji versi yang sudah pensiun.
+   *
+   * Direktorinya dipindai, bukan didaftar. Versi sebelumnya menyebut dua nama
+   * berkas secara harfiah, dan daftar semacam itu diam-diam basi begitu ada
+   * migration ketiga yang me-`replace` fungsi ini — tesnya tetap hijau sambil
+   * memeriksa definisi yang sudah tidak berlaku, persis kekeliruan yang
+   * diperingatkan komentar di atas. Nama migration berawalan timestamp, jadi
+   * urutan leksikografis = urutan jalan.
    */
   const sql = (() => {
-    const files = ['20260820001100_public_rpc.sql', '20260821010000_public_report_progress.sql'];
-    const last = files
+    const last = readdirSync(migrationsDir)
+      .filter((f) => f.endsWith('.sql'))
+      .sort()
       .map((f) => readFileSync(join(migrationsDir, f), 'utf8'))
       .filter((body) => body.includes('function public.get_public_report'))
       .pop();

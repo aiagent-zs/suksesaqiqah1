@@ -13,10 +13,10 @@ export function Logo({
       <Image
         src="/images/logo-icon.svg"
         alt="Logo Sukses Aqiqah"
-        width={36}
+        width={34}
         height={36}
         priority
-        className="h-9 w-auto shrink-0 object-contain"
+        className="shrink-0 object-contain"
       />
       <span className="flex flex-col leading-none">
         {/* Warna brand pada logo tidak ikut berubah di latar gelap — keduanya

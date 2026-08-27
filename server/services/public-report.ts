@@ -48,7 +48,6 @@ type RpcPayload = {
     species: ReportData['animals'][number]['species'];
     tag_code: string | null;
     on_behalf_of: string | null;
-    status: ReportData['animals'][number]['status'];
   }> | null;
   schedule: {
     scheduled_date: string | null;
@@ -156,7 +155,6 @@ export async function getPublicReport(token: string): Promise<PublicReport | nul
       species: a.species,
       tagCode: a.tag_code,
       onBehalfOf: a.on_behalf_of,
-      status: a.status,
     })),
     schedule: p.schedule
       ? {

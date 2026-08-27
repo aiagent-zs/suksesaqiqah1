@@ -42,7 +42,6 @@ export type Database = {
           on_behalf_of: string | null
           order_id: string
           species: Database["public"]["Enums"]["animal_species"]
-          status: Database["public"]["Enums"]["animal_status"]
           tag_code: string | null
           updated_at: string
           weight_kg: number | null
@@ -54,7 +53,6 @@ export type Database = {
           on_behalf_of?: string | null
           order_id: string
           species: Database["public"]["Enums"]["animal_species"]
-          status?: Database["public"]["Enums"]["animal_status"]
           tag_code?: string | null
           updated_at?: string
           weight_kg?: number | null
@@ -66,7 +64,6 @@ export type Database = {
           on_behalf_of?: string | null
           order_id?: string
           species?: Database["public"]["Enums"]["animal_species"]
-          status?: Database["public"]["Enums"]["animal_status"]
           tag_code?: string | null
           updated_at?: string
           weight_kg?: number | null
@@ -1730,7 +1727,6 @@ export type Database = {
     }
     Enums: {
       animal_species: "kambing" | "domba" | "sapi"
-      animal_status: "registered" | "prepared" | "slaughtered" | "distributed"
       distribution_mode: "salur" | "kirim"
       doc_stage:
         | "persiapan"
@@ -1900,7 +1896,6 @@ export const Constants = {
   public: {
     Enums: {
       animal_species: ["kambing", "domba", "sapi"],
-      animal_status: ["registered", "prepared", "slaughtered", "distributed"],
       distribution_mode: ["salur", "kirim"],
       doc_stage: [
         "persiapan",

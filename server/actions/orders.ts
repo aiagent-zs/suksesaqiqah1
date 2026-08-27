@@ -9,12 +9,10 @@ import {
   changeStatusSchema,
   createOrderSchema,
   deleteAnimalSchema,
-  updateAnimalStatusSchema,
   updateOrderSchema,
   verifyGuestOrderSchema,
 } from '@/features/orders/schema';
 import { checkTransition } from '@/features/orders/state-machine';
-import { checkAnimalTransition } from '@/features/orders/animal-state-machine';
 import { getOrderDetail } from '@/features/orders/queries';
 import type { OrderStatus } from '@/lib/constants/order';
 
@@ -336,70 +334,6 @@ export async function addAnimal(input: unknown): Promise<ActionResult<null>> {
   return { ok: true, data: null };
 }
 
-export async function updateAnimalStatus(input: unknown): Promise<ActionResult<null>> {
-  const session = await requireAuth();
-
-  if (!canDo(session.profile?.role, 'MANAGE_ANIMALS')) {
-    return {
-      ok: false,
-      error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah data hewan.' },
-    };
-  }
-
-  const parsed = updateAnimalStatusSchema.safeParse(input);
-  if (!parsed.success) return validationError(parsed.error);
-  const { animal_id, status } = parsed.data;
-
-  const supabase = await createClient();
-  const { data: current, error: readError } = await supabase
-    .from('animals')
-    .select('order_id, status')
-    .eq('id', animal_id)
-    .maybeSingle();
-
-  if (readError) return internalError('Gagal memuat data hewan', readError);
-
-  if (!current) {
-    return {
-      ok: false,
-      error: { code: 'NOT_FOUND', message: 'Data hewan tidak ditemukan atau di luar akses Anda.' },
-    };
-  }
-
-  const check = checkAnimalTransition(current.status, status, session.profile?.role);
-  if (!check.ok) {
-    return { ok: false, error: { code: check.code, message: check.message } };
-  }
-
-  const { data, error } = await supabase
-    .from('animals')
-    .update({ status })
-    .eq('id', animal_id)
-    // Status lama ikut jadi syarat: tanpa ini, dua petugas yang mencatat
-    // bersamaan bisa saling menimpa dan melewati satu tahap.
-    .eq('status', current.status)
-    .select('order_id')
-    .maybeSingle();
-
-  if (error) return internalError('Gagal memperbarui status hewan', error);
-
-  // `maybeSingle()` mengembalikan null bila 0 baris terpengaruh (status sudah
-  // berubah di sesi lain, atau RLS menolak) — tanpa error.
-  if (!data) {
-    return {
-      ok: false,
-      error: {
-        code: 'CONFLICT',
-        message:
-          'Status hewan sudah diubah pihak lain. Muat ulang halaman untuk melihat kondisi terkini.',
-      },
-    };
-  }
-
-  revalidatePath(`/orders/${data.order_id}`);
-  return { ok: true, data: null };
-}
-
 export async function deleteAnimal(input: unknown): Promise<ActionResult<null>> {
   const session = await requireAuth();
 
@@ -416,7 +350,7 @@ export async function deleteAnimal(input: unknown): Promise<ActionResult<null>> 
   const supabase = await createClient();
   const { data: animal } = await supabase
     .from('animals')
-    .select('order_id, status')
+    .select('order_id')
     .eq('id', parsed.data.animal_id)
     .maybeSingle();
 
@@ -424,33 +358,30 @@ export async function deleteAnimal(input: unknown): Promise<ActionResult<null>> 
     return { ok: false, error: { code: 'NOT_FOUND', message: 'Data hewan tidak ditemukan.' } };
   }
 
-  // Hewan yang sudah dipotong/didistribusikan adalah bukti pelaksanaan — tidak dihapus.
-  if (animal.status !== 'registered') {
-    return {
-      ok: false,
-      error: { code: 'CONFLICT', message: 'Hewan yang sudah diproses tidak dapat dihapus.' },
-    };
-  }
-
-  // Status ikut difilter di DELETE, bukan hanya dicek di atas: tanpa itu ada
-  // celah TOCTOU — hewan bisa berubah jadi `slaughtered` di antara SELECT dan
-  // DELETE, dan bukti pelaksanaan ikut terhapus.
+  // Hewan yang tahapnya sudah dilaporkan adalah bukti pelaksanaan, dan
+  // menghapusnya ikut menghapus baris tahap `sembelih` miliknya
+  // (`on delete cascade`). Penjaganya trigger `enforce_animal_delete`, bukan
+  // pemeriksaan di sini: memeriksa lalu menghapus menyisakan celah TOCTOU.
   const { data: deleted, error } = await supabase
     .from('animals')
     .delete()
     .eq('id', parsed.data.animal_id)
-    .eq('status', 'registered')
     .select('id');
 
-  if (error) return internalError('Gagal menghapus hewan', error);
+  if (error) {
+    // `check_violation` dari trigger — pesannya ditulis di sana dan sudah
+    // berbahasa Indonesia, jadi diteruskan apa adanya.
+    if (error.code === '23514') {
+      return { ok: false, error: { code: 'CONFLICT', message: error.message } };
+    }
+    return internalError('Gagal menghapus hewan', error);
+  }
 
+  // 0 baris terpengaruh tanpa error berarti RLS menyaringnya.
   if ((deleted ?? []).length === 0) {
     return {
       ok: false,
-      error: {
-        code: 'CONFLICT',
-        message: 'Hewan sudah diproses atau di luar akses Anda, jadi tidak dapat dihapus.',
-      },
+      error: { code: 'CONFLICT', message: 'Hewan di luar akses Anda, jadi tidak dapat dihapus.' },
     };
   }
 

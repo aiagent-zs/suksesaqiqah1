@@ -118,10 +118,10 @@ insert into public.order_items (order_id, service_id, qty, unit_price, vendor_un
   )
 on conflict do nothing;
 
-insert into public.animals (id, order_id, species, tag_code, weight_kg, on_behalf_of, status) values
+insert into public.animals (id, order_id, species, tag_code, weight_kg, on_behalf_of) values
   (
     'a9000000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000001',
-    'kambing'::public.animal_species, 'KMB-001', 28.5, 'Muhammad Al-Fatih bin Budi Santoso', 'slaughtered'::public.animal_status
+    'kambing'::public.animal_species, 'KMB-001', 28.5, 'Muhammad Al-Fatih bin Budi Santoso'
   )
 on conflict (id) do nothing;
 
@@ -201,10 +201,10 @@ insert into public.order_items (order_id, service_id, qty, unit_price, vendor_un
   )
 on conflict do nothing;
 
-insert into public.animals (id, order_id, species, tag_code, on_behalf_of, status) values
+insert into public.animals (id, order_id, species, tag_code, on_behalf_of) values
   (
     'a9000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000002',
-    'kambing'::public.animal_species, 'KMB-002', 'Khadijah binti Siti Aminah', 'registered'::public.animal_status
+    'kambing'::public.animal_species, 'KMB-002', 'Khadijah binti Siti Aminah'
   )
 on conflict (id) do nothing;
 
@@ -250,10 +250,10 @@ insert into public.order_items (order_id, service_id, qty, unit_price, meta) val
   )
 on conflict do nothing;
 
-insert into public.animals (order_id, species, tag_code, on_behalf_of, status) values
+insert into public.animals (order_id, species, tag_code, on_behalf_of) values
   (
     'f0000000-0000-4000-8000-000000000003', 'kambing'::public.animal_species, 'KMB-003',
-    'Yusuf bin Ahmad Fauzi', 'registered'::public.animal_status
+    'Yusuf bin Ahmad Fauzi'
   )
 on conflict do nothing;
 

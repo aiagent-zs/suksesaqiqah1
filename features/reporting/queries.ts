@@ -1,6 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
-import type { AnimalSpecies, AnimalStatus, OrderStatus } from '@/lib/constants/order';
+import type { AnimalSpecies, OrderStatus } from '@/lib/constants/order';
 import type { DocStage, DocType } from '@/features/documentation/storage';
 import type { ReportData } from './types';
 
@@ -72,7 +72,7 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
       vendor:vendors!orders_vendor_id_fkey ( name ),
       participant:participants!orders_participant_id_fkey ( name ),
       items:order_items ( qty, service:services ( name ) ),
-      animals ( species, tag_code, on_behalf_of, status ),
+      animals ( species, tag_code, on_behalf_of ),
       schedule:schedules ( scheduled_date, scheduled_time, location:locations ( name ) ),
       stages:order_stage_events (
         stage, status, occurred_at, notes, packages_count, recipient_name, recipient_area
@@ -97,7 +97,6 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
       species: AnimalSpecies;
       tag_code: string | null;
       on_behalf_of: string | null;
-      status: AnimalStatus;
     }>;
     stages: Array<{
       stage: string;
@@ -145,7 +144,6 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
       species: a.species,
       tagCode: a.tag_code,
       onBehalfOf: a.on_behalf_of,
-      status: a.status,
     })),
     schedule: r.schedule
       ? {

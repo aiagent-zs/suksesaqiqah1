@@ -1,4 +1,4 @@
-import type { AnimalSpecies, AnimalStatus, OrderStatus } from '@/lib/constants/order';
+import type { AnimalSpecies, OrderStatus } from '@/lib/constants/order';
 import type { DocStage, DocType } from '@/features/documentation/storage';
 
 /**
@@ -13,7 +13,6 @@ export type ReportAnimal = {
   species: AnimalSpecies;
   tagCode: string | null;
   onBehalfOf: string | null;
-  status: AnimalStatus;
 };
 
 export type ReportStage = {

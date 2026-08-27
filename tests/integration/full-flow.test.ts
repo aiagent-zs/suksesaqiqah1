@@ -420,8 +420,8 @@ describe('gerbang bukti dokumentasi', () => {
         ) returning id
       `;
       await tx`
-        insert into public.animals (order_id, species, tag_code, on_behalf_of, status)
-        values (${order.id}, 'kambing'::public.animal_species, 'UJI-X', 'Anak Uji', 'registered'::public.animal_status)
+        insert into public.animals (order_id, species, tag_code, on_behalf_of)
+        values (${order.id}, 'kambing'::public.animal_species, 'UJI-X', 'Anak Uji')
       `;
       await tx`update public.orders set status = 'assigned'::public.order_status where id = ${order.id}`;
 

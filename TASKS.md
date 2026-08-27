@@ -7,10 +7,10 @@
 | Field                            | Value                                                                                                                                                                                                                                                |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                           |
-| Diperbarui                       | 2026-08-24                                                                                                                                                                                                                                           |
+| Diperbarui                       | 2026-08-27                                                                                                                                                                                                                                           |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                             |
 | Estimasi Phase 1                 | **± 83%** (dari 80% — rantai end-to-end kini terbukti otomatis di lokal, lihat _Perbaikan 24 Agustus_)                                                                                                                                               |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(18 rute)** · **386 unit test hijau (29 file)** · **104 tes integrasi hijau (8 file) terhadap Postgres lokal** · **39 migration jalan bersih di lokal ✅; 38 selaras di cloud, yang ke-39 belum di-push ⚠️** · **jendela pemesanan baru terbukti ditegakkan di cloud lewat jalur `anon`** ✅ |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(18 rute)** · **376 unit test hijau (28 file)** · **113 tes integrasi hijau (9 file) terhadap Postgres lokal** · **40 migration jalan bersih di lokal ✅; 39 selaras di cloud, yang ke-40 belum di-push ⚠️** |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
 
@@ -333,10 +333,52 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [x] Penguncian optimistik; tanpa tombol hapus
 - [x] `MANAGE_ISSUES` disamakan persis dengan `can_write_order`
 
+#### Status hewan — **kolomnya dibuang, 27 Agustus**
+
+- [x] **`animals.status` dihapus** (`20260827010000`). Yang tercatat sebelumnya
+      sebagai "perlu diputuskan: kunci atau biarkan" ternyata bukan pilihan
+      dua-arah — penelusuran menunjukkan kolom itu **tidak tersambung ke apa
+      pun**. Satu-satunya penulisnya adalah dropdown di panel Hewan; nol
+      trigger, nol RPC. Laporan tahap yang sudah dilapor, berbukti, dan
+      divalidasi tidak menggesernya sama sekali
+- [x] **Kekeliruannya sampai ke pemesan**, bukan cuma ke layar admin. `v_order_progress`
+      menghitung `animals_slaughtered`/`animals_distributed` dari kolom itu, dan
+      keduanya dicetak di `app/r/[token]` **dan** PDF laporan. Dua arah gagalnya:
+      order yang dikerjakan sempurna mencetak "0/3 ekor dipotong" (`full-flow.test.ts`
+      menempuh persis jalur itu tanpa pernah menyentuh status hewan — dan hijau),
+      atau admin mengklik `distributed` di hari order masuk dan laporan mencetak
+      "3/3 ekor tersalurkan" tanpa satu pun bukti — melewati `enforce_stage_order`,
+      `enforce_stage_review`, gerbang bukti, dan pemisahan tugas sekaligus
+- [x] **Angkanya kini diturunkan dari `order_stage_events` yang `validated`.**
+      `sembelih` sudah terbit satu baris per ekor, jadi sumbernya memang sudah
+      ada — dan baris itu wajib berbukti serta wajib divalidasi. Penutup
+      `animals_distributed` beda per mode: `salur` di tahap `salur`, `kirim` di
+      `terkirim`. Memakai `kirim` akan mencetak "tersalurkan" kepada pemesan
+      yang paketnya masih di jalan
+- [x] **`enforce_animal_delete` menggantikan penjaga di server action.** Penjaga
+      lama bersandar pada kolom yang kini hilang, dan taruhannya lebih besar
+      dari yang terlihat: `order_stage_events.animal_id` ber-`on delete cascade`,
+      jadi menghapus satu ekor **ikut menghapus baris tahapnya** — `stages_total`
+      menyusut dan order lolos gerbang `in_progress → validation` karena tahap
+      yang belum dikerjakan sudah lenyap bersama hewannya. Sebagai trigger,
+      bukan pemeriksaan di aplikasi: yang di aplikasi menyisakan celah TOCTOU
+      dan harus diingat ulang tiap jalur hapus baru
+- [x] **7 tes integrasi baru** (`animal-progress.test.ts`). Dibuktikan menangkap
+      bug aslinya: view dikembalikan ke perilaku lama untuk sementara, tiga tes
+      langsung merah, lalu dikembalikan
+- [x] **Bug di tes payload ikut ketutup.** `public-report-payload.test.ts`
+      menyebut dua nama migration secara harfiah untuk mencari definisi RPC yang
+      berlaku — daftar yang diam-diam basi begitu ada migration ketiga yang
+      me-`replace` fungsi itu. Persis kekeliruan yang diperingatkan komentarnya
+      sendiri. Kini direktorinya dipindai
+- [x] ~200 baris hapus bersih: `features/orders/animal-state-machine.ts`,
+      `updateAnimalStatus()`, `updateAnimalStatusSchema`, `ANIMAL_STATUS_META`,
+      `AnimalStatusBadge`, dan tes unitnya
+
 ### Harus dikejar
 
-- [ ] Status hewan masih bisa diubah langsung lewat panel Hewan tanpa laporan tahap. Perlu diputuskan: kunci status hewan agar hanya bergerak lewat laporan tahap, atau biarkan sebagai jalur koreksi
-- [ ] ⚠️ Seluruh butir di atas belum diverifikasi di cloud
+- [ ] ⚠️ Seluruh butir di atas belum diverifikasi di cloud; `20260827010000`
+      belum di-push (40 migration di lokal, 39 di cloud)
 
 ---
 
@@ -800,12 +842,12 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] **364 unit test hijau di 27 file** — state machine order & hewan, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp
+- [x] **376 unit test hijau di 28 file** — state machine order, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, alur & path dokumentasi, kapabilitas, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts`
 - [x] **Navigasi < 1024px** — bottom-nav + panel `≡`, disaring per role
 - [x] Penanda aktif sidebar diturunkan dari `pathname`, berhenti di batas segmen
 - [x] **Link mati "Pengaturan" sudah tertutup** — `/users` & `/vendors` kini ada, dan menu disaring per role
-- [x] **`tests/integration/` terisi — 93 tes di 7 berkas** (24 Agustus). Keempat trigger sasaran (`generate_stage_checklist`, `enforce_stage_order`, `enforce_stage_review`, `enforce_vendor_assignment`) plus `create_guest_order`, `get_public_report`, `confirm_delivery`, dan alur penuh kedua percabangan. Prasyarat & rancangannya di `tests/integration/README.md`
+- [x] **`tests/integration/` terisi — 113 tes di 9 berkas** (27 Agustus). Kelima trigger sasaran (`generate_stage_checklist`, `enforce_stage_order`, `enforce_stage_review`, `enforce_vendor_assignment`, `enforce_animal_delete`) plus `create_guest_order`, `get_public_report`, `confirm_delivery`, outbox notifikasi, progres hewan dari tahap, dan alur penuh kedua percabangan. Prasyarat & rancangannya di `tests/integration/README.md`
 - [x] **RLS per role terjaga — 21 tes** (`rls.test.ts`, 24 Agustus). Yang dibuktikan: vendor A tidak melihat order/tahap/bukti/jadwal/kendala/laporan milik vendor B; order tanpa mitra tidak terbaca vendor mana pun; pembayaran & notifikasi tertutup dari vendor; **admin tidak dapat mengubah role** (termasuk dirinya sendiri) sementara superadmin bisa; vendor tidak dapat memindahkan dirinya ke mitra lain; bukti `approved` dan kendala tidak dapat dihapus siapa pun; `anon` membaca `services`+`regions` tetapi ditolak pada `orders`/`profiles`/`payments`; dan **view KPI menghormati RLS pemanggilnya** (`security_invoker`)
 - [ ] `tests/e2e/` masih kosong (`.gitkeep`) — target: alur order → laporan end-to-end (`docs/21`)
 - [ ] Checklist keamanan `docs/20_SECURITY_CHECKLIST.md` belum ditelusuri satu per satu

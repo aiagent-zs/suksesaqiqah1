@@ -239,12 +239,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           )}
 
           {/* --- Hewan --- */}
-          <AnimalManager
-            orderId={order.id}
-            animals={animals}
-            canEdit={canEditAnimals}
-            role={role}
-          />
+          <AnimalManager orderId={order.id} animals={animals} canEdit={canEditAnimals} />
 
           {/* --- Tahap pelaksanaan --- */}
           <StagePanel

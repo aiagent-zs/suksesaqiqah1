@@ -88,11 +88,6 @@ export const verifyGuestOrderSchema = z.object({ order_id: uuid });
 
 export const addAnimalSchema = animalInputSchema.extend({ order_id: uuid });
 
-export const updateAnimalStatusSchema = z.object({
-  animal_id: uuid,
-  status: z.enum(['registered', 'prepared', 'slaughtered', 'distributed']),
-});
-
 export const deleteAnimalSchema = z.object({ animal_id: uuid });
 
 /**

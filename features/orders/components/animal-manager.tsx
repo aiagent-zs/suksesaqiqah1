@@ -7,35 +7,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { AnimalStatusBadge } from '@/components/data/status-badge';
-import { addAnimal, deleteAnimal, updateAnimalStatus } from '@/server/actions/orders';
-import {
-  ANIMAL_SPECIES_LABEL,
-  type AnimalSpecies,
-  type AnimalStatus,
-} from '@/lib/constants/order';
-import { getAnimalStatusOptions } from '../animal-state-machine';
+import { addAnimal, deleteAnimal } from '@/server/actions/orders';
+import { ANIMAL_SPECIES_LABEL, type AnimalSpecies } from '@/lib/constants/order';
 import type { Database } from '@/types/database';
 
 type Animal = Database['public']['Tables']['animals']['Row'];
-type UserRole = Database['public']['Enums']['user_role'];
-
 /**
- * Pengelolaan hewan per order — "1 order banyak hewan" (docs/05 section 4.8).
- * Status hewan dapat dinaikkan langsung di sini; pencatatan detail pemotongan
- * & distribusi menyusul pada modul Slaughter/Distribution.
+ * Pendaftaran hewan per order — "1 order banyak hewan" (docs/05 section 4.8).
+ *
+ * Panel ini **hanya mendaftarkan** ekornya; kemajuan pelaksanaan dilaporkan di
+ * panel Tahap dan dibaca dari sana. Dropdown status yang dulu ada di sini
+ * adalah sumber kebenaran kedua yang tidak tersambung ke rantai tahap — ia bisa
+ * diklik "terdistribusi" tanpa satu pun bukti, atau tertinggal nol padahal
+ * seluruh tahap sudah tervalidasi, dan kedua angka itu tercetak di laporan yang
+ * dikirim ke pemesan. Kolomnya dibuang di `20260827010000`.
  */
 export function AnimalManager({
   orderId,
   animals,
   canEdit,
-  role,
 }: {
   orderId: string;
   animals: Animal[];
   canEdit: boolean;
-  /** Menentukan opsi status yang boleh ditawarkan; server memvalidasi ulang. */
-  role: UserRole | undefined;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -180,52 +174,17 @@ export function AnimalManager({
                 </p>
               </div>
 
-              <AnimalStatusBadge status={animal.status} />
-
               {canEdit && (
-                <div className="flex items-center gap-2">
-                  <Select
-                    aria-label={`Ubah status ${animal.tag_code ?? 'hewan'}`}
-                    value={animal.status}
-                    disabled={pending}
-                    onChange={(e) =>
-                      run(() =>
-                        updateAnimalStatus({
-                          animal_id: animal.id,
-                          status: e.target.value as AnimalStatus,
-                        }),
-                      )
-                    }
-                    className="w-40"
-                  >
-                    {getAnimalStatusOptions(animal.status, role).map((option) => (
-                      <option
-                        key={option.status}
-                        value={option.status}
-                        disabled={!option.allowed}
-                        title={option.reason ?? undefined}
-                      >
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
-
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    aria-label={`Hapus ${animal.tag_code ?? 'hewan'}`}
-                    disabled={pending || animal.status !== 'registered'}
-                    title={
-                      animal.status !== 'registered'
-                        ? 'Hewan yang sudah diproses tidak dapat dihapus'
-                        : undefined
-                    }
-                    onClick={() => run(() => deleteAnimal({ animal_id: animal.id }))}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  aria-label={`Hapus ${animal.tag_code ?? 'hewan'}`}
+                  disabled={pending}
+                  onClick={() => run(() => deleteAnimal({ animal_id: animal.id }))}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
               )}
             </li>
           ))}

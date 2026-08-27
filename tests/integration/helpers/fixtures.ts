@@ -84,11 +84,10 @@ export async function makePaidOrder(
   const animalIds: string[] = [];
   for (let i = 0; i < animals; i += 1) {
     const [animal] = await tx<{ id: string }[]>`
-      insert into public.animals (order_id, species, tag_code, weight_kg, on_behalf_of, status)
+      insert into public.animals (order_id, species, tag_code, weight_kg, on_behalf_of)
       values (
         ${order.id}, 'kambing'::public.animal_species,
-        ${`UJI-${i + 1}`}, 28.5, ${`Anak Uji ${i + 1}`},
-        'registered'::public.animal_status
+        ${`UJI-${i + 1}`}, 28.5, ${`Anak Uji ${i + 1}`}
       )
       returning id
     `;

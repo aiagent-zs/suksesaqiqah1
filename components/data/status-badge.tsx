@@ -1,13 +1,11 @@
 import { Badge } from '@/components/ui/badge';
 import {
-  ANIMAL_STATUS_META,
   DOC_STATUS_META,
   ISSUE_SEVERITY_META,
   ISSUE_STATUS_META,
   ORDER_STATUS_META,
   PAYMENT_STATUS_META,
   PAYMENT_VERIFICATION_META,
-  type AnimalStatus,
   type DocStatus,
   type IssueSeverity,
   type IssueStatus,
@@ -35,11 +33,6 @@ export function DocStatusBadge({ status }: { status: DocStatus }) {
 /** Status satu baris pembayaran — bukan `payment_status` order (lihat konstanta). */
 export function PaymentVerificationBadge({ status }: { status: PaymentVerificationStatus }) {
   const meta = PAYMENT_VERIFICATION_META[status];
-  return <Badge className={meta.className}>{meta.label}</Badge>;
-}
-
-export function AnimalStatusBadge({ status }: { status: AnimalStatus }) {
-  const meta = ANIMAL_STATUS_META[status];
   return <Badge className={meta.className}>{meta.label}</Badge>;
 }
 

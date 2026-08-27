@@ -2,7 +2,6 @@ import type { Database } from '@/types/database';
 
 export type OrderStatus = Database['public']['Enums']['order_status'];
 export type PaymentStatus = Database['public']['Enums']['payment_status'];
-export type AnimalStatus = Database['public']['Enums']['animal_status'];
 export type AnimalSpecies = Database['public']['Enums']['animal_species'];
 export type IssueSeverity = Database['public']['Enums']['issue_severity'];
 export type IssueStatus = Database['public']['Enums']['issue_status'];
@@ -99,16 +98,6 @@ export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
   tunai: 'Tunai',
   qris: 'QRIS',
   lainnya: 'Lainnya',
-};
-
-export const ANIMAL_STATUS_META: Record<AnimalStatus, StatusMeta> = {
-  registered: { label: 'Terdaftar', className: 'bg-slate-100 text-slate-700 border-slate-200' },
-  prepared: { label: 'Disiapkan', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  slaughtered: { label: 'Dipotong', className: 'bg-violet-50 text-violet-700 border-violet-200' },
-  distributed: {
-    label: 'Terdistribusi',
-    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  },
 };
 
 /**
