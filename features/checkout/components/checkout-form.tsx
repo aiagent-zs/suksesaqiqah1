@@ -19,6 +19,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   Loader2,
+  MessageCircle,
   Minus,
   Package,
   Plus,
@@ -36,7 +37,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { ANIMAL_SPECIES_LABEL } from '@/lib/constants/order';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { siteConfig } from '@/lib/constants/site';
 import { createGuestOrderAction } from '@/server/actions/checkout';
+import { orderWhatsAppMessage } from '../order-message';
 import {
   BOOKING_MAX_DAYS,
   BOOKING_MIN_DAYS,
@@ -758,7 +761,22 @@ export function CheckoutForm({
     setRecoveryHandled(true);
   }
 
-  if (done) return <SuccessPanel result={done} />;
+  if (done)
+    return (
+      <SuccessPanel
+        result={done}
+        summary={{
+          packageName: selected?.name ?? null,
+          qty: draft.qty,
+          boxName: selectedBox?.name ?? null,
+          boxQty: draft.nasi_box_qty,
+          requestedDate: draft.requested_date,
+          requestedTime: draft.requested_time,
+          distributionMode: draft.distribution_mode,
+          customerName: draft.name,
+        }}
+      />
+    );
 
   const progressPct = (currentStep / STEPS.length) * 100;
 
@@ -1739,7 +1757,34 @@ function StepperButton({
   );
 }
 
-function SuccessPanel({ result }: { result: GuestOrderResult }) {
+type OrderSummary = {
+  packageName: string | null;
+  qty: number;
+  boxName: string | null;
+  boxQty: number;
+  requestedDate: string;
+  requestedTime: string;
+  distributionMode: string;
+  customerName: string;
+};
+
+function SuccessPanel({
+  result,
+  summary,
+}: {
+  result: GuestOrderResult;
+  summary: OrderSummary;
+}) {
+  // Dirakit sekali di sini, bukan di dalam JSX: `encodeURIComponent` atas teks
+  // sepanjang ini tidak perlu diulang tiap render.
+  const waHref = siteConfig.whatsapp.href(
+    orderWhatsAppMessage({
+      orderNumber: result.order_number,
+      totalAmount: result.total_amount,
+      ...summary,
+    }),
+  );
+
   return (
     <div className="mx-auto max-w-xl overflow-hidden rounded-lg border border-neutral-200 bg-white">
       <div className="border-b border-neutral-200 px-6 py-8 text-center sm:px-8">
@@ -1750,8 +1795,8 @@ function SuccessPanel({ result }: { result: GuestOrderResult }) {
           Pesanan Berhasil Terkirim!
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-xs leading-6 text-neutral-600">
-          Pesanan Anda telah tercatat di sistem. Tim admin Sukses Aqiqah akan segera menghubungi
-          Anda via WhatsApp.
+          Pesanan Anda telah tercatat di sistem. Lanjutkan ke WhatsApp untuk mendapatkan
+          informasi pembayaran dari admin kami.
         </p>
       </div>
 
@@ -1770,10 +1815,24 @@ function SuccessPanel({ result }: { result: GuestOrderResult }) {
         </div>
       </dl>
 
-      <div className="border-t border-neutral-100 px-6 py-6 sm:px-8">
+      {/* Tombol utama, bukan sekadar tautan pendamping: sampai worker pengirim
+          ada, percakapan yang dibuka pemesan sendiri adalah satu-satunya jalur
+          yang pasti sampai ke admin. Ringkasan pesanannya sudah terisi, jadi
+          admin tidak perlu bertanya balik nomor pesanannya berapa. */}
+      <div className="space-y-2.5 border-t border-neutral-100 px-6 py-6 sm:px-8">
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+        >
+          <MessageCircle className="size-4 shrink-0" />
+          Lanjutkan ke WhatsApp Admin
+        </a>
+
         <Link
           href="/"
-          className="inline-flex w-full items-center justify-center rounded-lg bg-neutral-900 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
+          className="inline-flex w-full items-center justify-center rounded-lg border border-neutral-200 px-5 py-3.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
         >
           Kembali ke Beranda
         </Link>

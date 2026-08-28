@@ -727,3 +727,62 @@ describe('umpan balik galat', () => {
     expect(stale, 'ringkasan lama masih tersisa').toBeFalsy();
   });
 });
+
+/**
+ * Layar sukses — jalur yang dipakai pemesan setelah ordernya tercatat.
+ *
+ * Sampai worker pengirim ada, percakapan yang dibuka pemesan sendiri adalah
+ * satu-satunya jalur yang pasti sampai ke admin. Yang dijaga di sini bukan
+ * susunan kata pesannya (itu urusan `order-message.test.ts`), melainkan bahwa
+ * tautannya benar-benar terpasang dan membawa ringkasan yang **sedang dipesan**
+ * — bukan medan kosong.
+ */
+describe('layar sukses', () => {
+  async function submitOrder() {
+    goToFinalStep();
+    clickText('Konfirmasi & Kirim');
+    await flush();
+  }
+
+  it('menampilkan nomor pesanan dari server', async () => {
+    await submitOrder();
+    expect(document.body.textContent).toContain('IA-202608-9999');
+  });
+
+  it('tombol WhatsApp membawa ringkasan pesanan yang sedang dibuat', async () => {
+    await submitOrder();
+
+    const link = [...document.querySelectorAll('a')].find((a) =>
+      a.getAttribute('href')?.startsWith('https://wa.me/'),
+    );
+    expect(link, 'tautan WhatsApp tidak ditemukan di layar sukses').toBeTruthy();
+
+    // `?text=` ter-encode; didekode dulu supaya yang diperiksa isinya, bukan
+    // hasil `encodeURIComponent`-nya.
+    const text = decodeURIComponent(new URL(link!.href).searchParams.get('text') ?? '');
+
+    // Nomor pesanan: satu-satunya keping yang membuat admin bisa menemukan
+    // barisnya di `/orders` tanpa bertanya balik.
+    expect(text).toContain('IA-202608-9999');
+    // Ringkasan diambil dari draft yang masih hidup di state — `clearDraft()`
+    // hanya mengosongkan sessionStorage, bukan state komponen. Kalau kelak
+    // keduanya tertukar, medan-medan ini yang pertama jadi kosong.
+    expect(text).toContain('Aqiqah Ekonomi');
+    expect(text).toContain('Budi Santoso');
+    expect(text).toContain('Aqiqah Salur');
+  });
+
+  it('tidak pernah membocorkan `public_token` ke pesan WhatsApp', async () => {
+    await submitOrder();
+
+    const link = [...document.querySelectorAll('a')].find((a) =>
+      a.getAttribute('href')?.startsWith('https://wa.me/'),
+    );
+    const text = decodeURIComponent(new URL(link!.href).searchParams.get('text') ?? '');
+
+    // Token itu kunci baca laporan, dan pesan WhatsApp bisa diteruskan ke siapa
+    // pun. Mock-nya memakai 32 huruf 'x' — kalau kelak ia ikut terangkut,
+    // tes ini yang menangkapnya.
+    expect(text).not.toContain('x'.repeat(32));
+  });
+});

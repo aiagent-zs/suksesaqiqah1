@@ -263,6 +263,35 @@ describe('vendors — master mitra', () => {
     });
   });
 
+  it('penghapusan lunak menyembunyikan mitra tanpa memutus order lamanya', async () => {
+    await inRollback(async (tx) => {
+      await actAs(tx, SEED.superadmin);
+
+      // Inilah yang dilakukan `deleteVendor`, dan alasan ia tidak memakai
+      // `delete`: tes di atas sudah membuktikan `delete` ditolak `23503` selama
+      // mitra pernah menyentuh satu order pun. `deleted_at` melewati itu tanpa
+      // memutus jejak siapa pelaksananya.
+      await tx`
+        update public.vendors set deleted_at = now(), is_active = false
+        where id = ${SEED.vendorA}
+      `;
+
+      // Setiap pembacaan mitra menyaring `deleted_at is null`; yang diperiksa
+      // di sini adalah baris itu benar-benar lenyap dari bentuk pembacaan yang
+      // dipakai `listVendors` dan `getVendorOptions`.
+      const [visible] = await tx<{ n: number }[]>`
+        select count(*)::int as n from public.vendors
+        where id = ${SEED.vendorA} and deleted_at is null
+      `;
+      expect(visible.n).toBe(0);
+
+      const [orders] = await tx<{ n: number }[]>`
+        select count(*)::int as n from public.orders where vendor_id = ${SEED.vendorA}
+      `;
+      expect(orders.n).toBeGreaterThan(0);
+    });
+  });
+
   it('periode perjanjian tidak boleh berakhir sebelum dimulai', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);

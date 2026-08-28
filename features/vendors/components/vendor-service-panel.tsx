@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,14 @@ import { formatCurrency } from '@/lib/format';
 import { deleteVendorService, saveVendorService } from '@/server/actions/vendors';
 import type { VendorServiceRow } from '../queries';
 
-type ServiceOption = { id: string; name: string; type: string; price: number };
+type ServiceOption = {
+  id: string;
+  name: string;
+  type: string;
+  price: number;
+  description: string | null;
+  details: string[];
+};
 
 /**
  * Daftar modal per paket untuk satu mitra.
@@ -42,6 +49,8 @@ export function VendorServicePanel({
   const [showForm, setShowForm] = useState(false);
   const [serviceId, setServiceId] = useState('');
   const [price, setPrice] = useState('');
+  /** Baris yang sedang disunting, beserta modal barunya. */
+  const [editing, setEditing] = useState<{ id: string; price: string } | null>(null);
 
   function run(fn: () => Promise<{ ok: boolean; error?: { message: string } }>, done?: () => void) {
     setError(null);
@@ -112,6 +121,11 @@ export function VendorServicePanel({
                 </option>
               ))}
             </Select>
+
+            {/* Isi paket ditampilkan sebelum modalnya diketik: modal yang wajar
+                untuk 80 porsi tidak wajar untuk 150, dan tanpa ini angkanya
+                diketik tanpa tahu apa yang dibeli. */}
+            {selected && <ServiceDetails service={selected} className="mt-2" />}
           </div>
 
           <div>
@@ -182,63 +196,181 @@ export function VendorServicePanel({
         </p>
       ) : (
         <ul className="divide-border divide-y">
-          {rows.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
-              <div className="min-w-40 flex-1">
-                <p className="font-medium">
-                  {r.serviceName}
-                  {!r.isOffered && (
-                    <Badge className="ml-2 border-slate-200 bg-slate-100 text-slate-600">
-                      Tidak ditawarkan
-                    </Badge>
+          {rows.map((r) => {
+            const edit = editing?.id === r.id ? editing : null;
+            // Margin dihitung ulang dari angka yang sedang diketik, bukan dari
+            // yang tersimpan: itulah yang membuat suntingan bisa dinilai sebelum
+            // disimpan, sama seperti pada form tambah.
+            const shownMargin = edit ? r.price - Number(edit.price || 0) : r.margin;
+
+            return (
+              <li key={r.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
+                <div className="min-w-40 flex-1">
+                  <p className="font-medium">
+                    {r.serviceName}
+                    {!r.isOffered && (
+                      <Badge className="ml-2 border-slate-200 bg-slate-100 text-slate-600">
+                        Tidak ditawarkan
+                      </Badge>
+                    )}
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    Jual {formatCurrency(r.price)} · Modal {formatCurrency(r.vendorPrice)}
+                  </p>
+
+                  <ServiceDetails service={r} className="mt-1.5" />
+                </div>
+
+                {edit ? (
+                  <div className="w-40">
+                    <Label htmlFor={`vs-edit-${r.id}`} className="sr-only">
+                      Harga modal {r.serviceName}
+                    </Label>
+                    <Input
+                      id={`vs-edit-${r.id}`}
+                      type="number"
+                      inputMode="numeric"
+                      autoFocus
+                      value={edit.price}
+                      disabled={pending}
+                      onChange={(e) => setEditing({ id: r.id, price: e.target.value })}
+                    />
+                  </div>
+                ) : null}
+
+                <p
+                  className={`text-sm font-medium tabular-nums ${shownMargin < 0 ? 'text-destructive' : ''}`}
+                >
+                  {formatCurrency(shownMargin)}
+                </p>
+
+                <div className="flex items-center gap-2">
+                  {edit ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={pending || edit.price === ''}
+                        onClick={() =>
+                          run(
+                            () =>
+                              saveVendorService({
+                                vendor_id: vendorId,
+                                service_id: r.serviceId,
+                                vendor_price: Number(edit.price),
+                                is_offered: r.isOffered,
+                              }),
+                            () => setEditing(null),
+                          )
+                        }
+                      >
+                        Simpan
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => setEditing(null)}
+                      >
+                        Batal
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => {
+                          setError(null);
+                          setEditing({ id: r.id, price: String(r.vendorPrice) });
+                        }}
+                      >
+                        <Pencil className="size-3.5" />
+                        Ubah
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() =>
+                          run(() =>
+                            saveVendorService({
+                              vendor_id: vendorId,
+                              service_id: r.serviceId,
+                              vendor_price: r.vendorPrice,
+                              is_offered: !r.isOffered,
+                            }),
+                          )
+                        }
+                      >
+                        {r.isOffered ? 'Hentikan' : 'Tawarkan'}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="destructive"
+                        aria-label={`Hapus modal ${r.serviceName}`}
+                        disabled={pending}
+                        onClick={() => run(() => deleteVendorService({ id: r.id }))}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </>
                   )}
-                </p>
-                <p className="text-muted-foreground mt-0.5 text-xs">
-                  Jual {formatCurrency(r.price)} · Modal {formatCurrency(r.vendorPrice)}
-                </p>
-              </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
 
-              <p
-                className={`text-sm font-medium tabular-nums ${r.margin < 0 ? 'text-destructive' : ''}`}
-              >
-                {formatCurrency(r.margin)}
-              </p>
+/**
+ * Apa yang didapat pembeli kalau memilih paket ini.
+ *
+ * Dipakai di dua tempat — pratinjau saat memilih paket baru, dan tiap baris
+ * yang sudah tercatat — sebab pertanyaannya sama di keduanya: modal yang wajar
+ * untuk "80 porsi, gulai & sate" tidak wajar untuk "150 porsi, empat olahan",
+ * dan tanpa ini angkanya diketik tanpa tahu apa yang dibeli.
+ *
+ * Isinya dirakit di server (`serviceDetails` di `queries.ts`) karena
+ * `services.meta` bertipe `Json` bebas dan bentuknya berbeda per jenis paket.
+ * Paket tanpa keduanya tidak merender apa pun — baris kosong bukan informasi.
+ */
+function ServiceDetails({
+  service,
+  className = '',
+}: {
+  service: { description: string | null; details: string[] };
+  className?: string;
+}) {
+  if (!service.description && service.details.length === 0) return null;
 
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() =>
-                    run(() =>
-                      saveVendorService({
-                        vendor_id: vendorId,
-                        service_id: r.serviceId,
-                        vendor_price: r.vendorPrice,
-                        is_offered: !r.isOffered,
-                      }),
-                    )
-                  }
-                >
-                  {r.isOffered ? 'Hentikan' : 'Tawarkan'}
-                </Button>
-
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="destructive"
-                  aria-label={`Hapus modal ${r.serviceName}`}
-                  disabled={pending}
-                  onClick={() => run(() => deleteVendorService({ id: r.id }))}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
+  return (
+    <div className={className}>
+      {service.description && (
+        <p className="text-muted-foreground text-xs">{service.description}</p>
+      )}
+      {service.details.length > 0 && (
+        <ul className="mt-1 flex flex-wrap gap-1.5">
+          {service.details.map((d) => (
+            <li
+              key={d}
+              className="border-border text-muted-foreground rounded-md border px-1.5 py-0.5 text-xs"
+            >
+              {d}
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

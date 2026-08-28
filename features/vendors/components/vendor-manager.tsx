@@ -3,14 +3,14 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, MapPin, Phone, Plus, UserX } from 'lucide-react';
+import { AlertCircle, Eye, MapPin, Pencil, Phone, Plus, Trash2, UserX } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { DISTRIBUTION_MODE_LABEL } from '@/features/stages/sequence';
-import { createVendor } from '@/server/actions/vendors';
+import { createVendor, deleteVendor } from '@/server/actions/vendors';
 import type { VendorRow } from '../queries';
 
 const EMPTY = {
@@ -44,6 +44,8 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
   const [showForm, setShowForm] = useState(false);
   const [modes, setModes] = useState<Array<'salur' | 'kirim'>>(['salur', 'kirim']);
   const [draft, setDraft] = useState(EMPTY);
+  /** Mitra yang tombol hapusnya sudah ditekan sekali — menunggu penegasan. */
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   function run(fn: () => Promise<{ ok: boolean; error?: { message: string } }>, done?: () => void) {
     setError(null);
@@ -315,15 +317,69 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
               )}
             </div>
 
-            {/* Aktif/non-aktif pindah ke halaman detail: di sana jumlah order
+            {/* Aktif/non-aktif tetap di halaman detail: di sana jumlah order
                 berjalan sudah terbaca, jadi tombolnya bisa menjelaskan diri
                 sebelum ditekan alih-alih menolak sesudahnya. */}
-            <Link
-              href={`/vendors/${v.id}`}
-              className={buttonVariants({ variant: 'outline', size: 'sm' })}
-            >
-              Kelola
-            </Link>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Link
+                href={`/vendors/${v.id}`}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <Eye className="size-3.5" />
+                Lihat
+              </Link>
+
+              <Link
+                href={`/vendors/${v.id}#data-mitra`}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <Pencil className="size-3.5" />
+                Ubah
+              </Link>
+
+              {/* Penegasan dua langkah, bukan `confirm()`: penghapusan mitra
+                  memutus satu-satunya baris yang menautkan order lama ke
+                  pelaksananya, dan dialog peramban tidak bisa menyebutkan
+                  syaratnya. Tekan sekali → tombolnya sendiri yang bertanya. */}
+              {confirmDelete === v.id ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() =>
+                      run(() => deleteVendor({ id: v.id }), () => setConfirmDelete(null))
+                    }
+                  >
+                    Ya, hapus {v.code}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => setConfirmDelete(null)}
+                  >
+                    Batal
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => {
+                    setError(null);
+                    setConfirmDelete(v.id);
+                  }}
+                >
+                  <Trash2 className="size-3.5" />
+                  Hapus
+                </Button>
+              )}
+            </div>
           </li>
         ))}
 

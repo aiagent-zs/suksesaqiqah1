@@ -260,7 +260,40 @@ export type VendorServiceRow = {
   margin: number;
   isOffered: boolean;
   notes: string | null;
+  /** Kalimat pemasaran paket, apa adanya dari katalog. */
+  description: string | null;
+  /** Apa saja yang didapat pembeli — dirakit dari `services.meta`. */
+  details: string[];
 };
+
+/**
+ * Isi paket sebagai daftar yang bisa dibaca, dari `services.meta`.
+ *
+ * Dirakit di server, bukan di komponen: `meta` bertipe `Json` bebas dan
+ * bentuknya berbeda per jenis paket (`hasil`+`cocok_untuk` untuk aqiqah,
+ * `items` untuk nasi box, kosong untuk qurban). Membiarkan layar membongkarnya
+ * berarti setiap layar yang menampilkan paket harus tahu ketiga bentuk itu.
+ *
+ * Bentuk yang tidak dikenali menghasilkan daftar kosong, bukan galat — `meta`
+ * adalah kolom bebas, jadi kunci baru akan muncul tanpa memberi tahu siapa pun.
+ */
+export function serviceDetails(meta: unknown): string[] {
+  if (!meta || typeof meta !== 'object') return [];
+  const m = meta as Record<string, unknown>;
+  const out: string[] = [];
+
+  const hasil = m.hasil as { porsi?: number; jenis?: string } | undefined;
+  if (hasil?.porsi) out.push(`${hasil.porsi} porsi`);
+  if (hasil?.jenis) out.push(`Olahan: ${hasil.jenis}`);
+
+  if (Array.isArray(m.items)) {
+    out.push(...m.items.filter((i): i is string => typeof i === 'string'));
+  }
+
+  if (typeof m.cocok_untuk === 'string') out.push(`Cocok untuk ${m.cocok_untuk}`);
+
+  return out;
+}
 
 /** Daftar modal satu mitra, beserta margin terhadap harga jual katalog. */
 export async function getVendorServices(vendorId: string): Promise<VendorServiceRow[]> {
@@ -268,7 +301,10 @@ export async function getVendorServices(vendorId: string): Promise<VendorService
 
   const { data } = await supabase
     .from('vendor_services')
-    .select('id, service_id, vendor_price, is_offered, notes, service:services ( name, type, price )')
+    .select(
+      `id, service_id, vendor_price, is_offered, notes,
+       service:services ( name, type, price, description, meta )`,
+    )
     .eq('vendor_id', vendorId);
 
   const rows = (data ?? []) as unknown as Array<{
@@ -277,7 +313,13 @@ export async function getVendorServices(vendorId: string): Promise<VendorService
     vendor_price: number | string;
     is_offered: boolean;
     notes: string | null;
-    service: { name: string; type: string; price: number | string } | null;
+    service: {
+      name: string;
+      type: string;
+      price: number | string;
+      description: string | null;
+      meta: unknown;
+    } | null;
   }>;
 
   return rows
@@ -294,6 +336,8 @@ export async function getVendorServices(vendorId: string): Promise<VendorService
         margin: price - vendorPrice,
         isOffered: r.is_offered,
         notes: r.notes,
+        description: r.service?.description ?? null,
+        details: serviceDetails(r.service?.meta),
       };
     })
     .sort((a, b) => a.serviceName.localeCompare(b.serviceName));
@@ -347,7 +391,7 @@ export async function getServiceOptions() {
 
   const { data } = await supabase
     .from('services')
-    .select('id, name, type, price')
+    .select('id, name, type, price, description, meta')
     .eq('is_active', true)
     .is('deleted_at', null)
     .order('sort_order');
@@ -357,5 +401,7 @@ export async function getServiceOptions() {
     name: s.name,
     type: s.type,
     price: Number(s.price),
+    description: s.description,
+    details: serviceDetails(s.meta),
   }));
 }

@@ -102,6 +102,8 @@ export const setVendorActiveSchema = z.object({
   is_active: z.boolean(),
 });
 
+export const deleteVendorSchema = z.object({ id: uuid });
+
 /**
  * Modal per paket untuk satu mitra.
  *

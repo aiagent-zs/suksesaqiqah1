@@ -6,6 +6,7 @@ import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import {
   createVendorSchema,
+  deleteVendorSchema,
   deleteVendorServiceSchema,
   saveVendorCoverageSchema,
   setVendorActiveSchema,
@@ -237,6 +238,92 @@ export async function setVendorActive(input: unknown): Promise<ActionResult<null
 
   revalidatePath('/vendors');
   revalidatePath(`/vendors/${id}`);
+  return { ok: true, data: null };
+}
+
+/**
+ * Hapus mitra — `deleted_at`, bukan `delete`.
+ *
+ * Tiga tabel menahannya dengan `on delete restrict` (`orders`, `locations`,
+ * `profiles`): penghapusan sungguhan akan ditolak database begitu mitra ini
+ * pernah menyentuh satu order pun, dan jejak yang menunjuk siapa pelakunya
+ * memang harus tetap terbaca. Semua pembacaan mitra sudah menyaring
+ * `deleted_at is null`, jadi baris ini hilang dari layar tanpa memutus rujukan.
+ *
+ * Dua penjagaan sebelum itu, keduanya kegagalan yang baru terasa jauh dari
+ * sini: order berjalan akan kehilangan pelaksananya di tengah pekerjaan, dan
+ * akun vendor yang tertaut akan tetap hidup tapi buta — `can_read_order`
+ * membandingkan `profiles.vendor_id` dengan mitra yang tidak lagi tampil di
+ * mana pun.
+ */
+export async function deleteVendor(input: unknown): Promise<ActionResult<null>> {
+  const session = await requireAuth();
+
+  if (!canDo(session.profile?.role, 'MANAGE_VENDORS')) {
+    return forbidden('Penghapusan mitra hanya dapat dilakukan superadmin.');
+  }
+
+  const parsed = deleteVendorSchema.safeParse(input);
+  if (!parsed.success) return validationError(parsed.error);
+  const { id } = parsed.data;
+
+  const supabase = await createClient();
+
+  const [ordersResult, accountsResult] = await Promise.all([
+    supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('vendor_id', id)
+      .not('status', 'in', '("completed","cancelled")')
+      .is('deleted_at', null),
+    supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('vendor_id', id)
+      .is('deleted_at', null),
+  ]);
+
+  // Hitungan yang gagal menghentikan penghapusan, bukan meloloskannya.
+  // `(count ?? 0) > 0` akan berbuat sebaliknya: pemeriksaan yang error
+  // mengembalikan `count` null, dan mitra yang justru paling perlu ditahan —
+  // yang datanya tidak bisa dibaca — malah lolos. Penjagaan yang runtuh diam-
+  // diam lebih buruk daripada tidak ada penjagaan.
+  const ordersOpen = ordersResult.count;
+  const accounts = accountsResult.count;
+
+  if (ordersResult.error || accountsResult.error || ordersOpen === null || accounts === null) {
+    return internalError(
+      'Gagal memeriksa keterkaitan mitra',
+      ordersResult.error ?? accountsResult.error ?? { message: 'count kosong' },
+    );
+  }
+
+  if (ordersOpen > 0) {
+    return conflict(
+      `Mitra ini masih memegang ${ordersOpen} order berjalan. Selesaikan atau pindahkan lebih dulu.`,
+    );
+  }
+
+  if (accounts > 0) {
+    return conflict(
+      'Mitra ini masih punya akun login. Hapus akunnya lebih dulu di menu Pengguna.',
+    );
+  }
+
+  // `is_active` ikut dimatikan: beberapa pembacaan menyaring keaktifan saja
+  // (mis. `getVendorOptions`), dan baris yang terhapus tapi masih "aktif"
+  // adalah keadaan yang tidak punya arti.
+  const { data, error } = await supabase
+    .from('vendors')
+    .update({ deleted_at: new Date().toISOString(), is_active: false })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id');
+
+  if (error) return internalError('Gagal menghapus mitra', error);
+  if ((data ?? []).length === 0) return notFound('Mitra tidak ditemukan.');
+
+  revalidatePath('/vendors');
   return { ok: true, data: null };
 }
 

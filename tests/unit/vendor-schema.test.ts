@@ -13,6 +13,7 @@ import {
   updateVendorSchema,
   vendorServiceSchema,
 } from '@/features/vendors/schema';
+import { serviceDetails } from '@/features/vendors/queries';
 
 const VALID = {
   code: 'MITRA1',
@@ -141,5 +142,42 @@ describe('vendorServiceSchema', () => {
       vendor_price: 100,
     });
     expect(parsed.is_offered).toBe(true);
+  });
+});
+
+/**
+ * Isi paket yang dibaca dari `services.meta`.
+ *
+ * Kolomnya bertipe `Json` bebas dan bentuknya **berbeda per jenis paket** —
+ * aqiqah memakai `hasil` + `cocok_untuk`, nasi box memakai `items`, qurban
+ * kosong sama sekali. Itu sebabnya perakitannya duduk di satu tempat: kalau
+ * layar yang membongkarnya, setiap layar yang menampilkan paket harus tahu
+ * ketiga bentuk itu.
+ */
+describe('serviceDetails', () => {
+  it('merakit paket aqiqah dari `hasil` dan `cocok_untuk`', () => {
+    expect(
+      serviceDetails({
+        hasil: { porsi: 110, jenis: 'gulai, sate, tongseng' },
+        cocok_untuk: 'syukuran keluarga',
+      }),
+    ).toEqual(['110 porsi', 'Olahan: gulai, sate, tongseng', 'Cocok untuk syukuran keluarga']);
+  });
+
+  it('merakit nasi box dari `items`', () => {
+    expect(serviceDetails({ items: ['nasi putih', 'sate'] })).toEqual(['nasi putih', 'sate']);
+  });
+
+  it('mengembalikan daftar kosong untuk meta kosong atau bukan objek', () => {
+    // Qurban memang `{}` di katalog, dan `meta` kolom bebas — kunci baru bisa
+    // muncul tanpa memberi tahu siapa pun. Bentuk tak dikenal harus jadi daftar
+    // kosong, bukan galat yang menjatuhkan seluruh halaman mitra.
+    for (const input of [{}, null, undefined, 'bukan objek', 42]) {
+      expect(serviceDetails(input)).toEqual([]);
+    }
+  });
+
+  it('mengabaikan `items` yang bukan larik string', () => {
+    expect(serviceDetails({ items: ['sate', 7, null, { a: 1 }] })).toEqual(['sate']);
   });
 });
