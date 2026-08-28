@@ -1,5 +1,19 @@
 # Foto Landing Page
 
+> ## ⚠️ Saat ini kesepuluh slot berisi FOTO STOK sementara
+>
+> Diunduh dari Pexels (bebas dipakai komersial, tanpa atribusi) dan dipotong ke
+> rasio masing-masing slot, semata agar halaman bisa dinilai utuh sebelum foto
+> sungguhan siap. **Semuanya menunggu diganti** — daftar di bawah tetap berlaku.
+>
+> Karena galeri kini berisi foto stok, kalimat **"bukan foto ilustrasi"** sudah
+> dicabut dari `app/(site)/page.tsx` (fungsi `GallerySection`). Janji itu bisa
+> diperiksa pengunjung, dan melanggarnya merusak persis kepercayaan yang hendak
+> dibangun halaman ini.
+>
+> **Begitu keenam foto galeri asli masuk, kembalikan kalimat itu** — komentar di
+> atas `GallerySection` memuat instruksinya.
+
 Taruh foto di folder ini dengan **nama berkas persis seperti daftar di bawah**.
 Tidak ada kode yang perlu diubah — begitu berkasnya ada, kotak abu di halaman
 otomatis berganti jadi foto Anda.

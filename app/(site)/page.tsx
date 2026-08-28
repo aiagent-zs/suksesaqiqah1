@@ -431,13 +431,26 @@ function ProcessSection() {
  * "terdokumentasi" yang diulang di beberapa bagian halaman ini. Urutannya sama
  * dengan `fulfilment_sequence()` di database, jadi yang dilihat pengunjung di
  * sini persis bentuk laporan yang nanti ia terima.
+ *
+ * ## Kalimat pengantarnya menyesuaikan isi fotonya
+ *
+ * Sampai foto pelaksanaan sungguhan tersedia, keenam slot ini diisi foto stok
+ * sebagai penahan sementara. Karena itu kalimat "bukan foto ilustrasi" yang
+ * dulu berdiri di sini **dicabut**: ia janji yang bisa diperiksa pengunjung,
+ * dan yang menyalahi janji semacam itu bukan hanya keliru — ia merusak persis
+ * kepercayaan yang hendak dibangun halaman ini.
+ *
+ * Yang tersisa tetap benar apa adanya: urutan tahapnya memang yang dipakai
+ * sistem, dan pemesan memang menerima foto pelaksanaannya sendiri di laporan.
+ * **Kembalikan kalimat aslinya begitu keenam foto asli masuk** —
+ * `public/images/landing/README.md` memuat daftarnya.
  */
 function GallerySection() {
   return (
     <Section id="galeri" index="04" eyebrow="Dokumentasi">
       <SectionIntro
         title="Lihat sendiri setiap tahapnya"
-        lead="Foto di bawah adalah tahapan yang sama persis dengan yang Anda terima di laporan pelaksanaan — bukan foto ilustrasi."
+        lead="Inilah urutan tahap yang ditempuh setiap pesanan. Anda menerima foto pelaksanaan pesanan Anda sendiri di laporan akhir."
       />
 
       <div className="mt-10 grid gap-x-5 gap-y-7 sm:mt-12 sm:grid-cols-2 sm:gap-y-8 lg:grid-cols-3">
