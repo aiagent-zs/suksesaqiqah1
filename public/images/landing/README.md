@@ -2,9 +2,29 @@
 
 > ## ⚠️ Saat ini kesepuluh slot berisi FOTO STOK sementara
 >
-> Diunduh dari Pexels (bebas dipakai komersial, tanpa atribusi) dan dipotong ke
-> rasio masing-masing slot, semata agar halaman bisa dinilai utuh sebelum foto
-> sungguhan siap. **Semuanya menunggu diganti** — daftar di bawah tetap berlaku.
+> Diambil dari **Wikimedia Commons** dan dipotong ke rasio masing-masing slot,
+> semata agar halaman bisa dinilai utuh sebelum foto sungguhan siap.
+> **Semuanya menunggu diganti** — daftar di bawah tetap berlaku.
+>
+> Berkas asalnya (cari namanya di <https://commons.wikimedia.org>):
+>
+> | Slot | Berkas Commons |
+> |---|---|
+> | `hero` | Sate Kambing Sate Ayam.jpg |
+> | `paket-ekonomi` | Gulai kambing masakan Padang.JPG |
+> | `paket-favorit` | Sate Kambing di Rumah-2.jpg |
+> | `paket-premium` | Gulai tongseng kambing.JPG |
+> | `galeri-1-persiapan` | Obelix Village - Peternakan Kambing 1.jpg |
+> | `galeri-2-sembelih` | Sate Kambing di Rumah-1.jpg |
+> | `galeri-3-masak` | Grilling Sate.jpg |
+> | `galeri-4-kemas` | Nasi Kotak-3.jpg |
+> | `galeri-5-kirim` | Nasi Kotak-5.jpg |
+> | `galeri-6-salur` | Sate Kambing di Rumah-3.jpg |
+>
+> **Periksa lisensi tiap berkas sebelum dipakai di produksi.** Sebagian besar
+> berlisensi CC BY-SA yang **menuntut atribusi** — kewajiban yang tidak ada pada
+> foto Anda sendiri. Ini satu alasan lagi menggantinya dengan foto pelaksanaan
+> sungguhan, selain karena foto sendiri memang lebih meyakinkan.
 >
 > Karena galeri kini berisi foto stok, kalimat **"bukan foto ilustrasi"** sudah
 > dicabut dari `app/(site)/page.tsx` (fungsi `GallerySection`). Janji itu bisa
