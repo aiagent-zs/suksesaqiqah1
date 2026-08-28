@@ -79,9 +79,10 @@ async function resolveAddress(
 /**
  * Kolom mitra dari input yang sudah tervalidasi.
  *
- * `code` sengaja tidak ikut: ia hanya ada saat pendaftaran, dan `updateVendor`
- * memang tidak menerimanya (lihat `updateVendorSchema`). Menyusunnya di sini
- * akan menulis `undefined` ke kolom `not null` saat menyunting.
+ * `code` kini **ikut**: sejak `updateVendorSchema` menerimanya, kedua aksi
+ * sama-sama membawa kode yang sudah tervalidasi, jadi menyusunnya di sini tidak
+ * lagi berisiko menulis `undefined` ke kolom `not null` — justru sebaliknya,
+ * meninggalkannya berarti kode yang disunting tidak pernah tersimpan.
  */
 function rowFrom(
   v: Record<string, unknown>,
@@ -89,6 +90,7 @@ function rowFrom(
   address: string | null,
 ) {
   return {
+    code: v.code as string,
     name: v.name as string,
     legal_name: (v.legal_name as string) || null,
     owner_name: (v.owner_name as string) || null,
@@ -139,7 +141,7 @@ export async function createVendor(input: unknown): Promise<ActionResult<{ id: s
 
   const { data, error } = await supabase
     .from('vendors')
-    .insert({ code: v.code, ...rowFrom(v, names, address) })
+    .insert(rowFrom(v, names, address))
     .select('id')
     .maybeSingle();
 
@@ -182,7 +184,27 @@ export async function updateVendor(input: unknown): Promise<ActionResult<null>> 
     .eq('id', id)
     .select('id');
 
-  if (error) return internalError('Gagal memperbarui mitra', error);
+  if (error) {
+    // Kode yang sudah dipakai mitra lain ditolak `vendors_code_key`. Pesannya
+    // ditempelkan ke medan `code` supaya muncul tepat di kolomnya, bukan sebagai
+    // galat umum di kepala formulir — sama seperti `createVendor` di atas.
+    //
+    // Penjagaannya sengaja bersandar pada constraint, bukan SELECT lebih dulu:
+    // pemeriksaan terpisah punya celah waktu antara "sudah kucek, aman" dan
+    // baris benar-benar ditulis — dua superadmin yang menyimpan kode sama pada
+    // detik yang sama akan sama-sama lolos pemeriksaan itu.
+    if (error.code === '23505') {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFLICT',
+          message: 'Kode mitra ini sudah dipakai mitra lain.',
+          fields: { code: 'Sudah dipakai mitra lain.' },
+        },
+      };
+    }
+    return internalError('Gagal memperbarui mitra', error);
+  }
   if ((data ?? []).length === 0) return notFound('Mitra tidak ditemukan.');
 
   revalidatePath('/vendors');

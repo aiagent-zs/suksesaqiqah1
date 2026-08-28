@@ -263,6 +263,34 @@ describe('vendors — master mitra', () => {
     });
   });
 
+  it('menyunting kode ke milik mitra lain ditolak, ke kode bebas diterima', async () => {
+    await inRollback(async (tx) => {
+      await actAs(tx, SEED.superadmin);
+
+      // Inilah yang disandari `updateVendor` untuk memperingatkan operator:
+      // penjagaannya constraint, bukan SELECT lebih dulu. Pemeriksaan terpisah
+      // punya celah waktu antara "sudah kucek, aman" dan baris benar-benar
+      // ditulis — dua superadmin yang menyimpan kode sama pada detik yang sama
+      // akan sama-sama lolos pemeriksaan itu.
+      const bentrok = await expectFailureInSavepoint(
+        tx,
+        (sp) => sp`
+          update public.vendors set code = 'DAPURBDG' where id = ${SEED.vendorB}
+        `,
+      );
+      expect(bentrok.code).toBe('23505');
+
+      // Kode yang belum dipakai tetap boleh — sebab inilah `code` dibuka untuk
+      // disunting: membetulkan salah ketik tanpa dashboard Supabase.
+      await tx`update public.vendors set code = 'DAPURSMG' where id = ${SEED.vendorB}`;
+
+      const [after] = await tx<{ code: string }[]>`
+        select code from public.vendors where id = ${SEED.vendorB}
+      `;
+      expect(after.code).toBe('DAPURSMG');
+    });
+  });
+
   it('penghapusan lunak menyembunyikan mitra tanpa memutus order lamanya', async () => {
     await inRollback(async (tx) => {
       await actAs(tx, SEED.superadmin);

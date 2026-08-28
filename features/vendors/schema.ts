@@ -85,14 +85,25 @@ export const vendorSchema = z.object({
 export const createVendorSchema = vendorSchema;
 
 /**
- * Sunting mitra.
+ * Sunting mitra — `code` **ikut** disunting.
  *
- * `code` sengaja **tidak** ikut: ia melekat pada mitra sejak didaftarkan dan
- * dipakai membaca daftar secara sekilas. Mengubahnya berarti baris yang sama
- * tampil dengan identitas berbeda di layar orang lain yang belum memuat ulang,
- * dan tidak ada satu pun kebutuhan operasi yang menuntutnya.
+ * Revisi keputusan: sebelumnya `code` di-`omit` di sini dengan alasan ia
+ * melekat sejak pendaftaran. Alasan itu tidak bertahan menghadapi kebutuhan
+ * yang nyata — salah ketik saat mendaftarkan mitra hanya bisa dibetulkan lewat
+ * dashboard Supabase, dan mitra yang berganti nama usaha terpaksa hidup dengan
+ * kode lama selamanya.
+ *
+ * Yang membuatnya aman bukan pendapat, melainkan bentuk skemanya: `code` tidak
+ * pernah disalin ke tabel mana pun. Ia dibaca lewat `join` (`v_open_orders`
+ * memakainya sebagai `vendor_code`), dan path Storage sengaja **tidak**
+ * memakainya — migration `02` mencatat alasannya dengan kalimat yang tegas:
+ * *"kode bisa berubah dan order bisa dipindah ke mitra lain"*. Jadi mengubahnya
+ * cukup satu `update`, dan seluruh pembacanya ikut berubah sendiri.
+ *
+ * Keunikannya tetap dijaga `vendors_code_key`; `updateVendor` menerjemahkan
+ * `23505` jadi pesan yang menempel pada medannya.
  */
-export const updateVendorSchema = vendorSchema.omit({ code: true }).extend({ id: uuid });
+export const updateVendorSchema = vendorSchema.extend({ id: uuid });
 
 export type CreateVendorInput = z.infer<typeof createVendorSchema>;
 export type UpdateVendorInput = z.infer<typeof updateVendorSchema>;

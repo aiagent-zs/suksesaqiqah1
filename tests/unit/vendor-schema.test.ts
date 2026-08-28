@@ -74,11 +74,25 @@ describe('createVendorSchema', () => {
 });
 
 describe('updateVendorSchema', () => {
-  it('tidak menerima `code` — kode melekat sejak pendaftaran', () => {
-    // Kalau `code` ikut, `rowFrom()` akan menyusunnya sebagai `undefined` dan
-    // menulis NULL ke kolom `not null` setiap kali mitra disunting.
+  it('menerima `code` — kode kini dapat disunting', () => {
+    // Kebalikan dari perilaku sebelumnya, dan itu disengaja: dulu `code`
+    // di-`omit` sehingga salah ketik saat pendaftaran hanya bisa dibetulkan
+    // lewat dashboard Supabase. Yang membuat perubahan ini aman adalah bentuk
+    // skemanya — `code` tidak pernah disalin ke tabel lain, dan path Storage
+    // sengaja tidak memakainya.
     const parsed = updateVendorSchema.parse({ ...VALID, id: UUID_A });
-    expect('code' in parsed).toBe(false);
+    expect(parsed.code).toBe('MITRA1');
+  });
+
+  it('menegakkan format kode yang sama dengan pendaftaran', () => {
+    // Kode dibaca sekilas untuk membedakan mitra, jadi 'dapur-bdg' dan
+    // 'DAPURBDG' tidak boleh hidup bersama. Formatnya ditegakkan constraint
+    // `vendors_code_format_check` juga, tapi ditolak di sini supaya pesannya
+    // menempel pada kolomnya.
+    expect(updateVendorSchema.safeParse({ ...VALID, id: UUID_A, code: 'mitra-1' }).success).toBe(
+      false,
+    );
+    expect(updateVendorSchema.parse({ ...VALID, id: UUID_A, code: 'mitra1' }).code).toBe('MITRA1');
   });
 
   it('menuntut id yang sah', () => {

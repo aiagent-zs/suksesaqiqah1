@@ -25,8 +25,11 @@ type Mode = 'salur' | 'kirim';
  * badan hukum, NPWP, periode perjanjian, nama pemilik rekening, dan empat kode
  * wilayah) tidak pernah bisa diisi dari mana pun.
  *
- * `code` sengaja ditampilkan tapi tidak dapat disunting — lihat
- * `updateVendorSchema`.
+ * `code` **kini dapat disunting**. Sebelumnya ia hanya dipajang: salah ketik
+ * saat mendaftarkan mitra cuma bisa dibetulkan lewat dashboard Supabase.
+ * Keunikannya dijaga constraint `vendors_code_key`, dan penolakannya muncul
+ * sebagai pesan di kolomnya sendiri — bukan galat database yang harus ditebak
+ * artinya.
  */
 export function VendorEditForm({
   vendor,
@@ -49,6 +52,7 @@ export function VendorEditForm({
     village_code: vendor.villageCode ?? '',
   });
   const [draft, setDraft] = useState({
+    code: vendor.code,
     name: vendor.name,
     legal_name: vendor.legalName ?? '',
     owner_name: vendor.ownerName ?? '',
@@ -108,7 +112,7 @@ export function VendorEditForm({
         <div>
           <h2 className="text-base font-semibold">Data mitra</h2>
           <p className="text-muted-foreground mt-0.5 text-sm">
-            Kode <span className="tabular-nums">{vendor.code}</span> tidak dapat diubah
+            Kode, kontak, alamat, dan kerja sama mitra
           </p>
         </div>
         {saved && !pending && (
@@ -127,6 +131,19 @@ export function VendorEditForm({
       )}
 
       <div className="grid gap-4 p-5 sm:grid-cols-2">
+        {/* Kode ditaruh paling depan — ia identitas yang dibaca sekilas di
+            daftar mitra. Huruf besar dipaksa saat mengetik, sama seperti
+            formulir pendaftaran: skemanya memang `toUpperCase()`, tapi
+            membiarkan huruf kecil tampil di kolom lalu diam-diam berubah saat
+            tersimpan membuat yang mengetik ragu apa yang sebenarnya disimpan. */}
+        <Field
+          id="v-code"
+          label="Kode mitra"
+          hint="2-12 huruf kapital atau angka — harus unik antar mitra"
+          value={draft.code}
+          error={fieldErrors.code}
+          onChange={(v) => set('code', v.toUpperCase())}
+        />
         <Field
           id="v-name"
           label="Nama usaha"
