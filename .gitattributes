@@ -1,0 +1,15 @@
+# Line ending normal: LF di repo, apa pun OS-nya.
+# Tanpa ini, file yang dibuat di Windows masuk ber-CRLF dan Prettier
+# menandainya "unformatted" walau isinya identik — 74 file sebelumnya begitu.
+* text=auto eol=lf
+
+# Binary — jangan disentuh.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
