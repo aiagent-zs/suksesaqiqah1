@@ -86,7 +86,12 @@ async function resolveAddress(
  */
 function rowFrom(
   v: Record<string, unknown>,
-  names: { province?: string | null; city?: string | null; district?: string | null; village?: string | null },
+  names: {
+    province?: string | null;
+    city?: string | null;
+    district?: string | null;
+    village?: string | null;
+  },
   address: string | null,
 ) {
   return {
@@ -327,9 +332,7 @@ export async function deleteVendor(input: unknown): Promise<ActionResult<null>> 
   }
 
   if (accounts > 0) {
-    return conflict(
-      'Mitra ini masih punya akun login. Hapus akunnya lebih dulu di menu Pengguna.',
-    );
+    return conflict('Mitra ini masih punya akun login. Hapus akunnya lebih dulu di menu Pengguna.');
   }
 
   // `is_active` ikut dimatikan: beberapa pembacaan menyaring keaktifan saja

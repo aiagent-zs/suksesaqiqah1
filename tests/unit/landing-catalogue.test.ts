@@ -107,6 +107,33 @@ describe('katalog landing sama dengan services di database', () => {
       const inDb = catalogue.filter((r) => r.type === 'nasi_box').map((r) => r.slug);
       expect([...nasiBoxPackages.map((b) => b.slug)].sort()).toEqual(inDb.sort());
     });
+
+    /**
+     * Isi tiap box, bukan hanya harganya.
+     *
+     * Sejak landing menuliskan lauknya, `items` jadi janji yang dibaca
+     * pengunjung sebelum memesan — dan ia salinan tangan dari
+     * `services.meta->items`, persis seperti nama & harga. Yang salah harga
+     * masih terkoreksi saat ditagih (checkout membaca `services`); yang salah
+     * **isi** tidak pernah terkoreksi di mana pun, karena tidak ada satu pun
+     * jalur yang membandingkan keduanya. Kecuali tes ini.
+     */
+    it.each(nasiBoxPackages.map((b) => [b.slug, b] as const))(
+      '%s: lauk yang dipasarkan sama dengan `meta.items` di katalog',
+      (slug, box) => {
+        // `meta` dibaca dari baris yang sama di migration; regex-nya sengaja
+        // dijangkarkan pada slug supaya tidak mungkin mengambil `items` milik
+        // paket lain.
+        const row = sql.match(
+          new RegExp(String.raw`'${slug}',\s*'(?:[^']|'')*',\s*\d+,\s*\d+,\s*'([^']+)'`),
+        );
+        expect(row, `meta untuk "${slug}" tidak terbaca dari migration`).not.toBeNull();
+
+        const items = (JSON.parse(row![1]) as { items?: string[] }).items ?? [];
+        expect(items.length, `"${slug}" tidak punya items di katalog`).toBeGreaterThan(0);
+        expect([...box.items]).toEqual(items);
+      },
+    );
   });
 
   it('tidak memasarkan qurban', () => {

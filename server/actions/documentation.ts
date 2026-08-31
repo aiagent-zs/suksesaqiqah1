@@ -64,10 +64,7 @@ export async function uploadDocumentation(input: unknown): Promise<ActionResult<
   // Kebijakan `storage_documentation_insert` hanya menuntut pengunggah punya
   // role — sama sekali tidak membatasi folder. Tanpa cek ini, berkas milik
   // order lain bisa ditautkan ke dokumentasi ini.
-  if (
-    storage_path &&
-    !isDocPathForOrder(storage_path, order.order_number, stage)
-  ) {
+  if (storage_path && !isDocPathForOrder(storage_path, order.order_number, stage)) {
     return {
       ok: false,
       error: {

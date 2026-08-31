@@ -204,24 +204,22 @@ export function UserManager({
                 (needsVendor && !draft.vendor_id)
               }
               onClick={() =>
-                run(
-                  async () => {
-                    const result = await createUser(draft);
-                    if (result.ok) {
-                      setNotice(`Akun ${draft.email} dibuat.`);
-                      setShowForm(false);
-                      setDraft({
-                        email: '',
-                        full_name: '',
-                        phone: '',
-                        role: 'vendor',
-                        vendor_id: '',
-                        password: '',
-                      });
-                    }
-                    return result;
-                  },
-                )
+                run(async () => {
+                  const result = await createUser(draft);
+                  if (result.ok) {
+                    setNotice(`Akun ${draft.email} dibuat.`);
+                    setShowForm(false);
+                    setDraft({
+                      email: '',
+                      full_name: '',
+                      phone: '',
+                      role: 'vendor',
+                      vendor_id: '',
+                      password: '',
+                    });
+                  }
+                  return result;
+                })
               }
             >
               Simpan akun

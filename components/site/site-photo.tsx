@@ -46,15 +46,7 @@ function photoExists(src: string): boolean {
   }
 }
 
-export function SitePhoto({
-  src,
-  alt,
-  width,
-  height,
-  className,
-  priority,
-  sizes,
-}: SitePhotoProps) {
+export function SitePhoto({ src, alt, width, height, className, priority, sizes }: SitePhotoProps) {
   if (!photoExists(src)) {
     // Slot yang menunggu fotonya.
     //

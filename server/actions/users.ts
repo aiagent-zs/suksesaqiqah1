@@ -7,11 +7,7 @@ import { supabaseUrl } from '@/lib/supabase/env';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import type { Database } from '@/types/database';
-import {
-  changeRoleSchema,
-  createUserSchema,
-  setUserActiveSchema,
-} from '@/features/users/schema';
+import { changeRoleSchema, createUserSchema, setUserActiveSchema } from '@/features/users/schema';
 
 import {
   conflict,

@@ -5,7 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
-import { conflict, forbidden, scopedInternalError, validationError, type ActionResult } from './result';
+import {
+  conflict,
+  forbidden,
+  scopedInternalError,
+  validationError,
+  type ActionResult,
+} from './result';
 
 const internalError = scopedInternalError('notifications');
 

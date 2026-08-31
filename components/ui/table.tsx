@@ -22,13 +22,16 @@ function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<'tbody'>) {
-  return <tbody className={cn('divide-y divide-border', className)} {...props} />;
+  return <tbody className={cn('divide-border divide-y', className)} {...props} />;
 }
 
 function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
   return (
     <tr
-      className={cn('transition-colors hover:bg-emerald-50/60 data-[clickable]:cursor-pointer', className)}
+      className={cn(
+        'transition-colors hover:bg-emerald-50/60 data-[clickable]:cursor-pointer',
+        className,
+      )}
       {...props}
     />
   );
@@ -38,7 +41,7 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
   return (
     <th
       className={cn(
-        'px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase',
+        'text-muted-foreground px-4 py-3 text-left text-[11px] font-semibold tracking-wider uppercase',
         className,
       )}
       {...props}

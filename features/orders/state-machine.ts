@@ -220,8 +220,7 @@ export function getTransitionOptions(
 }
 
 export type TransitionCheck =
-  | { ok: true }
-  | { ok: false; code: 'FORBIDDEN' | 'CONFLICT'; message: string };
+  { ok: true } | { ok: false; code: 'FORBIDDEN' | 'CONFLICT'; message: string };
 
 /**
  * Validasi satu transisi. Dipakai server action sebelum melakukan UPDATE.
@@ -259,7 +258,14 @@ export function checkTransition(
 
 /** Posisi status dalam rangkaian, untuk stepper. -1 bila di luar rangkaian. */
 export function statusStepIndex(status: OrderStatus): number {
-  return ['new', 'verified', 'paid', 'assigned', 'in_progress', 'validation', 'reporting', 'completed'].indexOf(
-    status,
-  );
+  return [
+    'new',
+    'verified',
+    'paid',
+    'assigned',
+    'in_progress',
+    'validation',
+    'reporting',
+    'completed',
+  ].indexOf(status);
 }

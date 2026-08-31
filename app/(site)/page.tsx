@@ -12,8 +12,8 @@ import {
 } from '@/lib/constants/site';
 import { formatIDR } from '@/lib/format/currency';
 import { Icon, IconArrowRight, IconCheck, IconWhatsApp } from '@/components/site/icons';
-import { SitePhoto } from '@/components/site/SitePhoto';
-import { Reveal } from '@/components/site/Reveal';
+import { SitePhoto } from '@/components/site/site-photo';
+import { Reveal } from '@/components/site/reveal';
 
 export const metadata: Metadata = {
   title: `${siteConfig.name} — ${siteConfig.tagline}`,
@@ -193,7 +193,7 @@ function Hero() {
               lapisan seperti ini menempuhnya lewat bentuk, bukan lewat blur. */}
           <div
             aria-hidden
-            className="bg-primary/10 pointer-events-none absolute -inset-x-2 -bottom-2 top-3 -z-10 rounded-lg"
+            className="bg-primary/10 pointer-events-none absolute -inset-x-2 top-3 -bottom-2 -z-10 rounded-lg"
           />
           <div className="overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 shadow-sm">
             <SitePhoto
@@ -207,10 +207,10 @@ function Hero() {
             />
           </div>
           <figcaption className="mt-3 flex items-start gap-2 text-xs leading-5 text-neutral-500">
-            <IconCheck className="text-primary mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>
+            {/* <IconCheck className="text-primary mt-0.5 h-3.5 w-3.5 shrink-0" /> */}
+            {/* <span>
               Setiap foto pada laporan Anda melewati validasi tim sebelum tahap berikutnya dibuka.
-            </span>
+            </span> */}
           </figcaption>
         </Reveal>
       </div>
@@ -355,16 +355,41 @@ function PackagesSection() {
           </a>
         </div>
 
-        <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3.5 border-t border-neutral-100 pt-6 sm:mt-7 sm:grid-cols-3 lg:grid-cols-5">
+        {/* Dulu hanya nama + harga berdampingan. Deretan "Paket A … Paket E"
+            tidak memberi tahu apa pun tentang bedanya, sehingga selisih
+            Rp21.000 ke Rp70.000 terbaca sebagai angka tanpa alasan — dan yang
+            bertanya lewat WhatsApp menanyakan hal yang sama berulang kali.
+            Isinya sendiri sudah tercatat di `services.meta->items` sejak awal;
+            di sini ia akhirnya terbaca pengunjung. */}
+        <ul className="mt-6 grid gap-3 border-t border-neutral-100 pt-6 sm:mt-7 sm:grid-cols-2 lg:grid-cols-3">
           {nasiBoxPackages.map((box) => (
-            <div key={box.slug} className="flex items-baseline justify-between gap-2">
-              <dt className="text-sm text-neutral-600">{box.name}</dt>
-              <dd className="text-sm font-semibold text-neutral-900 tabular-nums">
-                {formatIDR(box.price)}
-              </dd>
-            </div>
+            <li
+              key={box.slug}
+              className={`rounded-lg border p-4 ${
+                box.popular ? 'border-primary/30 bg-primary/[0.03]' : 'border-neutral-200'
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <h4 className="text-sm font-semibold text-neutral-900">
+                  {box.name}
+                  {box.popular && (
+                    <span className="bg-primary/10 text-primary ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                      Favorit
+                    </span>
+                  )}
+                </h4>
+                <p className="text-sm font-semibold text-neutral-900 tabular-nums">
+                  {formatIDR(box.price)}
+                </p>
+              </div>
+
+              {/* Lauknya dipisah koma, bukan daftar bertitik: pembeda antar
+                  paket adalah panjang rangkaiannya, dan itu paling cepat
+                  terbaca kalau kelimanya bisa dibandingkan sekilas. */}
+              <p className="mt-1.5 text-xs leading-5 text-neutral-600">{box.items.join(', ')}</p>
+            </li>
           ))}
-        </dl>
+        </ul>
       </Reveal>
     </Section>
   );
@@ -381,7 +406,7 @@ function ProcessSection() {
           blok datar sebesar layar. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(circle,white_1px,transparent_1px)] [background-size:24px_24px]"
+        className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle,white_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.07]"
       />
       <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <Reveal>

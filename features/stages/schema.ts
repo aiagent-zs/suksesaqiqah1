@@ -38,8 +38,18 @@ export const reportStageSchema = z
       .optional(),
 
     /** Tahap salur: siapa penerimanya. Tahap terkirim: siapa yang menerima. */
-    recipient_name: z.string().trim().max(150, 'Nama penerima terlalu panjang').optional().or(z.literal('')),
-    recipient_phone: z.string().trim().max(20, 'Nomor terlalu panjang').optional().or(z.literal('')),
+    recipient_name: z
+      .string()
+      .trim()
+      .max(150, 'Nama penerima terlalu panjang')
+      .optional()
+      .or(z.literal('')),
+    recipient_phone: z
+      .string()
+      .trim()
+      .max(20, 'Nomor terlalu panjang')
+      .optional()
+      .or(z.literal('')),
     /** Tahap salur saja — area penerima manfaat. */
     recipient_area: z.string().trim().max(200, 'Area terlalu panjang').optional().or(z.literal('')),
 
@@ -50,7 +60,11 @@ export const reportStageSchema = z
       .max(2000, 'Bobot di luar batas wajar')
       .optional(),
 
-    lat: z.number().min(-90, 'Lintang di luar rentang').max(90, 'Lintang di luar rentang').optional(),
+    lat: z
+      .number()
+      .min(-90, 'Lintang di luar rentang')
+      .max(90, 'Lintang di luar rentang')
+      .optional(),
     lng: z.number().min(-180, 'Bujur di luar rentang').max(180, 'Bujur di luar rentang').optional(),
   })
   .superRefine((v, ctx) => {

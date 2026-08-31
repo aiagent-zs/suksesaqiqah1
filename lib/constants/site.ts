@@ -233,13 +233,60 @@ export const aqiqahPrograms = [
  * layar — tetapi begitu nasi box ditautkan dengan pola `?paket=` yang sama
  * seperti paket aqiqah, dua dari lima akan diam-diam jatuh ke paket pertama
  * tanpa galat apa pun. Dijaga `landing-catalogue.test.ts`.
+ *
+ * `items` menyalin `services.meta->items` di migration — sumber yang sama
+ * dengan yang dibaca panel modal mitra. Disalin, bukan dibaca dari database,
+ * mengikuti keputusan yang sudah berlaku untuk nama & harga: halaman ini
+ * statis dan nol query. Konsekuensinya sama pula — dua daftar dijaga sinkron
+ * oleh tangan, jadi `landing-catalogue.test.ts` ikut menjaga isinya, bukan
+ * hanya slug dan harganya.
  */
 export const nasiBoxPackages = [
-  { slug: 'paket-a', name: 'Paket A', price: 21_000, popular: false },
-  { slug: 'paket-b', name: 'Paket B', price: 27_000, popular: false },
-  { slug: 'paket-c', name: 'Paket C', price: 32_000, popular: true },
-  { slug: 'paket-d', name: 'Paket D', price: 45_000, popular: false },
-  { slug: 'paket-e', name: 'Paket E', price: 70_000, popular: false },
+  {
+    slug: 'paket-a',
+    name: 'Paket A',
+    price: 21_000,
+    popular: false,
+    items: ['nasi putih', 'gulai kambing', 'acar', 'kerupuk'],
+  },
+  {
+    slug: 'paket-b',
+    name: 'Paket B',
+    price: 27_000,
+    popular: false,
+    items: ['nasi putih', 'gulai kambing', 'sate', 'acar', 'kerupuk'],
+  },
+  {
+    slug: 'paket-c',
+    name: 'Paket C',
+    price: 32_000,
+    popular: true,
+    items: ['nasi putih', 'gulai kambing', 'sate', 'tongseng', 'acar', 'kerupuk'],
+  },
+  {
+    slug: 'paket-d',
+    name: 'Paket D',
+    price: 45_000,
+    popular: false,
+    items: ['nasi putih', 'gulai kambing', 'sate', 'tongseng', 'buah', 'acar', 'kerupuk'],
+  },
+  {
+    slug: 'paket-e',
+    name: 'Paket E',
+    price: 70_000,
+    popular: false,
+    items: [
+      'nasi putih',
+      'gulai kambing',
+      'sate',
+      'tongseng',
+      'krengsengan',
+      'buah',
+      'puding',
+      'acar',
+      'kerupuk',
+    ],
+  },
 ] as const;
 
 /** Tahapan layanan (08_WORKFLOW_MAP / 27_PAGE_MENU). */

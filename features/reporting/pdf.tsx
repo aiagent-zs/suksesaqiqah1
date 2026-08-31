@@ -213,9 +213,7 @@ export function ReportDocument({
                   {s.recipientName ?? s.recipientArea ?? s.notes ?? '-'}
                   {s.packagesCount ? ` (${s.packagesCount} paket)` : ''}
                 </Text>
-                <Text style={{ flex: 1 }}>
-                  {s.occurredAt ? formatDateId(s.occurredAt) : '-'}
-                </Text>
+                <Text style={{ flex: 1 }}>{s.occurredAt ? formatDateId(s.occurredAt) : '-'}</Text>
               </View>
             ))}
           </View>

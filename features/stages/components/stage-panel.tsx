@@ -145,9 +145,7 @@ export function StagePanel({
 
                   {row.status !== 'pending' && (
                     <dl className="text-muted-foreground mt-2 space-y-0.5 text-xs">
-                      {row.occurredAt && (
-                        <div>Dilaksanakan {formatDateTime(row.occurredAt)}</div>
-                      )}
+                      {row.occurredAt && <div>Dilaksanakan {formatDateTime(row.occurredAt)}</div>}
                       {row.reporterName && <div>Dilaporkan {row.reporterName}</div>}
                       {row.packagesCount !== null && <div>{row.packagesCount} paket</div>}
                       {row.recipientName && <div>Penerima: {row.recipientName}</div>}
@@ -163,9 +161,7 @@ export function StagePanel({
                   )}
 
                   {row.status === 'rejected' && row.reviewNote && (
-                    <p className="text-destructive mt-1.5 text-xs">
-                      Ditolak: {row.reviewNote}
-                    </p>
+                    <p className="text-destructive mt-1.5 text-xs">Ditolak: {row.reviewNote}</p>
                   )}
 
                   {!unlocked && row.status === 'pending' && (

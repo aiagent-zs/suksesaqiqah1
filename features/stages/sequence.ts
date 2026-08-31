@@ -104,9 +104,7 @@ export const DISTRIBUTION_MODE_LABEL: Record<DistributionMode, string> = {
 export function currentStage(
   events: Array<{ stage: FulfilmentStage; seq: number; status: StageEventStatus }>,
 ): FulfilmentStage | null {
-  const pending = events
-    .filter((e) => e.status !== 'validated')
-    .sort((a, b) => a.seq - b.seq);
+  const pending = events.filter((e) => e.status !== 'validated').sort((a, b) => a.seq - b.seq);
   return pending[0]?.stage ?? null;
 }
 

@@ -37,7 +37,7 @@ export function Pagination({
 
   return (
     <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-sm">
         Menampilkan <span className="font-medium tabular-nums">{first}</span>–
         <span className="font-medium tabular-nums">{last}</span> dari{' '}
         <span className="font-medium tabular-nums">{total}</span> order

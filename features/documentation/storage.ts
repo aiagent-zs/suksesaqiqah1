@@ -95,11 +95,7 @@ export function buildDocPath(params: {
  * punya role — sama sekali tidak membatasi folder. Tanpa pemeriksaan ini,
  * seorang petugas bisa menautkan berkas milik order lain ke dokumentasinya.
  */
-export function isDocPathForOrder(
-  path: string,
-  orderNumber: string,
-  stage: DocStage,
-): boolean {
+export function isDocPathForOrder(path: string, orderNumber: string, stage: DocStage): boolean {
   if (!DOC_PATH_PATTERN.test(path)) return false;
 
   const segments = path.split('/');

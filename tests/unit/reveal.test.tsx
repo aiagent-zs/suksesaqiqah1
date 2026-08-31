@@ -44,7 +44,7 @@ vi.stubGlobal('IntersectionObserver', StubObserver);
  * bocor antar kasus uji: posisi gulir akhir satu tes jadi titik awal tes
  * berikutnya, dan ambang 4px menilai selisih terhadap angka yang salah.
  */
-let Reveal: typeof import('@/components/site/Reveal').Reveal;
+let Reveal: typeof import('@/components/site/reveal').Reveal;
 
 let root: Root | null = null;
 let container: HTMLElement | null = null;
@@ -70,9 +70,7 @@ function scrollTo(y: number) {
 /** Elemen masuk / lepas dari layar. */
 function intersect(el: HTMLElement, visible: boolean) {
   act(() => {
-    observerCb?.([
-      { target: el, isIntersecting: visible, intersectionRatio: visible ? 1 : 0 },
-    ]);
+    observerCb?.([{ target: el, isIntersecting: visible, intersectionRatio: visible ? 1 : 0 }]);
   });
 }
 
@@ -81,7 +79,7 @@ beforeEach(async () => {
   unobserved.length = 0;
   Object.defineProperty(window, 'scrollY', { value: 0, writable: true, configurable: true });
   vi.resetModules();
-  ({ Reveal } = await import('@/components/site/Reveal'));
+  ({ Reveal } = await import('@/components/site/reveal'));
 });
 
 afterEach(() => {

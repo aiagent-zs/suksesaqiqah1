@@ -39,7 +39,13 @@ export function Toast({ state, onDismiss }: { state: ToastState; onDismiss: () =
   return <ToastBody key={state.id} state={state} onDismiss={onDismiss} />;
 }
 
-function ToastBody({ state, onDismiss }: { state: NonNullable<ToastState>; onDismiss: () => void }) {
+function ToastBody({
+  state,
+  onDismiss,
+}: {
+  state: NonNullable<ToastState>;
+  onDismiss: () => void;
+}) {
   const [leaving, setLeaving] = useState(false);
   const [paused, setPaused] = useState(false);
   const timer = useRef<number | undefined>(undefined);

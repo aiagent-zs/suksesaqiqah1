@@ -10,7 +10,6 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   // next: URL tujuan setelah login (opsional)
   const next = searchParams.get('next') ?? '/dashboard';
-  
 
   if (code) {
     const supabase = await createClient();
@@ -22,7 +21,5 @@ export async function GET(request: Request) {
   }
 
   // Gagal → redirect ke halaman login dengan pesan error
-  return NextResponse.redirect(
-    `${origin}/login?error=oauth_failed`,
-  );
+  return NextResponse.redirect(`${origin}/login?error=oauth_failed`);
 }

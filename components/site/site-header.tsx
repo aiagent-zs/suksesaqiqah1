@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { primaryNav, siteConfig } from '@/lib/constants/site';
 import { IconClose, IconMenu, IconWhatsApp } from './icons';
-import { Logo } from './Logo';
+import { Logo } from './logo';
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -57,25 +57,24 @@ export function SiteHeader() {
    * `history.pushState` dipakai agar alamatnya tetap membawa hash, sehingga
    * tautannya masih bisa disalin dan dibagikan.
    */
-  const handleMobileNavClick =
-    (hash: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
-      // Di luar landing tautannya lintas-halaman (`/#paket`) — biarkan Next
-      // yang menanganinya seperti biasa.
-      if (!isLanding) {
-        setOpen(false);
-        return;
-      }
-
-      const target = document.querySelector(hash);
-      if (!target) return; // Section tak ditemukan: jangan cegah apa pun.
-
-      e.preventDefault();
+  const handleMobileNavClick = (hash: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Di luar landing tautannya lintas-halaman (`/#paket`) — biarkan Next
+    // yang menanganinya seperti biasa.
+    if (!isLanding) {
       setOpen(false);
-      requestAnimationFrame(() => {
-        target.scrollIntoView({ block: 'start' });
-        history.pushState(null, '', hash);
-      });
-    };
+      return;
+    }
+
+    const target = document.querySelector(hash);
+    if (!target) return; // Section tak ditemukan: jangan cegah apa pun.
+
+    e.preventDefault();
+    setOpen(false);
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ block: 'start' });
+      history.pushState(null, '', hash);
+    });
+  };
 
   return (
     // Latar solid dan garis bawah yang selalu ada. Versi sebelumnya memakai

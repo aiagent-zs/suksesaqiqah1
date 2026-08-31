@@ -48,7 +48,11 @@ const TEMPLATE_LABEL: Record<string, string> = {
 };
 
 /** Pesan WhatsApp per template. Dirakit di server supaya isinya satu sumber. */
-function waMessage(template: string, payload: Record<string, unknown>, appUrl: string): string | null {
+function waMessage(
+  template: string,
+  payload: Record<string, unknown>,
+  appUrl: string,
+): string | null {
   const nama = String(payload.participant_name ?? '').trim() || 'Bapak/Ibu';
   const order = String(payload.order_number ?? '').trim();
   const token = String(payload.public_token ?? '').trim();

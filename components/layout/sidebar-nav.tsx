@@ -58,8 +58,6 @@ export function SidebarNav({ role }: { role: UserRole | undefined }) {
           </Link>
         );
       })}
-
-
     </nav>
   );
 }

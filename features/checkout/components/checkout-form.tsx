@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react';
 import Link from 'next/link';
 import {
   AlertCircle,
@@ -84,7 +77,13 @@ const SUBMIT_ARM_DELAY_MS = 700;
  * menyembunyikan bahwa paket dan nasi box saling memengaruhi total.
  */
 const STEPS = [
-  { id: 1, title: 'Pesanan', shortTitle: 'Pesanan', icon: Package, description: 'Paket, jumlah ekor, nasi box' },
+  {
+    id: 1,
+    title: 'Pesanan',
+    shortTitle: 'Pesanan',
+    icon: Package,
+    description: 'Paket, jumlah ekor, nasi box',
+  },
   {
     id: 2,
     title: 'Jadwal & Penyaluran',
@@ -92,8 +91,20 @@ const STEPS = [
     icon: CalendarClock,
     description: 'Tanggal, jam, cara kirim',
   },
-  { id: 3, title: 'Data Pemesan', shortTitle: 'Data', icon: User, description: 'Kontak & nama anak' },
-  { id: 4, title: 'Ringkasan', shortTitle: 'Ringkasan', icon: ClipboardCheck, description: 'Periksa lalu konfirmasi' },
+  {
+    id: 3,
+    title: 'Data Pemesan',
+    shortTitle: 'Data',
+    icon: User,
+    description: 'Kontak & nama anak',
+  },
+  {
+    id: 4,
+    title: 'Ringkasan',
+    shortTitle: 'Ringkasan',
+    icon: ClipboardCheck,
+    description: 'Periksa lalu konfirmasi',
+  },
 ];
 
 /**
@@ -296,11 +307,7 @@ export function CheckoutForm({
    * data di luar React yang jawabannya berbeda antara server dan klien —
    * snapshot server mengembalikan `null`, jadi hidrasinya tetap cocok.
    */
-  const stored = useSyncExternalStore(
-    subscribeDraft,
-    getDraftSnapshot,
-    getDraftServerSnapshot,
-  );
+  const stored = useSyncExternalStore(subscribeDraft, getDraftSnapshot, getDraftServerSnapshot);
 
   /** Draft yang sudah dijawab pemesan — dipulihkan atau dibuang. */
   const [recoveryHandled, setRecoveryHandled] = useState(false);
@@ -537,8 +544,7 @@ export function CheckoutForm({
     setToast({
       id: toastSeq.current,
       tone: 'error',
-      message:
-        count === 1 ? '1 isian perlu diperbaiki' : `${count} isian perlu diperbaiki`,
+      message: count === 1 ? '1 isian perlu diperbaiki' : `${count} isian perlu diperbaiki`,
     });
   }
 
@@ -808,9 +814,7 @@ export function CheckoutForm({
               angkanya paling dibutuhkan. */}
           <p aria-live="polite" className="text-right text-sm">
             <span className="text-neutral-500">Total </span>
-            <span className="font-bold text-neutral-900 tabular-nums">
-              {formatCurrency(total)}
-            </span>
+            <span className="font-bold text-neutral-900 tabular-nums">{formatCurrency(total)}</span>
           </p>
         </div>
 
@@ -973,7 +977,9 @@ export function CheckoutForm({
                         <Baby className="size-5" />
                       </div>
                       <div className="min-w-0 pr-4">
-                        <p className="text-sm font-bold text-neutral-900 sm:text-base">{opt.label}</p>
+                        <p className="text-sm font-bold text-neutral-900 sm:text-base">
+                          {opt.label}
+                        </p>
                         <p className="mt-0.5 text-xs text-neutral-500">{opt.hint}</p>
                       </div>
                       {active && (
@@ -1041,7 +1047,9 @@ export function CheckoutForm({
                             </span>
                           )}
                         </div>
-                        <p className="mt-2 text-sm font-bold text-neutral-900 sm:text-base">{pkg.name}</p>
+                        <p className="mt-2 text-sm font-bold text-neutral-900 sm:text-base">
+                          {pkg.name}
+                        </p>
                         {pkg.description && (
                           <p className="mt-1 line-clamp-2 text-xs text-neutral-500">
                             {pkg.description}
@@ -1058,7 +1066,7 @@ export function CheckoutForm({
               {fieldErrors.service_id && <FieldError message={fieldErrors.service_id} />}
             </div>
 
-            <div className="grid gap-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3.5 sm:gap-6 sm:p-5 sm:grid-cols-2">
+            <div className="grid gap-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3.5 sm:grid-cols-2 sm:gap-6 sm:p-5">
               <div>
                 <Label className="text-sm font-semibold text-neutral-800">Jenis Hewan</Label>
                 <div className="mt-2 inline-flex rounded-xl bg-neutral-200/60 p-1">
@@ -1205,7 +1213,7 @@ export function CheckoutForm({
                     inputMode="numeric"
                     value={draft.nasi_box_qty || ''}
                     aria-invalid={Boolean(fieldErrors.nasi_box_qty)}
-                  aria-describedby={fieldErrors.nasi_box_qty ? 'nasi_box_qty-error' : undefined}
+                    aria-describedby={fieldErrors.nasi_box_qty ? 'nasi_box_qty-error' : undefined}
                     onChange={(e) => set('nasi_box_qty', Number(e.target.value) || 0)}
                     className="mt-2 h-12 max-w-40 rounded-lg border-neutral-200 text-sm tabular-nums shadow-sm"
                   />
@@ -1215,7 +1223,9 @@ export function CheckoutForm({
                       <span className="text-primary font-bold">{formatCurrency(boxSubtotal)}</span>
                     </p>
                   )}
-                  {fieldErrors.nasi_box_qty && <FieldError id="nasi_box_qty-error" message={fieldErrors.nasi_box_qty} />}
+                  {fieldErrors.nasi_box_qty && (
+                    <FieldError id="nasi_box_qty-error" message={fieldErrors.nasi_box_qty} />
+                  )}
                 </div>
               )}
             </div>
@@ -1235,7 +1245,7 @@ export function CheckoutForm({
                 </span>
               </div>
 
-              <div className="grid gap-4 sm:gap-5 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
                 <div>
                   <Label htmlFor="co-date" className="text-sm font-semibold text-neutral-800">
                     Tanggal
@@ -1253,7 +1263,9 @@ export function CheckoutForm({
                     required
                     aria-required
                     aria-invalid={Boolean(fieldErrors.requested_date)}
-                  aria-describedby={fieldErrors.requested_date ? 'requested_date-error' : undefined}
+                    aria-describedby={
+                      fieldErrors.requested_date ? 'requested_date-error' : undefined
+                    }
                     onChange={(e) => set('requested_date', e.target.value)}
                     className="mt-2 h-11 rounded-lg border-neutral-200 text-sm shadow-sm sm:h-12"
                   />
@@ -1264,7 +1276,10 @@ export function CheckoutForm({
 
                 <div>
                   <Label className="text-sm font-semibold text-neutral-800">Jam</Label>
-                  <div id="co-time" className="mt-2 grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
+                  <div
+                    id="co-time"
+                    className="mt-2 grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2"
+                  >
                     {BOOKING_TIME_SLOTS.map((slot) => {
                       const active = draft.requested_time === slot;
                       return (
@@ -1477,7 +1492,9 @@ export function CheckoutForm({
                   onChange={(e) => set('child_name', e.target.value)}
                   className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
-                {fieldErrors.child_name && <FieldError id="child_name-error" message={fieldErrors.child_name} />}
+                {fieldErrors.child_name && (
+                  <FieldError id="child_name-error" message={fieldErrors.child_name} />
+                )}
               </div>
 
               <div>
@@ -1493,7 +1510,9 @@ export function CheckoutForm({
                   onChange={(e) => set('bin_binti', e.target.value)}
                   className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
-                {fieldErrors.bin_binti && <FieldError id="bin_binti-error" message={fieldErrors.bin_binti} />}
+                {fieldErrors.bin_binti && (
+                  <FieldError id="bin_binti-error" message={fieldErrors.bin_binti} />
+                )}
               </div>
 
               <div>
@@ -1506,13 +1525,18 @@ export function CheckoutForm({
                   required
                   aria-required
                   aria-invalid={Boolean(fieldErrors.child_birth_place)}
-                  aria-describedby={fieldErrors.child_birth_place ? 'child_birth_place-error' : undefined}
+                  aria-describedby={
+                    fieldErrors.child_birth_place ? 'child_birth_place-error' : undefined
+                  }
                   placeholder="Mis. Bandung"
                   onChange={(e) => set('child_birth_place', e.target.value)}
                   className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
                 {fieldErrors.child_birth_place && (
-                  <FieldError id="child_birth_place-error" message={fieldErrors.child_birth_place} />
+                  <FieldError
+                    id="child_birth_place-error"
+                    message={fieldErrors.child_birth_place}
+                  />
                 )}
               </div>
 
@@ -1534,7 +1558,9 @@ export function CheckoutForm({
                   required
                   aria-required
                   aria-invalid={Boolean(fieldErrors.child_birth_date)}
-                  aria-describedby={fieldErrors.child_birth_date ? 'child_birth_date-error' : undefined}
+                  aria-describedby={
+                    fieldErrors.child_birth_date ? 'child_birth_date-error' : undefined
+                  }
                   onChange={(e) => set('child_birth_date', e.target.value)}
                   className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
@@ -1644,7 +1670,9 @@ export function CheckoutForm({
                   onChange={(e) => set('referral_code', e.target.value)}
                   className="mt-2 h-12 rounded-lg border-neutral-200 text-sm uppercase shadow-sm"
                 />
-                {fieldErrors.referral_code && <FieldError id="referral_code-error" message={fieldErrors.referral_code} />}
+                {fieldErrors.referral_code && (
+                  <FieldError id="referral_code-error" message={fieldErrors.referral_code} />
+                )}
               </div>
 
               <div>
@@ -1768,13 +1796,7 @@ type OrderSummary = {
   customerName: string;
 };
 
-function SuccessPanel({
-  result,
-  summary,
-}: {
-  result: GuestOrderResult;
-  summary: OrderSummary;
-}) {
+function SuccessPanel({ result, summary }: { result: GuestOrderResult; summary: OrderSummary }) {
   // Dirakit sekali di sini, bukan di dalam JSX: `encodeURIComponent` atas teks
   // sepanjang ini tidak perlu diulang tiap render.
   const waHref = siteConfig.whatsapp.href(
@@ -1795,8 +1817,8 @@ function SuccessPanel({
           Pesanan Berhasil Terkirim!
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-xs leading-6 text-neutral-600">
-          Pesanan Anda telah tercatat di sistem. Lanjutkan ke WhatsApp untuk mendapatkan
-          informasi pembayaran dari admin kami.
+          Pesanan Anda telah tercatat di sistem. Lanjutkan ke WhatsApp untuk mendapatkan informasi
+          pembayaran dari admin kami.
         </p>
       </div>
 
@@ -1940,4 +1962,3 @@ function FieldError({ id, message }: { id?: string; message: string }) {
     </p>
   );
 }
-

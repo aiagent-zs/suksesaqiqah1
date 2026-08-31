@@ -61,9 +61,7 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
   }
 
   function toggleMode(mode: 'salur' | 'kirim') {
-    setModes((prev) =>
-      prev.includes(mode) ? prev.filter((m) => m !== mode) : [...prev, mode],
-    );
+    setModes((prev) => (prev.includes(mode) ? prev.filter((m) => m !== mode) : [...prev, mode]));
   }
 
   return (
@@ -231,23 +229,19 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
               type="button"
               disabled={pending || !draft.code || !draft.name || !draft.phone || modes.length === 0}
               onClick={() =>
-                run(
-                  async () => {
-                    const result = await createVendor({
-                      ...draft,
-                      daily_capacity: draft.daily_capacity
-                        ? Number(draft.daily_capacity)
-                        : undefined,
-                      service_modes: modes,
-                    });
-                    if (result.ok) {
-                      setShowForm(false);
-                      setDraft(EMPTY);
-                      setModes(['salur', 'kirim']);
-                    }
-                    return result;
-                  },
-                )
+                run(async () => {
+                  const result = await createVendor({
+                    ...draft,
+                    daily_capacity: draft.daily_capacity ? Number(draft.daily_capacity) : undefined,
+                    service_modes: modes,
+                  });
+                  if (result.ok) {
+                    setShowForm(false);
+                    setDraft(EMPTY);
+                    setModes(['salur', 'kirim']);
+                  }
+                  return result;
+                })
               }
             >
               Simpan mitra
@@ -349,7 +343,10 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
                     size="sm"
                     disabled={pending}
                     onClick={() =>
-                      run(() => deleteVendor({ id: v.id }), () => setConfirmDelete(null))
+                      run(
+                        () => deleteVendor({ id: v.id }),
+                        () => setConfirmDelete(null),
+                      )
                     }
                   >
                     Ya, hapus {v.code}

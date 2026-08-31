@@ -4,12 +4,12 @@
 > Urutan tahap mengikuti `TEAM_PLAN.md §3`; definisi modul mengikuti `docs/06_MODULE_BREAKDOWN.md`.
 > Urutan otoritas kebenaran: **migrations → kode (`features/`, `app/`, `server/`) → `prd.md` → `docs/`**.
 
-| Field                            | Value                                                                                                                                                                                                                                                |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                           |
-| Diperbarui                       | 2026-08-27                                                                                                                                                                                                                                           |
-| Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                             |
-| Estimasi Phase 1                 | **± 83%** (dari 80% — rantai end-to-end kini terbukti otomatis di lokal, lihat _Perbaikan 24 Agustus_)                                                                                                                                               |
+| Field                            | Value                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                                                                                                                                                            |
+| Diperbarui                       | 2026-08-27                                                                                                                                                                                                                                                                                                                                                                            |
+| Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                                              |
+| Estimasi Phase 1                 | **± 83%** (dari 80% — rantai end-to-end kini terbukti otomatis di lokal, lihat _Perbaikan 24 Agustus_)                                                                                                                                                                                                                                                                                |
 | Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(19 rute)** · **405 unit test hijau (30 file)** · **127 tes integrasi hijau (10 file) terhadap Postgres lokal** · **40 migration jalan bersih di lokal ✅ dan 40/40 selaras di cloud ✅** · **kolom `animals.status` terbukti hilang di cloud & `get_public_report` diuji lewat jalur `anon`** ✅ |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
@@ -504,7 +504,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
       satu peristiwa. Pengecualian yang disengaja: `report_ready` memuat nomor
       versi di kuncinya, sebab generate ulang memang mengubah isi laporan
 - [x] **Alert in-app di dashboard** (`docs/12 §2`) — panel "Perlu Tindakan" di
-      bawah kartu KPI. Kartu menjawab *berapa*, panel ini menjawab **yang mana**
+      bawah kartu KPI. Kartu menjawab _berapa_, panel ini menjawab **yang mana**
       dan membawa langsung ke barisnya (`/validation` untuk bukti, `/orders/{id}`
       untuk sisanya). Dibatasi `queued`: yang sudah terkirim bukan lagi tugas
 - [x] **Notifikasi konfirmasi terkirim** — celah yang tercatat terbuka sejak
@@ -530,7 +530,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
       sekaligus agar tidak ada langkah kedua yang bisa dilupakan
 - [ ] **Worker pengirim** — pengiriman masih manual-klik. Yang berubah: tidak
       ada lagi yang terlewat, sebab semuanya tercatat sebagai antrian.
-      ⚠️ "Selesai" saat ini berarti *admin sudah dibawa ke WhatsApp*, bukan bukti
+      ⚠️ "Selesai" saat ini berarti _admin sudah dibawa ke WhatsApp_, bukan bukti
       pesannya terkirim — ganti dengan status dari worker/webhook
 - [ ] Workflow n8n: reminder H-1, generate & kirim laporan (`docs/18`)
 - [ ] Realtime pada panel alert — saat ini butuh muat ulang halaman
@@ -893,31 +893,31 @@ Tiga role tetap: **superadmin · admin · vendor**.
       sampai-sampai `revalidatePath('/vendors/{id}')` di dalam action menunjuk
       rute yang tidak ada. Yang ditutup:
   - **Mitra tidak bisa disunting sama sekali.** Salah ketik nomor telepon,
-        ganti rekening, perpanjang perjanjian — semuanya hanya lewat dashboard
-        Supabase. Halaman detail + `VendorEditForm` menutupnya
+    ganti rekening, perpanjang perjanjian — semuanya hanya lewat dashboard
+    Supabase. Halaman detail + `VendorEditForm` menutupnya
   - **`vendor_services` tidak bisa diisi lewat aplikasi**, padahal
-        `v_vendor_kpi.margin_total` jatuh dari sana lewat
-        `order_items.vendor_unit_price`. Selama kosong, **dashboard melaporkan
-        margin sebesar seluruh nilai order**. KPI margin (§5) angkanya jalan,
-        tapi masukannya tidak pernah bisa diisi operator
+    `v_vendor_kpi.margin_total` jatuh dari sana lewat
+    `order_items.vendor_unit_price`. Selama kosong, **dashboard melaporkan
+    margin sebesar seluruh nilai order**. KPI margin (§5) angkanya jalan,
+    tapi masukannya tidak pernah bisa diisi operator
   - **8 dari 22 medan skema tidak pernah bisa diisi** — formulir pendaftaran
-        merender 13. Termasuk keempat kode wilayah, dan tanpa itu
-        `resolveAddress()` mengembalikan `address: null` sehingga hanya alamat
-        mentah yang tersimpan
+    merender 13. Termasuk keempat kode wilayah, dan tanpa itu
+    `resolveAddress()` mengembalikan `address: null` sehingga hanya alamat
+    mentah yang tersimpan
   - **`vendor_coverage` nol referensi** di seluruh `server/`, `features/`, dan
-        `app/` sejak lahir 20 Agustus — tabelnya kosong selamanya.
-        `saveVendorCoverage` + panel wilayah menutupnya; nama wilayah dibaca
-        ulang dari `regions`, tidak dipercaya dari klien
+    `app/` sejak lahir 20 Agustus — tabelnya kosong selamanya.
+    `saveVendorCoverage` + panel wilayah menutupnya; nama wilayah dibaca
+    ulang dari `regions`, tidak dipercaya dari klien
   - **`updateVendorSchema` kini `omit({ code })`.** `rowFrom()` menyusun `code`
-        untuk kedua aksi, jadi menyunting mitra akan menulis `undefined` ke
-        kolom `not null`
+    untuk kedua aksi, jadi menyunting mitra akan menulis `undefined` ke
+    kolom `not null`
   - **Logika cascade wilayah diekstrak** ke `use-region-cascade.ts`, dipakai
-        bersama checkout. Yang dibagi hanya keadaannya — penanganan balapan saat
-        provinsi diganti cepat — bukan tampilannya; menyalinnya berarti dua
-        salinan logika halus yang harus sinkron
+    bersama checkout. Yang dibagi hanya keadaannya — penanganan balapan saat
+    provinsi diganti cepat — bukan tampilannya; menyalinnya berarti dua
+    salinan logika halus yang harus sinkron
   - **30 tes baru** — 14 integrasi (`vendor-master.test.ts`: RLS ketiga tabel,
-        admin baca-tapi-tidak-ubah, cascade vs restrict) + 16 unit
-        (`vendor-schema.test.ts`)
+    admin baca-tapi-tidak-ubah, cascade vs restrict) + 16 unit
+    (`vendor-schema.test.ts`)
 - [x] **`tests/integration/` terisi — 113 tes di 9 berkas** (27 Agustus). Kelima trigger sasaran (`generate_stage_checklist`, `enforce_stage_order`, `enforce_stage_review`, `enforce_vendor_assignment`, `enforce_animal_delete`) plus `create_guest_order`, `get_public_report`, `confirm_delivery`, outbox notifikasi, progres hewan dari tahap, dan alur penuh kedua percabangan. Prasyarat & rancangannya di `tests/integration/README.md`
 - [x] **RLS per role terjaga — 21 tes** (`rls.test.ts`, 24 Agustus). Yang dibuktikan: vendor A tidak melihat order/tahap/bukti/jadwal/kendala/laporan milik vendor B; order tanpa mitra tidak terbaca vendor mana pun; pembayaran & notifikasi tertutup dari vendor; **admin tidak dapat mengubah role** (termasuk dirinya sendiri) sementara superadmin bisa; vendor tidak dapat memindahkan dirinya ke mitra lain; bukti `approved` dan kendala tidak dapat dihapus siapa pun; `anon` membaca `services`+`regions` tetapi ditolak pada `orders`/`profiles`/`payments`; dan **view KPI menghormati RLS pemanggilnya** (`security_invoker`)
 - [ ] `tests/e2e/` masih kosong (`.gitkeep`) — target: alur order → laporan end-to-end (`docs/21`)
@@ -956,8 +956,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
       jadi kegelisahan yang dulu dihindari `unobserve` tetap tidak terjadi.
       Durasi dipendekkan 0,85 → 0,62 detik dan easing dilembutkan ke easeOutQuad:
       sejak gerakannya berulang, durasi lama terbaca sebagai penundaan.
-      Satu listener `scroll` dipakai bersama seluruh `Reveal` (halaman ini punya
-      43) dengan ambang 4px untuk menelan getaran gulir inersia di ponsel.
+      Satu listener `scroll` dipakai bersama seluruh `Reveal` (halaman ini punya 43) dengan ambang 4px untuk menelan getaran gulir inersia di ponsel.
       **5 tes baru** (`reveal.test.ts`) menjaga keempat perilaku itu
 - [x] **Garis aksen & pola titik dicabut, latar divariasikan (24 Agustus).**
       Putaran lanjutan sesudah masukan bahwa hero masih terbaca generik. Yang
@@ -1023,7 +1022,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
   4. **Radius & tinggi tombol seragam** — "Kembali" dan "Lanjut" sama-sama
      `rounded-lg min-h-11`; input ikut `rounded-lg`, jadi kartu, tombol, dan
      input berada di radius yang sama
-  6. `text-neutral-400` (≈2,6:1, gagal AA) **nol** di checkout maupun landing —
+  5. `text-neutral-400` (≈2,6:1, gagal AA) **nol** di checkout maupun landing —
      diverifikasi dari HTML yang benar-benar dirender, bukan dari grep sumber
 - [x] **Umpan balik galat: toast + ringkasan yang bisa diklik (24 Agustus).**
       Keduanya dipakai bersama justru karena kelemahannya berlawanan — toast
@@ -1089,7 +1088,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
 | **1** | **Isi 10 foto landing** → `public/images/landing/`                                                   | Halaman kini memajang 10 kotak abu bertuliskan nama berkas yang ditunggu. Daftar lengkap beserta rasio & ukuran ada di `public/images/landing/README.md`. Tidak ada kode yang perlu diubah — begitu berkasnya ditaruh, fotonya langsung tampil. **Galeri sebaiknya foto pelaksanaan sungguhan**: halamannya menulis "bukan foto ilustrasi"                                                                                                           | Pemilik usaha |
 | 2     | **Uji alur penuh di cloud** — _jalankan `full-flow.test.ts` dengan `TEST_DB_URL` diarahkan ke cloud_ | Alurnya sudah terbukti di lokal (§0), jadi yang tersisa membuktikannya di sana. **Butuh keputusan lebih dulu**: tes ini menulis baris, dan cloud sudah berisi 3 order + 2 pembayaran. Pilihannya — pakai project Supabase terpisah untuk staging, atau jalankan di cloud produksi dengan sadar bahwa `inRollback` membatalkan tiap transaksi (tetapi `order_counters` dan sequence tetap maju). Ini pula yang menahan butir Definition of Done (§12) | Bani          |
 | 3     | **`tests/e2e/` masih kosong** (§10)                                                                  | Lapisan yang tersisa sesudah unit + integrasi: alur order → laporan lewat UI sungguhan (`docs/21`). Nilainya kini berbeda dari sebelumnya — rantai databasenya sudah terbukti, jadi e2e tinggal menjaga lapisan yang belum tersentuh: formulir, navigasi, dan unggahan berkas                                                                                                                                                                        | Awalin        |
-| 4     | **Worker pengirim** (sisa Tahap 8)                                                                   | Outbox & alert in-app **selesai 24 Agustus** — peristiwanya kini tercatat dan tidak ada lagi yang terlewat, tetapi pengirimannya masih manual-klik. Yang tersisa: worker yang membaca antrian queued dan benar-benar mengirim. Butuh keputusan kredensial (n8n vs di dalam app) — lihat §6                                                                                                                                                                                                                                                         | Bani          |
+| 4     | **Worker pengirim** (sisa Tahap 8)                                                                   | Outbox & alert in-app **selesai 24 Agustus** — peristiwanya kini tercatat dan tidak ada lagi yang terlewat, tetapi pengirimannya masih manual-klik. Yang tersisa: worker yang membaca antrian queued dan benar-benar mengirim. Butuh keputusan kredensial (n8n vs di dalam app) — lihat §6                                                                                                                                                           | Bani          |
 | 5     | **PWA** (kamera, kompresi klien, antrian offline)                                                    | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai vendor di lapangan                                                                                                                                                                                                                                                                                                                                                                        | Awalin        |
 | 6     | **`design.md §8`** — toast, `loading.tsx`/`error.tsx`, `Skeleton`                                    | Celah design system yang paling terasa pengguna; murah dan menyentuh seluruh halaman                                                                                                                                                                                                                                                                                                                                                                 | Awalin        |
 | 7     | Realtime + filter periode dashboard                                                                  | Penyempurnaan, bukan penghalang                                                                                                                                                                                                                                                                                                                                                                                                                      | Awalin        |

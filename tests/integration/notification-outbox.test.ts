@@ -12,7 +12,14 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { actAsOwner, inRollback, isReady } from './helpers/db';
-import { SEED, makePaidOrder, assignVendor, stagesOf, reportStage, validateStage } from './helpers/fixtures';
+import {
+  SEED,
+  makePaidOrder,
+  assignVendor,
+  stagesOf,
+  reportStage,
+  validateStage,
+} from './helpers/fixtures';
 import type postgres from 'postgres';
 
 type Notif = {
@@ -212,7 +219,9 @@ describe('outbox — laporan & konfirmasi terkirim', () => {
           const pending = (await notifsOf(tx, orderId)).filter(
             (r) => r.template === 'delivery_pending',
           );
-          expect(pending, 'pemesan tidak diberi tahu setelah tahap kirim divalidasi').toHaveLength(1);
+          expect(pending, 'pemesan tidak diberi tahu setelah tahap kirim divalidasi').toHaveLength(
+            1,
+          );
           expect(pending[0].channel).toBe('whatsapp');
         }
       }

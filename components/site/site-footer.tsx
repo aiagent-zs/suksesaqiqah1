@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { footerNav, siteConfig } from '@/lib/constants/site';
 import { IconInstagram, IconMail, IconWhatsApp } from './icons';
-import { Logo } from './Logo';
+import { Logo } from './logo';
 
 export function SiteFooter() {
   const year = 2026; // Date.now() tidak tersedia di lingkungan build ini.

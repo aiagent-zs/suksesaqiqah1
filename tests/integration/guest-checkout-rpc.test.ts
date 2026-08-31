@@ -399,10 +399,7 @@ describe('create_guest_order — penolakan', () => {
       const [{ min }] = await tx<{ min: number }[]>`
         select public.booking_min_days()::int as min
       `;
-      const result = await callCreate(
-        tx,
-        validPayload({ requested_date: await wibDate(tx, min) }),
-      );
+      const result = await callCreate(tx, validPayload({ requested_date: await wibDate(tx, min) }));
       expect(result.order_number).toMatch(/^IA-\d{6}-\d{4}$/);
     });
   });

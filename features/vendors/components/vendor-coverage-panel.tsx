@@ -55,8 +55,7 @@ export function VendorCoveragePanel({
   const { options: cities, loading } = cascade.stateOf(provinceCode);
 
   const dirty =
-    picked.length !== rows.length ||
-    picked.some((p) => !rows.some((r) => r.regionCode === p.code));
+    picked.length !== rows.length || picked.some((p) => !rows.some((r) => r.regionCode === p.code));
 
   function add(code: string) {
     const city = cities.find((c) => c.code === code);

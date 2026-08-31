@@ -55,11 +55,11 @@ export function AnimalManager({
   }
 
   return (
-    <section className="rounded-lg border border-border bg-card shadow-sm">
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+    <section className="border-border bg-card rounded-lg border shadow-sm">
+      <div className="border-border flex items-center justify-between border-b px-5 py-4">
         <div>
           <h2 className="text-base font-semibold">Hewan</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-0.5 text-sm">
             {animals.length} ekor terdaftar pada order ini
           </p>
         </div>
@@ -72,21 +72,21 @@ export function AnimalManager({
       </div>
 
       {error && (
-        <p className="flex items-start gap-2 border-b border-destructive/20 bg-destructive/5 px-5 py-3 text-sm text-destructive">
+        <p className="border-destructive/20 bg-destructive/5 text-destructive flex items-start gap-2 border-b px-5 py-3 text-sm">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           {error}
         </p>
       )}
 
       {showForm && canEdit && (
-        <div className="grid gap-3 border-b border-border bg-muted/30 p-4 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+        <div className="border-border bg-muted/30 grid gap-3 border-b p-4 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]">
           <div>
             <Label htmlFor="new-species">Jenis</Label>
             <Select
               id="new-species"
               value={draft.species}
               onChange={(e) => setDraft({ ...draft, species: e.target.value as AnimalSpecies })}
-              className="mt-1.5 bg-card"
+              className="bg-card mt-1.5"
             >
               {(Object.keys(ANIMAL_SPECIES_LABEL) as AnimalSpecies[]).map((s) => (
                 <option key={s} value={s}>
@@ -102,7 +102,7 @@ export function AnimalManager({
               value={draft.tag_code}
               placeholder="BDG-K-004"
               onChange={(e) => setDraft({ ...draft, tag_code: e.target.value })}
-              className="mt-1.5 bg-card"
+              className="bg-card mt-1.5"
             />
           </div>
           <div>
@@ -114,7 +114,7 @@ export function AnimalManager({
               min={0}
               value={draft.weight_kg}
               onChange={(e) => setDraft({ ...draft, weight_kg: e.target.value })}
-              className="mt-1.5 bg-card tabular-nums"
+              className="bg-card mt-1.5 tabular-nums"
             />
           </div>
           <div>
@@ -123,7 +123,7 @@ export function AnimalManager({
               id="new-obo"
               value={draft.on_behalf_of}
               onChange={(e) => setDraft({ ...draft, on_behalf_of: e.target.value })}
-              className="mt-1.5 bg-card"
+              className="bg-card mt-1.5"
             />
           </div>
           <div className="flex items-end">
@@ -154,22 +154,24 @@ export function AnimalManager({
       )}
 
       {animals.length === 0 ? (
-        <p className="px-5 py-10 text-center text-sm text-muted-foreground">
+        <p className="text-muted-foreground px-5 py-10 text-center text-sm">
           Belum ada hewan pada order ini.
         </p>
       ) : (
-        <ul className="divide-y divide-border">
+        <ul className="divide-border divide-y">
           {animals.map((animal) => (
             <li key={animal.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
               <div className="min-w-40 flex-1">
                 <p className="font-medium">
                   {animal.tag_code ?? 'Tanpa kode'}{' '}
-                  <span className="font-normal text-muted-foreground">
+                  <span className="text-muted-foreground font-normal">
                     · {ANIMAL_SPECIES_LABEL[animal.species]}
                   </span>
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {animal.on_behalf_of ? `Atas nama ${animal.on_behalf_of}` : 'Atas nama belum diisi'}
+                <p className="text-muted-foreground text-xs">
+                  {animal.on_behalf_of
+                    ? `Atas nama ${animal.on_behalf_of}`
+                    : 'Atas nama belum diisi'}
                   {animal.weight_kg ? ` · ${animal.weight_kg} kg` : ''}
                 </p>
               </div>

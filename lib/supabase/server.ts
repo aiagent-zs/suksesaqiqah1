@@ -17,9 +17,7 @@ export async function createClient() {
       },
       setAll(cookiesToSet) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
-          );
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {
           // setAll dari Server Component tidak selalu bisa — diabaikan.
           // Middleware yang akan handle refresh token.

@@ -36,7 +36,6 @@ export function PaymentVerificationBadge({ status }: { status: PaymentVerificati
   return <Badge className={meta.className}>{meta.label}</Badge>;
 }
 
-
 /** Tingkat keparahan kendala — sama dengan yang dipakai panel dashboard. */
 export function IssueSeverityBadge({ severity }: { severity: IssueSeverity }) {
   const meta = ISSUE_SEVERITY_META[severity];

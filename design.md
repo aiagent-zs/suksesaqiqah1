@@ -1,6 +1,6 @@
 # 14 — UI/UX SPEC
 
-> **Sukses Aqiqah** — *"Tunaikan Ibadah, Tebarkan Manfaat"*
+> **Sukses Aqiqah** — _"Tunaikan Ibadah, Tebarkan Manfaat"_
 
 ---
 
@@ -12,7 +12,7 @@
 4. **Aksesibel** — kontras cukup, target sentuh besar, label jelas.
 5. **Cepat** — skeleton/loading state, hindari layout shift.
 
-> **Catatan 24 Agustus — batas prinsip 1.** *Clarity over decoration* pernah
+> **Catatan 24 Agustus — batas prinsip 1.** _Clarity over decoration_ pernah
 > ditarik sampai halaman publik terbaca datar: latar putih di seluruh section,
 > kartu tanpa kedalaman, dan satu-satunya gerakan cuma memudar-masuk. Prinsipnya
 > tidak berubah, tapi ia **bukan** larangan atas kedalaman.
@@ -31,7 +31,7 @@
 > bagian dari desain ini.
 >
 > Dua yang terakhir layak disebut tersendiri. **Garis aksen** memakai warna
-> `accent`, yang di sistem ini berarti *sorotan KPI* — memakainya untuk menghias
+> `accent`, yang di sistem ini berarti _sorotan KPI_ — memakainya untuk menghias
 > judul membuat warna itu kehilangan artinya, di samping bentuknya sendiri yang
 > memang pola landing-page generik. Penekanan pada judul kini lewat warna teks
 > (`text-primary`) pada frasa kuncinya. **Pola titik** adalah tekstur paling umum
@@ -58,28 +58,28 @@
 
 ## 3. Color Palette
 
-| Token | Hex | Penggunaan |
-|-------|-----|-----------|
-| `primary` | `#0E7C5A` | Brand (hijau), aksi utama, theme_color PWA |
-| `primary-dark` | `#0A5C43` | Hover/active |
-| `accent` | `#F0A500` | Sorotan, highlight KPI |
-| `success` | `#16A34A` | Status selesai/approved |
-| `warning` | `#D97706` | SLA hampir terlewat, partial |
-| `danger` | `#DC2626` | Issue high, rejected, gagal |
-| `info` | `#2563EB` | Info/netral aktif |
-| `neutral-900..50` | grayscale | Teks & latar |
+| Token             | Hex       | Penggunaan                                 |
+| ----------------- | --------- | ------------------------------------------ |
+| `primary`         | `#0E7C5A` | Brand (hijau), aksi utama, theme_color PWA |
+| `primary-dark`    | `#0A5C43` | Hover/active                               |
+| `accent`          | `#F0A500` | Sorotan, highlight KPI                     |
+| `success`         | `#16A34A` | Status selesai/approved                    |
+| `warning`         | `#D97706` | SLA hampir terlewat, partial               |
+| `danger`          | `#DC2626` | Issue high, rejected, gagal                |
+| `info`            | `#2563EB` | Info/netral aktif                          |
+| `neutral-900..50` | grayscale | Teks & latar                               |
 
 Status warna dipakai konsisten di badge order/dokumentasi/pembayaran.
 
 ## 4. Tipografi & Spacing
 
-| Elemen | Ukuran |
-|--------|--------|
-| Display/H1 | 28–32px / bold |
-| H2 | 22–24px / semibold |
-| H3 | 18px / semibold |
-| Body | 14–16px |
-| Caption | 12px |
+| Elemen     | Ukuran             |
+| ---------- | ------------------ |
+| Display/H1 | 28–32px / bold     |
+| H2         | 22–24px / semibold |
+| H3         | 18px / semibold    |
+| Body       | 14–16px            |
+| Caption    | 12px               |
 
 Spacing skala 4px (4/8/12/16/24/32). Radius default 8–12px. Shadow halus untuk card.
 
@@ -90,29 +90,29 @@ menebalkan bayangan. `shadow-sm` adalah batas atas.
 
 ## 5. Komponen Inti (reusable)
 
-| Komponen | Fungsi |
-|----------|--------|
-| `AppShell` | Layout: sidebar (desktop) / bottom-nav (mobile) + header |
-| `KpiCard` | Angka besar + label + tren |
-| `StatusBadge` | Warna per status (order/doc/payment) |
-| `DataTable` | Tabel order: filter, sort, paginate, klik-baris |
-| `FilterBar` | Periode, cabang, lokasi, status, PIC |
-| `OrderCard` | Ringkasan order (mobile) |
-| `Timeline` | Riwayat status/audit per order |
-| `MediaUploader` | Kamera + preview + queue indicator |
-| `MediaGallery` | Grid foto/video (approved) |
-| `MapView` | Google Maps marker lokasi |
-| `ValidationQueue` | Daftar dokumentasi untuk approve/reject |
-| `AlertList` | Notifikasi dashboard |
-| `EmptyState` / `Skeleton` | Kondisi kosong & loading |
+| Komponen                  | Fungsi                                                   |
+| ------------------------- | -------------------------------------------------------- |
+| `AppShell`                | Layout: sidebar (desktop) / bottom-nav (mobile) + header |
+| `KpiCard`                 | Angka besar + label + tren                               |
+| `StatusBadge`             | Warna per status (order/doc/payment)                     |
+| `DataTable`               | Tabel order: filter, sort, paginate, klik-baris          |
+| `FilterBar`               | Periode, cabang, lokasi, status, PIC                     |
+| `OrderCard`               | Ringkasan order (mobile)                                 |
+| `Timeline`                | Riwayat status/audit per order                           |
+| `MediaUploader`           | Kamera + preview + queue indicator                       |
+| `MediaGallery`            | Grid foto/video (approved)                               |
+| `MapView`                 | Google Maps marker lokasi                                |
+| `ValidationQueue`         | Daftar dokumentasi untuk approve/reject                  |
+| `AlertList`               | Notifikasi dashboard                                     |
+| `EmptyState` / `Skeleton` | Kondisi kosong & loading                                 |
 
 ## 6. Responsive Layout
 
-| Breakpoint | Target | Pola |
-|-----------|--------|------|
-| < 640px (mobile) | Petugas | Bottom-nav, kartu 1 kolom, aksi 1-tap |
-| 640–1024px (tablet) | Admin di lapangan | 2 kolom, tabel ringkas |
-| > 1024px (desktop) | Manajemen/Admin | Sidebar + grid KPI + tabel penuh |
+| Breakpoint          | Target            | Pola                                  |
+| ------------------- | ----------------- | ------------------------------------- |
+| < 640px (mobile)    | Petugas           | Bottom-nav, kartu 1 kolom, aksi 1-tap |
+| 640–1024px (tablet) | Admin di lapangan | 2 kolom, tabel ringkas                |
+| > 1024px (desktop)  | Manajemen/Admin   | Sidebar + grid KPI + tabel penuh      |
 
 ```
 Desktop                         Mobile
@@ -162,6 +162,7 @@ Daftar halaman lengkap → **15_PAGE_MAP**.
 ---
 
 ### Referensi silang
+
 - Halaman → **15_PAGE_MAP**
 - Dashboard → **09_DASHBOARD_SPEC**
 - PWA/mobile → **13_PWA_ARCHITECTURE**

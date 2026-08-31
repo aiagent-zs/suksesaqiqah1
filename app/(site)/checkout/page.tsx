@@ -8,8 +8,7 @@ export const metadata = {
   // Tanpa akhiran nama situs: root layout sudah menempelkannya lewat
   // `title.template` (`%s — Sukses Aqiqah`).
   title: 'Pesan Aqiqah',
-  description:
-    'Pesan paket Aqiqah Sukses Aqiqah secara mandiri, tanpa perlu membuat akun.',
+  description: 'Pesan paket Aqiqah Sukses Aqiqah secara mandiri, tanpa perlu membuat akun.',
 };
 
 /**

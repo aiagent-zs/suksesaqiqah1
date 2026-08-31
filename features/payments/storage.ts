@@ -67,11 +67,7 @@ export function checkProofFile(file: { type: string; size: number }): ProofFileC
  * Nama berkas memakai uuid, bukan nama asli — menghindari tabrakan sekaligus
  * mencegah nama file membocorkan data peserta (docs/17 section 3).
  */
-export function buildProofPath(
-  orderNumber: string,
-  uuid: string,
-  ext: string,
-): string {
+export function buildProofPath(orderNumber: string, uuid: string, ext: string): string {
   return `${orderNumber}/${uuid}.${ext}`;
 }
 
@@ -83,10 +79,7 @@ export function buildProofPath(
  * wajib memanggil ini sebelum menyimpan `proof_path`, memakai nomor order yang
  * dibaca dari database, bukan dari klien.
  */
-export function isProofPathForOrder(
-  path: string,
-  orderNumber: string,
-): boolean {
+export function isProofPathForOrder(path: string, orderNumber: string): boolean {
   if (!PROOF_PATH_PATTERN.test(path)) return false;
   return path.startsWith(`${orderNumber}/`);
 }

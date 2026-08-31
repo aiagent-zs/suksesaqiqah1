@@ -89,10 +89,7 @@ export function checkReview(params: {
  * disalin ke guard transisi juga, dan dengan dua alur salinan itu jadi empat
  * tempat yang harus dijaga sinkron selamanya.
  */
-export function formatMissingDocStages(
-  stages: string[],
-  labels: Record<string, string>,
-): string[] {
+export function formatMissingDocStages(stages: string[], labels: Record<string, string>): string[] {
   return stages.map((s) => labels[s] ?? s);
 }
 

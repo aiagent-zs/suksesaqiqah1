@@ -8,18 +8,18 @@
 >
 > Berkas asalnya (cari namanya di <https://commons.wikimedia.org>):
 >
-> | Slot | Berkas Commons |
-> |---|---|
-> | `hero` | Sate Kambing Sate Ayam.jpg |
-> | `paket-ekonomi` | Gulai kambing masakan Padang.JPG |
-> | `paket-favorit` | Sate Kambing di Rumah-2.jpg |
-> | `paket-premium` | Gulai tongseng kambing.JPG |
+> | Slot                 | Berkas Commons                            |
+> | -------------------- | ----------------------------------------- |
+> | `hero`               | Sate Kambing Sate Ayam.jpg                |
+> | `paket-ekonomi`      | Gulai kambing masakan Padang.JPG          |
+> | `paket-favorit`      | Sate Kambing di Rumah-2.jpg               |
+> | `paket-premium`      | Gulai tongseng kambing.JPG                |
 > | `galeri-1-persiapan` | Obelix Village - Peternakan Kambing 1.jpg |
-> | `galeri-2-sembelih` | Sate Kambing di Rumah-1.jpg |
-> | `galeri-3-masak` | Grilling Sate.jpg |
-> | `galeri-4-kemas` | Nasi Kotak-3.jpg |
-> | `galeri-5-kirim` | Nasi Kotak-5.jpg |
-> | `galeri-6-salur` | Sate Kambing di Rumah-3.jpg |
+> | `galeri-2-sembelih`  | Sate Kambing di Rumah-1.jpg               |
+> | `galeri-3-masak`     | Grilling Sate.jpg                         |
+> | `galeri-4-kemas`     | Nasi Kotak-3.jpg                          |
+> | `galeri-5-kirim`     | Nasi Kotak-5.jpg                          |
+> | `galeri-6-salur`     | Sate Kambing di Rumah-3.jpg               |
 >
 > **Periksa lisensi tiap berkas sebelum dipakai di produksi.** Sebagian besar
 > berlisensi CC BY-SA yang **menuntut atribusi** — kewajiban yang tidak ada pada
@@ -44,18 +44,18 @@ slot mana yang masih kosong.
 
 ## Daftar foto yang ditunggu
 
-| Berkas | Dipakai di | Rasio | Ukuran minimal |
-|--------|-----------|-------|----------------|
-| `hero.webp` | Hero, sebelah kanan judul | **4:3** | 1200 × 900 |
-| `paket-ekonomi.webp` | Kartu paket Ekonomi | **3:2** | 600 × 400 |
-| `paket-favorit.webp` | Kartu paket Favorit | **3:2** | 600 × 400 |
-| `paket-premium.webp` | Kartu paket Premium | **3:2** | 600 × 400 |
-| `galeri-1-persiapan.webp` | Galeri — Persiapan & pemeriksaan hewan | **4:3** | 800 × 600 |
-| `galeri-2-sembelih.webp` | Galeri — Penyembelihan sesuai syariat | **4:3** | 800 × 600 |
-| `galeri-3-masak.webp` | Galeri — Pengolahan di dapur mitra | **4:3** | 800 × 600 |
-| `galeri-4-kemas.webp` | Galeri — Pengemasan rapi & higienis | **4:3** | 800 × 600 |
-| `galeri-5-kirim.webp` | Galeri — Diantar ke alamat Anda | **4:3** | 800 × 600 |
-| `galeri-6-salur.webp` | Galeri — Disalurkan ke penerima manfaat | **4:3** | 800 × 600 |
+| Berkas                    | Dipakai di                              | Rasio   | Ukuran minimal |
+| ------------------------- | --------------------------------------- | ------- | -------------- |
+| `hero.webp`               | Hero, sebelah kanan judul               | **4:3** | 1200 × 900     |
+| `paket-ekonomi.webp`      | Kartu paket Ekonomi                     | **3:2** | 600 × 400      |
+| `paket-favorit.webp`      | Kartu paket Favorit                     | **3:2** | 600 × 400      |
+| `paket-premium.webp`      | Kartu paket Premium                     | **3:2** | 600 × 400      |
+| `galeri-1-persiapan.webp` | Galeri — Persiapan & pemeriksaan hewan  | **4:3** | 800 × 600      |
+| `galeri-2-sembelih.webp`  | Galeri — Penyembelihan sesuai syariat   | **4:3** | 800 × 600      |
+| `galeri-3-masak.webp`     | Galeri — Pengolahan di dapur mitra      | **4:3** | 800 × 600      |
+| `galeri-4-kemas.webp`     | Galeri — Pengemasan rapi & higienis     | **4:3** | 800 × 600      |
+| `galeri-5-kirim.webp`     | Galeri — Diantar ke alamat Anda         | **4:3** | 800 × 600      |
+| `galeri-6-salur.webp`     | Galeri — Disalurkan ke penerima manfaat | **4:3** | 800 × 600      |
 
 **Total: 10 foto.**
 

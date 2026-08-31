@@ -64,11 +64,7 @@ export function VendorAddressFields({
   onChange: (next: VendorAddressValue) => void;
   disabled?: boolean;
 }) {
-  const cascade = useRegionCascade([
-    value.province_code,
-    value.city_code,
-    value.district_code,
-  ]);
+  const cascade = useRegionCascade([value.province_code, value.city_code, value.district_code]);
 
   const failedLevel =
     (['city', 'district', 'village'] as const).find((l) =>
@@ -97,8 +93,8 @@ export function VendorAddressFields({
       <div className="sm:col-span-2">
         <p className="text-sm font-medium">Wilayah</p>
         <p className="text-muted-foreground mt-0.5 text-xs">
-          Opsional, tapi mengisinya membuat alamat mitra terbaca lengkap di layar penugasan.
-          Pilih berurutan dari provinsi.
+          Opsional, tapi mengisinya membuat alamat mitra terbaca lengkap di layar penugasan. Pilih
+          berurutan dari provinsi.
         </p>
       </div>
 

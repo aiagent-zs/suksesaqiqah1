@@ -28,7 +28,7 @@ export function StatusActions({
 
   if (options.length === 0) {
     return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+      <p className="text-muted-foreground flex items-center gap-2 text-sm">
         <Info className="size-4" />
         Tidak ada transisi status yang tersedia untuk role Anda pada tahap ini.
       </p>
@@ -87,7 +87,7 @@ export function StatusActions({
           {options
             .filter((o) => !o.allowed)
             .map((o) => (
-              <li key={o.to} className="flex items-start gap-2 text-xs text-muted-foreground">
+              <li key={o.to} className="text-muted-foreground flex items-start gap-2 text-xs">
                 <Info className="mt-0.5 size-3.5 shrink-0" />
                 <span>
                   <span className="font-medium">{o.label}:</span> {o.reason}
@@ -98,14 +98,14 @@ export function StatusActions({
       )}
 
       {selected && (
-        <div className="rounded-xl border border-border bg-muted/40 p-4">
+        <div className="border-border bg-muted/40 rounded-xl border p-4">
           <Label htmlFor="status-reason">Alasan {selected.label.toLowerCase()}</Label>
           <Textarea
             id="status-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Contoh: akses jalan ke lokasi tergenang banjir."
-            className="mt-1.5 bg-card"
+            className="bg-card mt-1.5"
           />
           <div className="mt-3 flex justify-end gap-2">
             <Button
@@ -132,7 +132,7 @@ export function StatusActions({
       )}
 
       {error && (
-        <p className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+        <p className="border-destructive/30 bg-destructive/5 text-destructive flex items-start gap-2 rounded-xl border p-3 text-sm">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           {error}
         </p>

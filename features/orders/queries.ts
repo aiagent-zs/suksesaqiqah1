@@ -231,21 +231,19 @@ export type OrderDetail = {
     serviceType: string;
   }>;
   animals: Tables['animals']['Row'][];
-  schedule:
-    | ({
-        id: string;
-        order_id: string;
-        location_id: string | null;
-        scheduled_date: string;
-        scheduled_time: string | null;
-        notes: string | null;
-        locationName: string | null;
-        locationAddress: string | null;
-        /** Koordinat lokasi untuk tautan peta (prd.md FR-S3). */
-        lat: number | null;
-        lng: number | null;
-      })
-    | null;
+  schedule: {
+    id: string;
+    order_id: string;
+    location_id: string | null;
+    scheduled_date: string;
+    scheduled_time: string | null;
+    notes: string | null;
+    locationName: string | null;
+    locationAddress: string | null;
+    /** Koordinat lokasi untuk tautan peta (prd.md FR-S3). */
+    lat: number | null;
+    lng: number | null;
+  } | null;
   guard: OrderGuardContext;
 };
 

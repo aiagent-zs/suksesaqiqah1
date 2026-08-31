@@ -16,11 +16,7 @@ export function AuthProvider({
   children: React.ReactNode;
   profile: Profile | null;
 }) {
-  return (
-    <AuthContext.Provider value={{ profile }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ profile }}>{children}</AuthContext.Provider>;
 }
 
 /**

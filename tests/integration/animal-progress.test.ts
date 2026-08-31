@@ -204,8 +204,9 @@ describe('enforce_animal_delete', () => {
       // ini, menghapus satu ekor ikut menghapus baris tahapnya, `stages_total`
       // menyusut, dan order lolos gerbang `in_progress -> validation` karena
       // tahap yang belum dikerjakan sudah lenyap bersama hewannya.
-      const rejection = await expectFailureInSavepoint(tx, (sp) =>
-        sp`delete from public.animals where id = ${animalIds[0]}`,
+      const rejection = await expectFailureInSavepoint(
+        tx,
+        (sp) => sp`delete from public.animals where id = ${animalIds[0]}`,
       );
       expect(rejection.code).toBe('23514');
 

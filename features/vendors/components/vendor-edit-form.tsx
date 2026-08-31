@@ -107,7 +107,10 @@ export function VendorEditForm({
   }
 
   return (
-    <section id="data-mitra" className="border-border bg-card scroll-mt-4 rounded-lg border shadow-sm">
+    <section
+      id="data-mitra"
+      className="border-border bg-card scroll-mt-4 rounded-lg border shadow-sm"
+    >
       <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
         <div>
           <h2 className="text-base font-semibold">Data mitra</h2>

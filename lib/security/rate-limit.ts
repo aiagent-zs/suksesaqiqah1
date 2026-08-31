@@ -103,9 +103,7 @@ export class RateLimiter {
  * yang memutuskan apa artinya — di sini permintaan tanpa IP tidak dilempar,
  * hanya tidak ikut terhitung.
  */
-export function clientIpFrom(headers: {
-  get(name: string): string | null;
-}): string | null {
+export function clientIpFrom(headers: { get(name: string): string | null }): string | null {
   const forwarded = headers.get('x-forwarded-for');
   if (forwarded) {
     const first = forwarded.split(',')[0]?.trim();

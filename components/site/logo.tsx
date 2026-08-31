@@ -1,13 +1,7 @@
 import Image from 'next/image';
 
 /** Logo ikon (`logo-icon.svg`) + Teks brand di JSX. */
-export function Logo({
-  light = false,
-  className = '',
-}: {
-  light?: boolean;
-  className?: string;
-}) {
+export function Logo({ light = false, className = '' }: { light?: boolean; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <Image
@@ -27,16 +21,10 @@ export function Logo({
           <span className="text-[#91C416]">Sukses</span>{' '}
           <span className="text-[#FA8202]">Aqiqah</span>
         </span>
-        <span
-          className={`text-[11px] font-medium ${
-            light ? 'text-white/70' : 'text-neutral-500'
-          }`}
-        >
+        <span className={`text-[11px] font-medium ${light ? 'text-white/70' : 'text-neutral-500'}`}>
           by Zakat Sukses
         </span>
       </span>
     </span>
   );
 }
-
-

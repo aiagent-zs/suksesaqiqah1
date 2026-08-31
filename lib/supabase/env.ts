@@ -1,4 +1,3 @@
-
 /**
  * Kredensial Supabase dari environment.
  *
@@ -38,8 +37,7 @@ export function supabaseUrl(): string {
  */
 export function supabaseAnonKey(): string {
   const key =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   return required('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', key);
 }

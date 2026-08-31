@@ -28,7 +28,9 @@ export async function listUsers(): Promise<UserRow[]> {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, phone, role, is_active, vendor_id, created_at, vendor:vendors ( name )')
+    .select(
+      'id, full_name, email, phone, role, is_active, vendor_id, created_at, vendor:vendors ( name )',
+    )
     .is('deleted_at', null)
     .order('is_active', { ascending: false })
     .order('role')

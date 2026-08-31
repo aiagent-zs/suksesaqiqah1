@@ -25,7 +25,7 @@ export function ScheduleTable({ rows }: { rows: ScheduleRow[] }) {
             <TableHead>Peserta</TableHead>
             <TableHead>Lokasi</TableHead>
             <TableHead>Mitra</TableHead>
-            
+
             <TableHead>Status Order</TableHead>
           </TableRow>
         </TableHeader>
@@ -83,7 +83,9 @@ export function ScheduleTable({ rows }: { rows: ScheduleRow[] }) {
                     <>
                       <p className="text-sm">{row.vendorName}</p>
                       {row.vendorPhone && (
-                        <p className="text-muted-foreground text-xs tabular-nums">{row.vendorPhone}</p>
+                        <p className="text-muted-foreground text-xs tabular-nums">
+                          {row.vendorPhone}
+                        </p>
                       )}
                     </>
                   ) : (
@@ -91,8 +93,7 @@ export function ScheduleTable({ rows }: { rows: ScheduleRow[] }) {
                   )}
                 </TableCell>
 
-                <TableCell>
-                </TableCell>
+                <TableCell></TableCell>
 
                 <TableCell>
                   <OrderStatusBadge status={row.orderStatus} />

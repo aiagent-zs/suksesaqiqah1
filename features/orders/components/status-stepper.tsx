@@ -44,9 +44,9 @@ export function StatusStepper({ status }: { status: OrderStatus }) {
       </ol>
 
       {offTrack && (
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-3 text-sm">
           Order berada di luar rangkaian normal:{' '}
-          <span className="font-medium text-foreground">{ORDER_STATUS_META[status].label}</span>.
+          <span className="text-foreground font-medium">{ORDER_STATUS_META[status].label}</span>.
         </p>
       )}
     </div>

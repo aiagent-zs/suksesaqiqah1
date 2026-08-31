@@ -45,13 +45,7 @@ const SHEET_ITEM =
  * membuat rentang 640–1024px (tablet, "admin di lapangan") kehilangan
  * kedua-duanya.
  */
-export function MobileNav({
-  fullName,
-  role,
-}: {
-  fullName: string;
-  role: UserRole | undefined;
-}) {
+export function MobileNav({ fullName, role }: { fullName: string; role: UserRole | undefined }) {
   const pathname = usePathname();
   const items = navItemsForRole(role);
   const [open, setOpen] = useState(false);
@@ -77,7 +71,7 @@ export function MobileNav({
     <Drawer.Root open={open} onOpenChange={setOpen} swipeDirection="down">
       <nav
         aria-label="Navigasi utama"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="border-sidebar-border bg-sidebar fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         <ul className="grid grid-cols-5">
           {items.map((item) => {
@@ -120,7 +114,7 @@ export function MobileNav({
         <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center lg:hidden">
           <Drawer.Popup
             className={cn(
-              'w-full rounded-t-2xl border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] text-white outline-none',
+              'border-sidebar-border bg-sidebar w-full rounded-t-2xl border-t pb-[env(safe-area-inset-bottom)] text-white outline-none',
               // Semua state memakai properti `transform` yang sama supaya
               // gerakan seret dan animasi buka/tutup tidak saling menimpa.
               '[transform:translateY(var(--drawer-swipe-movement-y,0px))]',
@@ -150,13 +144,13 @@ export function MobileNav({
 
                 <Drawer.Close
                   aria-label="Tutup menu"
-                  className="flex size-11 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-colors active:bg-sidebar-accent"
+                  className="active:bg-sidebar-accent flex size-11 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </Drawer.Close>
               </div>
 
-              <div className="mt-4 space-y-1 border-t border-sidebar-border/80 pt-4">
+              <div className="border-sidebar-border/80 mt-4 space-y-1 border-t pt-4">
                 <form action={logout}>
                   <button
                     type="submit"

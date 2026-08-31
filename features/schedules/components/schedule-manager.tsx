@@ -275,7 +275,9 @@ export function ScheduleManager({
                   size="sm"
                   variant="outline"
                   disabled={pending || !vendorDraft || vendorDraft === vendor?.id}
-                  onClick={() => run(() => assignVendor({ order_id: orderId, vendor_id: vendorDraft }))}
+                  onClick={() =>
+                    run(() => assignVendor({ order_id: orderId, vendor_id: vendorDraft }))
+                  }
                 >
                   {vendor ? 'Pindahkan ke mitra ini' : 'Tugaskan mitra'}
                 </Button>

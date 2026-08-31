@@ -19,15 +19,10 @@ import { IssueListPanel } from '@/features/issues/components/issue-list-panel';
 import { getOrderIssues } from '@/features/issues/queries';
 import { DocumentationManager } from '@/features/documentation/components/documentation-manager';
 import { getOrderDocumentations } from '@/features/documentation/queries';
-import {
-  canValidateDocumentation,
-} from '@/features/documentation/review';
+import { canValidateDocumentation } from '@/features/documentation/review';
 import { ReportManager } from '@/features/reporting/components/report-manager';
 import { getOrderReports } from '@/features/reporting/queries';
-import {
-  OrderStatusBadge,
-  PaymentStatusBadge,
-} from '@/components/data/status-badge';
+import { OrderStatusBadge, PaymentStatusBadge } from '@/components/data/status-badge';
 import { ORDER_STATUS_META } from '@/lib/constants/order';
 import { formatCurrency, formatDate, formatDateTime, formatTime } from '@/lib/format';
 import {
@@ -229,7 +224,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             <PaymentManager
               orderId={order.id}
               orderNumber={order.order_number}
-                summary={payments}
+              summary={payments}
               totalAmount={Number(order.total_amount)}
               paidAmount={Number(order.paid_amount)}
               minDpRatio={guard.minDpRatio}
@@ -356,9 +351,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                 <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                 <div>
                   <dt className="text-muted-foreground">Cabang</dt>
-                  <dd className="font-medium">
-                    {vendor ? vendor.name : 'Belum ditugaskan'}
-                  </dd>
+                  <dd className="font-medium">{vendor ? vendor.name : 'Belum ditugaskan'}</dd>
                 </div>
               </div>
 
@@ -375,8 +368,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                       <dd className="text-muted-foreground text-xs">
                         {schedule.locationName ?? 'Lokasi belum diisi'}
                       </dd>
-                      <dd className="mt-1">
-                      </dd>
+                      <dd className="mt-1"></dd>
                     </>
                   ) : (
                     <dd className="text-muted-foreground">Belum dijadwalkan</dd>

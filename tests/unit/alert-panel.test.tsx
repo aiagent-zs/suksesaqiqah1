@@ -84,7 +84,15 @@ describe('AlertPanel', () => {
   });
 
   it('menyebut jumlahnya dan membawa ke tempat tindakannya', () => {
-    mount([alert(), alert({ id: 'n2', template: 'issue_high', title: 'Kendala berat dilaporkan', href: '/orders/o1' })]);
+    mount([
+      alert(),
+      alert({
+        id: 'n2',
+        template: 'issue_high',
+        title: 'Kendala berat dilaporkan',
+        href: '/orders/o1',
+      }),
+    ]);
 
     expect(document.body.textContent).toContain('Perlu Tindakan');
     const links = [...document.querySelectorAll('a')].map((a) => a.getAttribute('href'));

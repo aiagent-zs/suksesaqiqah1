@@ -122,7 +122,7 @@ export function DocumentationManager({
       try {
         const supabase = createClient();
         storagePath = buildDocPath({
-                  orderNumber,
+          orderNumber,
           orderCreatedAt,
           stage: draft.stage,
           uuid: crypto.randomUUID(),
