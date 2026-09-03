@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createServiceSchema, updateServiceSchema } from '@/features/services/schema';
+import { metaFields, metaItems, serviceDetails } from '@/features/services/meta';
 
 const AQIQAH = {
   type: 'aqiqah' as const,
@@ -272,5 +273,97 @@ describe('deleteService menurunkan show_on_landing', () => {
     expect(del).toContain('deleted_at:');
     expect(del).toContain('is_active: false');
     expect(del).toContain('show_on_landing: false');
+  });
+});
+
+/**
+ * `serviceDetails()` menyaring menurut jenis paket.
+ *
+ * Sebelum 3 September ada **tiga salinan** pembaca `meta` — dua `serviceDetails`
+ * yang badannya identik plus satu `itemsFrom` — dan tidak satu pun memandang
+ * jenis paket. Akibatnya baris yang membawa sisa bentuk lawan dirender
+ * bercampur di empat layar sekaligus.
+ *
+ * `metaFrom()` menutup jalan lahirnya bentuk campuran **baru**, tetapi baris
+ * yang telanjur rusak sebelum perbaikan itu tetap ada — dan hanya penyaringan
+ * di sisi baca yang menolongnya.
+ */
+describe('serviceDetails menyaring menurut jenis', () => {
+  const campuran = {
+    hasil: { porsi: 80, jenis: 'gulai & sate' },
+    cocok_untuk: 'keluarga kecil',
+    items: ['nasi putih', 'sate'],
+  };
+
+  it('paket aqiqah tidak mencetak daftar lauk nasi box', () => {
+    const out = serviceDetails(campuran, 'aqiqah');
+    expect(out).toContain('80 porsi');
+    expect(out).toContain('Olahan: gulai & sate');
+    expect(out).not.toContain('nasi putih');
+  });
+
+  it('nasi box tidak mencetak porsi maupun peruntukan', () => {
+    const out = serviceDetails(campuran, 'nasi_box');
+    expect(out).toEqual(['nasi putih', 'sate']);
+  });
+
+  it('tanpa jenis, perilakunya seperti sebelumnya', () => {
+    // Pemanggil yang memang tidak tahu jenisnya (join yang tidak membawa
+    // kolomnya) tetap mendapat isi apa adanya, bukan daftar kosong.
+    const out = serviceDetails(campuran);
+    expect(out.length).toBeGreaterThan(3);
+  });
+
+  it('porsi nol tidak dicetak', () => {
+    // "0 porsi" di kartu lebih buruk daripada tidak mencetak apa-apa.
+    expect(serviceDetails({ hasil: { porsi: 0 } }, 'aqiqah')).toEqual([]);
+  });
+
+  it('bentuk yang tidak dikenali menghasilkan daftar kosong, bukan galat', () => {
+    for (const bad of [null, undefined, 'teks', 42, []]) {
+      expect(serviceDetails(bad, 'aqiqah')).toEqual([]);
+      expect(metaItems(bad)).toEqual([]);
+    }
+  });
+});
+
+describe('metaFields tidak menyaring — formulir perlu apa adanya', () => {
+  it('mengembalikan seluruh yang tersimpan', () => {
+    // Berbeda dari `serviceDetails`: formulir harus bisa menampilkan kembali
+    // apa yang benar-benar ada di baris, termasuk sisa bentuk lawan, supaya
+    // operator punya cara melihat dan membersihkannya.
+    const f = metaFields({ hasil: { porsi: 110, jenis: 'sate' }, items: ['nasi'] });
+    expect(f.porsi).toBe(110);
+    expect(f.jenisOlahan).toBe('sate');
+    expect(f.items).toEqual(['nasi']);
+  });
+
+  it('nilai bertipe salah jadi null, bukan melempar', () => {
+    const f = metaFields({ hasil: { porsi: '80' }, cocok_untuk: 42 });
+    expect(f.porsi).toBeNull();
+    expect(f.cocokUntuk).toBeNull();
+  });
+});
+
+describe('pembaca meta hanya satu', () => {
+  it('tidak ada lagi salinan serviceDetails/itemsFrom', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+
+    for (const rel of [
+      'features/services/queries.ts',
+      'features/vendors/queries.ts',
+      'features/landing/catalogue.ts',
+    ]) {
+      const src = readFileSync(join(process.cwd(), rel), 'utf8');
+      // Definisi lokal, bukan pemanggilan. Tiga salinan itulah yang membuat
+      // satu perbaikan harus diulang tiga kali — dan dua di antaranya
+      // tertinggal cepat atau lambat.
+      expect(src).not.toMatch(/^(export )?function (serviceDetails|itemsFrom|metaFields)/m);
+      // Diterima keduanya: berkas di dalam `features/services` mengimpornya
+      // lewat path relatif (`./meta`), yang di luar lewat alias. Menuntut satu
+      // bentuk saja akan menghukum konvensi impor yang sudah dipakai repo ini.
+      expect(src).toMatch(/from '(\.\/meta|@\/features\/services\/meta)'/);
+    }
   });
 });
