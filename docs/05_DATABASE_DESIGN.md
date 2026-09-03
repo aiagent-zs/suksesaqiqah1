@@ -1,331 +1,334 @@
 # 05 — DATABASE DESIGN
 
-> **Sukses Aqiqah** — *"Tunaikan Ibadah, Tebarkan Manfaat"*
+> **Sukses Aqiqah** — _"Tunaikan Ibadah, Tebarkan Manfaat"_
 > Dokumen ini adalah **sumber kebenaran entity** untuk **06_MODULE_BREAKDOWN** dan **16_API_SPEC**.
 
-| Field | Value |
-|-------|-------|
-| Dokumen | 05_DATABASE_DESIGN |
-| Versi | 1.0 |
-| Tanggal | 2026-06-14 |
-| DBMS | PostgreSQL (Supabase) + Row Level Security |
-| Status | Draft — menunggu approval |
+| Field    | Value                                                          |
+| -------- | -------------------------------------------------------------- |
+| Dokumen  | 05_DATABASE_DESIGN                                             |
+| Versi    | 2.0 — ditulis ulang mengikuti desain ulang skema 20 Agustus     |
+| Tanggal  | 2026-09-03                                                     |
+| DBMS     | PostgreSQL (Supabase) + Row Level Security                     |
+| Status   | **Selaras dengan migration** — 42 migration, 42/42 di cloud     |
+
+> **Cara membaca dokumen ini.** Urutan otoritas kebenaran di project ini adalah
+> **migrations → kode → `prd.md` → `docs/`**. Jadi kalau dokumen ini berselisih
+> dengan `supabase/migrations/`, yang benar migration-nya. Versi 1.0 sempat
+> tertinggal jauh — ia masih menggambarkan `branches`, lima role, dan
+> `slaughter_records` yang semuanya sudah dihapus 20 Agustus.
 
 ---
 
 ## 1. Konvensi
 
 - Semua tabel pakai **`id uuid primary key default gen_random_uuid()`**.
-- Timestamp: **`created_at`, `updated_at` (timestamptz, default now())**; trigger `updated_at`.
-- Soft delete via **`deleted_at timestamptz null`** untuk entitas master penting.
+- Timestamp: **`created_at`, `updated_at` (timestamptz, default now())**; trigger `set_updated_at`.
+- Soft delete via **`deleted_at timestamptz null`** untuk entitas master.
 - Penamaan: `snake_case`, tabel jamak (`orders`, `animals`).
-- Enum diimplementasikan sebagai **PostgreSQL `enum` type** atau tabel lookup (lihat catatan).
-- **RLS aktif** di semua tabel berisi data operasional; kebijakan berbasis `auth.uid()` + `role` + `branch_id`.
-- Audit lewat tabel `audit_logs` + trigger pada perubahan status.
+- Enum sebagai **PostgreSQL `enum` type**.
+- **RLS aktif di seluruh tabel**; kebijakan berbasis `auth.uid()` + `role` + **`vendor_id`** (lihat §2.1).
+- Audit lewat `audit_logs` + trigger `audit_row` pada tabel operasional.
 
-## 2. Entity List
+### 1.1 Yang dihapus 20 Agustus, dan kenapa
 
-| # | Entity | Deskripsi |
-|---|--------|-----------|
-| 1 | `users` (profiles) | Pengguna internal; extend `auth.users` Supabase. |
-| 2 | `branches` | Cabang Zakat Sukses. |
-| 3 | `locations` | Lokasi/titik pemotongan (punya koordinat). |
-| 4 | `services` | Master jenis layanan: Aqiqah, Qurban, Sedekah Daging. |
-| 5 | `participants` | Peserta/donatur. |
-| 6 | `orders` | Order inti (state machine). |
-| 7 | `order_items` | Rincian layanan/hewan per order. |
-| 8 | `animals` | Hewan per order (ekor). |
-| 9 | `payments` | Pembayaran & verifikasi. |
-| 10 | `schedules` | Penjadwalan pemotongan + PIC + lokasi. |
-| 11 | `slaughter_records` | Catatan pemotongan per hewan. |
-| 12 | `distributions` | Catatan distribusi daging. |
-| 13 | `documentations` | Foto/video/catatan + status validasi. |
-| 14 | `reports` | Laporan peserta (PDF + token link publik). |
-| 15 | `notifications` | Outbox notifikasi (WA/Email/Dashboard). |
-| 16 | `audit_logs` | Jejak audit perubahan. |
-| 17 | `issues` | Kendala/issue pada order. |
+<!-- schema-history -->
+
+| Dihapus                                | Penggantinya                       | Alasan                                                                                        |
+| -------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------- |
+| `branches`                             | — (tidak diganti)                  | Operasi berpusat di satu tempat; yang banyak adalah **mitra**, bukan cabang                    |
+| `slaughter_records` + `distributions`  | `order_stage_events`               | Tahapan lapangan **bercabang** menurut mode penyaluran; dua tabel tetap tidak bisa mewakilinya |
+| `schedules.pic_user_id` sebagai akses  | `orders.vendor_id`                 | Penugasan mitra berdiri sendiri; jadwal kembali jadi sekadar jadwal                            |
+| 5 role                                 | 3 role                             | Tanpa cabang, `admin_pusat`/`admin_cabang` kehilangan pembedanya                               |
+
+<!-- /schema-history -->
+
+`regions` **sengaja tidak disentuh** saat desain ulang — isinya 91.599 wilayah
+Kemendagri (±3 MB) yang tidak berubah, dan membangunnya ulang berarti push 3 MB
+tanpa manfaat.
+
+---
+
+## 2. Entity List — 22 tabel
+
+| #   | Entity               | Deskripsi                                                                     |
+| --- | -------------------- | ----------------------------------------------------------------------------- |
+| 1   | `profiles`           | Pengguna internal; extend `auth.users`. Membawa `vendor_id` untuk role vendor  |
+| 2   | `vendors`            | **Mitra pelaksana** — identitas, kontak, alamat, rekening, perjanjian          |
+| 3   | `vendor_services`    | **Modal per mitra** per paket + batas penawaran (min/maks/jeda)                |
+| 4   | `vendor_coverage`    | Wilayah layanan tiap mitra                                                     |
+| 5   | `services`           | Katalog paket — harga jual **dan** konten halaman depan                        |
+| 6   | `locations`          | Titik pelaksanaan (punya koordinat); **milik mitra**                           |
+| 7   | `participants`       | Pemesan                                                                        |
+| 8   | `orders`             | Order inti (state machine)                                                     |
+| 9   | `order_items`        | Rincian paket per order; menyimpan harga jual **dan** modal saat itu           |
+| 10  | `animals`            | Hewan per order (ekor)                                                         |
+| 11  | `payments`           | Pembayaran & verifikasi                                                        |
+| 12  | `schedules`          | Tanggal & lokasi pelaksanaan                                                   |
+| 13  | `order_stage_events` | **Tahapan lapangan** — terbit otomatis, berurutan, wajib berbukti              |
+| 14  | `stage_requirements` | Tahap mana yang wajib punya bukti                                              |
+| 15  | `documentations`     | Foto/video/catatan + status validasi                                           |
+| 16  | `reports`            | Laporan peserta (PDF + token publik)                                           |
+| 17  | `notifications`      | Outbox notifikasi (WA/Email/Dashboard)                                         |
+| 18  | `issues`             | Kendala pada order                                                             |
+| 19  | `audit_logs`         | Jejak audit perubahan                                                          |
+| 20  | `app_settings`       | Angka yang dibaca RPC **dan** klien (jendela pemesanan, rasio DP)              |
+| 21  | `order_counters`     | Penomoran order atomik per bulan                                               |
+| 22  | `regions`            | 91.599 wilayah Kemendagri untuk alamat terstruktur                             |
+
+<!-- schema-history -->
+
+### 2.1 Kenapa `vendor_id`, bukan `branch_id`
+
+<!-- /schema-history -->
+
+Inilah perubahan yang paling banyak menyentuh RLS. `can_read_order()`
+membandingkan `orders.vendor_id` dengan `profiles.vendor_id`, jadi **penugasan
+mitra adalah pintu masuk data**: vendor tidak bisa melihat order apa pun sampai
+ia ditugaskan. Trigger `enforce_vendor_assignment` menolak vendor yang mencoba
+memindahkan penugasan ke dirinya sendiri.
+
+---
 
 ## 3. ERD
 
 ```mermaid
 erDiagram
-    USERS ||--o{ ORDERS : "dibuat_oleh"
-    BRANCHES ||--o{ USERS : "menaungi"
-    BRANCHES ||--o{ LOCATIONS : "memiliki"
-    BRANCHES ||--o{ ORDERS : "scope"
-    SERVICES ||--o{ ORDER_ITEMS : "jenis"
+    PROFILES ||--o{ ORDERS : "dibuat_oleh"
+    VENDORS ||--o{ PROFILES : "akun_mitra"
+    VENDORS ||--o{ VENDOR_SERVICES : "modal"
+    VENDORS ||--o{ VENDOR_COVERAGE : "wilayah"
+    VENDORS ||--o{ LOCATIONS : "memiliki"
+    VENDORS ||--o{ ORDERS : "ditugaskan"
+    SERVICES ||--o{ VENDOR_SERVICES : "dipatok"
+    SERVICES ||--o{ ORDER_ITEMS : "paket"
     PARTICIPANTS ||--o{ ORDERS : "memesan"
     ORDERS ||--o{ ORDER_ITEMS : "berisi"
     ORDERS ||--o{ ANIMALS : "mencakup"
     ORDERS ||--o{ PAYMENTS : "ditagih"
     ORDERS ||--|| SCHEDULES : "dijadwalkan"
+    ORDERS ||--o{ ORDER_STAGE_EVENTS : "tahapan"
     ORDERS ||--o{ DOCUMENTATIONS : "didokumentasikan"
     ORDERS ||--o{ ISSUES : "kendala"
     ORDERS ||--o{ REPORTS : "dilaporkan"
-    LOCATIONS ||--o{ SCHEDULES : "tempat"
-    USERS ||--o{ SCHEDULES : "PIC"
-    ANIMALS ||--o{ SLAUGHTER_RECORDS : "dipotong"
-    ANIMALS ||--o{ DOCUMENTATIONS : "objek"
-    SLAUGHTER_RECORDS ||--o{ DISTRIBUTIONS : "menghasilkan"
-    USERS ||--o{ DOCUMENTATIONS : "diunggah_oleh"
-    USERS ||--o{ AUDIT_LOGS : "aktor"
     ORDERS ||--o{ NOTIFICATIONS : "memicu"
+    LOCATIONS ||--o{ SCHEDULES : "tempat"
+    ANIMALS ||--o{ ORDER_STAGE_EVENTS : "per_ekor"
+    ORDER_STAGE_EVENTS ||--o{ DOCUMENTATIONS : "bukti"
+    PROFILES ||--o{ AUDIT_LOGS : "aktor"
 ```
+
+---
 
 ## 4. Table Definitions
 
-> Tipe enum (status) didefinisikan sebagai PostgreSQL enum. Kolom audit (`created_at`, `updated_at`) tersirat di semua tabel.
+> Kolom audit (`created_at`, `updated_at`) tersirat di semua tabel.
 
-### 4.1 `users` (profiles)
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | = `auth.users.id` |
-| full_name | text | |
-| email | text unique | |
-| phone | text | untuk WA |
-| role | enum `user_role` | `direktur`,`manager_program`,`admin_pusat`,`admin_cabang`,`petugas_lapangan` |
-| branch_id | uuid FK→branches | null untuk role pusat |
-| is_active | boolean default true | |
+### 4.1 `profiles`
 
-### 4.2 `branches`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| name | text | |
-| code | text unique | |
-| address | text | |
-| phone | text | |
+| Kolom      | Tipe                | Ket.                                                        |
+| ---------- | ------------------- | ----------------------------------------------------------- |
+| id         | uuid PK             | = `auth.users.id`                                           |
+| full_name  | text                |                                                             |
+| email      | text unique         |                                                             |
+| phone      | text                | untuk WA                                                    |
+| role       | enum `user_role`    | `superadmin`, `admin`, `vendor`                             |
+| vendor_id  | uuid FK→vendors     | wajib untuk role `vendor`, null untuk staf                  |
+| is_active  | boolean default true| akun non-aktif membuat `auth_role()` mengembalikan **NULL** |
 
-### 4.3 `locations`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| branch_id | uuid FK→branches | |
-| name | text | |
-| address | text | |
-| lat | numeric(9,6) | Google Maps |
-| lng | numeric(9,6) | |
+> `handle_new_user` **tidak** membaca role dari user metadata. Selama pendaftaran
+> mandiri terbuka, metadata role berarti siapa pun bisa mendaftar sebagai admin.
+> Akun baru lahir sebagai `vendor` **non-aktif**; role ditetapkan superadmin
+> lewat UPDATE terpisah.
+
+### 4.2 `vendors`
+
+Identitas mitra, alamat berkode wilayah (`province_code`…`village_code` +
+namanya), perjanjian (`agreement_*`), rekening, `daily_capacity`, dan
+`service_modes` (array `distribution_mode` — mitra wajib melayani minimal satu).
+
+`code` boleh disunting: ia tidak pernah disalin ke tabel mana pun, dibaca lewat
+join, dan path Storage sengaja tidak memakainya.
+
+### 4.3 `vendor_services`
+
+| Kolom             | Tipe          | Ket.                                                    |
+| ----------------- | ------------- | ------------------------------------------------------- |
+| vendor_id         | uuid FK       | on delete cascade                                       |
+| service_id        | uuid FK       | on delete **restrict**                                  |
+| vendor_price      | numeric(14,2) | **modal** — selisihnya terhadap `services.price` = margin |
+| is_offered        | boolean       |                                                         |
+| min_qty / max_qty | int           | batas pesanan; `max_qty` null = tanpa batas             |
+| lead_time_hours   | int           | jeda persiapan yang diminta mitra                       |
+| meta / notes      | jsonb / text  | rincian modal & catatan kesepakatan                     |
+
+Unik pada `(vendor_id, service_id)`; `max_qty >= min_qty` dijaga constraint.
+
+> ⚠️ `min_qty`/`max_qty`/`lead_time_hours` **dicatat tetapi belum menegakkan**:
+> nol pembaca di checkout maupun `assignVendor`.
 
 ### 4.4 `services`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| type | enum `service_type` | `aqiqah`,`qurban`,`sedekah_daging`,`nasi_box` |
-| name | text | |
-| description | text | |
-| price | numeric(14,2) default 0 | harga jual total paket |
-| meta | jsonb | rincian terstruktur: kambing `{harga_kambing,biaya_masak,hasil{...},cocok_untuk}`; nasi box `{items[]}` |
-| is_active | boolean default true | |
 
-> Katalog paket (3 kambing + 5 nasi box) di-seed via migration & **editable di dashboard** (`/programs`, role `manager_program`).
+| Kolom                     | Tipe                | Ket.                                              |
+| ------------------------- | ------------------- | ------------------------------------------------- |
+| type                      | enum `service_type` | `aqiqah`, `qurban`, `sedekah_daging`, `nasi_box`   |
+| name / slug / description | text                | `slug` dipakai tautan `/checkout?paket={slug}`     |
+| price                     | numeric(14,2)       | **harga jual**; modal per mitra di `vendor_services` |
+| meta                      | jsonb               | aqiqah `{hasil:{porsi,jenis},cocok_untuk}`; nasi box `{items[]}` |
+| tagline, landing_features | text, text[]        | konten kartu halaman depan                        |
+| photo_path, photo_alt     | text                | `images/…` = berkas repo; selainnya bucket `public-assets` |
+| is_popular                | boolean             | penanda "Terpopuler"                              |
+| show_on_landing           | boolean             | dipasarkan; **terpisah** dari `is_active`         |
 
-### 4.5 `participants`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| name | text | |
-| phone | text | untuk WA.me |
-| email | text | untuk laporan |
-| address | text | |
+- `services_slug_active_key` — indeks unik **parsial** (`where deleted_at is null`),
+  supaya slug bekas paket terhapus bisa dipakai lagi.
+- `services_landing_requires_active` — paket non-aktif tidak boleh dipasarkan.
 
-### 4.6 `orders`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_number | text unique | format `IA-YYYYMM-####` |
-| participant_id | uuid FK→participants | |
-| branch_id | uuid FK→branches | scope RLS |
-| created_by | uuid FK→users | |
-| status | enum `order_status` | lihat §5 |
-| payment_status | enum `payment_status` | `unpaid`,`partial`,`paid` |
-| total_amount | numeric(14,2) | |
-| notes | text | |
-| public_token | text unique | token laporan publik |
+> Halaman depan **membaca tabel ini** sejak 3 September. Sebelumnya paket &
+> harganya hardcode di `lib/constants/site.ts` — kembaran yang pernah menyimpang
+> tanpa menghasilkan galat.
 
-### 4.7 `order_items`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_id | uuid FK→orders | |
-| service_id | uuid FK→services | |
-| qty | int | jumlah hewan/paket |
-| unit_price | numeric(14,2) | |
-| meta | jsonb | preferensi (atas nama, dll) |
+### 4.5 `orders`
 
-### 4.8 `animals`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_id | uuid FK→orders | |
-| tag_code | text | kode/tanda hewan |
-| species | enum `animal_species` | `kambing`,`domba`,`sapi` |
-| weight_kg | numeric(6,2) | opsional |
-| status | enum `animal_status` | `registered`,`prepared`,`slaughtered`,`distributed` |
-| on_behalf_of | text | atas nama (untuk aqiqah/qurban) |
+Selain `order_number` (`IA-YYYYMM-####`, atomik lewat `order_counters`),
+`participant_id`, `status`, dan `payment_status`:
 
-### 4.9 `payments`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_id | uuid FK→orders | |
-| amount | numeric(14,2) | |
-| method | text | transfer/tunai |
-| proof_path | text | path Storage bukti |
-| status | enum `payment_status` | |
-| verified_by | uuid FK→users | |
-| verified_at | timestamptz | |
+| Kolom               | Ket.                                                              |
+| ------------------- | ----------------------------------------------------------------- |
+| vendor_id           | **pintu masuk akses vendor** — null sampai admin menugaskan        |
+| distribution_mode   | `salur` \| `kirim` — **menyetir tahapan**, bukan sekadar validasi  |
+| delivery_\*         | alamat terstruktur dari `regions`; nama ikut disimpan sebagai rekaman sejarah |
+| public_token        | kunci baca laporan publik                                          |
+| created_by          | **null = order tamu**, tertahan di `new` sampai admin memverifikasi |
 
-### 4.10 `schedules`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_id | uuid FK→orders unique | 1 order : 1 jadwal aktif |
-| location_id | uuid FK→locations | |
-| pic_user_id | uuid FK→users | Petugas Lapangan |
-| scheduled_date | date | |
-| scheduled_time | time | |
-| status | enum `schedule_status` | `planned`,`ongoing`,`done` |
+### 4.6 `order_stage_events`
 
-### 4.11 `slaughter_records`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| animal_id | uuid FK→animals | |
-| performed_by | uuid FK→users | |
-| performed_at | timestamptz | |
-| notes | text | |
+<!-- schema-history -->
 
-### 4.12 `distributions`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_id | uuid FK→orders | |
-| slaughter_record_id | uuid FK→slaughter_records | nullable |
-| recipient_name | text | titik/penerima |
-| recipient_area | text | |
-| packages_count | int | jumlah paket daging |
-| distributed_by | uuid FK→users | |
-| distributed_at | timestamptz | |
-| lat | numeric(9,6) | opsional |
-| lng | numeric(9,6) | opsional |
+Menggantikan `slaughter_records` + `distributions`.
 
-### 4.13 `documentations`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_id | uuid FK→orders | |
-| animal_id | uuid FK→animals | nullable |
-| type | enum `doc_type` | `photo`,`video`,`note` |
-| storage_path | text | path Supabase Storage |
-| caption | text | catatan |
-| stage | enum `doc_stage` | `slaughter`,`distribution`,`general` |
-| status | enum `doc_status` | `pending`,`approved_supervisor`,`approved`,`rejected` |
-| uploaded_by | uuid FK→users | |
-| reviewed_by | uuid FK→users | nullable |
-| review_note | text | alasan reject |
+<!-- /schema-history -->
 
-### 4.14 `reports`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_id | uuid FK→orders | |
-| pdf_path | text | path Storage PDF |
-| public_token | text unique | token halaman publik |
-| generated_by | text | `n8n`/user |
-| generated_at | timestamptz | |
-| version | int default 1 | |
+Daftar tahap **terbit
+otomatis** saat mitra ditugaskan (`generate_stage_checklist`), jadi vendor
+mengisi yang sudah menunggu — ia tidak bisa mengarang tahap.
 
-### 4.15 `notifications`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_id | uuid FK→orders | nullable |
-| channel | enum `notif_channel` | `whatsapp`,`email`,`dashboard` |
-| target | text | nomor/email/user |
-| payload | jsonb | isi |
-| status | enum `notif_status` | `queued`,`sent`,`failed` |
-| sent_at | timestamptz | |
+Tahap `sembelih` terbit **satu baris per ekor**; sisanya satu baris per order.
 
-### 4.16 `issues`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| order_id | uuid FK→orders | |
-| reported_by | uuid FK→users | |
-| severity | enum `issue_severity` | `low`,`medium`,`high` |
-| title | text | |
-| description | text | |
-| status | enum `issue_status` | `open`,`in_progress`,`resolved` |
-| resolved_at | timestamptz | |
+---
 
-### 4.17 `audit_logs`
-| Kolom | Tipe | Ket. |
-|-------|------|------|
-| id | uuid PK | |
-| actor_id | uuid FK→users | nullable (system) |
-| entity | text | nama tabel |
-| entity_id | uuid | |
-| action | text | `create`,`update`,`status_change`,`delete` |
-| before | jsonb | |
-| after | jsonb | |
-| created_at | timestamptz | |
+## 5. Tahapan bercabang
 
-## 5. State Machines (enum status)
+`fulfilment_sequence()` adalah **satu sumber** percabangan — dibaca trigger
+penerbit tahap, penegak urutan, dan gerbang kelengkapan bukti:
 
-**`order_status`** (sejalan dengan **08_WORKFLOW_MAP**):
-`new → paid → scheduled → preparation → slaughtering → distribution → documentation → reporting → completed` (+ `on_hold`, `cancelled`).
-> Catatan: status `paid` bermakna "**memenuhi syarat pembayaran untuk lanjut**" — yaitu `payment_status = paid` **atau** `partial` yang ≥ **DP minimum** (lihat kebijakan di bawah). Pelunasan penuh tetap ditargetkan sebelum `completed`.
+```
+salur : persiapan → sembelih → masak → salur
+kirim : persiapan → sembelih → masak → kirim → terkirim
+```
 
-**`payment_status`**: `unpaid → partial → paid`.
-**Kebijakan gate pembayaran (DP/Partial diizinkan):** order boleh naik ke `scheduled` jika `payment_status = paid` **atau** `partial` dengan jumlah terbayar ≥ **`min_dp`**. `min_dp` dikonfigurasi di settings (default proporsi mis. 50%); dapat diset per layanan via `services.meta` bila diperlukan. Sisa pembayaran wajib lunas sebelum order `completed`.
-**`doc_status`**: `pending → approved_supervisor → approved` | `rejected`.
-**`schedule_status`**: `planned → ongoing → done`.
-**`animal_status`**: `registered → prepared → slaughtered → distributed`.
+`features/stages/sequence.ts` adalah kembarannya di TypeScript, dijaga tes yang
+**membaca berkas migration langsung** dan menuntut keduanya identik.
 
-## 6. Relationships (ringkas)
+### 5.1 Status order (administratif)
 
-- `branches 1—N users`, `branches 1—N locations`, `branches 1—N orders`.
-- `participants 1—N orders`.
-- `orders 1—N order_items / animals / payments / documentations / issues / reports`.
-- `orders 1—1 schedules`.
-- `animals 1—N slaughter_records`; `slaughter_records 1—N distributions`.
-- `users` berperan sebagai `created_by`, `pic_user_id`, `uploaded_by`, `reviewed_by`, `actor_id`.
+```
+new → verified → paid → assigned → in_progress → validation → reporting → completed
+```
 
-## 7. Index Strategy
+Plus `on_hold` dan `cancelled`. **Tahapan lapangan tidak lagi jadi status** — ia
+bercabang, dan status tidak bisa bercabang.
 
-| Tabel | Index | Alasan |
-|-------|-------|--------|
-| orders | `(branch_id, status)`, `(payment_status)`, `(created_at)`, unique `(order_number)`, unique `(public_token)` | Filter dashboard & lookup. |
-| schedules | `(scheduled_date)`, `(pic_user_id)`, `(location_id)`, unique `(order_id)` | Jadwal per petugas/lokasi. |
-| documentations | `(order_id, status)`, `(status)`, `(uploaded_by)` | Antrian validasi. |
-| animals | `(order_id, status)` | Progres per order. |
-| distributions | `(order_id)`, `(distributed_at)` | Progres distribusi. |
-| payments | `(order_id, status)` | Verifikasi. |
-| reports | unique `(public_token)`, `(order_id)` | Akses publik cepat & aman. |
-| audit_logs | `(entity, entity_id)`, `(created_at)` | Penelusuran. |
-| notifications | `(status)`, `(channel)` | Outbox worker n8n. |
+---
 
-**Materialized/SQL Views untuk KPI dashboard** (mendukung jawaban < 10 detik, lihat **09_DASHBOARD_SPEC**):
-- `v_order_progress` — agregat status per order (potong/distribusi/dokumentasi/laporan %).
-- `v_branch_kpi` — KPI per cabang.
-- `v_open_orders` — order belum selesai + lokasi + PIC + issue terbuka (inti litmus test).
+## 6. View
 
-## 8. Row Level Security (ringkas)
+| View               | Menjawab                                                                   |
+| ------------------ | -------------------------------------------------------------------------- |
+| `v_order_stages`   | Tahap per order beserta bukti & validasinya                                 |
+| `v_order_progress` | Progres per order; `stages_total` (baris) ≠ `stages_in_sequence` (tahap)     |
+| `v_vendor_kpi`     | Margin, rata-rata siklus, dan berapa order yang buktinya pernah ditolak      |
+| `v_open_orders`    | Litmus test: order belum selesai, mitranya, lokasi, tahap berjalan, kendala  |
 
-| Role | Aturan akses |
-|------|-------------|
-| `direktur`, `manager_program` | SELECT semua cabang; tulis terbatas (validasi/audit). |
-| `admin_pusat` | SELECT semua cabang; UPDATE khusus validasi dokumentasi tingkat-akhir (`documentations`) & generate `reports`. |
-| `admin_cabang` | CRUD data dengan `branch_id = profile.branch_id`. |
-| `petugas_lapangan` | SELECT/UPDATE order/dokumentasi yang ditugaskan (PIC) saja. |
-| Publik (anon) | Akses `reports`/media via token publik melalui fungsi keamanan, bukan tabel langsung. |
+Keempatnya `security_invoker = on` — menghormati RLS pemanggilnya.
 
-Detail kebijakan keamanan → **20_SECURITY_CHECKLIST**.
+> **Dua angka yang mudah tertukar.** `stages_total` menghitung **baris**,
+> `stages_in_sequence` menghitung **tahap dalam rangkaian mode**. Order 3 ekor
+> mode `kirim` punya 7 baris untuk 5 tahap; mencampurnya akan mencetak
+> "7/5 tahap" kepada pemesan.
+
+---
+
+## 7. Fungsi & Trigger
+
+**35 fungsi, 41 trigger.** Yang menegakkan aturan yang tidak boleh dilewati
+jalur mana pun:
+
+| Fungsi                              | Menjaga                                                              |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `generate_stage_checklist`          | Tahap terbit otomatis saat mitra ditugaskan                          |
+| `enforce_stage_order`               | Lompat tahap ditolak; gerbangnya di `validated`                      |
+| `enforce_stage_review`              | Pemisahan tugas — pelapor tidak boleh memvalidasi laporannya sendiri  |
+| `enforce_vendor_assignment`         | Vendor tidak bisa memindahkan penugasan ke dirinya sendiri           |
+| `enforce_documentation_stage_match` | Bukti yang dilampirkan ke tahap salah ditolak                        |
+| `enforce_animal_delete`             | Hewan tidak bisa dihapus setelah tahapnya berjalan                   |
+| `enforce_guest_order_verification`  | Order tamu wajib diverifikasi staf sebelum lanjut                    |
+| `sync_order_payment`                | `paid_amount` dihitung database, bukan dikirim klien                 |
+
+### 7.1 RPC untuk pengunjung anonim
+
+| RPC                  | Untuk                                                              |
+| -------------------- | ------------------------------------------------------------------ |
+| `create_guest_order` | Checkout publik — **harga dibaca dari `services`**, kiriman klien diabaikan |
+| `get_public_report`  | Laporan bertoken — mengunci bentuk keluaran di level database       |
+| `confirm_delivery`   | Pembeli mengonfirmasi penerimaan sendiri; idempoten                 |
+
+Ketiganya `SECURITY DEFINER`. Pengunjung anonim tidak punya akses tabel apa pun
+di luar `services` & `regions` — seluruh RLS lain ditujukan `to authenticated`.
+
+---
+
+## 8. Enum
+
+| Enum                          | Nilai                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------- |
+| `user_role`                   | `superadmin`, `admin`, `vendor`                                                             |
+| `order_status`                | `new`, `verified`, `paid`, `assigned`, `in_progress`, `validation`, `reporting`, `completed`, `on_hold`, `cancelled` |
+| `fulfilment_stage`            | `persiapan`, `sembelih`, `masak`, `salur`, `kirim`, `terkirim`                              |
+| `stage_event_status`          | `pending`, `reported`, `validated`, `rejected`                                              |
+| `distribution_mode`           | `salur`, `kirim`                                                                            |
+| `service_type`                | `aqiqah`, `qurban`, `sedekah_daging`, `nasi_box`                                            |
+| `animal_species`              | `kambing`, `domba`, `sapi`                                                                  |
+| `doc_stage`                   | keenam `fulfilment_stage` + `umum`                                                          |
+| `doc_status` / `doc_type`     | `pending`/`approved`/`rejected` · `photo`/`video`/`note`                                    |
+| `payment_status`              | `unpaid`, `partial`, `paid`                                                                 |
+| `payment_verification_status` | `pending`, `verified`, `rejected`                                                           |
+| `issue_severity` / `_status`  | `low`/`medium`/`high` · `open`/`in_progress`/`resolved`                                     |
+| `notif_channel` / `_status`   | `whatsapp`/`email`/`dashboard` · `queued`/`sent`/`failed`                                   |
+
+> `animals.status` **dihapus** 27 Agustus — kolom itu tidak tersambung ke apa
+> pun, tetapi angkanya dicetak ke pemesan. Progres hewan kini diturunkan dari
+> `order_stage_events` yang `validated`.
+
+---
+
+## 9. Storage
+
+Empat bucket. Path dokumentasi: `{YYYY}/{MM}/{order_number}/{stage}/{uuid}.{ext}`
+— segmen cabang dibuang dan **tidak** diganti kode mitra, sebab kode bisa berubah
+dan order bisa dipindah ke mitra lain.
+
+| Bucket           | Publik | Isi                                          |
+| ---------------- | ------ | -------------------------------------------- |
+| `documentation`  | tidak  | Bukti lapangan; signed URL berdurasi pendek  |
+| `payment-proofs` | tidak  | Bukti transfer                                |
+| `reports`        | tidak  | PDF laporan                                   |
+| `public-assets`  | **ya** | Foto katalog — memang untuk dipajang publik   |
 
 ---
 
 ### Referensi silang
-- Modul yang memakai entity ini → **06_MODULE_BREAKDOWN**
-- Endpoint per entity → **16_API_SPEC**
-- Workflow/state → **08_WORKFLOW_MAP**
-- Storage path & naming → **17_STORAGE_STRATEGY**
+
+- Modul & kepemilikan → `06_MODULE_BREAKDOWN.md`
+- Role & kewenangan → `07_USER_ROLES.md`
+- Alur kerja → `08_WORKFLOW_MAP.md`
+- Status terkini & utang → `../TASKS.md`

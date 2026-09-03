@@ -1,14 +1,20 @@
 # 08 — WORKFLOW MAP
 
-> **Sukses Aqiqah** — *"Tunaikan Ibadah, Tebarkan Manfaat"*
+> **Sukses Aqiqah** — _"Tunaikan Ibadah, Tebarkan Manfaat"_
 > Status mengikuti `order_status` di **05_DATABASE_DESIGN §5**.
 
-| Field | Value |
-|-------|-------|
-| Dokumen | 08_WORKFLOW_MAP |
-| Versi | 1.0 |
-| Tanggal | 2026-06-14 |
-| Status | Draft — menunggu approval |
+| Field   | Value                                                        |
+| ------- | ------------------------------------------------------------ |
+| Dokumen | 08_WORKFLOW_MAP                                              |
+| Versi   | 2.0 — ditulis ulang mengikuti desain ulang skema 20 Agustus   |
+| Tanggal | 2026-09-03                                                   |
+| Status  | **Selaras dengan `features/orders/state-machine.ts`**         |
+
+> **Kenapa berubah.** v1.0 menjadikan tahapan lapangan sebagai **status order**
+> (`slaughtering → distribution`). Itu tidak bisa dipertahankan: sejak 20
+> Agustus tahapan **bercabang** menurut mode penyaluran, dan status tidak bisa
+> bercabang. Keduanya kini dipisah — status mengurus perjalanan administratif,
+> `order_stage_events` mengurus pelaksanaan.
 
 ---
 
@@ -16,132 +22,156 @@
 
 ```mermaid
 flowchart LR
-    A[Order] --> B[Payment]
-    B --> C[Schedule]
-    C --> D[Preparation]
-    D --> E[Slaughter]
-    E --> F[Distribution]
-    F --> G[Documentation]
-    G --> H[Report]
-    H --> I[Completed + Audit]
+    A[Order masuk] --> B[Verifikasi]
+    B --> C[Pembayaran]
+    C --> D[Penugasan mitra]
+    D --> E[Tahapan lapangan]
+    E --> F[Validasi bukti]
+    F --> G[Laporan]
+    G --> H[Konfirmasi terima]
+    H --> I[Completed]
 ```
 
-## 2. Order State Machine
+## 2. Order State Machine — administratif
 
 ```mermaid
 stateDiagram-v2
     [*] --> new
-    new --> paid: pembayaran diverifikasi
-    new --> cancelled: dibatalkan
-    paid --> scheduled: jadwal+PIC+lokasi ditetapkan
-    scheduled --> preparation: hari-H, hewan disiapkan
-    preparation --> slaughtering: pemotongan dimulai
-    slaughtering --> distribution: daging didistribusikan
-    distribution --> documentation: dokumentasi diunggah
-    documentation --> reporting: dokumentasi APPROVED
+    new --> verified: admin memverifikasi (order tamu)
+    verified --> paid: pembayaran memenuhi gate DP
+    paid --> assigned: mitra ditugaskan
+    assigned --> in_progress: tahap pertama dilaporkan
+    in_progress --> validation: seluruh tahap selesai & berbukti
+    validation --> reporting: bukti tervalidasi
     reporting --> completed: laporan terkirim
-    new --> on_hold: kendala
+    new --> cancelled: dibatalkan
+    verified --> on_hold: kendala
     paid --> on_hold: kendala
-    scheduled --> on_hold: kendala
-    on_hold --> scheduled: kendala selesai
+    assigned --> on_hold: kendala
+    in_progress --> on_hold: kendala
+    on_hold --> in_progress: kendala selesai
     completed --> [*]
     cancelled --> [*]
 ```
 
 **Aturan transisi kunci:**
-- `new → paid` butuh `payment_status = paid` **atau** `partial` dengan terbayar ≥ **`min_dp`** (DP/Partial diizinkan; `min_dp` dikonfigurasi di settings, default mis. 50%).
-- `paid → scheduled` butuh `schedules` lengkap (tanggal, lokasi, PIC).
-- **Pelunasan penuh** (`payment_status = paid`) wajib sebelum `reporting → completed`.
-- `documentation → reporting` butuh ≥1 dokumentasi berstatus `approved`.
-- `reporting → completed` butuh `reports` ter-generate & terkirim.
-- `on_hold` dapat dipicu dari `issues` severity tinggi; kembali ke status sebelumnya saat resolved.
 
-## 3. Workflow per Tahap (aktor, aksi, output, SLA)
+- `new → verified` — **order tamu wajib melewati ini**; `enforce_guest_order_verification` menahannya sampai staf memeriksa.
+- `verified → paid` butuh `paid_amount >= total_amount * min_dp_ratio()`. Angkanya di `app_settings`, dibaca RPC **dan** klien.
+- `paid → assigned` menetapkan `orders.vendor_id` — dan **inilah yang menerbitkan daftar tahap** (`generate_stage_checklist`).
+- `in_progress → validation` menuntut seluruh tahap dalam rangkaian mode sudah `validated` dan buktinya lengkap.
+- `reporting → completed` butuh laporan ter-generate; untuk mode `kirim`, pembeli mengonfirmasi penerimaan lebih dulu.
 
-| Tahap | Aktor | Aksi | Output/Status | SLA contoh |
-|-------|-------|------|---------------|-----------|
-| **Order** | Admin Cabang | Input order, item, peserta | `orders.status=new`, order_number | saat order masuk |
-| **Payment** | Admin Cabang | Verifikasi bukti (lunas/DP ≥ min_dp) | `payment_status`, `status=paid` | < 1×24 jam |
-| **Schedule** | Admin Cabang | Set tanggal/lokasi/PIC | `schedules`, `status=scheduled` | ≥ H-1 |
-| **Preparation** | Petugas | Cek kelayakan hewan | `animals.status=prepared`, `status=preparation` | hari-H |
-| **Slaughter** | Petugas | Catat pemotongan | `slaughter_records`, `animals.status=slaughtered` | hari-H |
-| **Distribution** | Petugas | Catat distribusi | `distributions`, `animals.status=distributed` | ≤ H+1 |
-| **Documentation** | Petugas→Supervisor→Pusat | Upload & validasi | `documentations.status` naik ke `approved` | ≤ H+1 |
-| **Report** | n8n/Manager | Generate & kirim | `reports` + link unik | ≤ H+2 |
-| **Audit** | Sistem | Catat jejak | `audit_logs` | berkelanjutan |
+> **Penugasan mitra bukan sekadar transisi.** Ia pintu masuk data: sebelum
+> `vendor_id` terisi, vendor tidak bisa melihat order itu sama sekali.
 
-## 4. Sub-Workflow: Validasi Dokumentasi
+## 3. Tahapan lapangan — bercabang, bukan status
+
+```
+salur : persiapan → sembelih → masak → salur
+kirim : persiapan → sembelih → masak → kirim → terkirim
+```
+
+`fulfilment_sequence()` adalah satu-satunya sumber percabangan ini — dibaca
+trigger penerbit tahap, penegak urutan, dan gerbang kelengkapan bukti.
+
+| Tahap       | Aktor  | Output                                    |
+| ----------- | ------ | ----------------------------------------- |
+| `persiapan` | vendor | bukti kelayakan hewan                     |
+| `sembelih`  | vendor | **satu baris per ekor**                   |
+| `masak`     | vendor | bukti pengolahan                          |
+| `salur`     | vendor | bukti penyaluran ke penerima manfaat      |
+| `kirim`     | vendor | bukti pengantaran; **alamat ditampilkan** |
+| `terkirim`  | pembeli| `confirm_delivery()` dari halaman bertoken |
+
+**Urutan ditegakkan database**, bukan UI: `enforce_stage_order` menolak lompat
+tahap, dan gerbangnya di `validated` — bukan `reported`.
+
+## 4. Workflow per tahap
+
+| Tahap             | Aktor              | Aksi                          | Output/Status                     |
+| ----------------- | ------------------ | ----------------------------- | --------------------------------- |
+| **Order**         | pengunjung / admin | Checkout tamu atau input staf | `status=new`, `order_number`      |
+| **Verifikasi**    | admin              | Periksa order tamu            | `status=verified`                 |
+| **Payment**       | admin              | Catat & verifikasi bukti      | `payment_status`, `status=paid`   |
+| **Penugasan**     | admin              | Tetapkan mitra                | `vendor_id`, daftar tahap terbit  |
+| **Jadwal**        | admin              | Tanggal & lokasi              | `schedules`                       |
+| **Lapangan**      | vendor             | Lapor tahap + unggah bukti    | `order_stage_events.reported`     |
+| **Validasi**      | admin              | Setujui/tolak bukti           | `validated` / `rejected`          |
+| **Report**        | admin              | Generate & kirim              | `reports` + `public_token`        |
+| **Konfirmasi**    | pembeli            | `confirm_delivery()`          | `status=completed`                |
+| **Audit**         | sistem             | Catat jejak                   | `audit_logs`                      |
+
+## 5. Sub-Workflow: Validasi Dokumentasi — **satu tingkat**
 
 ```mermaid
 flowchart TB
-    U[Petugas upload\ndocumentations: pending] --> S{Supervisor review}
-    S -->|reject + alasan| R1[rejected\nminta ulang]
-    R1 --> U
-    S -->|approve| P{Admin Pusat review}
-    P -->|reject + alasan| R2[rejected\nminta ulang]
-    R2 --> U
-    P -->|approve| A[approved\nmasuk laporan]
+    U[Vendor unggah\ndocumentations: pending] --> S{Staf review}
+    S -->|reject + alasan| R[rejected\nminta ulang]
+    R --> U
+    S -->|approve| A[approved\nmasuk laporan]
 ```
 
-Detail lengkap → **10_DOCUMENTATION_FLOW**.
+Dua tingkat pada v1.0 mengandaikan hierarki cabang yang sudah tidak ada.
+**Pemisahan tugas tetap berlaku**: pengunggah tidak bisa memvalidasi
+unggahannya sendiri, ditegakkan trigger.
 
-## 5. Sub-Workflow: Reporting & Notifikasi (otomatis)
+Detail → **10_DOCUMENTATION_FLOW**.
+
+## 6. Sub-Workflow: Reporting & Notifikasi
 
 ```mermaid
 flowchart LR
-    T[Trigger: dokumentasi approved\n& distribusi selesai] --> G[n8n generate PDF\nReact PDF]
-    G --> SV[Simpan reports + public_token]
-    SV --> N{Kirim notifikasi}
-    N --> WA[WA.me ke peserta]
-    N --> EM[Email ke peserta]
-    WA --> PUB[Peserta buka\npublic report page]
-    EM --> PUB
+    T[Tahap kirim tervalidasi] --> O[Trigger isi outbox\nnotifications: queued]
+    O --> M[Admin klik Kirim WA]
+    M --> PUB[Pembeli buka\nhalaman bertoken]
+    PUB --> C[confirm_delivery]
 ```
+
+> ⚠️ **Worker pengirim belum ada.** Peristiwanya tercatat sebagai antrian, tapi
+> pengirimannya masih manual-klik. "Selesai" saat ini berarti _admin sudah
+> dibawa ke WhatsApp_, bukan bukti pesannya terkirim.
 
 Detail → **11_REPORTING_ENGINE** & **18_AUTOMATION_WORKFLOW**.
 
-## 6. Sub-Workflow: Penanganan Kendala (Issue)
+## 7. Sub-Workflow: Penanganan Kendala
 
 ```mermaid
 flowchart LR
-    I[Petugas/Admin buat issue] --> SEV{Severity}
-    SEV -->|high| HOLD[order on_hold]
+    I[Vendor/Admin buat issue] --> SEV{Severity}
+    SEV -->|high| N[Notifikasi outbox\n+ sorot dashboard]
     SEV -->|low/medium| TRACK[tetap berjalan + monitor]
-    HOLD --> RES[Resolusi]
+    N --> RES[Resolusi]
     TRACK --> RES
-    RES --> BACK[issue resolved\norder lanjut]
+    RES --> BACK[resolved\norder lanjut]
 ```
 
-Issue terbuka **disorot di dashboard** sebagai bagian jawaban "apa kendalanya" (litmus test < 10 detik).
-
-## 7. Reminder Otomatis (n8n)
-
-| Reminder | Pemicu | Target |
-|----------|--------|--------|
-| Dokumentasi tertunda | Order `distribution`/`documentation` tanpa dokumentasi `approved` setelah SLA | Petugas + Supervisor |
-| Distribusi tertunda | `slaughtered` tanpa `distributions` setelah SLA | Petugas + Admin |
-| Laporan tertunda | `reporting` tanpa `reports` terkirim setelah SLA | Manager |
-
-Detail → **18_AUTOMATION_WORKFLOW**.
+`resolved_by` / `resolved_at` **diturunkan dari status tujuan**, tidak pernah
+dikirim klien.
 
 ## 8. Pemetaan ke Litmus Test
 
-> *"Berapa order belum selesai, di lokasi mana, siapa PIC-nya, apa kendalanya?"*
+> _"Berapa order belum selesai, di lokasi mana, **siapa mitranya**, apa kendalanya?"_
 
-| Pertanyaan | Sumber data |
-|------------|-------------|
-| Belum selesai | `orders.status ≠ completed/cancelled` |
-| Lokasi mana | `schedules.location_id → locations` |
-| Siapa PIC | `schedules.pic_user_id → users` |
-| Apa kendalanya | `issues` (status open/in_progress) |
+Pertanyaannya sendiri ikut berubah: **"siapa PIC-nya" → "siapa mitranya"**.
+Dengan satu tempat operasi dan banyak mitra, itulah yang sungguh ingin diketahui.
 
-Disajikan oleh view `v_open_orders` (**05 §7**) di dashboard (**09**).
+| Pertanyaan     | Sumber data                                  |
+| -------------- | -------------------------------------------- |
+| Belum selesai  | `orders.status ∉ {completed, cancelled}`      |
+| Lokasi mana    | `schedules.location_id → locations`           |
+| Siapa mitranya | **`orders.vendor_id → vendors`**              |
+| Tahap berjalan | `order_stage_events` yang belum `validated`   |
+| Apa kendalanya | `issues` (`open` / `in_progress`)             |
+
+Disajikan `v_open_orders` — terurut keparahan lalu umur.
 
 ---
 
 ### Referensi silang
+
 - Status & entity → **05_DATABASE_DESIGN**
 - Modul → **06_MODULE_BREAKDOWN**
+- Role → **07_USER_ROLES**
 - Dokumentasi → **10_DOCUMENTATION_FLOW**
-- Reporting → **11_REPORTING_ENGINE**
-- Otomasi → **18_AUTOMATION_WORKFLOW**
+- Status terkini → `../TASKS.md`

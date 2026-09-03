@@ -1,129 +1,182 @@
 # 07 — USER ROLES & RBAC
 
-> **Sukses Aqiqah** — *"Tunaikan Ibadah, Tebarkan Manfaat"*
+> **Sukses Aqiqah** — _"Tunaikan Ibadah, Tebarkan Manfaat"_
 > Sumber kebenaran **RBAC** untuk **09_DASHBOARD_SPEC** & **20_SECURITY_CHECKLIST**.
 
-| Field | Value |
-|-------|-------|
-| Dokumen | 07_USER_ROLES |
-| Versi | 1.1 |
-| Tanggal | 2026-06-14 |
-| Status | Draft — menunggu approval |
-| Catatan revisi | v1.1: menambah role **Admin Pusat** sebagai validator dokumentasi tingkat-akhir terpusat. |
+| Field          | Value                                                                       |
+| -------------- | --------------------------------------------------------------------------- |
+| Dokumen        | 07_USER_ROLES                                                               |
+| Versi          | 2.0 — ditulis ulang mengikuti desain ulang skema 20 Agustus                  |
+| Tanggal        | 2026-09-03                                                                  |
+| Status         | **Selaras dengan `server/auth/capabilities.ts` & `20260820000800_rls.sql`**  |
+| Catatan revisi | v2.0: **5 role → 3 role**. Cabang dihapus; yang banyak adalah mitra          |
+
+> **Kenapa berubah.** v1.1 menggambarkan lima role yang berporos pada `branches`
+> — tabel yang dihapus 20 Agustus. Tanpa cabang, `admin_pusat` dan
+> `admin_cabang` kehilangan pembedanya, dan `petugas_lapangan` digantikan
+> **vendor** yang pelaksananya memang pihak luar, bukan pegawai.
 
 ---
 
 ## 1. Daftar Role
 
-| Role | Enum (`user_role`) | Scope data | Otentikasi |
-|------|--------------------|------------|------------|
-| Direktur | `direktur` | Semua cabang | Login |
-| Manager Program | `manager_program` | Semua cabang / per program | Login |
-| **Admin Pusat** | `admin_pusat` | Semua cabang (fokus validasi) | Login |
-| Admin Cabang | `admin_cabang` | 1 cabang (`branch_id`) | Login |
-| Petugas Lapangan | `petugas_lapangan` | Tugas yang ditugaskan (PIC) | Login |
-| Peserta | (anon, tanpa akun) | Order miliknya via token | Tanpa login (link unik) |
+| Role           | Enum (`user_role`) | Scope data                            | Otentikasi           |
+| -------------- | ------------------ | ------------------------------------- | -------------------- |
+| **superadmin** | `superadmin`       | Segalanya                             | Login                |
+| **admin**      | `admin`            | Seluruh order operasional             | Login                |
+| **vendor**     | `vendor`           | **Hanya order yang ditugaskan padanya** | Login                |
+| Pemesan        | (anon, tanpa akun) | Order miliknya lewat token            | Tanpa login          |
 
-> **Validasi dokumentasi 2 tingkat:** tingkat-1 **Supervisor** (kapabilitas yang dipegang `admin_cabang`/`manager_program` yang ditunjuk) → tingkat-akhir **Admin Pusat** (`admin_pusat`, role terpusat khusus). Manager/Direktur tetap dapat memantau, namun keputusan validasi akhir baku berada pada Admin Pusat.
+> **Validasi dokumentasi satu tingkat** sejak 19 Agustus: vendor mengunggah
+> (`pending`) → staf memutuskan (`approved`/`rejected`). Dua tingkat pada v1.1
+> mengandaikan hierarki cabang yang sudah tidak ada.
+
+---
 
 ## 2. Deskripsi & Tanggung Jawab
 
-### 2.1 Direktur
-Pengawasan strategis seluruh organisasi.
-- Melihat **Executive Dashboard** & seluruh KPI agregat.
-- Melihat laporan eksekutif & (Phase 2) AI Executive Summary/Risk.
-- Mengakses audit trail.
-- **Tidak** menangani input operasional harian.
+### 2.1 superadmin
 
-### 2.2 Manager Program
-Mengelola jalannya program lintas cabang.
-- Memantau progres semua cabang & lokasi.
-- Mengelola master data (services, template laporan).
-- Memicu/meninjau laporan & reminder.
-- Dapat ditunjuk sebagai Supervisor (validasi tingkat-1).
+Pemilik keputusan yang menyentuh **uang dan akses**.
 
-### 2.3 Admin Pusat
-Penjaga mutu dokumentasi terpusat.
-- **Validasi dokumentasi tingkat-akhir** (`approved_supervisor → approved`/`rejected`).
-- Memantau antrian validasi seluruh cabang.
-- Memastikan hanya bukti sah masuk laporan.
-- Dapat memicu/meninjau generate laporan setelah dokumentasi final.
+- **Master mitra** — identitas, modal per paket, wilayah layanan, batas penawaran.
+- **Katalog paket** — nama, harga jual, deskripsi, isi paket, dan konten halaman depan.
+- **Pengelolaan pengguna** — membuat akun & menetapkan role.
+- Menghapus laporan tahap (`DELETE_STAGE_REPORT`).
+- Segala yang bisa dilakukan admin.
 
-### 2.4 Admin Cabang
-Operator utama di cabang.
-- CRUD order, peserta, jadwal, penetapan PIC — **dalam cabangnya**.
-- Verifikasi pembayaran.
-- Validasi dokumentasi tingkat-1 (jika ditunjuk sebagai Supervisor).
-- Memantau **Cabang/Lokasi Dashboard**.
+> **Kenapa harga berhenti di sini.** `services.price` adalah angka yang dibaca
+> `create_guest_order`, dan RPC itu sengaja **mengabaikan harga kiriman klien** —
+> itu pertahanan inti checkout publik. Modal (`vendor_services.vendor_price`)
+> menentukan margin. Siapa pun yang bisa mengubah keduanya menentukan berapa
+> yang ditagih dan berapa yang tampak untung.
 
-### 2.5 Petugas Lapangan
-Eksekutor di lapangan.
-- Melihat **Petugas Dashboard** (tugas yang ditugaskan).
-- Update status pemotongan & distribusi.
-- Upload dokumentasi (kamera PWA, offline-tolerant).
-- Melaporkan kendala (`issues`).
+### 2.2 admin
 
-### 2.6 Peserta
-Penerima output (tanpa akun).
-- Membuka **halaman laporan publik** via link unik bertoken.
+Penghubung antara pembeli dan mitra.
+
+- **Verifikasi order tamu** — pintu pertama; order dari checkout publik tertahan
+  di `new` sampai seseorang benar-benar memeriksanya.
+- Catat & verifikasi pembayaran.
+- **Penugasan mitra** (`ASSIGN_VENDOR`) — sekaligus membuka akses vendor ke order.
+- Tetapkan jadwal & lokasi.
+- **Validasi laporan tahap & bukti** dari vendor.
+- Generate & kirim laporan.
+
+Yang **tidak** bisa: mengubah harga, modal, katalog, role pengguna, atau
+menghapus laporan tahap.
+
+### 2.3 vendor
+
+Pelaksana lapangan — pihak luar, bukan pegawai.
+
+- Melapor tahap pelaksanaan (`REPORT_STAGE`) pada order yang **ditugaskan padanya**.
+- Unggah bukti per tahap.
+- Laporkan kendala.
+
+Yang **tidak** bisa:
+
+- Melihat order yang belum ditugaskan padanya, atau milik mitra lain.
+- Menyentuh urusan uang — `payments_select` menuntut `is_staff()`, jadi vendor
+  bahkan tidak bisa **membaca** pembayaran.
+- Melihat modalnya sendiri (`vendor_services`) — itu angka margin, bukan haknya.
+- **Memvalidasi laporannya sendiri** (lihat §4).
+
+### 2.4 Pemesan (tanpa akun)
+
+- Membuka halaman laporan publik lewat token unik.
 - Mengunduh PDF laporan.
-- **Read-only**, hanya order miliknya.
+- **Mengonfirmasi penerimaan** (`confirm_delivery`) untuk order mode `kirim` —
+  laporan "terkirim" dari vendor adalah pernyataan pengantar, bukan pengakuan
+  penerima.
 
-## 3. RBAC Matrix (CRUD per entity)
+---
 
-Legend: **C**=Create, **R**=Read, **U**=Update, **D**=Delete, **—**=tidak ada akses, **R\***=read ter-scope, **(token)**=akses publik via link.
+## 3. Matriks Kapabilitas
 
-| Entity / Aksi | Direktur | Manager Program | Admin Pusat | Admin Cabang | Petugas Lapangan | Peserta |
-|---------------|:--------:|:---------------:|:-----------:|:------------:|:----------------:|:-------:|
-| orders | R | R, U(status) | R | C R U (branch) | R* U(status tugas) | (token) R |
-| order_items | R | R | R | C R U (branch) | R* | — |
-| participants | R | R, U | R | C R U (branch) | R* | — |
-| payments | R | R | R | C R U (branch) | — | — |
-| schedules | R | R | R | C R U (branch) | R* | — |
-| animals | R | R | R | C R U (branch) | R* U(status) | — |
-| slaughter_records | R | R | R | R | C R (tugas) | — |
-| distributions | R | R | R | R U | C R (tugas) | — |
-| documentations | R | R + validasi-1(jika ditunjuk) | R + **validasi akhir** | C R + validasi-1(jika ditunjuk) | C R (tugas, upload) | (token) R approved |
-| reports | R | R, generate/kirim | R, generate/kirim | R | R* | (token) R + download |
-| issues | R | R, U | R | C R U (branch) | C R (tugas) | — |
-| notifications | R | R, kirim | R | R (branch) | R* | — |
-| users | R | R, U | R | R (branch) | R(self) | — |
-| branches / locations | R | C R U | R | R (own) | R* | — |
-| services | R | C R U D | R | R | R | — |
-| audit_logs | R | R | R | R (branch) | — | — |
+Diambil dari `server/auth/capabilities.ts`, yang merupakan **cerminan** RLS di
+`20260820000800_rls.sql`. Kalau keduanya menyimpang, UI akan menawarkan aksi
+yang pasti ditolak database — atau lebih buruk, menyembunyikan aksi yang
+sebenarnya boleh.
 
-## 4. Kapabilitas Khusus (action-level)
+| Kapabilitas                              | superadmin | admin | vendor |
+| ---------------------------------------- | :--------: | :---: | :----: |
+| `UPDATE_ORDER_STATUS`                    |     ✅     |  ✅   |   ✅   |
+| `UPDATE_ORDER`                           |     ✅     |  ✅   |   —    |
+| `UPDATE_ORDER_AMOUNT`                    |     ✅     |   —   |   —    |
+| `VERIFY_GUEST_ORDER`                     |     ✅     |  ✅   |   —    |
+| `MANAGE_ANIMALS`                         |     ✅     |  ✅   |   ✅   |
+| `REPORT_STAGE`                           |     ✅     |  ✅   |   ✅   |
+| `VALIDATE_STAGE_REPORT`                  |     ✅     |  ✅   |   —    |
+| `ASSIGN_VENDOR`                          |     ✅     |  ✅   |   —    |
+| `MANAGE_VENDORS`                         |     ✅     |   —   |   —    |
+| `MANAGE_USERS`                           |     ✅     |   —   |   —    |
+| `MANAGE_MASTER_DATA` (katalog)           |     ✅     |   —   |   —    |
+| `DELETE_STAGE_REPORT`                    |     ✅     |   —   |   —    |
+| `MANAGE_ISSUES`                          |     ✅     |  ✅   |   ✅   |
+| `RECORD_PAYMENT` / `VERIFY_PAYMENT`      |     ✅     |  ✅   |   —    |
+| `MANAGE_SCHEDULE`                        |     ✅     |  ✅   |   —    |
+| `UPLOAD_DOCUMENTATION`                   |     ✅     |  ✅   |   ✅   |
+| `VALIDATE_DOCUMENTATION`                 |     ✅     |  ✅   |   —    |
+| `GENERATE_REPORT`                        |     ✅     |  ✅   |   —    |
+| `MANAGE_NOTIFICATIONS`                   |     ✅     |  ✅   |   —    |
+| `VIEW_FULL_AUDIT`                        |     ✅     |  ✅   |   —    |
 
-| Kapabilitas | Direktur | Manager | Admin Pusat | Admin Cabang | Petugas |
-|-------------|:--------:|:-------:|:-----------:|:------------:|:-------:|
-| Ubah status order (transisi valid) | — | ✔ | — | ✔ | ✔ (tahap tugasnya) |
-| Verifikasi pembayaran | — | ✔ | — | ✔ | — |
-| Validasi dokumentasi tingkat-1 (Supervisor) | — | ✔ (jika ditunjuk) | — | ✔ (jika ditunjuk) | — |
-| Validasi dokumentasi tingkat-akhir | — | — | ✔ | — | — |
-| Generate & kirim laporan | — | ✔ | ✔ | ✔ (branch) | — |
-| Kelola master data & user | — | ✔ | — | terbatas (branch) | — |
-| Lihat seluruh cabang | ✔ | ✔ | ✔ | — | — |
-| Akses audit trail penuh | ✔ | ✔ | ✔ | branch saja | — |
+Ada unit test yang menuntut **superadmin memegang setiap kapabilitas** — daftar
+di atas tidak boleh punya baris yang kosong di kolomnya.
 
-## 5. Penegakan Teknis (enforcement)
+---
 
-- **Supabase Auth JWT** membawa klaim `role` & `branch_id`.
-- **PostgreSQL RLS** menegakkan scoping di level baris (lihat **05 §8** & **20**).
-- **Server Actions** memvalidasi kapabilitas action-level sebelum mutasi.
-- **Akses peserta** melalui fungsi keamanan bertoken (bukan tabel langsung); media via signed URL terbatas waktu.
-- Setiap aksi sensitif → `audit_logs`.
+## 4. Pemisahan tugas
 
-## 6. Prinsip
+Prinsip yang paling banyak ditegakkan di skema ini: **yang mengerjakan tidak
+menyatakan pekerjaannya benar.**
 
-- **Least privilege** — default tanpa akses; berikan minimum yang diperlukan.
-- **Scope by branch** untuk operasional; **global read** hanya untuk pusat (Direktur/Manager/Admin Pusat).
-- **Pemisahan tugas** — pengupload dokumentasi (Petugas) ≠ validator tingkat-1 (Supervisor) ≠ validator akhir (Admin Pusat).
+| Dipisah                                             | Ditegakkan oleh                     |
+| --------------------------------------------------- | ----------------------------------- |
+| `REPORT_STAGE` ≠ `VALIDATE_STAGE_REPORT`            | `enforce_stage_review` (trigger)    |
+| Pengunggah bukti ≠ yang memvalidasinya              | `enforce_documentation_review`      |
+| Vendor tidak bisa menugaskan dirinya sendiri        | `enforce_vendor_assignment`         |
+
+Ketiganya trigger, **bukan** pemeriksaan aplikasi — dan itu disengaja: trigger
+menolak sekalipun seorang admin memvalidasi laporan yang ia buat sendiri, lewat
+jalur mana pun.
+
+---
+
+## 5. Batas yang dijaga database, bukan UI
+
+- Vendor melihat order lewat `can_read_order()` yang membandingkan
+  `orders.vendor_id` dengan `profiles.vendor_id`. **Penugasan adalah pintu masuk data.**
+- Akun baru lahir sebagai `vendor` **non-aktif** — `auth_role()` mengembalikan
+  NULL selama `is_active` masih false.
+- **Superadmin terakhir tidak bisa diturunkan.** Sistem tanpa superadmin tidak
+  punya siapa pun yang bisa mengangkat superadmin baru.
+- Menu disaring per role (`navItemsForRole`) — itu **kenyamanan, bukan
+  pengaman**; halamannya memeriksa kapabilitas sendiri dan RLS menolak datanya.
+
+> ⚠️ **Satu jalur tanpa jaring pengaman kedua.** Pengelolaan pengguna memakai
+> service role yang melewati RLS sepenuhnya, jadi server action-nya memeriksa
+> rolenya sendiri lebih dulu. Tidak ada penjaga di database untuk jalur ini.
+
+---
+
+## 6. Menguji RLS — cara yang benar
+
+Membaca tabel terlarang lewat PostgREST sebagai `anon` mengembalikan **array
+kosong, bukan error**: RLS **menyaring baris**, ia tidak menolak permintaan. Hal
+yang sama berlaku untuk UPDATE dan DELETE — keduanya membalas `200`/`204` tanpa
+menyentuh baris apa pun.
+
+Yang benar diperiksa: **jumlah baris = 0**, atau **nilainya tidak bergeser**.
+Tes yang menganggap "tidak ada error = bocor" akan melaporkan kebocoran palsu.
+
+`INSERT` berbeda — `with check` menolaknya dengan galat sungguhan (`42501`).
 
 ---
 
 ### Referensi silang
-- Skema & RLS → **05_DATABASE_DESIGN**
-- Dashboard per role → **09_DASHBOARD_SPEC**
-- Keamanan → **20_SECURITY_CHECKLIST**
-- Alur validasi → **10_DOCUMENTATION_FLOW**
-- Workflow → **08_WORKFLOW_MAP**
+
+- Skema & kebijakan → `05_DATABASE_DESIGN.md`
+- Modul & kepemilikan → `06_MODULE_BREAKDOWN.md`
+- Checklist keamanan → `20_SECURITY_CHECKLIST.md`

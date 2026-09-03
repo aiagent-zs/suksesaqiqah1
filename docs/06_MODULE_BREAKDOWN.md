@@ -1,14 +1,20 @@
 # 06 — MODULE BREAKDOWN
 
-> **Sukses Aqiqah** — *"Tunaikan Ibadah, Tebarkan Manfaat"*
+> **Sukses Aqiqah** — _"Tunaikan Ibadah, Tebarkan Manfaat"_
 > Entity yang dirujuk mengikuti **05_DATABASE_DESIGN** (sumber kebenaran).
 
-| Field | Value |
-|-------|-------|
-| Dokumen | 06_MODULE_BREAKDOWN |
-| Versi | 1.0 |
-| Tanggal | 2026-06-14 |
-| Status | Draft — menunggu approval |
+| Field   | Value                                                        |
+| ------- | ------------------------------------------------------------ |
+| Dokumen | 06_MODULE_BREAKDOWN                                          |
+| Versi   | 2.0 — ditulis ulang mengikuti desain ulang skema 20 Agustus   |
+| Tanggal | 2026-09-03                                                   |
+| Status  | **Selaras dengan `features/` & migration**                    |
+
+> **Kenapa berubah.** v1.0 memecah pekerjaan lapangan jadi dua modul —
+> *Slaughter* dan *Distribution* — yang berporos pada `slaughter_records` dan
+> `distributions`. Kedua tabel itu dihapus 20 Agustus dan diganti
+> `order_stage_events`, sebab tahapan lapangan **bercabang** menurut mode
+> penyaluran dan dua tabel tetap tidak bisa mewakilinya.
 
 ---
 
@@ -16,139 +22,154 @@
 
 ```mermaid
 flowchart LR
-    OM[Order] --> PM[Payment]
-    PM --> AM[Animal]
-    AM --> SM[Slaughter]
-    SM --> DM[Distribution]
-    DM --> DOC[Documentation]
+    KAT[Katalog] --> OM[Order]
+    OM --> PM[Payment]
+    PM --> VM[Mitra & Penugasan]
+    VM --> ST[Stage Events]
+    ST --> DOC[Documentation]
     DOC --> RM[Reporting]
     RM --> DASH[Dashboard]
+    NOT[Notifikasi] -.outbox.-> ST
     DASH -.monitoring.-> OM
 ```
 
-Setiap modul didefinisikan dengan: **Tujuan · Entity utama · Fungsi inti · Aktor · Aturan kunci · Dependensi**.
+Setiap modul: **Tujuan · Entity utama · Fungsi inti · Aktor · Aturan kunci**.
 
 ---
 
-## 1. Order Management
+## 1. Katalog Paket
 
-- **Tujuan:** Mencatat & mengelola seluruh order Aqiqah/Qurban/Sedekah Daging sebagai pusat operasional.
-- **Entity utama:** `orders`, `order_items`, `participants`, `services`, `issues`.
-- **Fungsi inti:**
-  - Buat/ubah order, generate `order_number` unik.
-  - Kelola item & jumlah hewan; tautkan peserta.
-  - Ubah status order (state machine, **08_WORKFLOW_MAP**).
-  - Pencarian/filter (status, cabang, lokasi, PIC, tanggal, jenis).
-  - Tandai & kelola `issues`.
-- **Aktor:** Admin Cabang (CRUD), Manager/Direktur (lihat), Petugas (update terbatas).
-- **Aturan kunci:** Order ter-scope per `branch_id`; transisi status hanya yang valid; semua perubahan → `audit_logs`.
-- **Dependensi:** dasar bagi semua modul lain.
+- **Tujuan:** Satu sumber untuk apa yang dijual — harga yang ditagih **dan** yang dipajang.
+- **Entity:** `services`
+- **Kode:** `features/services/`, `server/actions/services.ts`
+- **Fungsi inti:** CRUD paket; isi paket (`meta`); konten halaman depan (tagline, fitur, foto); aktif/non-aktif.
+- **Aktor:** superadmin
+- **Aturan kunci:**
+  - Halaman depan **membaca tabel ini** (sejak 3 September) — tidak ada lagi daftar kembar di `lib/constants/site.ts`.
+  - `slug` dipakai sebagai tautan `/checkout?paket={slug}`; unik **hanya di antara paket hidup**.
+  - Paket non-aktif tidak boleh dipasarkan (`services_landing_requires_active`).
+  - Menghapus = soft delete; paket yang pernah dipesan tidak bisa dihapus.
 
-## 2. Payment Management
+## 2. Order Management
 
-- **Tujuan:** Mencatat & memverifikasi pembayaran agar order layak lanjut.
-- **Entity utama:** `payments`, `orders.payment_status`.
-- **Fungsi inti:**
-  - Catat tagihan & pembayaran (Unpaid/Partial/Paid).
-  - Upload bukti transfer ke Storage; verifikasi oleh admin.
-  - Sinkronkan `orders.payment_status`.
-- **Aktor:** Admin Cabang (verifikasi), Manager (lihat).
-- **Aturan kunci:** **DP/Partial diizinkan** — order bisa `scheduled` jika lunas atau terbayar ≥ `min_dp` (configurable); **pelunasan penuh wajib sebelum `completed`**; verifikasi tercatat (`verified_by/at`).
-- **Dependensi:** Order Management.
+- **Tujuan:** Siklus order dari masuk sampai selesai.
+- **Entity:** `orders`, `order_items`, `participants`, `animals`, `order_counters`
+- **Kode:** `features/orders/`, `features/checkout/`
+- **Fungsi inti:** CRUD order; checkout tamu; nomor unik `IA-YYYYMM-####`; state machine; timeline audit.
+- **Aktor:** admin, superadmin; pengunjung anonim lewat `create_guest_order`
+- **Aturan kunci:**
+  - **Tidak ada scope cabang** — yang menyekat data adalah `vendor_id`.
+  - Order tamu (`created_by IS NULL`) tertahan di `new` sampai admin memverifikasi.
+  - Harga, total, status, dan jumlah terbayar **tidak pernah datang dari klien**.
 
-## 3. Animal Management
+## 3. Payment Management
 
-- **Tujuan:** Mengelola hewan per order dari registrasi hingga distribusi.
-- **Entity utama:** `animals`.
-- **Fungsi inti:**
-  - Registrasi hewan (species, tag_code, atas nama).
-  - Update `animal_status`: registered → prepared → slaughtered → distributed.
-  - Hubungkan hewan ke dokumentasi & catatan pemotongan.
-- **Aktor:** Admin Cabang, Petugas Lapangan.
-- **Aturan kunci:** Satu order banyak hewan; status hewan menyumbang progres order.
-- **Dependensi:** Order Management.
+- **Tujuan:** Mencatat & memverifikasi uang masuk.
+- **Entity:** `payments`, `orders.paid_amount`
+- **Kode:** `features/payments/`
+- **Aktor:** admin, superadmin — **vendor sepenuhnya di luar urusan uang**
+- **Aturan kunci:**
+  - `paid_amount` dihitung trigger `sync_order_payment`, bukan dikirim klien.
+  - Bukti transfer diunggah langsung ke Storage; path diverifikasi ulang terhadap nomor order.
+  - Gate DP: `paid_amount >= total_amount * min_dp_ratio()`.
 
-## 4. Slaughter Management
+## 4. Mitra & Penugasan
 
-- **Tujuan:** Mencatat pelaksanaan pemotongan secara akurat & terbukti.
-- **Entity utama:** `slaughter_records`, `animals`, `schedules`.
-- **Fungsi inti:**
-  - Catat pemotongan per hewan (waktu, pelaksana, catatan).
-  - Update status hewan & jadwal (`ongoing/done`).
-  - Picu kebutuhan dokumentasi tahap `slaughter`.
-- **Aktor:** Petugas Lapangan (input), Supervisor (pantau).
-- **Aturan kunci:** Pemotongan butuh order `scheduled`/`preparation`; tiap record terhubung ke hewan & PIC.
-- **Dependensi:** Animal, Scheduling.
+- **Tujuan:** Master mitra pelaksana, modal per paket, dan penugasan ke order.
+- **Entity:** `vendors`, `vendor_services`, `vendor_coverage`, `locations`, `orders.vendor_id`
+- **Kode:** `features/vendors/`, `server/actions/vendors.ts`
+- **Aktor:** superadmin (master & modal), admin (penugasan)
+- **Aturan kunci:**
+  - **Penugasan adalah pintu masuk data vendor** — sebelum ditugaskan, vendor tidak melihat order sama sekali.
+  - Menugaskan mitra **menerbitkan daftar tahap** (`generate_stage_checklist`).
+  - Modal (`vendor_price`) menentukan margin; selama kosong, dashboard melaporkan margin sebesar seluruh nilai order.
+  - Lokasi divalidasi **milik mitra order ini**.
 
-## 5. Distribution Management
+## 5. Stage Events
 
-- **Tujuan:** Mencatat distribusi daging ke titik/penerima.
-- **Entity utama:** `distributions`, `slaughter_records`, `orders`.
-- **Fungsi inti:**
-  - Catat penerima/area, jumlah paket, waktu, koordinat opsional.
-  - Hitung progres distribusi per order.
-- **Aktor:** Petugas Lapangan (input), Manager (pantau).
-- **Aturan kunci:** Distribusi mengikuti pemotongan; kontribusi ke KPI distribusi.
-- **Dependensi:** Slaughter Management.
+- **Tujuan:** Mencatat pelaksanaan lapangan yang **bercabang** menurut mode penyaluran.
+- **Entity:** `order_stage_events`, `stage_requirements`, `animals`
+- **Kode:** `features/stages/`, `server/actions/stages.ts`
+- **Aktor:** vendor (melapor), admin/superadmin (memvalidasi)
+- **Aturan kunci:**
+
+  ```
+  salur : persiapan → sembelih → masak → salur
+  kirim : persiapan → sembelih → masak → kirim → terkirim
+  ```
+
+  - Daftar tahap **terbit otomatis**; vendor tidak bisa mengarang tahap.
+  - Urutan ditegakkan `enforce_stage_order` — lompat tahap ditolak **database**, bukan hanya UI.
+  - Tahap `sembelih` terbit **satu baris per ekor**.
+  - Pada tahap `kirim`, alamat pembeli **ditampilkan** ke vendor, tidak diketik ulang.
+  - `fulfilment_sequence()` satu-satunya sumber percabangan; kembarannya di TypeScript dijaga tes yang membaca migration langsung.
 
 ## 6. Documentation Management
 
-- **Tujuan:** Mengumpulkan & memvalidasi bukti (foto/video/catatan).
-- **Entity utama:** `documentations`.
-- **Fungsi inti:**
-  - Upload media via kamera PWA (offline-tolerant).
-  - Validasi 2 tingkat: Supervisor → Admin Pusat (`pending → approved_supervisor → approved`/`rejected`).
-  - Tautkan ke order/hewan & tahap (slaughter/distribution/general).
-- **Aktor:** Petugas (upload), Supervisor (validasi-1) & Admin Pusat (validasi akhir).
-- **Aturan kunci:** Hanya `approved` masuk laporan; order tak `completed` tanpa dokumentasi tervalidasi.
-- **Dependensi:** Order, Slaughter, Distribution, Storage (**17**).
-- **Detail alur:** **10_DOCUMENTATION_FLOW**.
+- **Tujuan:** Bukti pelaksanaan per tahap.
+- **Entity:** `documentations`
+- **Kode:** `features/documentation/`
+- **Aktor:** vendor (unggah), admin/superadmin (validasi)
+- **Aturan kunci:**
+  - **Satu tingkat** validasi: `pending` → `approved`/`rejected`; tolak wajib beralasan.
+  - **Pemisahan tugas** — pengunggah tidak bisa memvalidasi unggahannya sendiri.
+  - Bukti yang dilampirkan ke tahap salah ditolak `enforce_documentation_stage_match`.
+  - Gerbang kelengkapan dibaca dari `v_order_progress.missing_doc_stages`, bukan dihitung ulang di TypeScript.
+  - Dokumentasi `approved` tidak dapat dihapus.
 
 ## 7. Reporting Management
 
-- **Tujuan:** Menghasilkan laporan peserta otomatis & transparan.
-- **Entity utama:** `reports`, `orders.public_token`, `documentations` (approved), `distributions`.
-- **Fungsi inti:**
-  - Generate PDF (React PDF) berisi ringkasan, media tervalidasi, status distribusi.
-  - Buat halaman publik bertoken (tanpa login) + unduh PDF.
-  - Kirim link via WA.me & Email (dipicu n8n).
-- **Aktor:** Sistem/n8n (generate), Manager (pantau), Peserta (akses).
-- **Aturan kunci:** Akses publik hanya via token; data peserta lain tidak bocor; versi laporan tercatat.
-- **Detail:** **11_REPORTING_ENGINE**.
+- **Tujuan:** Laporan pelaksanaan untuk pemesan.
+- **Entity:** `reports`, `orders.public_token`
+- **Kode:** `features/reporting/`, `app/r/[token]`
+- **Aktor:** admin, superadmin; pemesan (baca)
+- **Aturan kunci:**
+  - Laporan **bercerita per tahap**, disusun dari `order_stage_events` yang `validated`.
+  - Hanya dokumentasi `approved` yang masuk; kontak peserta tidak pernah ikut.
+  - Halaman publik lewat `get_public_report` — RPC mengunci bentuk keluaran di level database.
+  - Generate ulang menambah versi **tanpa** mengubah `public_token`.
 
-## 8. Dashboard Management
+## 8. Notifikasi
 
-- **Tujuan:** Monitoring real-time agar pertanyaan inti terjawab < 10 detik.
-- **Entity utama:** views `v_order_progress`, `v_branch_kpi`, `v_open_orders`.
-- **Fungsi inti:**
-  - Executive / Cabang / Lokasi / Petugas dashboard.
-  - KPI: Total Order, Progress Potong/Distribusi/Dokumentasi/Laporan.
-  - Drill-down agregat → order; sorot order tertunda + lokasi + PIC + kendala.
-  - Update live via Supabase Realtime.
-- **Aktor:** Direktur, Manager, Admin Cabang, Petugas (scope masing-masing).
-- **Aturan kunci:** Data ter-scope sesuai RBAC; performa < 3 dtk.
-- **Detail:** **09_DASHBOARD_SPEC**.
+- **Tujuan:** Outbox peristiwa yang perlu ditindaklanjuti.
+- **Entity:** `notifications`
+- **Kode:** `features/notifications/`
+- **Aturan kunci:**
+  - **Pemicunya trigger, bukan server action** — peristiwanya datang dari banyak jalan, dan yang lupa memanggil tidak menghasilkan galat.
+  - Idempoten lewat `event_key` + indeks unik parsial.
+  - ⚠️ **Worker pengirim belum ada** — pengiriman masih manual-klik.
+
+## 9. Dashboard & Monitoring
+
+- **Tujuan:** Menjawab litmus test < 10 detik.
+- **Entity:** `v_open_orders`, `v_order_progress`, **`v_vendor_kpi`**
+- **Kode:** `features/dashboard/`
+- **Aturan kunci:**
+  - KPI diukur **per mitra**, bukan per cabang — dengan satu tempat operasi, yang berguna adalah "mitra mana yang lambat, mana yang paling sering buktinya ditolak".
+  - Agregat lintas mitra **ditimbang jumlah order**, bukan rata-rata polos.
 
 ---
 
-## Matriks Modul × Entity (ringkas)
+## Matriks Modul × Entity
 
-| Modul | Entity utama |
-|-------|--------------|
-| Order | orders, order_items, participants, services, issues |
-| Payment | payments |
-| Animal | animals |
-| Slaughter | slaughter_records, schedules |
-| Distribution | distributions |
-| Documentation | documentations |
-| Reporting | reports |
-| Dashboard | views agregat |
-| (lintas) | users, branches, locations, notifications, audit_logs |
+| Modul              | Entity utama                                          |
+| ------------------ | ----------------------------------------------------- |
+| Katalog            | `services`                                            |
+| Order              | `orders`, `order_items`, `participants`, `animals`     |
+| Payment            | `payments`                                            |
+| Mitra & Penugasan  | `vendors`, `vendor_services`, `vendor_coverage`, `locations` |
+| Stage Events       | `order_stage_events`, `stage_requirements`             |
+| Documentation      | `documentations`                                      |
+| Reporting          | `reports`                                             |
+| Notifikasi         | `notifications`                                       |
+| Dashboard          | `v_open_orders`, `v_order_progress`, `v_vendor_kpi`    |
+| (lintas)           | `profiles`, `schedules`, `issues`, `audit_logs`, `app_settings`, `regions` |
 
 ---
 
 ### Referensi silang
-- Skema → **05_DATABASE_DESIGN**
-- Workflow → **08_WORKFLOW_MAP**
-- Hak akses → **07_USER_ROLES**
-- API → **16_API_SPEC**
+
+- Skema & entity → `05_DATABASE_DESIGN.md`
+- Role & kewenangan → `07_USER_ROLES.md`
+- Alur kerja → `08_WORKFLOW_MAP.md`
+- Status terkini → `../TASKS.md`

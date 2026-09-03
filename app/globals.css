@@ -137,6 +137,23 @@
   --sidebar-ring: #62df7d;
 }
 
+/* Palet gelap — **belum pernah menyala.**
+ *
+ * Tidak ada satu pun tempat yang memasang kelas `.dark`: tidak di
+ * `app/layout.tsx`, tidak lewat toggle, tidak lewat `prefers-color-scheme`.
+ * Jadi seluruh nilai di bawah tidak pernah terpakai sampai hari ini.
+ *
+ * **Sengaja dipertahankan, bukan terlupa.** Varian `dark:` masih dirujuk
+ * `components/ui/button.tsx` dan `input.tsx` (bawaan pola shadcn); menghapus
+ * blok ini membuat kedua komponen menunjuk token yang tidak ada, dan
+ * kerusakannya baru terlihat kalau mode gelap kelak dinyalakan.
+ *
+ * Untuk menyalakannya: pasang `class="dark"` pada `<html>` — lewat toggle
+ * yang menyimpan pilihan, atau `prefers-color-scheme`. Sebelum itu, seluruh
+ * halaman perlu diperiksa ulang: warna sidebar dan badge status ditulis
+ * sebagai token terang, dan sebagian ditulis langsung sebagai kelas Tailwind
+ * yang tidak ikut berganti.
+ */
 .dark {
   --background: #0b1c30;
   --foreground: #f8f9ff;

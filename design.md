@@ -51,9 +51,14 @@
 ## 2. Design System
 
 - **Foundation:** Next.js 16 + **Tailwind CSS**.
-- **Komponen:** berbasis **shadcn/ui** (Radix primitives) untuk konsistensi & aksesibilitas.
+- **Komponen:** pola **shadcn/ui** di atas **`@base-ui/react`** — bukan Radix.
+  Komponennya disalin ke `components/ui/` dan disunting di tempat, jadi yang
+  dipakai adalah salinan milik project ini, bukan paket yang di-upgrade.
 - **Ikon:** Lucide.
-- **Charts:** library ringan (mis. Recharts) untuk KPI dashboard.
+- **Charts:** **bar CSS buatan sendiri**, bukan Recharts. Yang dibutuhkan
+  dashboard sejauh ini hanya bar horizontal dan angka besar; memasang pustaka
+  chart untuk itu menambah ±100 KB ke bundel tanpa menambah kemampuan.
+  Pasang Recharts kalau kelak ada grafik deret waktu.
 - **Font:** Arial (UI) — fallback Helvetica / Liberation Sans / sans-serif. Font sistem, tidak diunduh: nol permintaan jaringan dan nol pergeseran tata letak saat halaman dimuat. PDF laporan memakai Helvetica bawaan React PDF — pasangan metrik Arial; alasannya di `features/reporting/pdf.tsx`.
 
 ## 3. Color Palette
