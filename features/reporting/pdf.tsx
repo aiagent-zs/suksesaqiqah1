@@ -6,10 +6,17 @@ import type { ReportData } from './types';
 /**
  * Laporan peserta (docs/11 section 3).
  *
- * Font sengaja memakai Helvetica bawaan React PDF, bukan Inter dari design.md:
- * mendaftarkan font kustom menuntut berkas TTF ikut ter-deploy dan diunduh saat
- * render. Untuk dokumen satu halaman berisi teks pendek, ketergantungan itu
- * lebih mahal daripada nilainya.
+ * Font memakai Helvetica bawaan React PDF, dan **itu memang Arial di PDF**.
+ * "Arial" bukan nama yang dikenal format PDF: keempat belas font standarnya
+ * hanya memuat Courier, Helvetica, dan Times. Helvetica-lah pasangan metrik
+ * Arial — lebar tiap huruf sama persis — jadi menuliskan `fontFamily: 'Arial'`
+ * di sini justru membuat React PDF melempar galat font tak dikenal, bukan
+ * menghasilkan sesuatu yang lebih mirip.
+ *
+ * Memakai berkas Arial yang sungguhan menuntut TTF-nya ikut ter-deploy dan
+ * diunduh saat render — dan Arial berlisensi Monotype, tidak boleh
+ * didistribusikan begitu saja. Untuk dokumen satu halaman berisi teks pendek,
+ * keduanya lebih mahal daripada nilainya.
  */
 const styles = StyleSheet.create({
   page: { padding: 36, fontSize: 10, color: '#0b1c30', fontFamily: 'Helvetica' },

@@ -54,7 +54,7 @@
 - **Komponen:** berbasis **shadcn/ui** (Radix primitives) untuk konsistensi & aksesibilitas.
 - **Ikon:** Lucide.
 - **Charts:** library ringan (mis. Recharts) untuk KPI dashboard.
-- **Font:** Inter (UI) — fallback system-ui.
+- **Font:** Arial (UI) — fallback Helvetica / Liberation Sans / sans-serif. Font sistem, tidak diunduh: nol permintaan jaringan dan nol pergeseran tata letak saat halaman dimuat. PDF laporan memakai Helvetica bawaan React PDF — pasangan metrik Arial; alasannya di `features/reporting/pdf.tsx`.
 
 ## 3. Color Palette
 

@@ -1,13 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import { siteConfig } from '@/lib/constants/site';
 import './globals.css';
-
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -61,7 +54,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     // mana pun di sini. Aman karena jangkauannya **satu tingkat**: isi halaman
     // tetap diperiksa seperti biasa, jadi ini tidak bisa menutupi selisih
     // sungguhan di dalam aplikasi.
-    <html lang="id" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="id" className="h-full antialiased" suppressHydrationWarning>
       <body className="flex min-h-full flex-col bg-white text-neutral-900">{children}</body>
     </html>
   );
