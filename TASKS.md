@@ -10,7 +10,7 @@
 | Diperbarui                       | 2026-09-03                                                                                                                                                                                                                                                                                                                                                                                      |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                                                        |
 | Estimasi Phase 1                 | **± 87%** (dari 85% — katalog & konten landing kini dikelola sendiri lewat aplikasi, lihat _Perubahan 3 September_)                                                                                                                                                                                                                                                                             |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(20 rute, landing tetap prerender statis)** · **500 unit test hijau (35 file)** · **159 tes integrasi hijau (11 file) terhadap Postgres lokal** · **42 migration jalan bersih di lokal ✅ dan 42/42 selaras di cloud ✅** · **RLS katalog terbukti di cloud lewat jalur `anon`: baca ✅, tulis ditolak ✅** |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(20 rute, landing tetap prerender statis)** · **519 unit test hijau (36 file)** · **159 tes integrasi hijau (11 file) terhadap Postgres lokal** · **42 migration jalan bersih di lokal ✅ dan 42/42 selaras di cloud ✅** · **RLS katalog terbukti di cloud lewat jalur `anon`: baca ✅, tulis ditolak ✅** |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
 
@@ -368,9 +368,70 @@ pun.
 > yang terlalu luas membuat tes lolos tanpa memeriksa apa pun. Yang tidak
 > pernah diuji dengan bug sungguhan hanya memberi rasa aman.
 
-### Tes bertambah 106
+### `docs/05`–`08` ditulis ulang — tertinggal enam pekan
 
-**500 unit (35 berkas)** dari 424/31, **159 integrasi (11 berkas)** dari 129/10.
+Keempatnya masih menggambarkan skema **sebelum** desain ulang 20 Agustus:
+`branches`, lima role, `slaughter_records`/`distributions`, dan tahapan lapangan
+sebagai **status order**. Karena urutan otoritas menempatkan `docs/` paling
+akhir, itu tidak pernah menghentikan pekerjaan — tapi menyesatkan siapa pun yang
+membacanya duluan, termasuk yang menulis kode baru berdasarkan dokumen itu.
+
+Isinya disusun dari **skema sungguhan**, bukan ingatan: 22 tabel, 4 view, 16
+enum, 35 fungsi, dan 41 trigger di-dump lebih dulu dari Postgres lokal.
+
+| Dokumen | Yang keliru sebelumnya                                                                      |
+| ------- | ------------------------------------------------------------------------------------------- |
+| `05`    | 17 entity dengan `branches`, `slaughter_records`, `distributions`; RLS berporos `branch_id` |
+| `06`    | Modul _Slaughter_ & _Distribution_ terpisah; **Katalog Paket belum ada sama sekali**        |
+| `07`    | Lima role berporos cabang; validasi dokumentasi digambarkan **dua tingkat**                 |
+| `08`    | Tahapan lapangan jadi **status order** (`slaughtering → distribution`)                      |
+
+Yang paling salah `08`: tahapan tidak bisa jadi status sejak ia **bercabang**
+menurut mode penyaluran — dan status tidak bisa bercabang. Keduanya kini
+dipisah, sebagaimana kodenya memang sudah begitu sejak 20 Agustus.
+
+Ditambahkan pula yang belum pernah masuk dokumen sama sekali: modul **Katalog
+Paket**, `vendor_services` beserta batas penawaran, dan bucket `public-assets`.
+
+#### `design.md §2` & blok `.dark`
+
+`design.md` menyebut **Radix** dan **Recharts**; kenyataannya `@base-ui/react`
+dan bar CSS buatan sendiri. Keduanya dikoreksi beserta alasannya — memasang
+pustaka chart untuk bar horizontal menambah ±100 KB tanpa menambah kemampuan.
+
+Blok `.dark` di `globals.css` **tidak dihapus**, dan itu keputusan: varian
+`dark:` masih dirujuk `button.tsx` & `input.tsx`, jadi menghapusnya membuat
+keduanya menunjuk token yang tidak ada — kerusakan yang baru terlihat kalau mode
+gelap kelak dinyalakan. Diberi komentar yang menerangkan kenapa ia
+dipertahankan, dan apa yang perlu diperiksa ulang sebelum menyalakannya.
+
+#### Penjaga supaya tidak tertinggal lagi
+
+`docs-schema-sync.test.ts` (11 tes) menolak nama yang sudah dihapus dipakai
+sebagai **deskripsi**, dan menuntut `design.md` menyebut pustaka yang benar-benar
+ada di `package.json` — dibaca dari sana, bukan disalin.
+
+Sebutan **sejarah** tetap diizinkan lewat penanda eksplisit
+`<!-- schema-history -->`: pembaca yang menemukan istilah lama di tempat lain
+butuh tahu ke mana ia pergi.
+
+> **Regex kata kunci dicoba lebih dulu dan gagal.** Versi pertama membedakan
+> "menyebut sejarah" dari "memakai sebagai deskripsi" lewat pola
+> `dihapus|diganti|…`. Ia harus ditambal **dua kali** karena tiap baris tabel
+> berbunyi berbeda — dan masih meleset. Penanda eksplisit memindahkan
+> keputusannya ke penulis dokumen, yang memang tahu mana yang mana, dan tidak
+> bisa lolos diam-diam hanya karena kebetulan memuat kata tertentu.
+>
+> Ada tes terpisah yang menuntut penandanya **berpasangan**: pembuka tanpa
+> penutup membuat seluruh sisa dokumen terlewat, dan penjaganya berhenti
+> menjaga apa pun tanpa pernah merah.
+
+**Dibuktikan menangkap**: baris `admin_cabang` dikembalikan ke tabel role di
+`07`, dan tes langsung merah menunjuk barisnya.
+
+### Tes bertambah 117
+
+**519 unit (36 berkas)** dari 424/31, **159 integrasi (11 berkas)** dari 129/10.
 
 | Berkas                                              | Cakupan                                                                                                                                                                                                |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -381,6 +442,7 @@ pun.
 | `vendor-schema.test.ts` (+8)                        | Batas penawaran: max < min ditolak dengan galat menempel di medannya, max = min diterima, jeda >30 hari ditolak sebagai salah satuan                                                                   |
 | `service-catalogue.test.ts` (25, integrasi)         | RLS `services` per role, gerbang `landing_requires_active` dua arah, SQLSTATE tiap constraint, `favorit`/`premium` bertahan di `meta`, **keempat bug 3 September**                                     |
 | `vendor-master.test.ts` (+5, integrasi)             | `vendor_services_qty_check`; `max_qty` null = tanpa batas; **kerugian nyata bila `upsert` lupa mengirim medan**; deskripsi ikut katalog                                                                |
+| `docs-schema-sync.test.ts` (11)                     | `docs/05`–`08` tidak memakai nama yang sudah dihapus sebagai deskripsi; `design.md` menyebut pustaka yang benar-benar ada di `package.json`                                                            |
 | `landing-catalogue.test.ts` (12, **ditulis ulang**) | Dulu menjaga dua daftar tetap sama; kini menjaga daftar keduanya **benar-benar sudah tidak ada**                                                                                                       |
 
 **Empat kali tes dibuktikan menangkap bug, bukan hijau karena kebetulan.**
@@ -1483,7 +1545,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] **500 unit test hijau di 35 file** — state machine order, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, **katalog landing kini satu sumber dengan `services`**, alur & path dokumentasi, kapabilitas, **schema master mitra**, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp, **ringkasan pesanan untuk WhatsApp admin**, **schema, rute, isi paket katalog, batas penawaran mitra, & umpan balik aksi**
+- [x] **519 unit test hijau di 36 file** — state machine order, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, **katalog landing kini satu sumber dengan `services`**, alur & path dokumentasi, kapabilitas, **schema master mitra**, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp, **ringkasan pesanan untuk WhatsApp admin**, **schema, rute, isi paket katalog, batas penawaran mitra, & umpan balik aksi**
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts`
 - [x] **Navigasi < 1024px** — bottom-nav + panel `≡`, disaring per role
 - [x] Penanda aktif sidebar diturunkan dari `pathname`, berhenti di batas segmen
@@ -1528,11 +1590,12 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [ ] `tests/e2e/` masih kosong (`.gitkeep`) — target: alur order → laporan end-to-end (`docs/21`)
 - [ ] Checklist keamanan `docs/20_SECURITY_CHECKLIST.md` belum ditelusuri satu per satu
 - [ ] **Akun demo `*@suksesaqiqah.test` (password `Password123!`)** — `02_demo.sql` tidak ikut `db push`, tapi akun lama yang terlanjur ada di cloud wajib dihapus sebelum produksi
-- [ ] **Dokumentasi tertinggal jauh dari kode.** `docs/05_DATABASE_DESIGN.md`,
-      `docs/06`, `docs/07`, `docs/08` masih menggambarkan cabang, lima role, dan
-      `slaughter_records`/`distributions`. Karena urutan otoritas menempatkan `docs/`
-      paling akhir, ini tidak menghentikan pekerjaan — tapi menyesatkan siapa pun
-      yang membacanya duluan
+- [x] **`docs/05`–`08` ditulis ulang — 3 September.** Keempatnya tertinggal enam
+      pekan: masih menggambarkan cabang, lima role, `slaughter_records`, dan
+      tahapan lapangan sebagai status order. Isinya kini disusun dari skema
+      sungguhan (22 tabel, 4 view, 16 enum, 35 fungsi, 41 trigger di-dump lebih
+      dulu), lengkap dengan modul **Katalog Paket** yang belum pernah masuk
+      dokumen. Dijaga `docs-schema-sync.test.ts` supaya tidak tertinggal lagi
 - [ ] `docs/01 §6` & `docs/23 §6` masih menyebut checkout sebagai out of scope
 
 ### Kepatuhan design system (`design.md`)
@@ -1681,11 +1744,18 @@ Tiga role tetap: **superadmin · admin · vendor**.
       kontras karenanya. Diperiksa ulang 24 Agustus, bukan diperbaiki
 - [ ] `DataTable` belum punya sort per kolom & klik-baris; `Timeline`, `EmptyState`, `MediaGallery` masih inline
 - [ ] `MediaUploader` masih `<input type="file">` polos — digabung ke pekerjaan PWA (§9)
-- [ ] Blok `.dark` di `globals.css` — **bukan kode mati sepenuhnya**: varian
-      `dark:` masih dirujuk `components/ui/button.tsx`. Yang benar: tidak ada yang
-      pernah memasang kelas `.dark`, jadi cabang itu tidak pernah menyala.
-      Diperiksa ulang 24 Agustus
-- [ ] `design.md §2` menyebut Radix & Recharts; kenyataannya `@base-ui/react` dan bar CSS buatan sendiri
+- [x] **Blok `.dark` didokumentasikan, bukan dihapus — 3 September.** Tidak ada
+      yang pernah memasang kelas `.dark`, jadi cabang itu tidak pernah menyala —
+      tetapi varian `dark:` masih dirujuk `button.tsx` & `input.tsx`, sehingga
+      menghapusnya membuat keduanya menunjuk token yang tidak ada. Kerusakannya
+      baru terlihat kalau mode gelap kelak dinyalakan; komentarnya kini menerangkan
+      itu beserta apa yang perlu diperiksa lebih dulu
+- [ ] Mode gelap sendiri **belum** dinyalakan — warna sidebar & badge status
+      sebagian ditulis sebagai kelas Tailwind terang yang tidak ikut berganti
+- [x] **`design.md §2` dikoreksi — 3 September.** Dulu menyebut Radix &
+      Recharts; kenyataannya `@base-ui/react` dan bar CSS buatan sendiri.
+      Alasannya ikut dicatat, dan `docs-schema-sync.test.ts` membacanya dari
+      `package.json` — bukan dari salinan
 
 ---
 
@@ -1736,4 +1806,4 @@ memang menunggu itu; butir 4 menunggu Tahap 8.
 - Pembagian kerja & gate antar tahap → `TEAM_PLAN.md`
 - Roadmap & exit criteria per fase → `docs/23_MVP_ROADMAP.md`
 - Urutan teknis build → `docs/25_BUILD_SEQUENCE.md`
-- Skema & view → `docs/05_DATABASE_DESIGN.md` ⚠️ **usang, belum menyusul desain ulang 20 Agustus**
+- Skema & view → `docs/05_DATABASE_DESIGN.md` ✅ **selaras (v2.0, 3 September)**
