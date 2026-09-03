@@ -22,6 +22,27 @@ const nextConfig: NextConfig = {
      * ukuran saat permintaan pertama — hasilnya lalu disinggahkan.
      */
     formats: ['image/avif', 'image/webp'],
+
+    /**
+     * Foto katalog yang diunggah lewat aplikasi tinggal di bucket
+     * `public-assets` milik project Supabase, bukan di `public/`. `next/image`
+     * menolak host luar yang tidak didaftarkan — itu penjagaan yang benar
+     * (tanpanya siapa pun bisa memakai pengoptimal gambar ini sebagai proxy
+     * terbuka), jadi yang diizinkan dipersempit sampai ke prefix bucketnya.
+     *
+     * Host-nya dibaca dari env supaya lokal, staging, dan produksi tidak perlu
+     * daftar terpisah. Kalau env-nya belum ada saat build, daftarnya kosong dan
+     * `SitePhoto` jatuh ke placeholder alih-alih merender gambar rusak.
+     */
+    remotePatterns: process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? [
+          {
+            protocol: 'https' as const,
+            hostname: new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname,
+            pathname: '/storage/v1/object/public/public-assets/**',
+          },
+        ]
+      : [],
   },
 };
 

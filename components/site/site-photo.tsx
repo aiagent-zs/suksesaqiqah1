@@ -20,6 +20,24 @@ import { join } from 'node:path';
  * sengaja memakai `<img>` polos. Alasannya berkebalikan: foto pemasaran justru
  * **ingin** disinggahkan dan dioptimasi, sementara bukti dokumentasi tidak boleh
  * meninggalkan salinan yang tetap tersaji setelah signed URL-nya kedaluwarsa.
+ *
+ * ## Dua sumber foto
+ *
+ * `src` yang diawali `images/` adalah berkas di `public/` — bawaan repo, ikut
+ * saat build, keberadaannya diperiksa `existsSync`. Selain itu ia object path
+ * di bucket `public-assets`, diunggah superadmin lewat `/vendors`.
+ *
+ * Bucket itu **publik** (`storage_public_assets_read` membuka `select` untuk
+ * `anon`), jadi URL-nya tetap, tidak perlu ditandatangani, dan halaman depan
+ * tidak perlu memanggil Storage sama sekali saat render. Itu memang tepat di
+ * sini: foto pemasaran justru ingin bisa disinggahkan CDN. Berbeda dengan
+ * dokumentasi lapangan, yang privat dan selalu lewat signed URL berdurasi
+ * pendek.
+ *
+ * Foto Storage **tidak** bisa diperiksa keberadaannya saat render tanpa
+ * memanggil Storage, jadi ia selalu dianggap ada. Kalau berkasnya hilang, yang
+ * tampil gambar rusak — bukan placeholder. Itu dapat diterima: yang mengunggah
+ * lewat aplikasi baru saja melihat fotonya masuk.
  */
 export type SitePhotoProps = {
   /** Path relatif terhadap `public/`, mis. `images/landing/hero.webp`. */
@@ -34,6 +52,32 @@ export type SitePhotoProps = {
   sizes?: string;
 };
 
+/**
+ * Foto ini datang dari `public/` atau dari Storage?
+ *
+ * Dibedakan lewat awalan `images/` dan bukan lewat kolom terpisah: seluruh
+ * foto bawaan repo memang tinggal di `public/images/`, dan object path yang
+ * ditulis `uploadServicePhoto()` selalu diawali `services/`. Menambah kolom
+ * "sumber" berarti dua nilai yang bisa berselisih untuk satu berkas.
+ */
+function isRepoAsset(src: string): boolean {
+  return src.startsWith('images/');
+}
+
+/**
+ * URL publik sebuah object di `public-assets`.
+ *
+ * Dirakit dari env, bukan lewat `supabase.storage.getPublicUrl()`: bentuknya
+ * tetap dan diketahui, sedangkan memanggil klien Storage di sini menjadikan
+ * tiap foto satu pemanggilan tambahan saat render — untuk URL yang bisa
+ * disusun tanpa jaringan sama sekali.
+ */
+function storageUrl(path: string): string | null {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  return `${base.replace(/\/$/, '')}/storage/v1/object/public/public-assets/${path}`;
+}
+
 function photoExists(src: string): boolean {
   // Path dari pemanggil, bukan dari input pengguna — tapi tetap ditolak kalau
   // mencoba keluar dari `public/`, supaya komponen ini tidak bisa dipakai
@@ -47,7 +91,13 @@ function photoExists(src: string): boolean {
 }
 
 export function SitePhoto({ src, alt, width, height, className, priority, sizes }: SitePhotoProps) {
-  if (!photoExists(src)) {
+  const remote = isRepoAsset(src) ? null : storageUrl(src);
+  // Foto Storage tidak diperiksa keberadaannya (butuh panggilan jaringan per
+  // foto); yang jatuh ke placeholder hanya berkas repo yang belum ditaruh, dan
+  // foto Storage saat env-nya tidak terpasang sama sekali.
+  const missing = isRepoAsset(src) ? !photoExists(src) : remote === null;
+
+  if (missing) {
     // Slot yang menunggu fotonya.
     //
     // Versi sebelumnya kotak abu rata — benar secara nada, tapi dengan sepuluh
@@ -90,7 +140,7 @@ export function SitePhoto({ src, alt, width, height, className, priority, sizes 
 
   return (
     <Image
-      src={`/${src}`}
+      src={remote ?? `/${src}`}
       alt={alt}
       width={width}
       height={height}

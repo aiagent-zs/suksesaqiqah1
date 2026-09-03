@@ -161,133 +161,25 @@ export const landingPhotos = {
   ],
 } as const;
 
-/** Program Aqiqah — harga dari 28_HARGA_PROGRAM. */
-export const aqiqahPrograms = [
-  {
-    slug: 'aqiqah-ekonomi',
-    name: 'Ekonomi',
-    price: 2_300_000,
-    popular: false,
-    /** Foto masakan paket ini; rasio 4:3 seperti `landingPhotos`. */
-    photo: {
-      src: 'images/landing/paket-ekonomi.webp',
-      alt: 'Sajian masakan paket Aqiqah Ekonomi',
-    },
-    tagline: 'Ibadah aqiqah lengkap dengan harga paling terjangkau.',
-    features: [
-      '1 ekor kambing sehat & tersertifikasi',
-      'Pemotongan sesuai syariat',
-      'Masakan siap antar',
-      'Dokumentasi foto proses',
-      'Laporan digital untuk keluarga',
-    ],
-  },
-  {
-    slug: 'aqiqah-favorit',
-    name: 'Favorit',
-    price: 2_800_000,
-    popular: true,
-    photo: {
-      src: 'images/landing/paket-favorit.webp',
-      alt: 'Sajian masakan paket Aqiqah Favorit',
-    },
-    tagline: 'Pilihan paling diminati — seimbang antara porsi dan nilai.',
-    features: [
-      'Kambing ukuran lebih besar',
-      'Pemotongan sesuai syariat',
-      'Menu masakan lebih variatif',
-      'Dokumentasi foto & video',
-      'Laporan digital + sertifikat aqiqah',
-    ],
-  },
-  {
-    slug: 'aqiqah-premium',
-    name: 'Premium',
-    price: 3_600_000,
-    popular: false,
-    photo: {
-      src: 'images/landing/paket-premium.webp',
-      alt: 'Sajian masakan paket Aqiqah Premium',
-    },
-    tagline: 'Porsi lebih besar dan layanan paling lengkap.',
-    features: [
-      'Kambing premium ukuran besar',
-      'Pemotongan sesuai syariat',
-      'Menu masakan premium & variatif',
-      'Dokumentasi foto & video profesional',
-      'Laporan digital + sertifikat + prioritas jadwal',
-    ],
-  },
-] as const;
-
-/**
- * Paket Nasi Box Aqiqah — harga per box dari 28_HARGA_PROGRAM.
+/*
+ * Katalog paket **pindah ke database** (3 September).
  *
- * `slug` wajib sama persis dengan `services.slug` di database, sebab itulah
- * yang menjembatani kartu di halaman ini dengan katalog yang benar-benar
- * ditagih (`/checkout?paket={slug}` dicocokkan sebagai slug, bukan id).
+ * `aqiqahPrograms` & `nasiBoxPackages` dulu berdiri di sini — nama, harga,
+ * tagline, fitur, dan foto ketiga paket aqiqah beserta kelima nasi box. Halaman
+ * depan membacanya langsung, sehingga ia statis dan nol query.
  *
- * Dua di antaranya pernah menyimpang: `paket-c-favorit` dan `paket-e-premium`
- * membawa akhiran yang tidak pernah ada di katalog. Harganya kebetulan benar
- * dan slug nasi box belum dipakai sebagai tautan, jadi tidak ada yang rusak di
- * layar — tetapi begitu nasi box ditautkan dengan pola `?paket=` yang sama
- * seperti paket aqiqah, dua dari lima akan diam-diam jatuh ke paket pertama
- * tanpa galat apa pun. Dijaga `landing-catalogue.test.ts`.
+ * Yang membuatnya harus pindah: daftar itu **kembaran** `services` di database,
+ * dan keduanya dijaga sinkron oleh tangan. Kembaran semacam itu menyimpang
+ * diam-diam — `paket-c-favorit` & `paket-e-premium` pernah membawa akhiran yang
+ * tidak pernah ada di katalog, dan tidak ada yang menghasilkan galat: `?paket=`
+ * yang tak dikenal sengaja jatuh ke paket pertama. Pengunjung mengira memesan
+ * Premium dan mendapat Ekonomi.
  *
- * `items` menyalin `services.meta->items` di migration — sumber yang sama
- * dengan yang dibaca panel modal mitra. Disalin, bukan dibaca dari database,
- * mengikuti keputusan yang sudah berlaku untuk nama & harga: halaman ini
- * statis dan nol query. Konsekuensinya sama pula — dua daftar dijaga sinkron
- * oleh tangan, jadi `landing-catalogue.test.ts` ikut menjaga isinya, bukan
- * hanya slug dan harganya.
+ * Sekarang satu sumber: `features/landing/catalogue.ts` membaca `services`, dan
+ * pemilik usaha mengubahnya sendiri lewat `/vendors?tab=katalog` tanpa memanggil
+ * developer. `landingPhotos` di atas tetap tinggal di sini — hero & galeri
+ * bukan katalog, dan tidak punya baris di `services`.
  */
-export const nasiBoxPackages = [
-  {
-    slug: 'paket-a',
-    name: 'Paket A',
-    price: 21_000,
-    popular: false,
-    items: ['nasi putih', 'gulai kambing', 'acar', 'kerupuk'],
-  },
-  {
-    slug: 'paket-b',
-    name: 'Paket B',
-    price: 27_000,
-    popular: false,
-    items: ['nasi putih', 'gulai kambing', 'sate', 'acar', 'kerupuk'],
-  },
-  {
-    slug: 'paket-c',
-    name: 'Paket C',
-    price: 32_000,
-    popular: true,
-    items: ['nasi putih', 'gulai kambing', 'sate', 'tongseng', 'acar', 'kerupuk'],
-  },
-  {
-    slug: 'paket-d',
-    name: 'Paket D',
-    price: 45_000,
-    popular: false,
-    items: ['nasi putih', 'gulai kambing', 'sate', 'tongseng', 'buah', 'acar', 'kerupuk'],
-  },
-  {
-    slug: 'paket-e',
-    name: 'Paket E',
-    price: 70_000,
-    popular: false,
-    items: [
-      'nasi putih',
-      'gulai kambing',
-      'sate',
-      'tongseng',
-      'krengsengan',
-      'buah',
-      'puding',
-      'acar',
-      'kerupuk',
-    ],
-  },
-] as const;
 
 /** Tahapan layanan (08_WORKFLOW_MAP / 27_PAGE_MENU). */
 export const processSteps = [

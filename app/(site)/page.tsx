@@ -1,15 +1,18 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import {
-  aqiqahPrograms,
   faqs,
   features,
   landingPhotos,
-  nasiBoxPackages,
   processSteps,
   services,
   siteConfig,
 } from '@/lib/constants/site';
+import {
+  getLandingCatalogue,
+  type LandingBox,
+  type LandingProgram,
+} from '@/features/landing/catalogue';
 import { formatIDR } from '@/lib/format/currency';
 import { Icon, IconArrowRight, IconCheck, IconWhatsApp } from '@/components/site/icons';
 import { SitePhoto } from '@/components/site/site-photo';
@@ -55,13 +58,18 @@ const orderMessage = (paket?: string) =>
  * Seluruhnya mati sendiri saat pengguna memilih "kurangi gerakan" di setelan
  * sistem (lihat `app/globals.css`).
  */
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Katalog dibaca sekali di sini lalu diturunkan, bukan diambil di dalam
+  // `PackagesSection`: paket aqiqah dan nasi box datang dari satu query yang
+  // sama, dan memanggilnya dua kali berarti dua perjalanan untuk satu jawaban.
+  const { programs, boxes } = await getLandingCatalogue();
+
   return (
     <>
       <JsonLd />
       <Hero />
       <ServicesSection />
-      <PackagesSection />
+      <PackagesSection programs={programs} boxes={boxes} />
       <ProcessSection />
       {/* Galeri tepat setelah Proses: bagian itu menjanjikan tiap tahap
           terdokumentasi, dan galerilah buktinya. */}
@@ -254,7 +262,15 @@ function ServicesSection() {
 /* ------------------------------------------------------------------ */
 /* Paket & Harga                                                       */
 /* ------------------------------------------------------------------ */
-function PackagesSection() {
+function PackagesSection({ programs, boxes }: { programs: LandingProgram[]; boxes: LandingBox[] }) {
+  // Katalog kosong berarti database tak terjangkau (query-nya mengembalikan
+  // daftar kosong alih-alih melempar). Section-nya disembunyikan seluruhnya:
+  // judul "Harga sudah termasuk seluruh prosesnya" di atas ruang kosong
+  // terbaca sebagai halaman rusak, sementara tanpanya halaman tetap utuh —
+  // hero, proses, galeri, dan jalan menghubungi lewat WhatsApp semuanya tetap
+  // ada.
+  if (programs.length === 0 && boxes.length === 0) return null;
+
   return (
     <Section bg="tinted" id="paket" index="02" eyebrow="Paket & Harga">
       <SectionIntro
@@ -263,7 +279,7 @@ function PackagesSection() {
       />
 
       <div className="mt-10 grid gap-px overflow-hidden rounded-lg border border-neutral-200 bg-neutral-200 sm:mt-12 lg:grid-cols-3">
-        {aqiqahPrograms.map((p, i) => (
+        {programs.map((p, i) => (
           <Reveal
             key={p.slug}
             as="article"
@@ -273,16 +289,24 @@ function PackagesSection() {
               p.popular ? 'ring-primary/40 z-10 ring-2' : ''
             }`}
           >
-            <div className="overflow-hidden bg-neutral-100">
-              <SitePhoto
-                src={p.photo.src}
-                alt={p.photo.alt}
-                width={600}
-                height={400}
-                sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
-              />
-            </div>
+            {/* Paket tanpa foto merender kartu tanpa blok gambar sama sekali,
+                bukan placeholder: `SitePhoto` menampilkan kotak bertuliskan
+                path berkas yang ditunggu — petunjuk kerja yang berguna bagi
+                yang menyiapkan foto, tapi tidak ada artinya bagi pengunjung.
+                Sejak fotonya bisa diunggah lewat aplikasi, paket baru memang
+                wajar belum punya foto untuk sementara. */}
+            {p.photo && (
+              <div className="overflow-hidden bg-neutral-100">
+                <SitePhoto
+                  src={p.photo.src}
+                  alt={p.photo.alt}
+                  width={600}
+                  height={400}
+                  sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
+                />
+              </div>
+            )}
 
             <div className="flex flex-1 flex-col p-6">
               <div className="flex items-baseline justify-between gap-3">
@@ -362,7 +386,7 @@ function PackagesSection() {
             Isinya sendiri sudah tercatat di `services.meta->items` sejak awal;
             di sini ia akhirnya terbaca pengunjung. */}
         <ul className="mt-6 grid gap-3 border-t border-neutral-100 pt-6 sm:mt-7 sm:grid-cols-2 lg:grid-cols-3">
-          {nasiBoxPackages.map((box) => (
+          {boxes.map((box) => (
             <li
               key={box.slug}
               className={`rounded-lg border p-4 ${
