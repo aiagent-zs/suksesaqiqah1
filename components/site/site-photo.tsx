@@ -113,7 +113,7 @@ export function SitePhoto({ src, alt, width, height, className, priority, sizes 
       <div
         role="img"
         aria-label={`Foto belum tersedia: ${alt}`}
-        className={`from-primary/[0.07] relative flex flex-col items-center justify-center gap-2.5 overflow-hidden bg-gradient-to-br to-neutral-100 p-4 text-center ${className ?? ''}`}
+        className={`from-primary/7 relative flex flex-col items-center justify-center gap-2.5 overflow-hidden bg-gradient-to-br to-neutral-100 p-4 text-center ${className ?? ''}`}
         style={{ aspectRatio: `${width} / ${height}` }}
       >
         <div aria-hidden className="bg-grid-fine absolute inset-0" />

@@ -109,7 +109,7 @@ function Hero() {
       />
       <div
         aria-hidden
-        className="from-primary/[0.06] pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br via-transparent to-transparent"
+        className="from-primary/6 pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br via-transparent to-transparent"
       />
 
       <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-14 sm:gap-12 sm:px-6 sm:pt-12 sm:pb-20 lg:grid-cols-[1fr_0.85fr] lg:items-end lg:gap-16 lg:pt-14 lg:pb-24">
@@ -390,7 +390,7 @@ function PackagesSection({ programs, boxes }: { programs: LandingProgram[]; boxe
             <li
               key={box.slug}
               className={`rounded-lg border p-4 ${
-                box.popular ? 'border-primary/30 bg-primary/[0.03]' : 'border-neutral-200'
+                box.popular ? 'border-primary/30 bg-primary/3' : 'border-neutral-200'
               }`}
             >
               <div className="flex items-baseline justify-between gap-2">
@@ -586,7 +586,7 @@ function FaqSection() {
         {faqs.map((faq) => (
           <details
             key={faq.question}
-            className="group open:bg-primary/[0.03] -mx-3 rounded-lg px-3 py-4 transition-colors hover:bg-neutral-50 sm:py-5 [&_summary]:list-none"
+            className="group open:bg-primary/3 -mx-3 rounded-lg px-3 py-4 transition-colors hover:bg-neutral-50 sm:py-5 [&_summary]:list-none"
           >
             <summary className="flex cursor-pointer items-start justify-between gap-4 text-left sm:gap-6">
               <span className="group-hover:text-primary group-open:text-primary text-[15px] font-medium text-neutral-900 transition-colors sm:text-base">
