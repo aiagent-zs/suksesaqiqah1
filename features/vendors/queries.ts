@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/database';
 import type { RegionOption } from '@/features/checkout/queries';
+import { serviceDetails } from '@/features/services/meta';
 
 type DistributionMode = Database['public']['Enums']['distribution_mode'];
 
@@ -275,35 +276,6 @@ export type VendorServiceRow = {
   details: string[];
 };
 
-/**
- * Isi paket sebagai daftar yang bisa dibaca, dari `services.meta`.
- *
- * Dirakit di server, bukan di komponen: `meta` bertipe `Json` bebas dan
- * bentuknya berbeda per jenis paket (`hasil`+`cocok_untuk` untuk aqiqah,
- * `items` untuk nasi box, kosong untuk qurban). Membiarkan layar membongkarnya
- * berarti setiap layar yang menampilkan paket harus tahu ketiga bentuk itu.
- *
- * Bentuk yang tidak dikenali menghasilkan daftar kosong, bukan galat — `meta`
- * adalah kolom bebas, jadi kunci baru akan muncul tanpa memberi tahu siapa pun.
- */
-export function serviceDetails(meta: unknown): string[] {
-  if (!meta || typeof meta !== 'object') return [];
-  const m = meta as Record<string, unknown>;
-  const out: string[] = [];
-
-  const hasil = m.hasil as { porsi?: number; jenis?: string } | undefined;
-  if (hasil?.porsi) out.push(`${hasil.porsi} porsi`);
-  if (hasil?.jenis) out.push(`Olahan: ${hasil.jenis}`);
-
-  if (Array.isArray(m.items)) {
-    out.push(...m.items.filter((i): i is string => typeof i === 'string'));
-  }
-
-  if (typeof m.cocok_untuk === 'string') out.push(`Cocok untuk ${m.cocok_untuk}`);
-
-  return out;
-}
-
 /** Daftar modal satu mitra, beserta margin terhadap harga jual katalog. */
 export async function getVendorServices(vendorId: string): Promise<VendorServiceRow[]> {
   const supabase = await createClient();
@@ -364,7 +336,7 @@ export async function getVendorServices(vendorId: string): Promise<VendorService
         maxQty: r.max_qty,
         leadTimeHours: r.lead_time_hours,
         description: r.service?.description ?? null,
-        details: serviceDetails(r.service?.meta),
+        details: serviceDetails(r.service?.meta, r.service?.type),
       };
     })
     .sort((a, b) => a.serviceName.localeCompare(b.serviceName));
@@ -429,6 +401,6 @@ export async function getServiceOptions() {
     type: s.type,
     price: Number(s.price),
     description: s.description,
-    details: serviceDetails(s.meta),
+    details: serviceDetails(s.meta, s.type),
   }));
 }

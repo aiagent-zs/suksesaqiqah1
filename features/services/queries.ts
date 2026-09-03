@@ -1,5 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
+import { metaFields, serviceDetails } from './meta';
 import type { Database } from '@/types/database';
 
 type ServiceType = Database['public']['Enums']['service_type'];
@@ -84,7 +85,7 @@ export async function listServices(): Promise<ServiceRow[]> {
     price: Number(s.price),
     sortOrder: s.sort_order,
     isActive: s.is_active,
-    details: serviceDetails(s.meta),
+    details: serviceDetails(s.meta, s.type),
     ...metaFields(s.meta),
     tagline: s.tagline,
     landingFeatures: s.landing_features ?? [],
@@ -116,66 +117,6 @@ function countOf(rel: unknown): number {
     return typeof c === 'number' ? c : 0;
   }
   return 0;
-}
-
-/**
- * Isi paket yang terurai dari `meta`, siap disunting formulir.
- *
- * Berbeda dari `serviceDetails()` di bawah yang merangkainya jadi kalimat
- * untuk ditampilkan. Keduanya membaca kolom yang sama supaya yang tampil dan
- * yang tersunting tidak pernah berselisih.
- *
- * Nilai yang bentuknya tidak dikenali jadi `null`/kosong, bukan galat: `meta`
- * kolom bebas yang bisa memuat apa saja, termasuk yang ditulis jalur lain.
- */
-function metaFields(meta: unknown): {
-  porsi: number | null;
-  jenisOlahan: string | null;
-  cocokUntuk: string | null;
-  items: string[];
-} {
-  const empty = { porsi: null, jenisOlahan: null, cocokUntuk: null, items: [] as string[] };
-  if (!meta || typeof meta !== 'object') return empty;
-
-  const m = meta as Record<string, unknown>;
-  const hasil = (m.hasil ?? {}) as Record<string, unknown>;
-
-  return {
-    porsi: typeof hasil.porsi === 'number' ? hasil.porsi : null,
-    jenisOlahan: typeof hasil.jenis === 'string' ? hasil.jenis : null,
-    cocokUntuk: typeof m.cocok_untuk === 'string' ? m.cocok_untuk : null,
-    items: Array.isArray(m.items) ? m.items.filter((i): i is string => typeof i === 'string') : [],
-  };
-}
-
-/**
- * Rincian paket dari `meta`.
- *
- * Sengaja **disalin** dari `features/vendors/queries.ts` alih-alih diimpor —
- * sekilas terlihat duplikasi yang layak dibuang, tapi keduanya menjawab
- * pertanyaan berbeda: yang di sana merangkum paket untuk dipilih saat mengisi
- * modal mitra, yang di sini menampilkan isi katalog itu sendiri. Menyatukannya
- * akan mengikat dua layar yang boleh berkembang sendiri-sendiri.
- *
- * Bentuk yang tidak dikenali menghasilkan daftar kosong, bukan galat: `meta`
- * kolom bebas, jadi kunci baru akan muncul tanpa memberi tahu siapa pun.
- */
-function serviceDetails(meta: unknown): string[] {
-  if (!meta || typeof meta !== 'object') return [];
-  const m = meta as Record<string, unknown>;
-  const out: string[] = [];
-
-  const hasil = m.hasil as { porsi?: number; jenis?: string } | undefined;
-  if (hasil?.porsi) out.push(`${hasil.porsi} porsi`);
-  if (hasil?.jenis) out.push(`Olahan: ${hasil.jenis}`);
-
-  if (Array.isArray(m.items)) {
-    out.push(...m.items.filter((i): i is string => typeof i === 'string'));
-  }
-
-  if (typeof m.cocok_untuk === 'string') out.push(`Cocok untuk ${m.cocok_untuk}`);
-
-  return out;
 }
 
 /**
@@ -221,7 +162,7 @@ export async function getServiceDetail(id: string): Promise<ServiceRow | null> {
     price: Number(data.price),
     sortOrder: data.sort_order,
     isActive: data.is_active,
-    details: serviceDetails(data.meta),
+    details: serviceDetails(data.meta, data.type),
     ...metaFields(data.meta),
     tagline: data.tagline,
     landingFeatures: data.landing_features ?? [],

@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { supabaseAnonKey, supabaseUrl } from '@/lib/supabase/env';
 import type { Database } from '@/types/database';
+import { metaItems } from '@/features/services/meta';
 
 export type LandingProgram = {
   slug: string;
@@ -116,26 +117,8 @@ export async function getLandingCatalogue(): Promise<{
       name: s.name,
       price: Number(s.price),
       popular: s.is_popular,
-      items: itemsFrom(s.meta),
+      items: metaItems(s.meta),
     }));
 
   return { programs, boxes };
-}
-
-/**
- * Lauk nasi box dari `meta->items`.
- *
- * Sengaja tetap dibaca dari `meta` dan **tidak** disalin ke `landing_features`:
- * isinya sudah tercatat di sana sejak awal dan dibaca panel modal mitra, jadi
- * menyalinnya berarti mengulang persis kekeliruan yang baru saja dihapus —
- * dua daftar yang harus dijaga sinkron oleh tangan.
- *
- * Bentuk yang tidak dikenali menghasilkan daftar kosong, bukan galat: `meta`
- * kolom bebas, jadi kunci baru akan muncul tanpa memberi tahu siapa pun.
- */
-function itemsFrom(meta: unknown): string[] {
-  if (!meta || typeof meta !== 'object') return [];
-  const items = (meta as Record<string, unknown>).items;
-  if (!Array.isArray(items)) return [];
-  return items.filter((i): i is string => typeof i === 'string');
 }

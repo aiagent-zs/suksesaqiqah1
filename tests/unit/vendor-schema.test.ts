@@ -13,7 +13,7 @@ import {
   updateVendorSchema,
   vendorServiceSchema,
 } from '@/features/vendors/schema';
-import { serviceDetails } from '@/features/vendors/queries';
+import { serviceDetails } from '@/features/services/meta';
 
 const VALID = {
   code: 'MITRA1',
