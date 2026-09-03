@@ -375,6 +375,10 @@ export async function saveVendorService(input: unknown): Promise<ActionResult<nu
 
   const supabase = await createClient();
 
+  // `upsert` menulis seluruh baris, jadi kolom yang tidak disebut di sini akan
+  // tertimpa nilai bawaannya. Keempat batas penawaran karena itu **selalu**
+  // ikut — termasuk saat kosong, yang memang berarti "tanpa batas" dan bukan
+  // "biarkan nilai lama".
   const { data, error } = await supabase
     .from('vendor_services')
     .upsert(
@@ -383,13 +387,32 @@ export async function saveVendorService(input: unknown): Promise<ActionResult<nu
         service_id: v.service_id,
         vendor_price: v.vendor_price,
         is_offered: v.is_offered,
+        // `min_qty` punya `default 1` yang `not null`; kosong dikembalikan ke
+        // sana alih-alih null, supaya tidak menabrak constraint.
+        min_qty: v.min_qty ?? 1,
+        max_qty: v.max_qty ?? null,
+        lead_time_hours: v.lead_time_hours ?? null,
         notes: v.notes || null,
       },
       { onConflict: 'vendor_id,service_id' },
     )
     .select('id');
 
-  if (error) return internalError('Gagal menyimpan modal paket', error);
+  if (error) {
+    // 23514 = `vendor_services_qty_check`, saat max < min lolos ke database.
+    // Diterjemahkan supaya operator tidak menghadapi nama constraint.
+    if (error.code === '23514') {
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Kapasitas maksimum tidak boleh di bawah minimum.',
+          fields: { max_qty: 'Di bawah kapasitas minimum.' },
+        },
+      };
+    }
+    return internalError('Gagal menyimpan modal paket', error);
+  }
   if ((data ?? []).length === 0) return forbidden('Penyimpanan ditolak.');
 
   revalidatePath(`/vendors/${v.vendor_id}`);

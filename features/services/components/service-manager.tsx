@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Eye, Info, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Toast } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/format';
 import { deleteService } from '@/server/actions/services';
 import { ServiceForm, TYPE_LABEL, TYPE_ORDER } from './service-form';
@@ -42,6 +44,7 @@ export function ServiceManager({ services }: { services: ServiceRow[] }) {
   const [showForm, setShowForm] = useState(false);
   /** Paket yang tombol hapusnya sudah ditekan sekali — menunggu penegasan. */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const { toast, show, dismiss } = useToast();
 
   function remove(id: string) {
     setError(null);
@@ -49,9 +52,13 @@ export function ServiceManager({ services }: { services: ServiceRow[] }) {
       const result = await deleteService({ id });
       if (!result.ok) {
         setError(result.error.message);
+        show('error', result.error.message);
         setConfirmDelete(null);
         return;
       }
+      // Barisnya lenyap dari daftar sesudah ini; tanpa toast, hilangnya bisa
+      // terbaca sebagai halaman yang keliru memuat ulang.
+      show('success', 'Paket dihapus.');
       setConfirmDelete(null);
       router.refresh();
     });
@@ -64,6 +71,8 @@ export function ServiceManager({ services }: { services: ServiceRow[] }) {
 
   return (
     <div className="space-y-4">
+      <Toast state={toast} onDismiss={dismiss} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Katalog Paket</h2>

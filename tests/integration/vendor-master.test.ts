@@ -338,3 +338,134 @@ describe('vendors — master mitra', () => {
     });
   });
 });
+
+/**
+ * Batas penawaran mitra — `vendor_services.min_qty` / `max_qty` /
+ * `lead_time_hours` / `notes`.
+ *
+ * Keempatnya lahir 20 Agustus dan nol dipakai sampai 3 September. Yang paling
+ * rapuh dari menghidupkannya bukan penulisannya, melainkan **apa yang ikut
+ * hilang saat menulis**: `saveVendorService` memakai `upsert`, dan `upsert`
+ * menulis **seluruh baris**. Medan yang tidak disebut tertimpa nilai
+ * bawaannya — kapasitas yang sudah diisi lenyap tiap kali seseorang mengubah
+ * harganya saja, tanpa satu pun galat.
+ */
+describe('batas penawaran per mitra', () => {
+  it('constraint menolak max di bawah min', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+
+      const failure = await expectFailureInSavepoint(
+        tx,
+        (sp) => sp`
+          update public.vendor_services set min_qty = 50, max_qty = 20
+          where vendor_id = ${SEED.vendorA} and service_id = ${SEED.serviceKambing}
+        `,
+      );
+      // 23514 = check_violation, dari `vendor_services_qty_check`.
+      expect(failure.code).toBe('23514');
+      expect(failure.message).toContain('qty_check');
+    });
+  });
+
+  it('max sama dengan min diterima — batasnya inklusif', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+
+      await tx`
+        update public.vendor_services set min_qty = 50, max_qty = 50
+        where vendor_id = ${SEED.vendorA} and service_id = ${SEED.serviceKambing}
+      `;
+
+      const [row] = await tx<{ min_qty: number; max_qty: number }[]>`
+        select min_qty, max_qty from public.vendor_services
+        where vendor_id = ${SEED.vendorA} and service_id = ${SEED.serviceKambing}
+      `;
+      expect(row.max_qty).toBe(50);
+    });
+  });
+
+  it('max_qty boleh null — artinya tanpa batas, bukan nol', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+
+      await tx`
+        update public.vendor_services set max_qty = null
+        where vendor_id = ${SEED.vendorA} and service_id = ${SEED.serviceKambing}
+      `;
+
+      const [row] = await tx<{ max_qty: number | null }[]>`
+        select max_qty from public.vendor_services
+        where vendor_id = ${SEED.vendorA} and service_id = ${SEED.serviceKambing}
+      `;
+      // Kalau kolomnya kelak dibuat `not null default 0`, mitra tanpa batas
+      // akan tercatat berkapasitas nol dan menolak setiap order.
+      expect(row.max_qty).toBeNull();
+    });
+  });
+
+  it('upsert menulis seluruh baris — medan yang tak disebut kembali ke bawaan', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+
+      await tx`
+        update public.vendor_services
+        set min_qty = 20, max_qty = 100, lead_time_hours = 48, notes = 'Kambing jantan saja.'
+        where vendor_id = ${SEED.vendorA} and service_id = ${SEED.serviceKambing}
+      `;
+
+      // Persis yang dilakukan `upsert` bila komponennya lupa mengirim keempat
+      // batas: hanya harga yang disebut, sisanya kembali ke bawaan kolom.
+      await tx`
+        insert into public.vendor_services (vendor_id, service_id, vendor_price)
+        values (${SEED.vendorA}, ${SEED.serviceKambing}, 1)
+        on conflict (vendor_id, service_id) do update set
+          vendor_price = excluded.vendor_price,
+          min_qty = excluded.min_qty,
+          max_qty = excluded.max_qty,
+          lead_time_hours = excluded.lead_time_hours,
+          notes = excluded.notes
+      `;
+
+      const [after] = await tx<{
+        min_qty: number;
+        max_qty: number | null;
+        lead_time_hours: number | null;
+        notes: string | null;
+      }[]>`
+        select min_qty, max_qty, lead_time_hours, notes from public.vendor_services
+        where vendor_id = ${SEED.vendorA} and service_id = ${SEED.serviceKambing}
+      `;
+
+      // Inilah kerugiannya kalau komponen lupa: kapasitas 100 box dan catatan
+      // kesepakatan lenyap karena seseorang membetulkan harga.
+      expect(after.min_qty).toBe(1);
+      expect(after.max_qty).toBeNull();
+      expect(after.lead_time_hours).toBeNull();
+      expect(after.notes).toBeNull();
+    });
+  });
+
+  it('deskripsi paket tetap milik katalog, bukan per mitra', async () => {
+    await inRollback(async (tx) => {
+      await actAs(tx, SEED.superadmin);
+
+      // `vendor_services` sengaja TIDAK punya kolom deskripsi: panel mitra
+      // membacanya lewat join ke `services`. Jadi mengubahnya di katalog
+      // langsung terlihat di seluruh mitra — tidak ada dua salinan yang bisa
+      // menyimpang, dan pembeli tidak mungkin membaca janji yang berbeda dari
+      // yang dikerjakan mitranya.
+      await tx`
+        update public.services set description = 'Deskripsi baru dari katalog.'
+        where id = ${SEED.serviceKambing}
+      `;
+
+      const [joined] = await tx<{ description: string }[]>`
+        select s.description
+        from public.vendor_services vs join public.services s on s.id = vs.service_id
+        where vs.vendor_id = ${SEED.vendorA} and vs.service_id = ${SEED.serviceKambing}
+      `;
+      expect(joined.description).toBe('Deskripsi baru dari katalog.');
+    });
+  });
+});

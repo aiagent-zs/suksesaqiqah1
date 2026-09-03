@@ -113,10 +113,23 @@ function metaFrom(
   if (v.type === 'nasi_box') {
     // Aqiqah dan nasi box memakai bentuk berbeda; menulis keduanya sekaligus
     // membuat kartu mencetak porsi untuk sebuah box nasi.
+    //
+    // Bentuk lawannya **dibuang**, bukan dibiarkan: mengubah jenis sebuah paket
+    // dari aqiqah ke nasi box meninggalkan `hasil` & `cocok_untuk` di baris
+    // yang sama, dan `serviceDetails()` membaca seluruh kunci tanpa memandang
+    // jenis — kartunya akan mencetak "80 porsi · Olahan: gulai & sate · nasi
+    // putih · sate" sekaligus. Formulir pun tidak lagi menampilkan medannya,
+    // jadi tidak ada cara membersihkannya lewat aplikasi.
+    delete base.hasil;
+    delete base.cocok_untuk;
+
     if (v.items && v.items.length > 0) base.items = v.items;
     else delete base.items;
     return base;
   }
+
+  // Kebalikannya, dengan alasan yang sama.
+  delete base.items;
 
   const hasil: { [key: string]: Json | undefined } = {};
   if (v.porsi !== undefined) hasil.porsi = v.porsi;
@@ -357,7 +370,16 @@ export async function deleteService(input: unknown): Promise<ActionResult<null>>
 
   const { data, error } = await supabase
     .from('services')
-    .update({ deleted_at: new Date().toISOString(), is_active: false })
+    // `show_on_landing` WAJIB ikut diturunkan: `services_landing_requires_active`
+    // menolak baris non-aktif yang masih dipasarkan, jadi tanpa ini menghapus
+    // paket yang sedang tampil di halaman depan **selalu** gagal — dengan galat
+    // 23514 yang diterjemahkan jadi "coba lagi", menyuruh operator mengulang
+    // sesuatu yang tidak akan pernah berhasil.
+    .update({
+      deleted_at: new Date().toISOString(),
+      is_active: false,
+      show_on_landing: false,
+    })
     .eq('id', id)
     .is('deleted_at', null)
     .select('id');

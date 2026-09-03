@@ -260,6 +260,15 @@ export type VendorServiceRow = {
   margin: number;
   isOffered: boolean;
   notes: string | null;
+
+  // --- Batas penawaran mitra ------------------------------------------------
+  // Berbeda tiap mitra, karena itu tinggal di `vendor_services` dan bukan di
+  // katalog: RPH Amanah sanggup 100 box, Dapur Berkah 300.
+  minQty: number;
+  /** `null` = tanpa batas, bukan nol. */
+  maxQty: number | null;
+  leadTimeHours: number | null;
+
   /** Kalimat pemasaran paket, apa adanya dari katalog. */
   description: string | null;
   /** Apa saja yang didapat pembeli — dirakit dari `services.meta`. */
@@ -303,9 +312,20 @@ export async function getVendorServices(vendorId: string): Promise<VendorService
     .from('vendor_services')
     .select(
       `id, service_id, vendor_price, is_offered, notes,
-       service:services ( name, type, price, description, meta )`,
+       min_qty, max_qty, lead_time_hours,
+       service:services!inner ( name, type, price, description, meta, deleted_at )`,
     )
-    .eq('vendor_id', vendorId);
+    .eq('vendor_id', vendorId)
+    // Paket yang sudah dihapus tidak lagi punya baris di layar mana pun, tapi
+    // `vendor_services` tetap menunjuk kepadanya (`on delete restrict` hanya
+    // menjaga DELETE sungguhan, sedangkan penghapusan di sini soft delete).
+    // Tanpa saringan ini panel mitra memajang baris bernama "-" berharga
+    // Rp 0 — dan operator tidak punya cara menebak paket apa itu.
+    //
+    // `!inner` bukan sekadar gaya: tanpa itu PostgREST tetap mengembalikan
+    // baris `vendor_services` dengan `service: null`, jadi saringannya tidak
+    // membuang apa pun.
+    .is('service.deleted_at', null);
 
   const rows = (data ?? []) as unknown as Array<{
     id: string;
@@ -313,12 +333,16 @@ export async function getVendorServices(vendorId: string): Promise<VendorService
     vendor_price: number | string;
     is_offered: boolean;
     notes: string | null;
+    min_qty: number;
+    max_qty: number | null;
+    lead_time_hours: number | null;
     service: {
       name: string;
       type: string;
       price: number | string;
       description: string | null;
       meta: unknown;
+      deleted_at: string | null;
     } | null;
   }>;
 
@@ -336,6 +360,9 @@ export async function getVendorServices(vendorId: string): Promise<VendorService
         margin: price - vendorPrice,
         isOffered: r.is_offered,
         notes: r.notes,
+        minQty: r.min_qty,
+        maxQty: r.max_qty,
+        leadTimeHours: r.lead_time_hours,
         description: r.service?.description ?? null,
         details: serviceDetails(r.service?.meta),
       };

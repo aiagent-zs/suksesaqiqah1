@@ -437,3 +437,142 @@ describe('meta paket', () => {
     });
   });
 });
+
+/**
+ * Empat bug yang ditemukan 3 September saat menyisir alur katalog.
+ *
+ * Keempatnya lolos `tsc`, lint, dan 650 tes — semuanya bug **logika** yang
+ * hanya muncul pada urutan tindakan tertentu, dan tidak satu pun menghasilkan
+ * galat yang terbaca operator.
+ */
+describe('regresi katalog — bug 3 September', () => {
+  /**
+   * BUG: slug bekas paket terhapus terkunci selamanya.
+   *
+   * `deleteService()` memakai soft delete, tetapi `services_slug_key` unik
+   * tanpa memandang `deleted_at`. Mendaftarkan ulang paket dengan slug yang
+   * sama ditolak — dan pesannya berbunyi "sudah dipakai paket lain" untuk
+   * paket yang **tidak tampil di layar mana pun**.
+   */
+  it('slug dilepaskan setelah paket dihapus', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+
+      await tx`
+        insert into public.services (type, name, slug, price)
+        values ('aqiqah', 'Uji', 'uji-slug-lepas', 1000)
+      `;
+      await tx`
+        update public.services set deleted_at = now(), is_active = false, show_on_landing = false
+        where slug = 'uji-slug-lepas'
+      `;
+
+      // Inilah yang dulu ditolak 23505.
+      await tx`
+        insert into public.services (type, name, slug, price)
+        values ('aqiqah', 'Uji Baru', 'uji-slug-lepas', 2000)
+      `;
+
+      const [row] = await tx<{ n: number }[]>`
+        select count(*)::int as n from public.services
+        where slug = 'uji-slug-lepas' and deleted_at is null
+      `;
+      expect(row.n).toBe(1);
+    });
+  });
+
+  it('dua paket HIDUP berslug sama tetap ditolak', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+
+      // Perbaikan di atas tidak boleh melonggarkan yang ini: `?paket={slug}`
+      // mencocokkan slug, jadi dua paket hidup berslug sama membuat pengunjung
+      // tidak bisa memilih salah satu.
+      const failure = await expectFailureInSavepoint(
+        tx,
+        (sp) => sp`
+          insert into public.services (type, name, slug, price)
+          values ('aqiqah', 'Kembar', 'aqiqah-favorit', 1000)
+        `,
+      );
+      expect(failure.code).toBe('23505');
+    });
+  });
+
+  /**
+   * BUG: menghapus paket yang dipasarkan selalu gagal.
+   *
+   * `deleteService()` menulis `is_active = false` tanpa menurunkan
+   * `show_on_landing`, sehingga menabrak `services_landing_requires_active`.
+   * Galat 23514-nya jatuh ke `internalError` yang berbunyi "coba lagi" —
+   * menyuruh operator mengulang sesuatu yang tidak akan pernah berhasil.
+   */
+  it('paket yang dipasarkan tidak bisa dihapus tanpa menurunkan show_on_landing', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+
+      const failure = await expectFailureInSavepoint(
+        tx,
+        (sp) => sp`
+          update public.services set deleted_at = now(), is_active = false
+          where id = ${SEED.serviceKambing}
+        `,
+      );
+      expect(failure.code).toBe('23514');
+      expect(failure.message).toContain('landing_requires_active');
+    });
+  });
+
+  it('menurunkan show_on_landing bersamaan membuat penghapusan berhasil', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+
+      // Jalan yang ditempuh `deleteService()` sesudah diperbaiki. Penolakan di
+      // atas tidak membuktikan apa pun kalau jalan yang benar ikut tertutup.
+      await tx`
+        update public.services
+        set deleted_at = now(), is_active = false, show_on_landing = false
+        where id = ${SEED.serviceKambing}
+      `;
+
+      const [row] = await tx<{ n: number }[]>`
+        select count(*)::int as n from public.services
+        where id = ${SEED.serviceKambing} and deleted_at is not null
+      `;
+      expect(row.n).toBe(1);
+    });
+  });
+
+  /**
+   * BUG: paket terhapus tetap tampil di panel modal mitra.
+   *
+   * `on delete restrict` hanya menjaga DELETE sungguhan; penghapusan di sini
+   * soft delete, jadi `vendor_services` tetap menunjuk barisnya. Tanpa
+   * saringan, panel memajang baris bernama "-" berharga Rp 0.
+   */
+  it('modal mitra menyaring paket yang sudah dihapus', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+
+      const before = await tx`
+        select vs.id from public.vendor_services vs
+        join public.services s on s.id = vs.service_id and s.deleted_at is null
+        where vs.vendor_id = ${SEED.vendorA} and vs.service_id = ${SEED.serviceKambing}
+      `;
+      expect(before).toHaveLength(1);
+
+      await tx`
+        update public.services
+        set deleted_at = now(), is_active = false, show_on_landing = false
+        where id = ${SEED.serviceKambing}
+      `;
+
+      const after = await tx`
+        select vs.id from public.vendor_services vs
+        join public.services s on s.id = vs.service_id and s.deleted_at is null
+        where vs.vendor_id = ${SEED.vendorA} and vs.service_id = ${SEED.serviceKambing}
+      `;
+      expect(after).toHaveLength(0);
+    });
+  });
+});

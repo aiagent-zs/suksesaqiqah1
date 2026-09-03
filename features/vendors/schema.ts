@@ -122,13 +122,59 @@ export const deleteVendorSchema = z.object({ id: uuid });
  * order adalah selisih keduanya, dan itulah sebabnya kewenangannya berhenti di
  * superadmin.
  */
-export const vendorServiceSchema = z.object({
-  vendor_id: uuid,
-  service_id: uuid,
-  vendor_price: z.number().min(0, 'Harga modal tidak boleh negatif'),
-  is_offered: z.boolean().default(true),
-  notes: z.string().trim().max(500).optional().or(z.literal('')),
-});
+export const vendorServiceSchema = z
+  .object({
+    vendor_id: uuid,
+    service_id: uuid,
+    vendor_price: z.number().min(0, 'Harga modal tidak boleh negatif'),
+    is_offered: z.boolean().default(true),
+
+    // --- Batas penawaran mitra ------------------------------------------------
+    //
+    // Keempat kolom ini **sudah ada di database sejak 20 Agustus** dan sampai 3
+    // September **nol dipakai** di seluruh `features/`, `server/`, dan `app/` —
+    // pola yang sama persis dengan `vendor_coverage` sebelum 27 Agustus: kolom
+    // lahir duluan, layarnya tidak pernah menyusul.
+    //
+    // Yang tinggal di sini adalah hal yang **berbeda tiap mitra**. Yang sama
+    // untuk semua — nama paket, harga jual, porsi, ragam olahan — tetap di
+    // `services`, sebab itulah yang dijanjikan ke pembeli di halaman depan.
+    // Kalau tiap mitra bisa mengubahnya, pembeli membaca satu janji lalu
+    // menerima yang lain, dan tidak ada yang bisa menentukan mana yang benar.
+
+    /** Pesanan minimum yang mau dilayani mitra ini. */
+    min_qty: z.number().int('Harus bilangan bulat').min(1, 'Minimal 1').max(10_000).optional(),
+
+    /**
+     * Kapasitas maksimum, mis. "paket ekonomi maks 100 box".
+     *
+     * Kosong berarti **tanpa batas**, bukan nol — itu sebabnya kolomnya
+     * nullable di database dan bukan `default 0`.
+     */
+    max_qty: z.number().int('Harus bilangan bulat').min(1, 'Minimal 1').max(100_000).optional(),
+
+    /** Jeda persiapan yang diminta mitra, dalam jam. */
+    lead_time_hours: z
+      .number()
+      .int('Harus bilangan bulat')
+      .min(0, 'Tidak boleh negatif')
+      .max(24 * 30, 'Lebih dari 30 hari — periksa lagi angkanya')
+      .optional(),
+
+    notes: z.string().trim().max(500, 'Catatan terlalu panjang').optional().or(z.literal('')),
+  })
+  .superRefine((v, ctx) => {
+    // Cermin `vendor_services_qty_check` di database. Ditegakkan dua kali dengan
+    // sengaja: di sini supaya galatnya menempel pada medannya, dan di database
+    // supaya jalur lain tidak bisa melewatinya.
+    if (v.max_qty !== undefined && v.min_qty !== undefined && v.max_qty < v.min_qty) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['max_qty'],
+        message: 'Kapasitas maksimum tidak boleh di bawah minimum.',
+      });
+    }
+  });
 
 export type VendorServiceInput = z.infer<typeof vendorServiceSchema>;
 

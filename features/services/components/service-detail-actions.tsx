@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Toast } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 import { deleteService, setServiceActive } from '@/server/actions/services';
 
 /**
@@ -29,6 +31,7 @@ export function ServiceDetailActions({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const { toast, show, dismiss } = useToast();
 
   function toggleActive() {
     setError(null);
@@ -36,8 +39,19 @@ export function ServiceDetailActions({
       const result = await setServiceActive({ id: serviceId, is_active: !isActive });
       if (!result.ok) {
         setError(result.error.message);
+        show('error', result.error.message);
         return;
       }
+      // Menonaktifkan paket yang dipasarkan juga mencabutnya dari halaman
+      // depan; pesannya menyebut itu supaya akibatnya tidak perlu ditebak.
+      show(
+        'success',
+        isActive
+          ? showOnLanding
+            ? 'Paket dinonaktifkan dan dicabut dari halaman depan.'
+            : 'Paket dinonaktifkan.'
+          : 'Paket diaktifkan kembali.',
+      );
       router.refresh();
     });
   }
@@ -48,11 +62,20 @@ export function ServiceDetailActions({
       const result = await deleteService({ id: serviceId });
       if (!result.ok) {
         setError(result.error.message);
+        show('error', result.error.message);
         setConfirmDelete(false);
         return;
       }
       // Barisnya sudah tidak ada; bertahan di halamannya berarti menatap data
       // yang baru saja dihapus.
+      //
+      // Toast dipanggil **sebelum** berpindah dan sengaja: tanpa itu operator
+      // tiba-tiba mendapati dirinya di halaman lain tanpa keterangan apa pun,
+      // dan perpindahan tanpa sebab terbaca sebagai halaman yang rusak.
+      // `Toast` di sini ikut ter-unmount saat rute berganti, jadi yang
+      // tersisa adalah kepindahannya — karena itu daftar tujuan juga punya
+      // toast sendiri untuk penghapusan dari sana.
+      show('success', 'Paket dihapus.');
       router.push('/vendors?tab=katalog');
       router.refresh();
     });
@@ -60,6 +83,8 @@ export function ServiceDetailActions({
 
   return (
     <div className="space-y-2">
+      <Toast state={toast} onDismiss={dismiss} />
+
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={toggleActive} disabled={pending}>
           {isActive ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}

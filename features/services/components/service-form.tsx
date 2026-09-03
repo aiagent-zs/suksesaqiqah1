@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Toast } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 import { createService, updateService } from '@/server/actions/services';
 import type { ServiceRow } from '../queries';
 
@@ -94,6 +96,7 @@ export function ServiceForm({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState<Draft>(service ? draftFrom(service) : EMPTY);
+  const { toast, show, dismiss } = useToast();
 
   function submit() {
     setError(null);
@@ -131,9 +134,17 @@ export function ServiceForm({
       if (!result.ok) {
         setError(result.error.message);
         setFieldErrors(result.error.fields ?? {});
+        // Toast **dan** pesan menetap di atas form, sengaja: keduanya dipakai
+        // bersama karena kelemahannya berlawanan — toast terasa tapi
+        // menghilang, pesan bertahan tapi bisa terlewat kalau perhatian sedang
+        // di bawah layar. Pola yang sama dengan checkout.
+        show('error', result.error.message);
         return;
       }
 
+      // Tanpa ini, penyimpanan yang berhasil tidak meninggalkan tanda apa pun:
+      // form tertutup dan data dimuat ulang, persis seperti tampilan gagal.
+      show('success', service ? 'Perubahan paket tersimpan.' : 'Paket baru ditambahkan.');
       onSaved?.();
       router.refresh();
     });
@@ -184,7 +195,7 @@ export function ServiceForm({
         </Field>
 
         <Field
-          label="Harga jual (Rp)"
+          label={`Harga jual (Rp per ${draft.type === 'nasi_box' ? 'box' : 'ekor'})`}
           error={fieldErrors.price}
           hint="Order yang sudah berjalan tidak ikut berubah — harganya sudah tersalin saat order dibuat."
         >
@@ -194,7 +205,7 @@ export function ServiceForm({
             inputMode="numeric"
             value={draft.price}
             onChange={(e) => setDraft({ ...draft, price: e.target.value })}
-            placeholder="2300000"
+            placeholder={draft.type === 'nasi_box' ? '21000' : '2300000'}
           />
         </Field>
 
@@ -236,7 +247,9 @@ export function ServiceForm({
       <div className="border-t pt-4">
         <h3 className="text-sm font-semibold">Isi paket</h3>
         <p className="text-muted-foreground mt-0.5 text-xs">
-          Tampil di kartu halaman depan dan saat mitra mengisi harga modal
+          {draft.type === 'nasi_box'
+            ? 'Isi satu box. Nasi box dipesan terpisah dari paket aqiqah, dengan harganya sendiri.'
+            : 'Hasil dari satu ekor — lauk saja. Nasi box adalah paket tersendiri.'}
         </p>
 
         {/* Bentuknya beda per jenis, dan itu disengaja: "80 porsi, olahan gulai
@@ -258,7 +271,11 @@ export function ServiceForm({
           </div>
         ) : (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field label="Perkiraan porsi" error={fieldErrors.porsi}>
+            <Field
+              label="Perkiraan porsi per ekor"
+              error={fieldErrors.porsi}
+              hint="Keterangan hasil untuk pembeli, bukan batas pesanan — ia tetap bebas memesan berapa ekor."
+            >
               <Input
                 type="number"
                 min={1}
@@ -373,6 +390,8 @@ export function ServiceForm({
           </div>
         )}
       </div>
+
+      <Toast state={toast} onDismiss={dismiss} />
 
       <div className="flex justify-end gap-2 border-t pt-4">
         {onCancel && (

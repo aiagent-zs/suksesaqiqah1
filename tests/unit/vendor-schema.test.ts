@@ -195,3 +195,73 @@ describe('serviceDetails', () => {
     expect(serviceDetails({ items: ['sate', 7, null, { a: 1 }] })).toEqual(['sate']);
   });
 });
+
+/**
+ * Batas penawaran mitra (`vendor_services`).
+ *
+ * Keempat kolomnya — `min_qty`, `max_qty`, `lead_time_hours`, `notes` — sudah
+ * ada di database sejak 20 Agustus dan **nol dipakai** di seluruh `features/`,
+ * `server/`, dan `app/` sampai 3 September. Pola yang sama dengan
+ * `vendor_coverage` sebelum 27 Agustus: kolom lahir duluan, layarnya tidak
+ * pernah menyusul.
+ *
+ * Yang dijaga di sini adalah **pembagiannya**: hal yang berbeda tiap mitra
+ * tinggal di sini, sementara janji kepada pembeli (nama, harga jual, porsi,
+ * ragam olahan) tetap milik katalog.
+ */
+describe('vendorServiceSchema — batas penawaran', () => {
+  const BASE = {
+    vendor_id: '11111111-1111-4111-8111-111111111111',
+    service_id: '22222222-2222-4222-8222-222222222222',
+    vendor_price: 1_700_000,
+  };
+
+  it('keempat batas opsional — mitra boleh tidak menetapkan apa pun', () => {
+    expect(vendorServiceSchema.safeParse(BASE).success).toBe(true);
+  });
+
+  it('menerima kapasitas & jeda persiapan', () => {
+    const result = vendorServiceSchema.safeParse({
+      ...BASE,
+      min_qty: 20,
+      max_qty: 100,
+      lead_time_hours: 48,
+      notes: 'Kambing jantan saja.',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('menolak kapasitas maksimum di bawah minimum', () => {
+    // Cermin `vendor_services_qty_check` di database. Ditegakkan dua kali:
+    // di sini supaya galatnya menempel pada medannya, di sana supaya jalur
+    // lain tidak bisa melewatinya.
+    const result = vendorServiceSchema.safeParse({ ...BASE, min_qty: 50, max_qty: 20 });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(['max_qty']);
+    }
+  });
+
+  it('menerima max sama dengan min', () => {
+    // Batas bawah constraint-nya `max_qty >= min_qty`; yang persis di batas
+    // harus lolos, kalau tidak mitra berkapasitas tetap tidak bisa dicatat.
+    expect(vendorServiceSchema.safeParse({ ...BASE, min_qty: 50, max_qty: 50 }).success).toBe(true);
+  });
+
+  it('menolak minimum nol — pesanan nol bukan pesanan', () => {
+    expect(vendorServiceSchema.safeParse({ ...BASE, min_qty: 0 }).success).toBe(false);
+  });
+
+  it('menerima jeda persiapan nol — mitra yang sanggup hari itu juga', () => {
+    expect(vendorServiceSchema.safeParse({ ...BASE, lead_time_hours: 0 }).success).toBe(true);
+  });
+
+  it('menolak jeda yang tidak masuk akal', () => {
+    // Lebih dari 30 hari hampir pasti salah satuan (hari diketik sebagai jam).
+    expect(vendorServiceSchema.safeParse({ ...BASE, lead_time_hours: 10_000 }).success).toBe(false);
+  });
+
+  it('menolak angka pecahan pada kapasitas', () => {
+    expect(vendorServiceSchema.safeParse({ ...BASE, max_qty: 10.5 }).success).toBe(false);
+  });
+});

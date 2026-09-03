@@ -6,6 +6,8 @@ import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Toast } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { clearServicePhoto, setServicePhoto } from '@/server/actions/services';
 import {
@@ -55,6 +57,7 @@ export function ServicePhotoField({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [alt, setAlt] = useState(photoAlt ?? '');
+  const { toast, show, dismiss } = useToast();
 
   const busy = pending || uploading;
 
@@ -70,6 +73,7 @@ export function ServicePhotoField({
     const check = checkServicePhoto(file);
     if (!check.ok) {
       setError(check.message);
+      show('error', check.message);
       return;
     }
 
@@ -83,16 +87,20 @@ export function ServicePhotoField({
         .upload(path, file, { contentType: file.type, upsert: false });
 
       if (uploadError) {
-        setError(`Gagal mengunggah foto: ${uploadError.message}`);
+        const message = `Gagal mengunggah foto: ${uploadError.message}`;
+        setError(message);
+        show('error', message);
         return;
       }
 
       const result = await setServicePhoto({ id: serviceId, photo_path: path, photo_alt: alt });
       if (!result.ok) {
         setError(result.error.message);
+        show('error', result.error.message);
         return;
       }
 
+      show('success', 'Foto tersimpan.');
       router.refresh();
     } finally {
       setUploading(false);
@@ -109,8 +117,10 @@ export function ServicePhotoField({
       const result = await clearServicePhoto({ id: serviceId });
       if (!result.ok) {
         setError(result.error.message);
+        show('error', result.error.message);
         return;
       }
+      show('success', 'Foto dihapus.');
       setAlt('');
       router.refresh();
     });
@@ -118,6 +128,7 @@ export function ServicePhotoField({
 
   return (
     <div className="space-y-2">
+      <Toast state={toast} onDismiss={dismiss} />
       <Label>Foto kartu</Label>
 
       <div className="flex flex-wrap items-start gap-3">

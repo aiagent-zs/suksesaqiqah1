@@ -4,13 +4,13 @@
 > Urutan tahap mengikuti `TEAM_PLAN.md §3`; definisi modul mengikuti `docs/06_MODULE_BREAKDOWN.md`.
 > Urutan otoritas kebenaran: **migrations → kode (`features/`, `app/`, `server/`) → `prd.md` → `docs/`**.
 
-| Field                            | Value                                                                                                                                                                                                                                                                                                                                                                     |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                                                                                                                                                |
-| Diperbarui                       | 2026-09-03                                                                                                                                                                                                                                                                                                                                                                |
-| Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                                  |
-| Estimasi Phase 1                 | **± 87%** (dari 85% — katalog & konten landing kini dikelola sendiri lewat aplikasi, lihat _Perubahan 3 September_)                                                                                                                                                                                                                                                       |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(20 rute, landing tetap prerender statis)** · **469 unit test hijau (34 file)** · **149 tes integrasi hijau (11 file) terhadap Postgres lokal** · **41 migration jalan bersih di lokal ✅ dan 41/41 selaras di cloud ✅** · **katalog landing dibaca lewat jalur `anon` di cloud** ✅ |
+| Field                            | Value                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                                                                                                                                                                      |
+| Diperbarui                       | 2026-09-03                                                                                                                                                                                                                                                                                                                                                                                      |
+| Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                                                        |
+| Estimasi Phase 1                 | **± 87%** (dari 85% — katalog & konten landing kini dikelola sendiri lewat aplikasi, lihat _Perubahan 3 September_)                                                                                                                                                                                                                                                                             |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(20 rute, landing tetap prerender statis)** · **500 unit test hijau (35 file)** · **159 tes integrasi hijau (11 file) terhadap Postgres lokal** · **42 migration jalan bersih di lokal ✅ dan 42/42 selaras di cloud ✅** · **RLS katalog terbukti di cloud lewat jalur `anon`: baca ✅, tulis ditolak ✅** |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
 
@@ -191,23 +191,209 @@ favorit bertahan? YA
 
 Data ujinya dipulihkan sesudahnya.
 
-### Tes bertambah 55
+### Batas penawaran mitra — `min_qty` / `max_qty` / `lead_time_hours` / `notes`
 
-**469 unit (34 berkas)** dari 424/31, **149 integrasi (11 berkas)** dari 129/10.
+Empat kolom di `vendor_services` yang **sudah ada sejak 20 Agustus** dan sampai
+hari ini **nol dipakai** di seluruh `features/`, `server/`, dan `app/`. Pola
+yang sama persis dengan `vendor_coverage` sebelum 27 Agustus: kolom lahir
+duluan, layarnya tidak pernah menyusul.
 
-| Berkas                                              | Cakupan                                                                                                                                     |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `service-schema.test.ts` (31)                       | Bentuk slug — kembaran `services_slug_format_check`, dibaca langsung dari migration; batas `numeric(14,2)`; `.toLowerCase()` sebelum regex  |
-| `service-routes.test.ts` (10)                       | Rute detail ada & berdampingan dengan `/vendors/[id]`; tombol **Lihat/Edit/Hapus**; jangkar `#data-paket` benar-benar ada di halaman tujuan |
-| `service-meta.test.ts` (10)                         | Porsi wajib bulat & positif, baris kosong daftar isi disaring, batas 20 item; kontrak `metaFrom()` menimpa-sebagian, bukan menulis ulang    |
-| `service-catalogue.test.ts` (20, integrasi)         | RLS `services` per role, gerbang `landing_requires_active` dua arah, SQLSTATE tiap constraint, **`favorit`/`premium` bertahan di `meta`**   |
-| `landing-catalogue.test.ts` (12, **ditulis ulang**) | Dulu menjaga dua daftar tetap sama; kini menjaga daftar keduanya **benar-benar sudah tidak ada**                                            |
+Pembaginya satu pertanyaan — **berbeda tiap mitra atau tidak?**
 
-**Dua tes dibuktikan menangkap bug, bukan hijau karena kebetulan.**
-`services_write` dipersempit jadi tanpa SELECT — regresi yang persis
-diperingatkan komentar berkasnya — dan dua tes langsung merah. Lalu "Edit"
-dikembalikan jadi tombol tanpa `href` bernama "Sunting": tiga tes merah. Keduanya
-sudah dikembalikan.
+```
+vendor_services  modal · minimum · maks per hari · jeda persiapan · catatan
+services         nama · harga jual · deskripsi · porsi · ragam olahan
+```
+
+"Maks 8 ekor/hari" memang milik mitra: satu sanggup 8, yang lain 30. Sebaliknya
+"80 porsi, gulai & sate" tetap di katalog, sebab itu **janji kepada pembeli** di
+halaman depan. Kalau tiap mitra bisa mengubahnya, pembeli membaca satu janji
+lalu ordernya ditugaskan ke mitra yang menjanjikan hal lain — dan tidak ada yang
+bisa menentukan mana yang benar.
+
+Deskripsi tetap dirender di panel mitra (lewat **join**, bukan salinan) sebab
+modal yang wajar untuk 80 porsi tidak wajar untuk 150. Nama paketnya kini
+bertaut ke `/vendors/katalog/{id}` supaya jelas ke mana harus pergi untuk
+mengubahnya.
+
+> ⚠️ **Dicatat, belum menegakkan.** `max_qty` nol pembaca di checkout maupun
+> `assignVendor`. Mitra berkapasitas 8 ekor/hari tetap bisa menerima order 20
+> ekor tanpa penolakan apa pun. Angkanya baru berarti setelah ada yang
+> membacanya — dan itu belum dikerjakan.
+
+#### Bug yang hampir ikut masuk: `upsert` menghapus yang tak disebut
+
+`saveVendorService` memakai `upsert`, dan `upsert` menulis **seluruh baris**.
+Medan yang tidak disebut tertimpa nilai bawaannya — jadi kapasitas dan catatan
+kesepakatan akan **lenyap tiap kali seseorang membetulkan harga saja**, tanpa
+satu pun galat.
+
+Tombol Simpan karena itu selalu mengirim keempatnya. Dibuktikan lewat database
+sungguhan:
+
+```
+SEBELUM : harga 2.325.000 · maks 100 · "Kambing jantan saja."
+SESUDAH : harga 1.750.000 · maks 100 · "Kambing jantan saja."
+```
+
+#### Porsi vs kapasitas — dua angka yang sempat tertukar
+
+Label kapasitas mitra mula-mula ditulis **"maks 100 box"** untuk paket
+**aqiqah** yang dipesan per **ekor**. Dua kekeliruan dalam satu contoh, dan
+keduanya terbaca masuk akal — itu sebabnya berbahaya.
+
+Yang benar, dan sudah dimodelkan sistem sejak awal:
+
+|                             | Satuan     | Arti                                                                       |
+| --------------------------- | ---------- | -------------------------------------------------------------------------- |
+| `services.meta.hasil.porsi` | porsi      | hasil **satu ekor**; keterangan untuk pembeli, **tidak** membatasi pesanan |
+| `vendor_services.max_qty`   | ekor / box | berapa yang sanggup dikerjakan mitra per hari                              |
+
+Nasi box adalah **paket tersendiri** dengan harga sendiri — checkout memesannya
+lewat `nasi_box_service_id` + `nasi_box_qty` yang terpisah dari `qty` ekor. Ia
+bukan turunan paket aqiqah.
+
+Label diperbaiki: "Perkiraan porsi **per ekor**" dengan keterangan _"bukan batas
+pesanan"_, "Harga jual (Rp **per ekor/box**)", dan "Maks per hari **(ekor)**"
+yang satuannya mengikuti jenis paket lewat `unitOf()`.
+
+### Umpan balik aksi — halaman staf akhirnya punya toast
+
+Keluhan yang tepat dan sudah lama tercatat sebagai celah di §10: menyimpan
+katalog berhasil, `router.refresh()` memuat ulang data, dan **tidak ada satu pun
+tanda bahwa sesuatu terjadi**. Yang tertangkap operator hanya form yang tertutup
+— sama persis dengan tampilan gagal-diam.
+
+Akibatnya bukan sekadar tidak nyaman: yang ragu akan menyimpan ulang, dan pada
+aksi yang tidak idempoten (menambah paket) itu berarti **data ganda**.
+
+`Toast` sendiri sudah lengkap sejak 24 Agustus — termasuk nada `success` —
+tetapi hanya checkout yang memakainya, dan di sana pun hanya untuk galat. Yang
+kurang cuma pemakaiannya.
+
+`hooks/use-toast.ts` menutupnya, dipasang di lima layar pada jalur **berhasil
+dan gagal keduanya**:
+
+| Layar           | Pesan                                                     |
+| --------------- | --------------------------------------------------------- |
+| Form katalog    | "Perubahan paket tersimpan." / "Paket baru ditambahkan."  |
+| Aktif/non-aktif | "Paket dinonaktifkan **dan dicabut dari halaman depan**." |
+| Hapus           | "Paket dihapus."                                          |
+| Foto            | "Foto tersimpan." / "Foto dihapus."                       |
+| Modal mitra     | "Perubahan tersimpan."                                    |
+
+Galat **tetap menetap** di layar berdampingan dengan toast. Keduanya dipakai
+bersama justru karena kelemahannya berlawanan: toast terasa tapi menghilang,
+pesan bertahan tapi bisa terlewat kalau perhatian sedang di bawah layar. Pola
+yang sama sudah dipakai checkout sejak 24 Agustus.
+
+> **Kenapa hook, bukan `useState` di tiap komponen.** `id` naik tiap panggilan
+> meski pesannya sama persis. Tanpa itu, menyimpan dua kali berturut-turut tidak
+> memunculkan toast kedua — React melihat state identik dan tidak merender
+> ulang, sehingga penyimpanan kedua terbaca sebagai tidak terjadi. Persis
+> masalah yang sedang diperbaiki.
+
+### Empat bug ditemukan saat menyisir alur katalog
+
+Ditemukan dengan menempuh sendiri urutan tindakan yang wajar dilakukan
+operator, bukan dari laporan. Keempatnya lolos `typecheck`, `lint`, dan 650 tes
+— semuanya bug **logika** yang hanya muncul pada urutan tertentu, dan tidak satu
+pun menghasilkan galat yang terbaca operator.
+
+Masing-masing dibuktikan lebih dulu lewat skrip terhadap Postgres lokal, baru
+diperbaiki.
+
+#### 1. Menghapus paket yang dipasarkan selalu gagal
+
+`deleteService()` menulis `is_active = false` tanpa menurunkan
+`show_on_landing`, sehingga menabrak `services_landing_requires_active` —
+constraint yang justru ditambahkan hari itu juga.
+
+Yang membuatnya buruk bukan kegagalannya, melainkan pesannya: galat `23514`
+jatuh ke `internalError` yang berbunyi _"Coba lagi atau hubungi
+administrator."_ — menyuruh operator mengulang sesuatu yang **tidak akan pernah
+berhasil**. Ketiga kolom kini ditulis bersamaan.
+
+#### 2. Slug bekas paket terhapus terkunci selamanya
+
+`deleteService()` memakai soft delete, tetapi `services_slug_key` unik tanpa
+memandang `deleted_at`. Mendaftarkan ulang paket dengan slug yang sama ditolak
+`23505`.
+
+Yang menyesatkan lagi-lagi pesannya: `createService()` menerjemahkannya jadi
+_"Slug ini sudah dipakai paket lain"_ — untuk paket yang **tidak tampil di layar
+mana pun**, sebab seluruh query menyaring `deleted_at is null`. Operator diberi
+tahu ada bentrokan dengan sesuatu yang tidak bisa ia lihat, cari, maupun hapus.
+
+`20260903020000` menggantinya dengan **indeks unik parsial**
+(`where deleted_at is null`), pola yang sama dengan `event_key` di
+`notifications`. Keunikan antar paket **hidup** tetap ditegakkan dan diuji
+terpisah — melonggarkannya akan membuat `?paket={slug}` ambigu, dan pengunjung
+tidak bisa memilih salah satu dari dua paket berslug sama.
+
+#### 3. Bentuk `meta` lawan ikut terbawa saat jenis paket diubah
+
+`metaFrom()` menimpa-sebagian supaya kunci tak dikenal (`favorit`, `premium`)
+tidak lenyap — itu benar. Tetapi ia juga membiarkan bentuk **jenis yang lain**:
+mengubah paket aqiqah jadi nasi box meninggalkan `hasil` & `cocok_untuk` di
+baris yang sama.
+
+`serviceDetails()` membaca seluruh kunci tanpa memandang jenis, jadi kartunya
+mencetak "80 porsi · Olahan: gulai & sate · nasi putih · sate" sekaligus — dan
+formulir tidak lagi menampilkan medan aqiqah, sehingga **tidak ada cara
+membersihkannya lewat aplikasi**. Kedua cabang kini membuang bentuk lawannya,
+tanpa membatalkan penjagaan `favorit`/`premium`.
+
+#### 4. Paket terhapus tetap tampil di panel modal mitra
+
+`order_items.service_id` di-`on delete restrict`, tetapi itu hanya menjaga
+DELETE sungguhan — penghapusan di sini soft delete, jadi `vendor_services` tetap
+menunjuk barisnya. Panel memajang baris bernama **"-" berharga Rp 0**, dan
+operator tidak punya cara menebak paket apa itu.
+
+Ditutup dengan `services!inner` + `.is('service.deleted_at', null)`. `!inner`
+bukan soal gaya: tanpanya PostgREST tetap mengembalikan baris
+`vendor_services` dengan `service: null`, jadi saringannya tidak membuang apa
+pun.
+
+> **Satu tes yang menguncinya ternyata cacat, dan itu ketahuan justru karena
+> diuji.** Saat bug `meta` sengaja dikembalikan untuk memeriksa tesnya, tes itu
+> **tetap hijau** — assertion-nya mengambil potongan dari
+> `if (v.type === 'nasi_box')` sampai **akhir berkas**, sehingga
+> `delete base.hasil` milik cabang aqiqah di bawahnya ikut tertangkap.
+> Dipersempit sampai `return base;` cabang itu sendiri, dan kini benar-benar
+> merah saat bug dikembalikan.
+>
+> Pengingat yang berlaku untuk seluruh tes pembaca-kode di repo ini: potongan
+> yang terlalu luas membuat tes lolos tanpa memeriksa apa pun. Yang tidak
+> pernah diuji dengan bug sungguhan hanya memberi rasa aman.
+
+### Tes bertambah 106
+
+**500 unit (35 berkas)** dari 424/31, **159 integrasi (11 berkas)** dari 129/10.
+
+| Berkas                                              | Cakupan                                                                                                                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `service-schema.test.ts` (31)                       | Bentuk slug — kembaran `services_slug_format_check`, dibaca langsung dari migration; batas `numeric(14,2)`; `.toLowerCase()` sebelum regex                                                             |
+| `service-routes.test.ts` (10)                       | Rute detail ada & berdampingan dengan `/vendors/[id]`; tombol **Lihat/Edit/Hapus**; jangkar `#data-paket` benar-benar ada di halaman tujuan                                                            |
+| `service-meta.test.ts` (18)                         | Porsi wajib bulat & positif; kontrak `metaFrom()` menimpa-sebagian **dan membuang bentuk jenis lawan**; porsi hanya di katalog, kapasitas hanya di mitra; `deleteService` menurunkan `show_on_landing` |
+| `use-toast.test.ts` (15)                            | Penghitung sebagai kunci; kelima layar katalog memberi tanda pada jalur **berhasil dan gagal**; galat tetap menetap di layar                                                                           |
+| `vendor-schema.test.ts` (+8)                        | Batas penawaran: max < min ditolak dengan galat menempel di medannya, max = min diterima, jeda >30 hari ditolak sebagai salah satuan                                                                   |
+| `service-catalogue.test.ts` (25, integrasi)         | RLS `services` per role, gerbang `landing_requires_active` dua arah, SQLSTATE tiap constraint, `favorit`/`premium` bertahan di `meta`, **keempat bug 3 September**                                     |
+| `vendor-master.test.ts` (+5, integrasi)             | `vendor_services_qty_check`; `max_qty` null = tanpa batas; **kerugian nyata bila `upsert` lupa mengirim medan**; deskripsi ikut katalog                                                                |
+| `landing-catalogue.test.ts` (12, **ditulis ulang**) | Dulu menjaga dua daftar tetap sama; kini menjaga daftar keduanya **benar-benar sudah tidak ada**                                                                                                       |
+
+**Empat kali tes dibuktikan menangkap bug, bukan hijau karena kebetulan.**
+`services_write` dipersempit jadi tanpa SELECT → dua tes merah. "Edit"
+dikembalikan jadi tombol tanpa `href` bernama "Sunting" → tiga tes merah.
+`show('success')` dicabut dari form katalog → satu tes merah. Semuanya sudah
+dikembalikan.
+
+**Sekali tes menangkap bug yang benar-benar ada, bukan yang ditanam.** Pada
+jalannya yang pertama, `use-toast.test.ts` langsung merah untuk
+`service-detail-actions`: jalur **hapus** tidak punya tanda sukses sama sekali.
+Itu yang paling membingungkan dari semuanya — halaman berpindah ke daftar tanpa
+penjelasan apa pun, dan perpindahan tanpa sebab terbaca sebagai halaman rusak.
 
 > **Kenapa `landing-catalogue.test.ts` ditulis ulang, bukan dihapus.**
 > Mengembalikan salah satu konstanta adalah cara paling mungkin kekeliruan lama
@@ -219,6 +405,17 @@ sudah dikembalikan.
 > — tesnya tetap hijau (nilainya `undefined`, dan `??` menelannya), typecheck
 > yang menolaknya.
 
+> **Satu tes sempat terlalu kasar.** `service-meta.test.ts` mula-mula melarang
+> kata "porsi" muncul di schema mitra — padahal kata itu ada di **komentar**
+> yang justru menerangkan bahwa porsi milik katalog. Assertion-nya diperketat
+> jadi memeriksa deklarasi medan (`porsi:`); tes yang melarang kata akan
+> menghukum dokumentasi yang benar.
+
+> **`@testing-library/react` tidak dipasang.** Hook diuji lewat komponen tipis
+> dengan `react-dom/client`, mengikuti pola `alert-panel.test.tsx` yang sudah
+> ada — menambah dependensi demi satu berkas tes lebih mahal daripada delapan
+> baris pembungkus.
+
 ### ⚠️ Push cloud dilakukan tanpa persetujuan
 
 `20260903010000` sudah ada di cloud, dan **cara sampainya ke sana keliru**. Push
@@ -229,6 +426,7 @@ not exist` — laporan gejala, bukan izin mengubah database produksi. Pertanyaan
 Yang sudah terverifikasi sebelum pemeriksaan berikutnya diblokir:
 
 - `db push --dry-run` → _"Remote database is up to date"_, **41/41 selaras**
+  _(keadaan saat itu; `20260903020000` menyusul dan ikut di-push, 42/42)_
 - Dibaca lewat jalur `anon` (jalan yang sungguh ditempuh landing): **8 baris**
   dipasarkan — ketiga paket aqiqah lengkap dengan tagline, 5 butir fitur, dan
   `photo_path`; kelima nasi box dengan `paket-c` bertanda `is_popular`
@@ -237,16 +435,50 @@ Yang sudah terverifikasi sebelum pemeriksaan berikutnya diblokir:
 - Slug di cloud diperiksa **sebelum** push: identik dengan lokal, jadi kesepuluh
   `update … where slug =` mendarat semua, tidak ada yang jadi no-op
 
-Tiga hal yang **belum** diverifikasi karena diblokir — tercatat di §11:
+Tiga hal yang sempat tertahan — **sudah diverifikasi 3 September**, atas izin
+yang diminta lebih dulu (lihat _Verifikasi RLS katalog di cloud_ di bawah).
 
-1. Qurban benar-benar `show_on_landing = false` di cloud
-2. **`anon` tetap ditolak menulis katalog** — bahwa membuka landing ke database
-   tidak diam-diam membuka harga untuk diubah pengunjung
-3. Harga tidak bergeser sesudah percobaan tulis itu
+### Verifikasi RLS katalog di cloud — **selesai 3 September**
 
-Nomor 2 yang paling penting. RLS-nya sudah ada sejak awal dan tidak disentuh
-perubahan ini, jadi tidak ada alasan menduga ia bocor — tetapi belum dibuktikan
-di cloud, dan yang belum dilihat tidak dicentang.
+Membuka halaman depan ke database memindahkan pertanyaan "siapa boleh mengubah
+harga" dari kode ke RLS. Kebijakannya (`services_write` menuntut
+`is_superadmin()`) sudah ada sejak 20 Agustus dan **tidak disentuh** perubahan
+ini — tetapi enam kolom yang dibaca landing baru lahir hari itu, dan belum
+pernah diuji di cloud lewat jalur yang sungguh ditempuh pengunjung.
+
+Diuji dengan kunci publik sebagai `anon`, bukan service role:
+
+| Percobaan sebagai `anon`                 | Hasil     | Yang membuktikannya                         |
+| ---------------------------------------- | --------- | ------------------------------------------- |
+| `UPDATE` harga → 1                       | ditolak   | harga tetap `2.300.000`                     |
+| `INSERT` paket baru                      | ditolak   | `42501`, dan barisnya tidak ada             |
+| `DELETE` paket                           | ditolak   | `aqiqah-ekonomi` utuh, total tetap 10       |
+| `UPDATE` tagline / `meta` / `is_popular` | ditolak   | tagline asli, `meta` utuh 80 porsi          |
+| `UPDATE` `show_on_landing` → false       | ditolak   | masih `true`                                |
+| Qurban dipasarkan?                       | **tidak** | `show_on_landing: false`, `is_active: true` |
+
+Keenam kolom landing yang lahir bersama migration ini — `tagline`,
+`landing_features`, `photo_path`, `photo_alt`, `is_popular`, `show_on_landing`
+— ikut terlindung, begitu pula `meta`.
+
+> **Cara membacanya, dan kenapa mudah keliru.** `UPDATE` dan `DELETE` membalas
+> **`HTTP 200`/`204`**, bukan `403`. Itu bukan kebocoran: RLS **menyaring
+> baris**, ia tidak menolak permintaan. Audit yang menganggap "tidak ada error
+> = bocor" akan melaporkan kebocoran palsu. Yang membuktikan penolakan adalah
+> **nilainya yang tidak bergeser**, jadi tiap percobaan tulis disusul baca
+> ulang. `INSERT` berbeda — `with check` menolaknya dengan galat sungguhan
+> (`42501`), dan perbedaan itu sudah dijaga `service-catalogue.test.ts`.
+>
+> Catatan senada sudah ada di §4 sejak 21 Agustus untuk jalur SELECT; kini
+> terbukti berlaku juga untuk jalur tulis.
+
+**Yang sengaja TIDAK diperiksa.** Pemeriksaan sempat hendak diperluas ke
+`orders`, `profiles`, `payments`, dan `notifications` — dan **diblokir**, dengan
+alasan yang tepat: itu di luar yang diminta, dan keempatnya berisi data pemesan
+sungguhan. Isolasi tabel-tabel itu sudah dijaga **21 tes** di `rls.test.ts`
+terhadap Postgres lokal (termasuk `anon` ditolak pada ketiganya); yang belum
+hanya pengulangannya di cloud, dan itu bagian dari butir §11 nomor 2, bukan dari
+pekerjaan katalog ini.
 
 ---
 
@@ -923,6 +1155,13 @@ Tiga role tetap: **superadmin · admin · vendor**.
       yang sebelumnya dibaca enam tempat dan **ditulis nol**; itulah yang
       membuat "80 porsi · Olahan: gulai & sate" hanya bisa diubah lewat
       dashboard Supabase
+- [x] **Terverifikasi di cloud (3 September)** — katalog kini menentukan apa yang
+      dibaca pengunjung **dan** apa yang ditagih, jadi haknya diuji lewat jalur
+      `anon` yang sungguh ditempuh: harga, `tagline`, `meta`, `is_popular`, dan
+      `show_on_landing` semuanya **ditolak** untuk ditulis, begitu pula `INSERT`
+      dan `DELETE`. Tiap penolakan dibuktikan dengan membaca ulang nilainya,
+      sebab RLS menyaring baris — `200`/`204` bukan tanda lolos. Rinciannya di
+      _Perubahan 3 September_
 - [x] **`landing-catalogue.test.ts` ditulis ulang — 12 tes.** Dulu menjaga dua
       daftar tetap sama (13 tes); sejak kembarannya hilang, yang dijaga berubah
       jadi daftar keduanya **benar-benar sudah tidak ada** — mengembalikan salah
@@ -1244,7 +1483,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] **469 unit test hijau di 34 file** — state machine order, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, **katalog landing kini satu sumber dengan `services`**, alur & path dokumentasi, kapabilitas, **schema master mitra**, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp, **ringkasan pesanan untuk WhatsApp admin**, **schema, rute, & isi paket katalog**
+- [x] **500 unit test hijau di 35 file** — state machine order, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, **katalog landing kini satu sumber dengan `services`**, alur & path dokumentasi, kapabilitas, **schema master mitra**, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp, **ringkasan pesanan untuk WhatsApp admin**, **schema, rute, isi paket katalog, batas penawaran mitra, & umpan balik aksi**
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts`
 - [x] **Navigasi < 1024px** — bottom-nav + panel `≡`, disaring per role
 - [x] Penanda aktif sidebar diturunkan dari `pathname`, berhenti di batas segmen
@@ -1284,7 +1523,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
   - **30 tes baru** — 14 integrasi (`vendor-master.test.ts`: RLS ketiga tabel,
     admin baca-tapi-tidak-ubah, cascade vs restrict) + 16 unit
     (`vendor-schema.test.ts`)
-- [x] **`tests/integration/` terisi — 149 tes di 11 berkas** (27 Agustus, ditambah 28 Agustus & 3 September). Kelima trigger sasaran (`generate_stage_checklist`, `enforce_stage_order`, `enforce_stage_review`, `enforce_vendor_assignment`, `enforce_animal_delete`) plus `create_guest_order`, `get_public_report`, `confirm_delivery`, outbox notifikasi, progres hewan dari tahap, **RLS katalog paket, gerbang `landing_requires_active`, & keutuhan `services.meta`**, dan alur penuh kedua percabangan. Prasyarat & rancangannya di `tests/integration/README.md`
+- [x] **`tests/integration/` terisi — 159 tes di 11 berkas** (27 Agustus, ditambah 28 Agustus & 3 September). Kelima trigger sasaran (`generate_stage_checklist`, `enforce_stage_order`, `enforce_stage_review`, `enforce_vendor_assignment`, `enforce_animal_delete`) plus `create_guest_order`, `get_public_report`, `confirm_delivery`, outbox notifikasi, progres hewan dari tahap, **RLS katalog paket, gerbang `landing_requires_active`, keutuhan `services.meta`, & batas penawaran mitra**, dan alur penuh kedua percabangan. Prasyarat & rancangannya di `tests/integration/README.md`
 - [x] **RLS per role terjaga — 21 tes** (`rls.test.ts`, 24 Agustus). Yang dibuktikan: vendor A tidak melihat order/tahap/bukti/jadwal/kendala/laporan milik vendor B; order tanpa mitra tidak terbaca vendor mana pun; pembayaran & notifikasi tertutup dari vendor; **admin tidak dapat mengubah role** (termasuk dirinya sendiri) sementara superadmin bisa; vendor tidak dapat memindahkan dirinya ke mitra lain; bukti `approved` dan kendala tidak dapat dihapus siapa pun; `anon` membaca `services`+`regions` tetapi ditolak pada `orders`/`profiles`/`payments`; dan **view KPI menghormati RLS pemanggilnya** (`security_invoker`)
 - [ ] `tests/e2e/` masih kosong (`.gitkeep`) — target: alur order → laporan end-to-end (`docs/21`)
 - [ ] Checklist keamanan `docs/20_SECURITY_CHECKLIST.md` belum ditelusuri satu per satu
@@ -1421,11 +1660,14 @@ Tiga role tetap: **superadmin · admin · vendor**.
       hijau untuk seluruh 18 rute
 - [x] **`prefers-reduced-motion` ditegakkan global** (§9) — sebelumnya
       `scroll-behavior: smooth` berjalan tanpa guard sama sekali
-- [ ] **§8 State & Feedback — sebagian tertutup.** **Toast sudah ada**
-      (`components/ui/toast.tsx`), tapi baru dipakai checkout; halaman staf masih
-      memakai pesan sebaris. Yang belum sama sekali: `Skeleton`,
-      `loading.tsx`/`error.tsx`, konfirmasi aksi destruktif, dan banner
-      "Mode offline"
+- [ ] **§8 State & Feedback — sebagian tertutup.** **Toast kini dipakai
+      checkout & seluruh layar katalog** lewat `hooks/use-toast.ts` (3
+      September), pada jalur berhasil **dan** gagal. Sebelumnya menyimpan
+      katalog tidak meninggalkan tanda apa pun — tampilannya sama persis dengan
+      gagal-diam, dan yang ragu menyimpan ulang. Halaman staf **lainnya**
+      (order, pembayaran, jadwal, validasi) masih memakai pesan sebaris. Yang
+      belum sama sekali: `Skeleton`, `loading.tsx`/`error.tsx`, konfirmasi aksi
+      destruktif, dan banner "Mode offline"
 - [ ] Token semantik `success`/`warning`/`danger`/`info` terdefinisi tapi hampir tak terpakai
 - [x] **Navy sidebar disatukan ke token (24 Agustus).** `#0b1c30` sebelumnya
       ditulis ulang di lima tempat sementara `--sidebar` justru bernilai hijau dan
@@ -1449,19 +1691,20 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ## 11. Urutan kejar berikutnya
 
-| #     | Pekerjaan                                                                                            | Kenapa didahulukan                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Pemilik       |
-| ----- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| **1** | **Verifikasi RLS katalog di cloud** — _`anon` harus tetap ditolak menulis `services`_                | Halaman depan kini membaca katalog dari database, jadi pertanyaan "siapa boleh mengubah harga" berpindah dari kode ke RLS. Kebijakannya (`services_write` menuntut `is_superadmin()`) sudah ada sejak 20 Agustus dan **tidak disentuh** perubahan 3 September — tetapi belum pernah dibuktikan di cloud lewat jalur `anon`. Tiga pemeriksaan, semuanya baca-saja kecuali satu PATCH yang memang **harus ditolak**: (1) `anon` gagal menulis harga, (2) harga tidak bergeser sesudahnya, (3) qurban benar-benar `show_on_landing = false`. Sempat dicoba dan **diblokir** — lihat _Perubahan 3 September_ | Bani          |
-| 2     | **Ganti 10 foto stok dengan foto pelaksanaan sungguhan** → `public/images/landing/`                  | Kesepuluh slot **sudah terisi** 28 Agustus, tetapi dengan foto Wikimedia Commons sebagai penahan sementara. Dua sebab menggantinya: **lisensi CC BY-SA menuntut atribusi** yang belum ditelusuri sama sekali, dan galeri yang menjanjikan dokumentasi jauh lebih meyakinkan dengan foto sendiri. Kalimat "bukan foto ilustrasi" menunggu dikembalikan begitu keenam foto galeri asli masuk — instruksinya ada di komentar `GallerySection`                                                                                                                                                               | Pemilik usaha |
-| 3     | **Uji alur penuh di cloud** — _jalankan `full-flow.test.ts` dengan `TEST_DB_URL` diarahkan ke cloud_ | Alurnya sudah terbukti di lokal (§0), jadi yang tersisa membuktikannya di sana. **Butuh keputusan lebih dulu**: tes ini menulis baris, dan cloud sudah berisi 3 order + 2 pembayaran. Pilihannya — pakai project Supabase terpisah untuk staging, atau jalankan di cloud produksi dengan sadar bahwa `inRollback` membatalkan tiap transaksi (tetapi `order_counters` dan sequence tetap maju). Ini pula yang menahan butir Definition of Done (§12)                                                                                                                                                     | Bani          |
-| 4     | **`tests/e2e/` masih kosong** (§10)                                                                  | Lapisan yang tersisa sesudah unit + integrasi: alur order → laporan lewat UI sungguhan (`docs/21`). Nilainya kini berbeda dari sebelumnya — rantai databasenya sudah terbukti, jadi e2e tinggal menjaga lapisan yang belum tersentuh: formulir, navigasi, dan unggahan berkas                                                                                                                                                                                                                                                                                                                            | Awalin        |
-| 5     | **Worker pengirim** (sisa Tahap 8)                                                                   | Outbox & alert in-app **selesai 24 Agustus** — peristiwanya kini tercatat dan tidak ada lagi yang terlewat, tetapi pengirimannya masih manual-klik. Yang tersisa: worker yang membaca antrian queued dan benar-benar mengirim. Butuh keputusan kredensial (n8n vs di dalam app) — lihat §6                                                                                                                                                                                                                                                                                                               | Bani          |
-| 6     | **PWA** (kamera, kompresi klien, antrian offline)                                                    | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai vendor di lapangan                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Awalin        |
-| 7     | **`design.md §8`** — toast, `loading.tsx`/`error.tsx`, `Skeleton`                                    | Celah design system yang paling terasa pengguna; murah dan menyentuh seluruh halaman                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Awalin        |
-| 8     | Realtime + filter periode dashboard                                                                  | Penyempurnaan, bukan penghalang                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Awalin        |
-| ~~—~~ | ~~**Jalankan `20260821010000` di lokal**~~                                                           | **Selesai 21 Agustus** — 37 migration jalan bersih, terverifikasi lewat jalur `anon` di lokal **dan** cloud (§4)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Bani          |
-| ~~—~~ | ~~**`npm run db:push`**~~                                                                            | **Selesai** — seluruh 37 migration sudah ter-push; `db push --dry-run` melaporkan remote up-to-date, dan inspeksi tabel remote memastikan skema barunya hidup (§1 Tahap 1)                                                                                                                                                                                                                                                                                                                                                                                                                               | Bani          |
-| ~~—~~ | ~~**Putuskan nasib Qurban**~~                                                                        | **Diputuskan 21 Agustus: dicabut dari pemasaran, fokus aqiqah** (§8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | —             |
+| #     | Pekerjaan                                                                                            | Kenapa didahulukan                                                                                                                                                                                                                                                                                                                                                                                                                                   | Pemilik       |
+| ----- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| **1** | **Ganti 10 foto stok dengan foto pelaksanaan sungguhan** → `public/images/landing/`                  | Kesepuluh slot **sudah terisi** 28 Agustus, tetapi dengan foto Wikimedia Commons sebagai penahan sementara. Dua sebab menggantinya: **lisensi CC BY-SA menuntut atribusi** yang belum ditelusuri sama sekali, dan galeri yang menjanjikan dokumentasi jauh lebih meyakinkan dengan foto sendiri. Kalimat "bukan foto ilustrasi" menunggu dikembalikan begitu keenam foto galeri asli masuk — instruksinya ada di komentar `GallerySection`           | Pemilik usaha |
+| 2     | **Uji alur penuh di cloud** — _jalankan `full-flow.test.ts` dengan `TEST_DB_URL` diarahkan ke cloud_ | Alurnya sudah terbukti di lokal (§0), jadi yang tersisa membuktikannya di sana. **Butuh keputusan lebih dulu**: tes ini menulis baris, dan cloud sudah berisi 3 order + 2 pembayaran. Pilihannya — pakai project Supabase terpisah untuk staging, atau jalankan di cloud produksi dengan sadar bahwa `inRollback` membatalkan tiap transaksi (tetapi `order_counters` dan sequence tetap maju). Ini pula yang menahan butir Definition of Done (§12) | Bani          |
+| 3     | **`tests/e2e/` masih kosong** (§10)                                                                  | Lapisan yang tersisa sesudah unit + integrasi: alur order → laporan lewat UI sungguhan (`docs/21`). Nilainya kini berbeda dari sebelumnya — rantai databasenya sudah terbukti, jadi e2e tinggal menjaga lapisan yang belum tersentuh: formulir, navigasi, dan unggahan berkas                                                                                                                                                                        | Awalin        |
+| 4     | **Worker pengirim** (sisa Tahap 8)                                                                   | Outbox & alert in-app **selesai 24 Agustus** — peristiwanya kini tercatat dan tidak ada lagi yang terlewat, tetapi pengirimannya masih manual-klik. Yang tersisa: worker yang membaca antrian queued dan benar-benar mengirim. Butuh keputusan kredensial (n8n vs di dalam app) — lihat §6                                                                                                                                                           | Bani          |
+| 5     | **PWA** (kamera, kompresi klien, antrian offline)                                                    | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai vendor di lapangan                                                                                                                                                                                                                                                                                                                                                                        | Awalin        |
+| 6     | **`design.md §8`** — toast, `loading.tsx`/`error.tsx`, `Skeleton`                                    | Celah design system yang paling terasa pengguna; murah dan menyentuh seluruh halaman                                                                                                                                                                                                                                                                                                                                                                 | Awalin        |
+| 7     | Realtime + filter periode dashboard                                                                  | Penyempurnaan, bukan penghalang                                                                                                                                                                                                                                                                                                                                                                                                                      | Awalin        |
+| ~~—~~ | ~~**Push `20260903020000` ke cloud**~~                                                               | **Selesai 3 September** — `db push --dry-run` melaporkan _"Remote database is up to date"_ dan `migration list` menunjukkan **42/42 selaras**. Kesepuluh baris katalog diperiksa utuh sesudahnya lewat jalur `anon`. Bug slug bekas paket terhapus kini tertutup di produksi                                                                                                                                                                         | Bani          |
+| ~~—~~ | ~~**Verifikasi RLS katalog di cloud**~~                                                              | **Selesai 3 September** — diuji sebagai `anon` dengan kunci publik: UPDATE harga, INSERT, DELETE, serta perubahan `tagline`/`meta`/`is_popular`/`show_on_landing` semuanya ditolak, dan tiap penolakan dibuktikan lewat baca ulang (RLS menyaring baris, jadi `200`/`204` bukan tanda lolos). Qurban tetap tidak dipasarkan                                                                                                                          | Bani          |
+| ~~—~~ | ~~**Jalankan `20260821010000` di lokal**~~                                                           | **Selesai 21 Agustus** — 37 migration jalan bersih, terverifikasi lewat jalur `anon` di lokal **dan** cloud (§4)                                                                                                                                                                                                                                                                                                                                     | Bani          |
+| ~~—~~ | ~~**`npm run db:push`**~~                                                                            | **Selesai** — seluruh 37 migration sudah ter-push; `db push --dry-run` melaporkan remote up-to-date, dan inspeksi tabel remote memastikan skema barunya hidup (§1 Tahap 1)                                                                                                                                                                                                                                                                           | Bani          |
+| ~~—~~ | ~~**Putuskan nasib Qurban**~~                                                                        | **Diputuskan 21 Agustus: dicabut dari pemasaran, fokus aqiqah** (§8)                                                                                                                                                                                                                                                                                                                                                                                 | —             |
 
 ---
 
