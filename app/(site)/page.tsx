@@ -184,7 +184,10 @@ function Hero() {
                 // Garis aksen kiri + latar tipis: cukup untuk memisahkan ketiga
                 // fakta ini dari paragraf di atasnya, tanpa jadi tiga kartu
                 // melayang yang menuntut perhatian sebesar CTA di sebelahnya.
-                <div key={s.value} className="border-primary/40 min-w-0 border-l-2 py-0.5 pl-1.5 sm:pl-3">
+                <div
+                  key={s.value}
+                  className="border-primary/40 min-w-0 border-l-2 py-0.5 pl-1.5 sm:pl-3"
+                >
                   <dt className="font-semibold text-neutral-900">{s.value}</dt>
                   <dd className="mt-0.5 text-[9px] leading-3 text-neutral-500 sm:text-xs sm:leading-5">
                     {s.label}
@@ -300,7 +303,7 @@ function PackagesSection({ programs, boxes }: { programs: LandingProgram[]; boxe
                 Sejak fotonya bisa diunggah lewat aplikasi, paket baru memang
                 wajar belum punya foto untuk sementara. */}
             {p.photo && (
-              <div className="overflow-hidden bg-neutral-100 aspect-video">
+              <div className="aspect-video overflow-hidden bg-neutral-100">
                 <SitePhoto
                   src={p.photo.src}
                   alt={p.photo.alt}
