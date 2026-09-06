@@ -117,7 +117,7 @@ export const services = [
 export const landingPhotos = {
   /** Foto utama di hero. Lanskap; wajah/objek penting jangan di tepi bawah. */
   hero: {
-    src: 'images/landing/hero.webp',
+    src: 'images/landing/goat.webp',
     alt: 'Tim Sukses Aqiqah menyiapkan pesanan aqiqah',
     width: 1200,
     height: 900,

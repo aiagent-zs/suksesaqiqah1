@@ -150,21 +150,21 @@ function Hero() {
           {/* Tombol selebar layar di ponsel — target sentuh besar
               (`design.md §6`: "aksi 1-tap"). */}
           <Reveal delay={270}>
-            <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-2 sm:mt-9 sm:flex-row sm:gap-3">
               <Link
                 href="/checkout"
-                className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98]"
+                className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98] sm:gap-2 sm:px-6 sm:py-3.5 sm:text-sm"
               >
                 Pesan online sekarang
-                <IconArrowRight className="h-4 w-4" />
+                <IconArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Link>
               <a
                 href={siteConfig.whatsapp.href(orderMessage())}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 px-6 py-3.5 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98] active:bg-neutral-100"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-neutral-300 px-4 py-2.5 text-xs font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98] active:bg-neutral-100 sm:gap-2 sm:px-6 sm:py-3.5 sm:text-sm"
               >
-                <IconWhatsApp className="h-4 w-4" />
+                <IconWhatsApp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 Tanya via WhatsApp
               </a>
             </div>
@@ -175,7 +175,7 @@ function Hero() {
               agar tidak jadi tiga baris penuh yang mendorong foto terlalu jauh
               ke bawah. */}
           <Reveal delay={360}>
-            <dl className="mt-9 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 sm:gap-4">
+            <dl className="mt-6 grid grid-cols-3 gap-1 text-[10px] sm:mt-9 sm:gap-4 sm:text-sm">
               {[
                 { value: 'Tanpa akun', label: 'Pesan langsung di web' },
                 { value: 'Tiap tahap', label: 'Divalidasi sebelum lanjut' },
@@ -184,9 +184,11 @@ function Hero() {
                 // Garis aksen kiri + latar tipis: cukup untuk memisahkan ketiga
                 // fakta ini dari paragraf di atasnya, tanpa jadi tiga kartu
                 // melayang yang menuntut perhatian sebesar CTA di sebelahnya.
-                <div key={s.value} className="border-primary/40 border-l-2 py-0.5 pl-3">
+                <div key={s.value} className="border-primary/40 min-w-0 border-l-2 py-0.5 pl-1.5 sm:pl-3">
                   <dt className="font-semibold text-neutral-900">{s.value}</dt>
-                  <dd className="mt-0.5 text-xs leading-5 text-neutral-500">{s.label}</dd>
+                  <dd className="mt-0.5 text-[9px] leading-3 text-neutral-500 sm:text-xs sm:leading-5">
+                    {s.label}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -195,15 +197,17 @@ function Hero() {
 
         {/* Foto dalam bingkai datar bergaris rambut — tanpa bayangan tebal,
             tanpa sudut membulat besar. */}
-        <Reveal as="figure" delay={180} anim="scale" className="group/hero relative lg:pb-1">
-          {/* Bidang warna di belakang foto, digeser sedikit — memberi kedalaman
-              tanpa `shadow-2xl`. `design.md §4` meminta "shadow halus", dan
-              lapisan seperti ini menempuhnya lewat bentuk, bukan lewat blur. */}
+        <Reveal
+          as="figure"
+          delay={180}
+          anim="scale"
+          className="group/hero relative mx-auto w-[62%] sm:w-[72%] lg:mx-0 lg:ml-30 lg:w-[60%] lg:pb-1"
+        >
           <div
             aria-hidden
-            className="bg-primary/10 pointer-events-none absolute -inset-x-2 top-3 -bottom-2 -z-10 rounded-lg"
+            className="bg-primary/[0.07] pointer-events-none absolute inset-x-[8%] top-[12%] bottom-0 -z-10 rounded-[48%_48%_8%_8%]"
           />
-          <div className="overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 shadow-sm">
+          <div className="overflow-hidden">
             <SitePhoto
               src={landingPhotos.hero.src}
               alt={landingPhotos.hero.alt}
@@ -296,7 +300,7 @@ function PackagesSection({ programs, boxes }: { programs: LandingProgram[]; boxe
                 Sejak fotonya bisa diunggah lewat aplikasi, paket baru memang
                 wajar belum punya foto untuk sementara. */}
             {p.photo && (
-              <div className="overflow-hidden bg-neutral-100">
+              <div className="overflow-hidden bg-neutral-100 aspect-video">
                 <SitePhoto
                   src={p.photo.src}
                   alt={p.photo.alt}

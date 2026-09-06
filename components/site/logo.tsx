@@ -5,7 +5,7 @@ export function Logo({ light = false, className = '' }: { light?: boolean; class
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <Image
-        src="/images/logo-icon.svg"
+        src="/images/icon.svg"
         alt="Logo Sukses Aqiqah"
         width={34}
         height={36}

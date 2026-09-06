@@ -1,0 +1,30 @@
+{
+  // Tailwind v4 tidak lagi punya `tailwind.config.js` — seluruh konfigurasinya
+  // hidup di `@theme` dalam `app/globals.css`. Tanpa penunjuk ini, ekstensi
+  // Tailwind IntelliSense tidak menemukan konfigurasinya, sehingga token
+  // kustom project ini (43 di antaranya: `--color-primary`, `--color-sidebar`,
+  // `--font-sans`, `--default-transition-*`) tidak dikenali dan kelas yang
+  // memakainya ditandai kuning sebagai "unknown".
+  //
+  // Kelasnya sendiri **benar** — diverifikasi dari CSS hasil build: misalnya
+  // `from-primary/6` menghasilkan `color-mix(in oklab, var(--primary) 6%,
+  // transparent)`, persis seperti `/10` yang berskala standar. Yang keliru
+  // hanya pengetahuan editornya.
+  "tailwindCSS.experimental.configFile": "app/globals.css",
+
+  // `@theme`, `@custom-variant`, dan `@apply` bukan at-rule CSS baku, jadi
+  // linter bawaan VS Code menandainya "Unknown at rule". Ekstensi Tailwind
+  // yang memvalidasinya, bukan linter ini.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+
+  // Prettier sudah membawa `prettier-plugin-tailwindcss`, yang mengurutkan
+  // kelas sekaligus menormalkan nilai opacity (`/[0.03]` → `/3`). Menjalankan
+  // format saat simpan menjaga urutannya konsisten tanpa perlu diingat.
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+
+  // Kelas Tailwind di dalam `cn()` dan `cva()` ikut dikenali — keduanya dipakai
+  // di seluruh `components/ui/`.
+  "tailwindCSS.classFunctions": ["cn", "cva"]
+}
