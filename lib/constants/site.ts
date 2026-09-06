@@ -139,12 +139,12 @@ export const landingPhotos = {
       caption: 'Penyembelihan sesuai syariat',
     },
     {
-      src: 'images/landing/galeri-3-masak.webp',
+      src: 'images/landing/galeri-3-masakm.webp',
       alt: 'Pengolahan daging aqiqah di dapur mitra',
       caption: 'Pengolahan di dapur mitra',
     },
     {
-      src: 'images/landing/galeri-4-kemas.webp',
+      src: 'images/landing/galeri-4-siap.webp',
       alt: 'Masakan aqiqah dikemas rapi sebelum diantar',
       caption: 'Pengemasan rapi & higienis',
     },

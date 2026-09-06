@@ -73,7 +73,7 @@ export default async function LandingPage() {
       <ProcessSection />
       {/* Galeri tepat setelah Proses: bagian itu menjanjikan tiap tahap
           terdokumentasi, dan galerilah buktinya. */}
-      <GallerySection />
+      {/* <GallerySection /> */}
       <FeaturesSection />
       <FaqSection />
       <CtaSection />
@@ -521,7 +521,7 @@ function GallerySection() {
             anim="scale"
             className="group/photo"
           >
-            <div className="relative overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 transition-shadow group-hover/photo:shadow-sm">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 transition-shadow group-hover/photo:shadow-sm">
               <SitePhoto
                 src={photo.src}
                 alt={photo.alt}
@@ -552,7 +552,7 @@ function GallerySection() {
 /* ------------------------------------------------------------------ */
 function FeaturesSection() {
   return (
-    <Section bg="tinted" id="keunggulan" index="05" eyebrow="Kenapa Kami">
+    <Section bg="tinted" id="keunggulan" index="04" eyebrow="Kenapa Kami">
       <SectionIntro
         title="Ibadah yang bisa Anda telusuri"
         lead="Bukan sekadar jasa potong hewan — setiap tahapnya tercatat, tervalidasi, dan bisa Anda periksa kembali."
@@ -583,7 +583,7 @@ function FeaturesSection() {
 /* ------------------------------------------------------------------ */
 function FaqSection() {
   return (
-    <Section bg="grid" id="faq" index="06" eyebrow="FAQ">
+    <Section bg="grid" id="faq" index="05" eyebrow="FAQ">
       <SectionIntro
         title="Pertanyaan yang sering diajukan"
         lead="Belum menemukan jawabannya? Hubungi kami langsung via WhatsApp."
