@@ -27,42 +27,7 @@ export const metadata: Metadata = {
 
 const orderMessage = (paket?: string) =>
   `Halo Sukses Aqiqah, saya ingin memesan${paket ? ` paket ${paket}` : ' layanan'}.`;
-
-/**
- * Landing page.
- *
- * **Arah desain: editorial, bukan dekoratif** (`design.md §1` — *clarity over
- * decoration*). Yang sengaja TIDAK dipakai di halaman ini, karena semuanya
- * menarik perhatian ke dirinya sendiri alih-alih ke isinya:
- *
- * - teks bergradasi (`bg-clip-text`) — menurunkan keterbacaan judul;
- * - gumpalan blur dekoratif — beban render tanpa makna;
- * - `shadow-xl`/`2xl` bertumpuk — `design.md §4` meminta "shadow halus";
- * - `rounded-3xl` dan tombol pil — `design.md §4` menetapkan radius 8–12px;
- * - `hover:-translate-y` pada tiap kartu — gerakan yang tidak menyampaikan apa pun.
- *
- * Penggantinya: hierarki tipografi yang tegas, garis rambut sebagai pemisah,
- * rata kiri, dan satu warna aksen yang dipakai hemat. Bentuk ini juga lebih
- * jujur pada produknya — yang dijual adalah dokumentasi dan keterlacakan, dan
- * tampilan dokumenter menyampaikan itu lebih baik daripada tampilan promosi.
- *
- * **Animasi** mengikuti aturan yang sama: satu gerakan saja (naik 16px sambil
- * memudar masuk) lewat `<Reveal>`, dipakai pada blok besar — bukan pada setiap
- * elemen. Durasi & easing-nya diatur terpusat di `app/globals.css`; yang
- * ditentukan di sini hanya urutan tampilnya lewat `delay`.
- *
- * Jeda antar-anggota satu kelompok 110ms — cukup lebar untuk terbaca berurutan
- * pada gerakan sepanjang 0,85 detik, tapi tetap ditahan agar totalnya tidak
- * melebihi ~330ms per kelompok. Pemicunya sendiri sudah dimajukan lewat
- * `rootMargin`, jadi jeda itu terbayar sebelum elemennya terlihat.
- *
- * Seluruhnya mati sendiri saat pengguna memilih "kurangi gerakan" di setelan
- * sistem (lihat `app/globals.css`).
- */
 export default async function LandingPage() {
-  // Katalog dibaca sekali di sini lalu diturunkan, bukan diambil di dalam
-  // `PackagesSection`: paket aqiqah dan nasi box datang dari satu query yang
-  // sama, dan memanggilnya dua kali berarti dua perjalanan untuk satu jawaban.
   const { programs, boxes } = await getLandingCatalogue();
 
   return (
@@ -118,7 +83,7 @@ function Hero() {
       <div className="relative z-10 mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-14 sm:gap-12 sm:px-6 sm:pt-12 sm:pb-20 lg:grid-cols-[1fr_0.85fr] lg:items-end lg:gap-16 lg:pt-14 lg:pb-24">
         <div>
           <Reveal>
-            <p className="text-[#6EAF13] text-xs font-semibold tracking-[0.14em] uppercase">
+            <p className="text-[#5eb349] text-xs font-semibold tracking-[0.14em] uppercase">
               Layanan Aqiqah · Zakat Sukses
             </p>
           </Reveal>
@@ -127,7 +92,7 @@ function Hero() {
             <h1 className="mt-3.5 text-[2rem] leading-[1.1] font-bold tracking-tight text-neutral-900 sm:mt-4 sm:text-5xl lg:text-6xl">
               Tunaikan ibadah,
               <br />
-              <span className="text-[#6EAF13]">tebarkan manfaat.</span>
+              <span className="text-[#5eb349]">tebarkan manfaat.</span>
             </h1>
           </Reveal>
 
@@ -159,10 +124,6 @@ function Hero() {
             </div>
           </Reveal>
 
-          {/* Fakta dipisah garis, bukan dibungkus tiga kartu. Isinya sama, tapi
-              tidak menuntut perhatian sebesar kartu. Di ponsel dibuat dua kolom
-              agar tidak jadi tiga baris penuh yang mendorong foto terlalu jauh
-              ke bawah. */}
           <Reveal delay={360}>
             <dl className="mt-6 grid grid-cols-3 gap-1 text-[10px] sm:mt-9 sm:gap-4 sm:text-sm">
               {[

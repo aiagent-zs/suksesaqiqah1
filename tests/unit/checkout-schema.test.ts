@@ -337,10 +337,11 @@ describe('jendela tanggal pemesanan', () => {
     );
   });
 
-  it('menolak hari pengisian dan 3 hari sesudahnya', () => {
-    // Inti aturannya: mengisi form tanggal 10 berarti 10, 11, 12, dan 13 semua
-    // tertutup — paling cepat tanggal 14. Diuji per hari, bukan hanya di
-    // ujungnya, supaya jeda yang keliru satu hari pun ketahuan.
+  it('menolak hari pengisian dan tiap hari sebelum jeda terpenuhi', () => {
+    // Inti aturannya: mengisi form tanggal 10 menutup hari-hari sampai jedanya
+    // terpenuhi — dengan `BOOKING_MIN_DAYS = 1`, hanya tanggal 10 sendiri.
+    // Diuji per hari lewat konstantanya, bukan terhadap angka yang diketik:
+    // jeda yang keliru satu hari harus ketahuan berapa pun nilainya.
     for (let d = 0; d < BOOKING_MIN_DAYS; d++) {
       const tooSoon = addCalendarDays(todayWib(), d);
       expect(

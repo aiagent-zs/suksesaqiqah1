@@ -3,6 +3,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { CheckoutPackage, NasiBoxPackage, RegionOption } from '@/features/checkout/queries';
+import { BOOKING_MIN_DAYS } from '@/features/checkout/schema';
+import { addCalendarDays } from '@/lib/format/date-range';
 
 /**
  * Jaring pengaman terhadap **kehilangan isian**.
@@ -58,7 +60,8 @@ const NASI_BOXES: NasiBoxPackage[] = [
 const PROVINCES: RegionOption[] = [{ code: '32', name: 'Jawa Barat' }];
 
 const TODAY = '2026-08-15';
-const MIN_DATE = '2026-08-19';
+/** Batas bawah pemesanan, diturunkan dari jedanya — bukan tanggal yang diketik. */
+const MIN_DATE = addCalendarDays(TODAY, BOOKING_MIN_DAYS);
 const MAX_DATE = '2026-09-14';
 const PICKED_DATE = '2026-08-21';
 const PICKED_TIME = '09:00';

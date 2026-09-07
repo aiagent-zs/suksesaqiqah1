@@ -222,8 +222,8 @@ export function CheckoutForm({
    * Hari ini menurut WIB — batas atas tanggal lahir anak.
    *
    * Dulu `minDate` dipinjam untuk peran ini karena nilainya kebetulan sama.
-   * Sejak ada jeda persiapan keduanya berbeda empat hari, dan meminjamnya lagi
-   * berarti meloloskan tanggal lahir yang belum terjadi.
+   * Sejak ada jeda persiapan keduanya berbeda `BOOKING_MIN_DAYS` hari, dan
+   * meminjamnya lagi berarti meloloskan tanggal lahir yang belum terjadi.
    */
   today: string;
   initialServiceId?: string;

@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { CheckoutPackage, NasiBoxPackage, RegionOption } from '@/features/checkout/queries';
+import { BOOKING_MIN_DAYS } from '@/features/checkout/schema';
+import { addCalendarDays } from '@/lib/format/date-range';
 
 /**
  * Menjaga agar pesanan hanya terkirim lewat klik yang disengaja, dan agar alur
@@ -77,8 +79,14 @@ const PROVINCES: RegionOption[] = [{ code: '32', name: 'Jawa Barat' }];
 
 /** Hari pengisian form. Batas atas tanggal lahir anak, bukan batas pemesanan. */
 const TODAY = '2026-08-15';
-/** Batas bawah pemesanan: `TODAY` + jeda persiapan (4 hari). */
-const MIN_DATE = '2026-08-19';
+/**
+ * Batas bawah pemesanan: `TODAY` + jeda persiapan.
+ *
+ * Diturunkan dari `BOOKING_MIN_DAYS`, bukan tanggal yang diketik: keduanya
+ * pernah dipatok terpisah, dan saat jedanya berubah 4 → 1 yang basi bukan cuma
+ * angkanya — komentar di sebelahnya ikut menyesatkan pembaca berikutnya.
+ */
+const MIN_DATE = addCalendarDays(TODAY, BOOKING_MIN_DAYS);
 const MAX_DATE = '2026-09-14';
 const PICKED_DATE = '2026-08-21';
 const PICKED_TIME = '09:00';
@@ -466,13 +474,15 @@ describe('jadwal pelaksanaan', () => {
     clickText('Aqiqah Salur');
     clickText('Lanjut ke');
 
-    expect(document.body.textContent).toContain('Paling cepat 4 hari setelah pemesanan');
+    expect(document.body.textContent).toContain(
+      `Paling cepat ${BOOKING_MIN_DAYS} hari setelah pemesanan`,
+    );
     expect(document.body.textContent).not.toContain('sudah lewat');
   });
 
   it('tanggal lahir anak diukur terhadap hari ini, bukan batas bawah pemesanan', () => {
     // Keduanya dulu satu prop karena nilainya kebetulan sama. Kalau tertukar
-    // lagi, tanggal lahir sampai `MIN_DATE` ikut lolos — padahal empat hari itu
+    // lagi, tanggal lahir sampai `MIN_DATE` ikut lolos — padahal hari-hari itu
     // belum terjadi.
     goToScheduleStep();
     expect(byId<HTMLInputElement>('co-date').min).toBe(MIN_DATE);

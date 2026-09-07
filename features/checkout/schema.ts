@@ -7,14 +7,20 @@ const uuid = z.string().uuid('Pilihan tidak valid');
  * Jeda persiapan minimum, dalam hari, dari hari pemesanan ke tanggal
  * pelaksanaan.
  *
- * `4` berarti hari pengisian form **dan 3 hari sesudahnya** tidak bisa dipilih:
- * mengisi tanggal 10 paling cepat mendapat tanggal 14. Hewan perlu dicari dan
- * disiapkan, dan mitra perlu dijadwalkan — sebelum ini pemesan bisa memilih
- * hari yang sama, dan yang terjadi hanya admin menelepon balik.
+ * `1` berarti hanya **hari pengisian form** yang tertutup: mengisi tanggal 10
+ * paling cepat mendapat tanggal 11. Yang dijaga tinggal satu hal — order untuk
+ * hari yang sama tidak pernah benar-benar bisa dikerjakan (hewan perlu dicari,
+ * mitra perlu dijadwalkan), jadi yang terjadi hanya admin menelepon balik untuk
+ * memundurkan tanggal.
+ *
+ * Sebelumnya `4`, yang ikut menutup 3 hari sesudah hari pengisian. Diturunkan
+ * 7 September 2026: jeda selebar itu menolak pemesan yang sebetulnya masih bisa
+ * dilayani, dan sanggup-tidaknya sebuah tanggal adalah penilaian admin saat
+ * konfirmasi — bukan sesuatu yang layak ditutup form sebelum siapa pun bertanya.
  *
  * Angkanya **wajib sama** dengan `app_settings.booking_min_days`.
  */
-export const BOOKING_MIN_DAYS = 4;
+export const BOOKING_MIN_DAYS = 1;
 
 /**
  * Batas jendela pemesanan, dalam hari.

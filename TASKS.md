@@ -1265,6 +1265,25 @@ Tiga role tetap: **superadmin · admin · vendor**.
       ditolak satu per satu (jeda yang meleset sehari hanya terlihat di hari
       terakhir), dan tanggal persis di batas bawah **diterima**, supaya jeda yang
       kelebihan sehari tidak lolos tanpa jejak
+- [x] **Jeda persiapan diturunkan 4 → 1 hari — 7 September.** Jeda 24 Agustus di
+      atas menutup hari pengisian dan 3 hari sesudahnya. Yang terlihat dari
+      pemakaian: selebar itu ikut menolak pemesan yang sebetulnya masih bisa
+      dilayani — dan sanggup-tidaknya sebuah tanggal adalah penilaian admin saat
+      konfirmasi, bukan sesuatu yang layak ditutup form sebelum siapa pun
+      bertanya. Kini hanya **hari pengisian** yang tertutup: mengisi tanggal 10
+      paling cepat mendapat tanggal 11. Yang dijaga tinggal satu hal, dan itu
+      yang memang tidak pernah bisa dikerjakan — aqiqah untuk hari yang sama.
+      Batas atas tidak ikut berubah: 30 hari dulu dilonggarkan karena jendelanya
+      nyaris habis dimakan jeda 4 hari, dan jeda yang menyusut tidak menuntutnya
+      kembali menyempit. `20260907010000` hanya menyetel `app_settings` +
+      fallback `booking_min_days()`; `create_guest_order` **tidak** ditulis ulang
+      karena ia membaca fungsi itu saat dipanggil dan pesan penolakannya sudah
+      memakai `%` atas nilainya, bukan angka yang diketik ke dalam teks — jadi
+      tidak ada salinan fungsi baru yang harus dijaga tetap sama. Tanggal yang
+      dipatok manual di dua tes form (`MIN_DATE = 2026-08-19`) kini diturunkan
+      dari `BOOKING_MIN_DAYS`, sebab yang basi saat angkanya berubah bukan cuma
+      tanggalnya — komentar di sebelahnya ikut menyesatkan pembaca berikutnya.
+      ⚠️ Belum dijalankan ke database: `db push` masih menunggu
 - [x] **Peran `minDate` dipisah.** Form dulu meminjam prop `minDate` untuk dua
       hal — batas bawah pemesanan **dan** "hari ini" sebagai batas atas tanggal
       lahir anak — karena nilainya kebetulan sama. Dengan jeda persiapan keduanya
