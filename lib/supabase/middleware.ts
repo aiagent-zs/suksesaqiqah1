@@ -102,12 +102,7 @@ export async function updateSession(request: NextRequest) {
     url.pathname = '/login';
     return redirectCarryingCookies(url, supabaseResponse);
   }
-
-  // --- Keluar otomatis saat menganggur (lib/auth/idle.ts) --------------------
-  //
-  // Penegakan sebenarnya ada di sini, bukan di pengawas klien: berlaku juga
-  // untuk Server Action (POST-nya melewati middleware yang sama) dan tetap
-  // bekerja meski JavaScript dimatikan.
+  
   if (user) {
     const now = Date.now();
     const lastActivity = parseActivity(request.cookies.get(ACTIVITY_COOKIE)?.value);

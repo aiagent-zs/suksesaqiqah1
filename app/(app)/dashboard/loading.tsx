@@ -1,21 +1,3 @@
-/**
- * Kerangka dashboard selama datanya dimuat.
- *
- * Inilah yang membuat login terasa lambat sebelum ini. Tanpa berkas ini Next
- * menahan seluruh navigasi sampai `page.tsx` selesai — dan `page.tsx` menunggu
- * lima query Supabase. Selama itu peramban masih menampilkan halaman login yang
- * lama, jadi dari sisi orang yang menekan "Masuk", tidak ada apa pun yang
- * terjadi selama beberapa detik.
- *
- * Dengan berkas ini, kerangkanya muncul seketika begitu sesi tercipta, lalu
- * isinya menyusul. Waktu totalnya sama — yang berubah adalah orangnya tahu
- * bahwa ia sudah masuk.
- *
- * Bentuknya sengaja mengikuti tata letak `page.tsx` (pita keuangan, empat
- * kartu, dua panel, tabel): kerangka yang bentuknya berbeda dari isinya
- * menghasilkan lompatan tata letak begitu data datang — persis yang dilarang
- * `design.md §1` ("hindari layout shift").
- */
 function Bar({ className = '' }: { className?: string }) {
   return <div className={`bg-muted animate-pulse rounded ${className}`} />;
 }
