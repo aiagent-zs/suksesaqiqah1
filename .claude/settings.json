@@ -4,7 +4,16 @@
       "Read(//tmp/**)",
       "Bash(sed -i 's|console.log\\(c.textContent\\);|require\\(\"fs\"\\).writeFileSync\\(\"/tmp/kpi-out.txt\", c.textContent ?? \"\"\\);|' /tmp/render-kpi.test.tsx)",
       "Bash(cp /tmp/render-kpi.test.tsx tests/unit/zz-dump.test.tsx)",
-      "Bash(rm -f tests/unit/zz-dump.test.tsx)"
+      "Bash(rm -f tests/unit/zz-dump.test.tsx)",
+      "Bash(echo \"--- lint exit: $? ---\")",
+      "Bash(graphify query *)",
+      "Bash(node -e ' *)",
+      "Bash(echo \"--- typecheck exit: $? ---\")",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(cd \"c:/Users/shola/OneDrive/Documents/ZS_FOLDER/SuksesAqiqah\" && cp features/reporting/components/report-manager.tsx /tmp/rm.bak && python -c \" *)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }

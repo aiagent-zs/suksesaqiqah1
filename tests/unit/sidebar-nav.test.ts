@@ -1,5 +1,54 @@
 import { describe, expect, it } from 'vitest';
-import { isNavItemActive } from '@/components/layout/nav-items';
+import { isNavItemActive, navItemsForRole } from '@/components/layout/nav-items';
+
+/**
+ * Menu yang ditawarkan per role.
+ *
+ * Ini kenyamanan, bukan pengaman — halamannya memeriksa kapabilitas sendiri dan
+ * RLS menolak datanya. Tapi menu yang **selalu** berujung penolakan lebih buruk
+ * daripada tidak ada menu: ia mengajak menekan sesuatu yang tidak pernah bisa
+ * dipakai, dan itu terbaca sebagai fitur rusak, bukan sebagai batas wewenang.
+ *
+ * Daftarnya wajib bergerak bersama `CAPABILITIES` di
+ * `server/auth/capabilities.ts`; kalau menyimpang, layar menawarkan aksi yang
+ * pasti ditolak — atau lebih buruk, menyembunyikan yang sebenarnya boleh.
+ */
+describe('navItemsForRole', () => {
+  const hrefs = (role: 'superadmin' | 'admin' | 'vendor') =>
+    navItemsForRole(role).map((i) => i.href);
+
+  it('vendor tidak ditawari Validasi Dokumentasi', () => {
+    // `VALIDATE_DOCUMENTATION` berhenti di staf: vendor mengunggah bukti,
+    // tidak menilainya. Yang mengerjakan tidak menyatakan pekerjaannya benar.
+    expect(hrefs('vendor')).not.toContain('/validation');
+  });
+
+  it('vendor hanya melihat tiga menu operasional', () => {
+    expect(hrefs('vendor')).toEqual(['/dashboard', '/orders', '/schedule']);
+  });
+
+  it('Mitra & Pengguna berhenti di superadmin', () => {
+    // Siapa pun yang bisa mengubah role bisa mengangkat dirinya sendiri.
+    for (const href of ['/vendors', '/users']) {
+      expect(hrefs('superadmin'), href).toContain(href);
+      expect(hrefs('admin'), href).not.toContain(href);
+      expect(hrefs('vendor'), href).not.toContain(href);
+    }
+  });
+
+  it('admin melihat Validasi tapi bukan menu master data', () => {
+    expect(hrefs('admin')).toEqual(['/dashboard', '/orders', '/schedule', '/validation']);
+  });
+
+  it('superadmin melihat semuanya', () => {
+    expect(navItemsForRole('superadmin')).toHaveLength(6);
+  });
+
+  it('tanpa role, tidak ada menu sama sekali', () => {
+    // Profil yang belum termuat tidak boleh diperlakukan sebagai "semua boleh".
+    expect(navItemsForRole(undefined)).toEqual([]);
+  });
+});
 
 describe('isNavItemActive', () => {
   it('menyalakan menu yang pathname-nya persis sama', () => {

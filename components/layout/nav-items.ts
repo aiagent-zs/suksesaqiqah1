@@ -40,7 +40,18 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'Dashboard', icon: LayoutDashboard },
   { href: '/orders', label: 'Pesanan (Orders)', shortLabel: 'Pesanan', icon: ShoppingBag },
   { href: '/schedule', label: 'Jadwal', shortLabel: 'Jadwal', icon: CalendarDays },
-  { href: '/validation', label: 'Validasi Dokumentasi', shortLabel: 'Validasi', icon: FileText },
+  {
+    href: '/validation',
+    label: 'Validasi Dokumentasi',
+    shortLabel: 'Validasi',
+    icon: FileText,
+    // Vendor mengunggah bukti, tidak menilainya (`VALIDATE_DOCUMENTATION`
+    // berhenti di staf). Halamannya sendiri sudah menolak mereka dengan
+    // penjelasan — tapi menu yang selalu berujung penolakan mengajak menekan
+    // sesuatu yang tidak pernah bisa dipakai, dan itu terbaca sebagai fitur
+    // yang rusak, bukan sebagai batas wewenang.
+    roles: ['superadmin', 'admin'],
+  },
   {
     href: '/vendors',
     label: 'Mitra',

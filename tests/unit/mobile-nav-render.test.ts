@@ -20,12 +20,22 @@ vi.mock('@/server/actions/auth', () => ({ logout: () => {} }));
 
 const { MobileNav } = await import('@/components/layout/mobile-nav');
 
+/**
+ * Dirender sebagai **admin**, bukan vendor.
+ *
+ * Yang diuji berkas ini bentuk bar-nya — jumlah tab, penanda aktif, ukuran
+ * sentuh — jadi ia butuh role yang melihat seluruh rute utama. Vendor tidak
+ * lagi melihat `/validation` (ia mengunggah bukti, tidak menilainya), sehingga
+ * memakainya di sini membuat pemeriksaan bentuk ikut goyah setiap kali daftar
+ * menu per role berubah. Penyaringan per role itu sendiri diuji tersendiri di
+ * `sidebar-nav.test.ts`, terhadap `navItemsForRole`.
+ */
 function render(current: string): string {
   pathname = current;
   return renderToStaticMarkup(
     createElement(MobileNav, {
-      fullName: 'Budi Vendor',
-      role: 'vendor',
+      fullName: 'Rani Admin',
+      role: 'admin',
     }),
   );
 }

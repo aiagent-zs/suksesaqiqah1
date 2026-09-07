@@ -190,14 +190,23 @@ export async function assignVendor(input: unknown): Promise<ActionResult<null>> 
     };
   }
 
-  const { data, error } = await supabase
-    .from('orders')
-    .update({ vendor_id })
-    .eq('id', order_id)
-    // Penguncian optimistik: dua admin yang menugaskan bersamaan tidak bisa
-    // sama-sama berhasil.
-    .eq('vendor_id', order.vendor_id as string)
-    .select('id');
+  // Penguncian optimistik: dua admin yang menugaskan bersamaan tidak bisa
+  // sama-sama berhasil — yang kedua menemukan `vendor_id` sudah bukan nilai
+  // yang ia baca, dan barisnya tidak ikut terbarui.
+  //
+  // Cabang `is null` bukan gaya penulisan, melainkan keharusan: SQL `= NULL`
+  // tidak pernah benar, dan PostgREST menerjemahkan `.eq(col, null)` menjadi
+  // `vendor_id=eq.null` — Postgres lalu mencoba membaca string "null" sebagai
+  // uuid dan gagal dengan 22P02. Order yang belum punya mitra **selalu** NULL,
+  // jadi cabang ini persis jalur penugasan pertama: yang paling sering dipakai,
+  // dan satu-satunya yang tidak pernah berhasil sebelum ini.
+  const guarded = supabase.from('orders').update({ vendor_id }).eq('id', order_id);
+
+  const { data, error } = await (
+    order.vendor_id === null
+      ? guarded.is('vendor_id', null)
+      : guarded.eq('vendor_id', order.vendor_id)
+  ).select('id');
 
   if (error) return internalError('Gagal menetapkan mitra', error);
 

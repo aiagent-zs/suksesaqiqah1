@@ -1,14 +1,34 @@
--- Hapus semua dummy order data
--- Related data akan terhapus otomatis via CASCADE
+-- =============================================================================
+-- Pembersihan order dummy — **dinetralkan sebelum pernah dijalankan**
+--
+-- Isi aslinya `delete from public.orders` tanpa syarat, ditulis 6 September
+-- untuk membuang sisa order percobaan. Ia tidak pernah sampai ke cloud, dan
+-- dinetralkan 7 September sebelum sempat: begitu ia menyusul, yang terhapus
+-- bukan lagi data uji melainkan `IA-202609-0001` — order sungguhan yang masuk
+-- 7 September pukul 14:55 WIB dan belum diverifikasi. Menahannya di dalam
+-- riwayat migration berarti perintah itu menunggu untuk berjalan di setiap
+-- database yang belum menerimanya.
+--
+-- Berkasnya tetap ada, bukan dihapus: nomor versinya sudah tercatat di ledger
+-- `supabase_migrations`, dan menghilangkannya membuat lokal & cloud berselisih
+-- soal migration mana yang pernah ada.
+--
+-- **Sebagai migration ia memang tidak pernah bisa bekerja**, terlepas dari
+-- soal data di atas. Dua sebab:
+--
+--   1. `supabase db reset` menjalankan migration lebih dulu, **baru** seed.
+--      Menghapus order di sini berarti menghapus tabel yang masih kosong,
+--      lalu `02_demo.sql` mengisinya kembali sesudahnya.
+--   2. `select setval(pg_get_serial_sequence('public.order_counters', 'id'), …)`
+--      menunjuk kolom yang tidak ada — `order_counters` berkunci utama `period`
+--      (text), tanpa `id` dan tanpa sequence. Ia lolos hanya karena
+--      `where exists (…)` bernilai false sesudah baris-barisnya dihapus,
+--      sehingga ekspresinya tidak pernah dievaluasi. Satu order tersisa saja
+--      dan pemanggilan itu gagal dengan "column id does not exist".
+--
+-- Membersihkan data uji adalah tindakan sekali jalan terhadap satu database
+-- tertentu — `delete` yang dijalankan sendiri sesudah melihat isinya, bukan
+-- perintah yang dititipkan ke berkas yang berjalan di mana-mana selamanya.
+-- =============================================================================
 
-delete from public.orders;
-
--- Reset order counter ke 0
-delete from public.order_counters;
-
--- Reset sequence nomor order
-select setval(
-  pg_get_serial_sequence('public.order_counters', 'id'),
-  (select max(id) from public.order_counters) + 1,
-  true
-) where exists (select 1 from public.order_counters);
+-- Sengaja tanpa pernyataan apa pun.

@@ -86,6 +86,10 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   // mengalir antara pembeli dan kami, bukan antara pembeli dan vendor. Panelnya
   // karena itu tidak dirender sama sekali untuk mereka.
   const showPayments = role !== 'vendor';
+  // Tautan `/r/{token}` membuka identitas & alamat pemesan tanpa login, dan
+  // mengirim laporan ke peserta adalah urusan kami dengan pembeli. Sengaja
+  // diikat ke GENERATE_REPORT: yang membuat laporan adalah yang membagikannya.
+  const canShareReport = canDo(role, 'GENERATE_REPORT');
   // Tahap yang buktinya belum lengkap — dihitung database dari
   // `stage_requirements` menurut cara penyaluran order.
   const missingDoc = guard.missingDocStages;
@@ -261,13 +265,19 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             currentUserId={session.id}
           />
 
-          {/* --- Laporan --- */}
+          {/* --- Laporan ---
+              Token hanya dikirim ke yang berhak membagikannya. Merender
+              komponennya dengan token utuh lalu menyembunyikan tautannya di
+              CSS tetap menaruh token itu di HTML yang sampai ke browser
+              vendor — jadi yang disembunyikan bukan panelnya, melainkan
+              nilainya. */}
           <ReportManager
             orderId={order.id}
-            publicToken={order.public_token}
+            publicToken={canShareReport ? order.public_token : ''}
             appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
             reports={reports}
             canGenerate={canDo(role, 'GENERATE_REPORT')}
+            canShare={canShareReport}
             documentationReady={missingDoc.length === 0}
             missingDocumentation={missingDoc}
           />

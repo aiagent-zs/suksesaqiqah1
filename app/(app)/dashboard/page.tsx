@@ -94,12 +94,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       </header>
 
       <KpiCards summary={summary} pendingGuestOrders={pendingGuestOrders} />
-
-      {/* Dua panel bersebelahan di layar lebar: keduanya menjawab *yang mana*
-          setelah KPI menjawab *berapa*, dan ditumpuk vertikal keduanya
-          mendorong tabel order — jawaban yang paling sering dicari — turun
-          sampai di luar layar. Alert dapat porsi lebih besar karena barisnya
-          membawa teks panjang dan tombol aksi. */}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <AlertPanel alerts={alerts} />

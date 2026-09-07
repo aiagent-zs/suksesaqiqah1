@@ -7,12 +7,52 @@
 | Field                            | Value                                                                                                                                                                                                                                                                                                                                                                                           |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                                                                                                                                                                      |
-| Diperbarui                       | 2026-09-03                                                                                                                                                                                                                                                                                                                                                                                      |
+| Diperbarui                       | 2026-09-07                                                                                                                                                                                                                                                                                                                                                                                      |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                                                        |
 | Estimasi Phase 1                 | **± 87%** (dari 85% — katalog & konten landing kini dikelola sendiri lewat aplikasi, lihat _Perubahan 3 September_)                                                                                                                                                                                                                                                                             |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(20 rute, landing tetap prerender statis)** · **519 unit test hijau (36 file)** · **159 tes integrasi hijau (11 file) terhadap Postgres lokal** · **42 migration jalan bersih di lokal ✅ dan 42/42 selaras di cloud ✅** · **RLS katalog terbukti di cloud lewat jalur `anon`: baca ✅, tulis ditolak ✅** |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(20 rute, landing tetap prerender statis)** · **555 unit test hijau (41 file)** · **159 tes integrasi hijau (11 file) terhadap Postgres lokal** · **42 migration jalan bersih di lokal ✅ dan 42/42 selaras di cloud ✅** · **RLS katalog terbukti di cloud lewat jalur `anon`: baca ✅, tulis ditolak ✅** |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
+
+---
+
+## Perubahan 7 September
+
+Penyempurnaan penguncian penugasan mitra (null-guard UUID), penyaringan menu navigasi berdasarkan peran (`navItemsForRole`), dan penetralan migration pembersihan data dummy untuk melindungi data transaksi produksi.
+
+### 1. Fix Penguncian Optimistik `assignVendor` (`vendor_id IS NULL`)
+
+Pada `server/actions/schedules.ts`, penugasan mitra pertama kali gagal karena PostgREST menerjemahkan `.eq('vendor_id', null)` menjadi `vendor_id=eq.null`. Postgres mencoba menguraikan string `"null"` sebagai `uuid` dan menghasilkan galat `22P02`.
+
+- Diperbaiki dengan mengalihkan ke `.is('vendor_id', null)` jika `order.vendor_id === null`.
+- Menjamin penugasan awal mitra berjalan lancar tanpa galat sintaksis UUID.
+- Diuji dalam `tests/unit/assign-vendor-null-guard.test.ts` (4 unit test baru).
+
+### 2. Penyaringan Navigasi Berdasarkan Peran (`navItemsForRole`)
+
+Menu navigasi di `components/layout/nav-items.ts` kini disesuaikan dengan peran pengguna (`role`), selaras dengan aturan kapabilitas di `server/auth/capabilities.ts`:
+
+- **Vendor**: Hanya melihat menu operasional (`/dashboard`, `/orders`, `/schedule`). Menu `/validation` disembunyikan karena vendor mengunggah bukti, tidak memvalidasi pekerjaannya sendiri.
+- **Admin**: Melihat menu operasional + `/validation`, tetapi disembunyikan dari menu master data (`/vendors`, `/users`).
+- **Superadmin**: Melihat seluruh 6 menu utama (`/dashboard`, `/orders`, `/schedule`, `/validation`, `/vendors`, `/users`).
+- **Tanpa Role / Sesi Belum Siap**: Mengembalikan array kosong `[]` untuk mencegah render menu tak berizin.
+- `MobileNav` & `SidebarNav` disesuaikan dan diuji lewat unit test (`tests/unit/sidebar-nav.test.ts` & `tests/unit/mobile-nav-render.test.ts`).
+
+### 3. Penetralan Migration Pembersihan Dummy Orders (`20260906010000_delete_all_dummy_orders.sql`)
+
+Migration `20260906010000_delete_all_dummy_orders.sql` sebelumnya berisi `DELETE FROM public.orders` tanpa syarat.
+
+- Dinetralkan (sengaja tanpa SQL statement) agar tidak secara tidak sengaja menghapus pesanan sungguhan (seperti `IA-202609-0001` yang dibuat 7 September) saat migration dieksekusi di cloud/staging.
+- Berkas migration tetap dipertahankan agar tidak merusak ledger versi migration Supabase.
+
+### 4. Lingkup Berbagi Laporan & UI Detail Order
+
+- Pengaturan scope berbagi laporan di `features/reporting/components/report-manager.tsx` disempurnakan dan diuji lewat unit test (`tests/unit/report-share-scope.test.tsx`).
+- Halaman detail order (`app/(app)/orders/[id]/page.tsx`) diperbarui dengan guard null safety.
+
+### Total Coverage Unit Test
+
+- Unit test bertambah dari **519 (36 file)** menjadi **555 (41 file)**, seluruhnya hijau 100%.
 
 ---
 

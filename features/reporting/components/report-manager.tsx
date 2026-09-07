@@ -13,6 +13,14 @@ import type { ReportListItem } from '../queries';
  *
  * Tautan publiknya melekat pada order, bukan pada versi laporan — generate
  * ulang menambah versi baru tanpa mengubah tautan yang sudah dibagikan.
+ *
+ * **Blok tautan publik berhenti di staf.** `canGenerate` dulu hanya menyembunyikan
+ * tombol "Buat laporan", sementara URL `/r/{token}`, tombol Salin, dan Kirim
+ * via WhatsApp tetap dirender untuk semua role — termasuk vendor. Token itu
+ * memberi akses tanpa login ke identitas & alamat pemesan, dan pengiriman
+ * laporan ke peserta adalah urusan antara kami dan pembeli: vendor mengerjakan
+ * pelaksanaannya, bukan berhubungan langsung dengan pemesan. Daftar versi &
+ * unduh PDF tetap terbuka — itu bukti kerjanya sendiri.
  */
 export function ReportManager({
   orderId,
@@ -20,6 +28,8 @@ export function ReportManager({
   appUrl,
   reports,
   canGenerate,
+  /** Boleh melihat & membagikan tautan publik peserta. Staf saja. */
+  canShare,
   documentationReady,
   missingDocumentation,
 }: {
@@ -28,6 +38,7 @@ export function ReportManager({
   appUrl: string;
   reports: ReportListItem[];
   canGenerate: boolean;
+  canShare: boolean;
   documentationReady: boolean;
   missingDocumentation: string[];
 }) {
@@ -103,53 +114,57 @@ export function ReportManager({
         </p>
       ) : (
         <>
-          <div className="border-border border-b px-5 py-4">
-            <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
-              Tautan publik peserta
-            </p>
-            <p className="bg-muted/50 mt-1.5 rounded-lg px-3 py-2 text-xs break-all">{publicUrl}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(publicUrl);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-              >
-                <Copy className="size-3.5" />
-                {copied ? 'Tersalin' : 'Salin tautan'}
-              </Button>
-
-              <a
-                href={`https://wa.me/?text=${waMessage}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="border-border hover:bg-muted inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
-              >
-                <Send className="size-3.5" />
-                Kirim via WhatsApp
-              </a>
-
-              {latest && !latest.sentAt && (
+          {canShare && (
+            <div className="border-border border-b px-5 py-4">
+              <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                Tautan publik peserta
+              </p>
+              <p className="bg-muted/50 mt-1.5 rounded-lg px-3 py-2 text-xs break-all">
+                {publicUrl}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
                   size="sm"
-                  disabled={pending}
-                  onClick={() => run(() => markReportSent({ report_id: latest.id }))}
+                  variant="outline"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(publicUrl);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
                 >
-                  Tandai sudah dikirim
+                  <Copy className="size-3.5" />
+                  {copied ? 'Tersalin' : 'Salin tautan'}
                 </Button>
+
+                <a
+                  href={`https://wa.me/?text=${waMessage}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="border-border hover:bg-muted inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
+                >
+                  <Send className="size-3.5" />
+                  Kirim via WhatsApp
+                </a>
+
+                {latest && !latest.sentAt && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => run(() => markReportSent({ report_id: latest.id }))}
+                  >
+                    Tandai sudah dikirim
+                  </Button>
+                )}
+              </div>
+              {latest?.sentAt && (
+                <p className="mt-2 text-xs text-emerald-700">
+                  Ditandai terkirim {formatDateTime(latest.sentAt)}
+                </p>
               )}
             </div>
-            {latest?.sentAt && (
-              <p className="mt-2 text-xs text-emerald-700">
-                Ditandai terkirim {formatDateTime(latest.sentAt)}
-              </p>
-            )}
-          </div>
+          )}
 
           <ul className="divide-border divide-y">
             {reports.map((report) => (
