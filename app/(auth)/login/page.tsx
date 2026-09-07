@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import { loginWithEmail, type LoginErrorCode } from '@/server/actions/auth';
-import { Button } from '@/components/ui/button';
+import { LoginSubmitButton } from './submit-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -58,7 +58,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             />
           </div>
           <h1 className="font-sans text-3xl font-bold tracking-tight text-white">
-            <span className="text-[#6EAF13]">Sukses</span> <span className="text-[#FF7200]">Aqiqah</span>
+            <span className="text-[#6EAF13]">Sukses</span>{' '}
+            <span className="text-[#FF7200]">Aqiqah</span>
           </h1>
           <p className="text-xs font-semibold tracking-wider text-emerald-400 uppercase">
             Command Center · Tebarkan Manfaat
@@ -128,13 +129,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 />
               </div>
 
-              <Button
-                id="btn-login-email"
-                type="submit"
-                className="mt-2 h-11 w-full rounded-lg bg-gradient-to-r from-[#16A34A] to-[#059669] font-medium text-white shadow-lg shadow-emerald-950/50 transition-all hover:from-[#15803D] hover:to-[#047857]"
-              >
-                Masuk ke System
-              </Button>
+              <LoginSubmitButton />
             </form>
           </CardContent>
         </Card>

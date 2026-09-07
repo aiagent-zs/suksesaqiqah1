@@ -54,7 +54,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     ? DASHBOARD_HEADING[session.profile.role]
     : { title: 'Dashboard', subtitle: 'Ringkasan operasional dalam cakupan akses Anda.' };
 
-  const [branchRows, openOrders, issues, pendingGuestOrders] = await Promise.all([
+  // Kelimanya berangkat bersamaan. `getPendingAlerts` dulu menunggu keempat
+  // yang lain selesai sebelum berangkat — satu perjalanan bolak-balik penuh ke
+  // Supabase yang ditumpuk di belakang, padahal ia tidak bergantung pada
+  // satu pun hasil mereka.
+  const [branchRows, openOrders, issues, pendingGuestOrders, alerts] = await Promise.all([
     getVendorKpi(),
     getOpenOrders(filter),
     getIssueBreakdown(),
@@ -65,12 +69,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     canDo(session.profile?.role, 'VERIFY_GUEST_ORDER')
       ? countPendingGuestOrders()
       : Promise.resolve(null),
+    // Outbox notifikasi. RLS-nya menuntut `is_staff()`, jadi vendor mendapat
+    // array kosong tanpa penjagaan tambahan di sini — dan panelnya sendiri sudah
+    // menangani keadaan kosong, jadi tidak perlu dirender bersyarat.
+    getPendingAlerts(),
   ]);
-
-  // Outbox notifikasi. RLS-nya menuntut `is_staff()`, jadi vendor mendapat
-  // array kosong tanpa penjagaan tambahan di sini — dan panelnya sendiri sudah
-  // menangani keadaan kosong, jadi tidak perlu dirender bersyarat.
-  const alerts = await getPendingAlerts();
 
   const summary = summarizeVendorKpi(branchRows);
 
