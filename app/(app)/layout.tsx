@@ -1,10 +1,11 @@
+import Image from 'next/image';
 import { requireAuth } from '@/server/auth/session';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { IdleLogout } from '@/components/providers/idle-logout';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import type { ReactNode } from 'react';
-import { ShieldCheck, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { logout } from '@/server/actions/auth';
 import { ROLE_LABEL } from '@/lib/constants/roles';
 
@@ -36,12 +37,20 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           {/* Header Brand */}
           <div className="border-sidebar-border/80 border-b p-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#16A34A] to-[#059669] shadow-md">
-                <ShieldCheck className="h-6 w-6 text-white" />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 p-1 shadow-md">
+                <Image
+                  src="/images/logo_new.webp"
+                  alt="Sukses Aqiqah Logo"
+                  width={36}
+                  height={36}
+                  priority
+                  className="h-full w-full object-contain"
+                />
               </div>
               <div>
                 <p className="font-sans text-base leading-tight font-bold tracking-tight text-white">
-                  Sukses Aqiqah
+                  <span className="text-[#6EAF13]">Sukses</span>{' '}
+                  <span className="text-[#FF7200]">Aqiqah</span>
                 </p>
                 <p className="mt-0.5 text-xs font-semibold tracking-wider text-emerald-400 uppercase">
                   Command Center
@@ -87,7 +96,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           {/* Header Mobile */}
           <header className="border-sidebar-border bg-sidebar flex items-center justify-between border-b px-4 py-3 text-white lg:hidden">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+              <Image
+                src="/images/logo_new.webp"
+                alt="Sukses Aqiqah Logo"
+                width={24}
+                height={24}
+                className="h-6 w-6 object-contain"
+              />
               <p className="text-sm font-bold">Sukses Aqiqah</p>
             </div>
             <span className="rounded-full bg-emerald-900 px-2.5 py-1 text-xs font-medium text-emerald-200">

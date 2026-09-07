@@ -5,7 +5,12 @@ import './globals.css';
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   icons: {
-    icon: '/icon.svg',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/images/icon.webp', type: 'image/webp' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/images/logo_sukses_aqiqah_icon.webp',
   },
 
   title: {

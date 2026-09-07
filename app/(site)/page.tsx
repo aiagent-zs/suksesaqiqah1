@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import {
   faqs,
@@ -87,56 +88,46 @@ export default async function LandingPage() {
 function Hero() {
   return (
     <section className="relative overflow-hidden border-b border-neutral-200">
-      {/* Latar bertekstur. Tiga lapis, dan ketiganya punya alasan:
-
-          1. Kisi besar 56px — rujukan ke kertas bergaris; halaman ini menjual
-             pencatatan, jadi teksturnya ikut mengatakan itu.
-          2. Kisi halus 14px yang hanya menempati sudut kiri atas — kepadatan
-             yang berubah mencegah latar terbaca sebagai satu raster datar.
-          3. Sapuan hijau sangat tipis dari kiri atas, arah yang sama dengan
-             arah baca.
-
-          Semuanya gradient CSS: nol permintaan jaringan. `-z-10` +
-          `aria-hidden` — murni latar, tidak pernah menghalangi klik maupun
-          terbaca pembaca layar. */}
+      {/* Latar bertekstur */}
       <div
         aria-hidden
-        className="bg-grid pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(120%_90%_at_15%_0%,black,transparent_70%)]"
+        className="bg-grid pointer-events-none absolute inset-0 z-0 [mask-image:radial-gradient(120%_90%_at_15%_0%,black,transparent_70%)]"
       />
       <div
         aria-hidden
-        className="bg-grid-fine pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(45%_55%_at_8%_5%,black,transparent)]"
+        className="bg-grid-fine pointer-events-none absolute inset-0 z-0 [mask-image:radial-gradient(45%_55%_at_8%_5%,black,transparent)]"
       />
       <div
         aria-hidden
-        className="from-primary/6 pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br via-transparent to-transparent"
+        className="from-primary/6 pointer-events-none absolute inset-0 z-0 bg-gradient-to-br via-transparent to-transparent"
       />
+      {/* Watermark Logo Transparan di Latar Belakang */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-16 top-1/2 z-0 -translate-y-1/2 opacity-[0.08] select-none lg:-right-4"
+      >
+        <Image
+          src="/images/logo_new.webp"
+          alt=""
+          width={520}
+          height={520}
+          className="rotate-12 object-contain"
+        />
+      </div>
 
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-14 sm:gap-12 sm:px-6 sm:pt-12 sm:pb-20 lg:grid-cols-[1fr_0.85fr] lg:items-end lg:gap-16 lg:pt-14 lg:pb-24">
-        {/* Hero tampil bertahap saat halaman dibuka: label → judul → paragraf →
-            tombol → fakta. Jeda 90ms antar-baris — cukup untuk terbaca sebagai
-            urutan, dan berhenti di 360ms supaya isi terpenting halaman ini
-            tidak membuat pengunjung menunggu. */}
+      <div className="relative z-10 mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-14 sm:gap-12 sm:px-6 sm:pt-12 sm:pb-20 lg:grid-cols-[1fr_0.85fr] lg:items-end lg:gap-16 lg:pt-14 lg:pb-24">
         <div>
           <Reveal>
-            <p className="text-primary text-xs font-semibold tracking-[0.14em] uppercase">
+            <p className="text-[#6EAF13] text-xs font-semibold tracking-[0.14em] uppercase">
               Layanan Aqiqah · Zakat Sukses
             </p>
           </Reveal>
 
-          {/* Ukuran & bobot yang membangun hierarki, bukan gradasi warna.
-              `text-[2rem]` di ponsel: `text-4xl` membuat "tebarkan manfaat."
-              pecah jadi tiga baris pada lebar 360px. */}
           <Reveal delay={90}>
             <h1 className="mt-3.5 text-[2rem] leading-[1.1] font-bold tracking-tight text-neutral-900 sm:mt-4 sm:text-5xl lg:text-6xl">
               Tunaikan ibadah,
               <br />
-              {/* Penekanan lewat warna teksnya sendiri — hijau brand, warna yang
-                  memang berarti sesuatu di sistem ini. Sebelumnya frasa ini
-                  diberi garis bawah oranye yang digambar saat tampil: pola
-                  landing-page generik, dan `accent` dipakai untuk sorotan KPI,
-                  bukan untuk menghias judul. */}
-              <span className="text-primary">tebarkan manfaat.</span>
+              <span className="text-[#6EAF13]">tebarkan manfaat.</span>
             </h1>
           </Reveal>
 
@@ -147,8 +138,6 @@ function Hero() {
             </p>
           </Reveal>
 
-          {/* Tombol selebar layar di ponsel — target sentuh besar
-              (`design.md §6`: "aksi 1-tap"). */}
           <Reveal delay={270}>
             <div className="mt-6 flex flex-col gap-2 sm:mt-9 sm:flex-row sm:gap-3">
               <Link
@@ -239,6 +228,20 @@ function Hero() {
 function ServicesSection() {
   return (
     <Section bg="grid" id="layanan" index="01" eyebrow="Layanan">
+      {/* Watermark Logo Motif Transparan */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-12 top-1/2 z-0 -translate-y-1/2 opacity-[0.06] select-none"
+      >
+        <Image
+          src="/images/logo_new.webp"
+          alt=""
+          width={380}
+          height={380}
+          className="-rotate-12 object-contain"
+        />
+      </div>
+
       <SectionIntro
         title="Pilih cara aqiqah Anda ditunaikan"
         lead="Keduanya menempuh proses yang sama sampai daging siap; yang berbeda hanya ke mana ia berakhir."
@@ -246,10 +249,6 @@ function ServicesSection() {
 
       <div className="mt-10 grid gap-4 sm:mt-12 md:grid-cols-3">
         {services.map((s, i) => (
-          // Kartu bergaris rambut dengan aksen atas yang melebar saat dituju.
-          // Sebelumnya ketiganya cuma dipisah garis pembagi — benar secara spec,
-          // tapi tidak memberi tanda sama sekali mana yang sedang di bawah
-          // kursor pada grid tiga kolom.
           <Reveal
             key={s.title}
             delay={i * 110}
@@ -432,14 +431,25 @@ function PackagesSection({ programs, boxes }: { programs: LandingProgram[]; boxe
 function ProcessSection() {
   return (
     <section id="proses" className="bg-primary-dark relative overflow-hidden text-white">
-      {/* Pola titik terang di atas hijau tua. Memberi tekstur pada satu-satunya
-          bidang warna penuh di halaman ini, yang tanpa itu terbaca sebagai
-          blok datar sebesar layar. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle,white_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.07]"
+        className="pointer-events-none absolute inset-0 z-0 [background-image:radial-gradient(circle,white_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.07]"
       />
-      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+      {/* Watermark Logo Transparan */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-16 top-1/2 z-0 -translate-y-1/2 opacity-[0.12] select-none"
+      >
+        <Image
+          src="/images/logo_new.webp"
+          alt=""
+          width={500}
+          height={500}
+          className="rotate-45 object-contain filter invert"
+        />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <Reveal>
           <p className="text-xs font-semibold tracking-[0.14em] text-white/50 uppercase">
             03 — Alur Layanan
@@ -453,15 +463,8 @@ function ProcessSection() {
           </p>
         </Reveal>
 
-        {/* Nomor besar sebagai penanda urutan — tidak perlu gelembung
-            mengambang di sudut kartu. */}
         <ol className="mt-10 grid gap-px bg-white/15 sm:mt-14 sm:grid-cols-2 lg:grid-cols-5">
           {processSteps.map((step, i) => (
-            // Lima langkah — dibatasi `i % 3` seperti kelompok lain, jadi jeda
-            // terbesarnya 220ms, bukan 440ms. Tanpa batas ini langkah terakhir
-            // baru muncul hampir setengah detik sesudah yang pertama, dan pada
-            // layar lebar kelimanya berjajar sehingga perbedaannya kentara
-            // sebagai "menunggu", bukan sebagai urutan.
             <Reveal
               key={step.step}
               as="li"
@@ -469,7 +472,7 @@ function ProcessSection() {
               className="bg-primary-dark relative p-5 sm:p-6"
             >
               <span className="text-accent block text-3xl font-bold tabular-nums">{step.step}</span>
-              <h3 className="mt-3 text-base font-semibold">{step.title}</h3>
+              <h3 className="mt-3 text-base font-semibold text-white">{step.title}</h3>
               <p className="mt-2 text-sm leading-6 text-white/70">{step.description}</p>
             </Reveal>
           ))}
@@ -631,13 +634,25 @@ function FaqSection() {
 function CtaSection() {
   return (
     <section className="relative overflow-hidden border-t border-neutral-200 bg-neutral-50">
-      {/* Tekstur yang sama dengan hero, dibalik arahnya — halaman berakhir
-          seperti ia dimulai. */}
       <div
         aria-hidden
-        className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(110%_90%_at_85%_100%,black,transparent_70%)]"
+        className="bg-grid pointer-events-none absolute inset-0 z-0 [mask-image:radial-gradient(110%_90%_at_85%_100%,black,transparent_70%)]"
       />
-      <Reveal className="relative mx-auto flex max-w-6xl flex-col gap-7 px-4 py-14 sm:gap-8 sm:px-6 sm:py-20 lg:flex-row lg:items-center lg:justify-between">
+      {/* Watermark Logo Transparan */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-12 -bottom-10 z-0 opacity-[0.08] select-none"
+      >
+        <Image
+          src="/images/logo_new.webp"
+          alt=""
+          width={440}
+          height={440}
+          className="rotate-12 object-contain"
+        />
+      </div>
+
+      <Reveal className="relative z-10 mx-auto flex max-w-6xl flex-col gap-7 px-4 py-14 sm:gap-8 sm:px-6 sm:py-20 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-xl">
           <h2 className="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
             Siap menunaikan ibadah Anda?

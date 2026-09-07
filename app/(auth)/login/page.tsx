@@ -1,10 +1,11 @@
+import Image from 'next/image';
 import { loginWithEmail, type LoginErrorCode } from '@/server/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Clock, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Clock } from 'lucide-react';
 import { IDLE_NOTICE, IDLE_TIMEOUT_MS } from '@/lib/auth/idle';
 
 interface LoginPageProps {
@@ -46,10 +47,19 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div className="w-full max-w-md space-y-6">
         {/* Logo & Brand Header */}
         <div className="space-y-2 text-center">
-          <div className="mb-2 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#16A34A] to-[#059669] shadow-lg ring-1 shadow-emerald-900/50 ring-white/20">
-            <ShieldCheck className="h-9 w-9 text-white" />
+          <div className="mb-2 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 p-1.5 shadow-lg ring-1 shadow-emerald-900/50 ring-white/20 backdrop-blur-sm">
+            <Image
+              src="/images/logo_new.webp"
+              alt="Logo Sukses Aqiqah"
+              width={64}
+              height={64}
+              priority
+              className="h-full w-full object-contain"
+            />
           </div>
-          <h1 className="font-sans text-3xl font-bold tracking-tight text-white">Sukses Aqiqah</h1>
+          <h1 className="font-sans text-3xl font-bold tracking-tight text-white">
+            <span className="text-[#6EAF13]">Sukses</span> <span className="text-[#FF7200]">Aqiqah</span>
+          </h1>
           <p className="text-xs font-semibold tracking-wider text-emerald-400 uppercase">
             Command Center · Tebarkan Manfaat
           </p>
