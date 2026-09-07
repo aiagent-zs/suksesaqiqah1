@@ -63,14 +63,30 @@ export async function listUsers(): Promise<UserRow[]> {
   }));
 }
 
+export type VendorOption = {
+  id: string;
+  code: string;
+  name: string;
+  /** Pemilik akun mitra ini, kalau sudah ada. */
+  takenBy: string | null;
+};
+
 /**
- * Mitra yang belum punya akun login.
+ * Mitra aktif beserta siapa yang sudah memegang akunnya.
  *
  * `profiles.vendor_id` unik (satu akun per mitra), jadi mitra yang sudah punya
  * akun tidak boleh ditawarkan lagi — insert-nya akan ditolak indeks unik, dan
  * pesan galatnya jauh kurang berguna daripada tidak menawarkannya sejak awal.
+ *
+ * Pemiliknya ikut dikembalikan, bukan disaring di sini: form sunting harus tetap
+ * menampilkan mitra milik akun yang sedang disunting — kalau ikut tersaring,
+ * menyunting nomor telepon seorang vendor akan mengosongkan pilihan mitranya
+ * sendiri dan perubahan apa pun ditolak `profiles_vendor_scope_check`.
+ *
+ * Akun terhapus tidak dihitung: `deleteUser` melepas `vendor_id`, jadi mitranya
+ * memang bebas kembali.
  */
-export async function getVendorsWithoutAccount() {
+export async function getVendorOptions(): Promise<VendorOption[]> {
   const supabase = await createClient();
 
   const [{ data: vendors }, { data: taken }] = await Promise.all([
@@ -80,12 +96,19 @@ export async function getVendorsWithoutAccount() {
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('name'),
-    supabase.from('profiles').select('vendor_id').not('vendor_id', 'is', null),
+    supabase
+      .from('profiles')
+      .select('id, vendor_id')
+      .not('vendor_id', 'is', null)
+      .is('deleted_at', null),
   ]);
 
-  const used = new Set((taken ?? []).map((p) => p.vendor_id));
+  const owner = new Map((taken ?? []).map((p) => [p.vendor_id as string, p.id]));
 
-  return (vendors ?? [])
-    .filter((v) => !used.has(v.id))
-    .map((v) => ({ id: v.id, code: v.code, name: v.name }));
+  return (vendors ?? []).map((v) => ({
+    id: v.id,
+    code: v.code,
+    name: v.name,
+    takenBy: owner.get(v.id) ?? null,
+  }));
 }

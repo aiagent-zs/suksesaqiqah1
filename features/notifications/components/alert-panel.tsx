@@ -54,7 +54,7 @@ const URGENT = new Set(['issue_high', 'documentation_rejected']);
 export function AlertPanel({ alerts }: { alerts: AlertItem[] }) {
   if (alerts.length === 0) {
     return (
-      <section className="border-border bg-card rounded-lg border p-5">
+      <section className="border-border bg-card h-full rounded-lg border p-5">
         <div className="flex items-center gap-2.5">
           <BellRing className="text-muted-foreground size-4" />
           <h2 className="text-sm font-semibold">Perlu Tindakan</h2>
@@ -67,7 +67,7 @@ export function AlertPanel({ alerts }: { alerts: AlertItem[] }) {
   }
 
   return (
-    <section className="border-border bg-card rounded-lg border">
+    <section className="border-border bg-card h-full rounded-lg border">
       <div className="border-border flex items-center justify-between gap-3 border-b px-5 py-3.5">
         <div className="flex items-center gap-2.5">
           <BellRing className="text-primary size-4" />

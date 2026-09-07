@@ -76,32 +76,33 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
   return (
     <div className="space-y-6">
-      <header className="border-border flex flex-col gap-3 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
+      {/* Nama & peran sudah terbaca di sidebar; mengulanginya di sini hanya
+          menambah teks yang bersaing dengan judul. */}
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{heading.title}</h1>
-          <p className="text-muted-foreground mt-1 text-sm">{heading.subtitle}</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{heading.title}</h1>
+          <p className="text-muted-foreground mt-0.5 text-sm">{heading.subtitle}</p>
         </div>
 
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-muted-foreground">
-            {session.profile?.full_name ?? session.email}
-          </span>
-          <Link href="/orders" className={cn(buttonVariants({ variant: 'outline' }), 'h-9')}>
-            Kelola Order
-            <ArrowRight className="size-4" />
-          </Link>
-        </div>
+        <Link href="/orders" className={cn(buttonVariants({ variant: 'outline' }), 'h-9')}>
+          Kelola Order
+          <ArrowRight className="size-4" />
+        </Link>
       </header>
 
       <KpiCards summary={summary} pendingGuestOrders={pendingGuestOrders} />
 
-      {/* Ditaruh tepat di bawah KPI: kartu menjawab *berapa*, panel ini
-          menjawab *yang mana* dan membawa langsung ke barisnya. */}
-      <AlertPanel alerts={alerts} />
-
-      <DashboardFilters filter={filter} />
-
-      <IssuePanel breakdown={issues} basePath="/dashboard" searchParams={flat} />
+      {/* Dua panel bersebelahan di layar lebar: keduanya menjawab *yang mana*
+          setelah KPI menjawab *berapa*, dan ditumpuk vertikal keduanya
+          mendorong tabel order — jawaban yang paling sering dicari — turun
+          sampai di luar layar. Alert dapat porsi lebih besar karena barisnya
+          membawa teks panjang dan tombol aksi. */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <AlertPanel alerts={alerts} />
+        </div>
+        <IssuePanel breakdown={issues} basePath="/dashboard" searchParams={flat} />
+      </div>
 
       {/* Tabel litmus test: berapa order tertunda, di mana, siapa PIC, apa kendalanya. */}
       <section className="space-y-4">
@@ -111,6 +112,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             Diurutkan dari kendala terberat, lalu order paling lama menggantung.
           </p>
         </div>
+
+        {/* Filter menempel di sini, bukan melayang di tengah halaman: yang
+            disaringnya cuma tabel di bawah ini. Ditaruh di atas KPI, ia
+            terbaca seolah menyaring seluruh angka di halaman — padahal
+            `getVendorKpi` dan `getIssueBreakdown` tidak menerimanya. */}
+        <DashboardFilters filter={filter} />
 
         {openOrders.total === 0 ? (
           <div className="border-border bg-card flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-16 text-center">

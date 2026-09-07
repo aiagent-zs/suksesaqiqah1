@@ -33,9 +33,9 @@ export function IssuePanel({
   };
 
   return (
-    <Card className="rounded-lg shadow-sm">
+    <Card className="h-full rounded-lg shadow-sm">
       <CardHeader className="border-b pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
           <AlertTriangle className="text-muted-foreground size-4" />
           Kendala Terbuka
         </CardTitle>

@@ -55,17 +55,6 @@ async function loadOrderContext(
   };
 }
 
-// =============================================================================
-// Catat pembayaran (prd.md FR-P1)
-// =============================================================================
-
-/**
- * Mencatat satu pembayaran masuk berstatus `pending`.
- *
- * Baris ini belum menggerakkan apa pun: trigger `sync_order_payment` hanya
- * menjumlahkan pembayaran ber-status `verified`, jadi `orders.paid_amount` dan
- * gate DP baru berubah setelah `verifyPayment`.
- */
 export async function recordPayment(input: unknown): Promise<ActionResult<{ id: string }>> {
   const session = await requireAuth();
 

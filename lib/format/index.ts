@@ -18,6 +18,27 @@ export function formatCurrency(value: number | string | null | undefined): strin
   }).format(n);
 }
 
+/**
+ * Rp1,8 jt — bentuk ringkas untuk kartu KPI.
+ *
+ * Angka penuh sudah tidak muat di kartu begitu nilainya menyentuh miliaran:
+ * "Rp1.750.000.000" membungkus jadi dua baris dan mendorong tinggi kartu,
+ * sehingga satu baris KPI jadi tidak rata. Yang hilang cuma ketelitian yang
+ * memang tidak dibaca sekilas — nilai persisnya tetap ada di halaman order.
+ */
+export function formatCurrencyCompact(value: number | string | null | undefined): string {
+  const n = typeof value === 'string' ? Number(value) : (value ?? 0);
+  if (!Number.isFinite(n)) return '-';
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    notation: 'compact',
+    compactDisplay: 'short',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  }).format(n);
+}
+
 /** 12 Jun 2026 */
 export function formatDate(value: string | Date | null | undefined): string {
   const d = toDate(value);

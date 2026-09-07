@@ -1,7 +1,7 @@
 import { ShieldOff } from 'lucide-react';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
-import { getVendorsWithoutAccount, listUsers } from '@/features/users/queries';
+import { getVendorOptions, listUsers } from '@/features/users/queries';
 import { UserManager } from '@/features/users/components/user-manager';
 
 export const metadata = { title: 'Pengguna — Sukses Aqiqah' };
@@ -31,16 +31,7 @@ export default async function UsersPage() {
     );
   }
 
-  const [users, vendorsWithoutAccount] = await Promise.all([
-    listUsers(),
-    getVendorsWithoutAccount(),
-  ]);
+  const [users, vendors] = await Promise.all([listUsers(), getVendorOptions()]);
 
-  return (
-    <UserManager
-      users={users}
-      vendorsWithoutAccount={vendorsWithoutAccount}
-      currentUserId={session.id}
-    />
-  );
+  return <UserManager users={users} vendors={vendors} currentUserId={session.id} />;
 }

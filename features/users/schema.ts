@@ -62,17 +62,33 @@ export const setUserActiveSchema = z.object({
 });
 
 /**
- * Ubah role sebuah akun.
+ * Sunting akun.
  *
- * Dipisah dari penyuntingan data lain dengan sengaja: inilah satu-satunya
- * medan yang menentukan wewenang, dan memisahkannya membuat perubahannya
- * terbaca jelas di audit.
+ * `email` dan `password` menyentuh `auth.users`, bukan `profiles` — keduanya
+ * hanya bisa lewat Admin API. Sandi opsional: kosong berarti tidak diubah,
+ * karena sebagian besar penyuntingan hanya membetulkan nama atau peran dan
+ * mengharuskan sandi baru setiap kali justru mendorong sandi yang gampang.
  */
-export const changeRoleSchema = z
+export const updateUserSchema = z
   .object({
     user_id: uuid,
+    email: z.string().trim().toLowerCase().email('Format email tidak valid'),
+    full_name: z.string().trim().min(2, 'Nama wajib diisi').max(150, 'Nama terlalu panjang'),
+    phone: z
+      .string()
+      .trim()
+      .max(20, 'Nomor terlalu panjang')
+      .regex(/^[0-9+()\- ]*$/, 'Nomor hanya boleh berisi angka dan tanda + ( ) -')
+      .optional()
+      .or(z.literal('')),
     role: z.enum(['superadmin', 'admin', 'vendor']),
     vendor_id: uuid.optional().or(z.literal('')),
+    password: z
+      .string()
+      .min(8, 'Kata sandi minimal 8 karakter')
+      .max(72, 'Kata sandi terlalu panjang')
+      .optional()
+      .or(z.literal('')),
   })
   .superRefine((v, ctx) => {
     if (v.role === 'vendor' && !v.vendor_id) {
@@ -91,4 +107,7 @@ export const changeRoleSchema = z
     }
   });
 
-export type ChangeRoleInput = z.infer<typeof changeRoleSchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+/** Hapus akun — `deleted_at`, bukan `delete`. Lihat `deleteUser`. */
+export const deleteUserSchema = z.object({ user_id: uuid });

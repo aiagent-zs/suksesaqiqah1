@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//tmp/**)",
+      "Bash(sed -i 's|console.log\\(c.textContent\\);|require\\(\"fs\"\\).writeFileSync\\(\"/tmp/kpi-out.txt\", c.textContent ?? \"\"\\);|' /tmp/render-kpi.test.tsx)",
+      "Bash(cp /tmp/render-kpi.test.tsx tests/unit/zz-dump.test.tsx)",
+      "Bash(rm -f tests/unit/zz-dump.test.tsx)"
+    ]
+  }
+}
