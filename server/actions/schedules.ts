@@ -7,7 +7,9 @@ import { canDo } from '@/server/auth/capabilities';
 import {
   assignVendorSchema,
   createLocationSchema,
+  deleteLocationSchema,
   saveScheduleSchema,
+  updateLocationSchema,
 } from '@/features/schedules/schema';
 
 import {
@@ -155,32 +157,18 @@ export async function createLocation(
 
   const parsed = createLocationSchema.safeParse(input);
   if (!parsed.success) return validationError(parsed.error);
-  const { name, address, order_id, owned_by_vendor } = parsed.data;
+  const { name, address } = parsed.data;
 
   const supabase = await createClient();
-
-  // Mitra diambil dari order, bukan dari klien — inilah yang membuat penjaga
-  // kepemilikan di `saveSchedule` tidak bisa dilangkahi lewat pintu ini.
-  const { data: order } = await supabase
-    .from('orders')
-    .select('id, vendor_id')
-    .eq('id', order_id)
-    .maybeSingle();
-
-  if (!order) return notFound('Order tidak ditemukan atau di luar akses Anda.');
-
-  if (owned_by_vendor && !order.vendor_id) {
-    return conflict(
-      'Order ini belum punya mitra, jadi lokasinya belum bisa ditandai milik mitra. Simpan sebagai tempat umum, atau tetapkan mitranya lebih dulu.',
-    );
-  }
 
   const { data, error } = await supabase
     .from('locations')
     .insert({
       name,
-      address: address || null,
-      vendor_id: owned_by_vendor ? order.vendor_id : null,
+      address,
+      // Selalu milik bersama. Kepemilikan mitra hanya ada pada baris seed lama
+      // dan tidak pernah dibuat dari aplikasi — lihat `createLocationSchema`.
+      vendor_id: null,
     })
     .select('id, name')
     .maybeSingle();
@@ -195,9 +183,116 @@ export async function createLocation(
   // cek ini penolakannya terlihat sebagai sukses di layar.
   if (!data) return forbidden('Pendaftaran lokasi ditolak untuk role Anda.');
 
-  revalidatePath(`/orders/${order_id}`);
   revalidatePath('/schedule');
   return { ok: true, data: { id: data.id, name: data.name } };
+}
+
+/**
+ * Ubah nama atau alamat sebuah lokasi.
+ *
+ * Salah ketik nama tempat paling sering ketahuan justru saat order berikutnya
+ * dijadwalkan di sana — oleh admin yang sama, yang sebelumnya tidak bisa
+ * membetulkannya sendiri.
+ *
+ * `vendor_id` sengaja tidak ikut disunting: memindahkan kepemilikan lokasi
+ * membuat ia lenyap dari order mitra lain yang sudah memakainya, dan itu bukan
+ * hal yang layak terjadi sebagai efek samping dari membetulkan sebuah alamat.
+ */
+export async function updateLocation(input: unknown): Promise<ActionResult<null>> {
+  const session = await requireAuth();
+
+  if (!canDo(session.profile?.role, 'MANAGE_SCHEDULE')) {
+    return forbidden('Role Anda tidak berhak mengubah lokasi.');
+  }
+
+  const parsed = updateLocationSchema.safeParse(input);
+  if (!parsed.success) return validationError(parsed.error);
+  const { id, name, address } = parsed.data;
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('locations')
+    .update({ name, address })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id');
+
+  if (error?.code === '42501') {
+    return forbidden('Perubahan lokasi masih dibatasi superadmin.');
+  }
+  if (error) return internalError('Gagal mengubah lokasi', error);
+  if ((data ?? []).length === 0) return notFound('Lokasi tidak ditemukan.');
+
+  revalidatePath('/schedule');
+  return { ok: true, data: null };
+}
+
+/**
+ * Hapus lokasi — `deleted_at`, bukan `delete`.
+ *
+ * `schedules.location_id` merujuknya, jadi penghapusan sungguhan memutus jejak
+ * ke mana pelaksanaan sebuah order berlangsung — termasuk yang sudah tercetak
+ * di laporan peserta. Seluruh pembacaan lokasi sudah menyaring
+ * `deleted_at is null`, jadi barisnya hilang dari daftar tanpa memutus rujukan.
+ *
+ * Lokasi yang masih dipakai order berjalan ditahan lebih dulu: menghapusnya
+ * meninggalkan jadwal yang menunjuk tempat yang tidak lagi muncul di mana pun,
+ * dan mitra yang membuka ordernya kehilangan alamat tujuannya menjelang
+ * berangkat.
+ */
+export async function deleteLocation(input: unknown): Promise<ActionResult<null>> {
+  const session = await requireAuth();
+
+  // Sejalan dengan `locations_delete` yang menuntut `is_superadmin()`:
+  // menawarkan tombol yang pasti ditolak database hanya membuang waktu.
+  if (session.profile?.role !== 'superadmin') {
+    return forbidden('Penghapusan lokasi hanya dapat dilakukan superadmin.');
+  }
+
+  const parsed = deleteLocationSchema.safeParse(input);
+  if (!parsed.success) return validationError(parsed.error);
+  const { id } = parsed.data;
+
+  const supabase = await createClient();
+
+  const { count, error: countError } = await supabase
+    .from('schedules')
+    .select('order_id, order:orders!inner ( status )', { count: 'exact', head: true })
+    .eq('location_id', id)
+    .not('order.status', 'in', '("completed","cancelled")');
+
+  // Hitungan yang gagal menahan, bukan meloloskan: `count` null pada error, dan
+  // `(count ?? 0) > 0` justru akan meloloskan penghapusan saat datanya tidak
+  // terbaca — persis keadaan yang paling perlu ditahan.
+  if (countError || count === null) {
+    return internalError(
+      'Gagal memeriksa pemakaian lokasi',
+      countError ?? { message: 'count kosong' },
+    );
+  }
+
+  if (count > 0) {
+    return conflict(
+      `Lokasi ini masih dipakai ${count} order berjalan. Pindahkan jadwalnya lebih dulu.`,
+    );
+  }
+
+  const { data, error } = await supabase
+    .from('locations')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id');
+
+  if (error?.code === '42501') {
+    return forbidden('Penghapusan lokasi hanya dapat dilakukan superadmin.');
+  }
+  if (error) return internalError('Gagal menghapus lokasi', error);
+  if ((data ?? []).length === 0) return notFound('Lokasi tidak ditemukan.');
+
+  revalidatePath('/schedule');
+  return { ok: true, data: null };
 }
 
 // =============================================================================

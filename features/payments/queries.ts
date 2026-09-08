@@ -41,7 +41,12 @@ export async function getOrderPayments(orderId: string): Promise<PaymentSummary>
   const { data, error } = await supabase
     .from('payments')
     .select(
-      'id, amount, method, status, note, proof_path, created_at, verified_at, verifier:profiles ( full_name )',
+      // **Foreign key-nya disebut eksplisit.** `payments` punya DUA rujukan ke
+      // `profiles` — `recorded_by` dan `verified_by` — jadi `profiles(...)`
+      // polos membuat PostgREST tidak tahu yang mana dan menolak seluruh query
+      // dengan `PGRST201` (HTTP 300). Bukan galat baris, melainkan galat
+      // seluruh permintaan: satu pun pembayaran tidak terbaca.
+      'id, amount, method, status, note, proof_path, created_at, verified_at, verifier:profiles!payments_verified_by_fkey ( full_name )',
     )
     .eq('order_id', orderId)
     .order('created_at', { ascending: false });
@@ -50,6 +55,15 @@ export async function getOrderPayments(orderId: string): Promise<PaymentSummary>
     // Penolakan RLS bagi petugas lapangan tampak sebagai error di sini —
     // diperlakukan sebagai "tidak ada data yang boleh dilihat", bukan kegagalan
     // halaman detail order secara keseluruhan.
+    //
+    // Justru karena selubung ini luas, kesalahan **bentuk query** ikut tertelan
+    // dan tampil sebagai panel kosong yang meyakinkan: itu yang terjadi dengan
+    // join ambigu di atas selama berhari-hari. Karena itu galat yang jelas
+    // bukan penolakan RLS dicatat ke log server — `42501` dan `PGRST301` yang
+    // memang berarti "tidak berhak" tetap didiamkan.
+    if (error.code !== '42501' && error.code !== 'PGRST301') {
+      console.error('[payments] Gagal memuat pembayaran:', error.code ?? '-', error.message);
+    }
     return { payments: [], verifiedTotal: 0, pendingTotal: 0, pendingCount: 0 };
   }
 

@@ -48,6 +48,27 @@ export const assignVendorSchema = z.object({
 });
 
 /**
+ * Nama & alamat satu lokasi pelaksanaan — dipakai saat membuat dan menyunting.
+ *
+ * **Alamat wajib**, tidak seperti kolomnya di database yang nullable. Lokasi
+ * tanpa alamat tidak bisa dituju siapa pun: mitra yang berangkat ke sana perlu
+ * tahu jalannya, dan alamat itu ikut tercetak di laporan peserta. Nama saja
+ * ("Masjid Al-Ikhlas") ada puluhan di satu kota.
+ *
+ * Kolomnya dibiarkan nullable di database karena tiga baris seed lama memang
+ * lahir tanpa alamat; yang dijaga di sini adalah baris baru, bukan yang sudah
+ * terlanjur ada.
+ */
+const locationFields = {
+  name: z.string().trim().min(3, 'Nama tempat minimal 3 karakter').max(150, 'Nama terlalu panjang'),
+  address: z
+    .string()
+    .trim()
+    .min(10, 'Alamat lengkap wajib diisi — tulis jalan, nomor, kelurahan, dan kota')
+    .max(500, 'Alamat terlalu panjang'),
+};
+
+/**
  * Daftarkan lokasi pelaksanaan baru.
  *
  * Tabel `locations` sebelumnya **tidak punya satu pun jalan masuk lewat
@@ -55,27 +76,27 @@ export const assignVendorSchema = z.object({
  * menuntut akses langsung ke database. Padahal lokasi salur berganti tiap
  * order: masjid, panti, atau kampung penerima manfaat yang berbeda-beda.
  *
- * `vendor_id` sengaja tidak diterima dari klien. Ia diisi server dari mitra
- * order yang bersangkutan, atau NULL untuk tempat umum — kalau boleh dikirim,
- * seseorang bisa mendaftarkan lokasi atas nama mitra lain dan memakainya untuk
- * menembus pemeriksaan "lokasi ini milik mitra lain" di `saveSchedule`.
+ * **`vendor_id` sama sekali tidak ada di sini.** Lokasi yang dibuat lewat
+ * aplikasi selalu milik bersama (`vendor_id = NULL`) dan bisa dipakai order
+ * mana pun. Kepemilikan per mitra tetap ada di database untuk tiga baris seed
+ * (RPH milik mitra), tetapi menawarkannya sebagai pilihan saat membuat hanya
+ * membebani orang dengan keputusan yang jarang benar-benar dibutuhkan — dan
+ * salah pilih di situ membuat lokasinya lenyap dari order mitra lain tanpa
+ * alasan yang terbaca.
  */
-export const createLocationSchema = z.object({
-  name: z.string().trim().min(3, 'Nama tempat minimal 3 karakter').max(150, 'Nama terlalu panjang'),
-  address: z.string().trim().max(500, 'Alamat terlalu panjang').optional().or(z.literal('')),
-  /**
-   * Order yang sedang dijadwalkan. Dipakai server untuk menentukan pemilik
-   * lokasinya — bukan untuk menyimpan tautan ke order.
-   */
-  order_id: uuid,
-  /**
-   * `true` = milik mitra order ini; `false` = tempat umum (masjid, panti) yang
-   * bisa dipakai order mana pun.
-   */
-  owned_by_vendor: z.boolean().default(false),
+export const createLocationSchema = z.object(locationFields);
+
+/** Ubah nama/alamat lokasi. Kepemilikan mitra tidak ikut disunting di sini. */
+export const updateLocationSchema = z.object({
+  id: uuid,
+  ...locationFields,
 });
 
+/** Hapus lokasi — `deleted_at`, bukan `delete`. Lihat `deleteLocation`. */
+export const deleteLocationSchema = z.object({ id: uuid });
+
 export type CreateLocationInput = z.infer<typeof createLocationSchema>;
+export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;
 
 /**
  * Filter halaman Jadwal (`prd.md` FR-S2: lihat jadwal per lokasi & per petugas).

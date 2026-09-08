@@ -273,6 +273,9 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               options={scheduleOptions}
               canEdit={canManageSchedule}
               canAssign={canDo(role, 'ASSIGN_VENDOR')}
+              // Cerminan RLS `locations_delete`: menghapus lokasi memutus jejak
+              // ke mana order lama dilaksanakan, jadi berhenti di superadmin.
+              canDeleteLocation={role === 'superadmin'}
             />
           </PhaseSection>
 

@@ -24,13 +24,11 @@ import type { LocationOption } from '@/features/schedules/queries';
  *      menghasilkan penolakan sesudah ditekan.
  */
 const saveSchedule = vi.fn();
-const createLocation = vi.fn();
 const refresh = vi.fn();
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 vi.mock('@/server/actions/schedules', () => ({
   saveSchedule: (...a: unknown[]) => saveSchedule(...a),
-  createLocation: (...a: unknown[]) => createLocation(...a),
   assignVendor: vi.fn(),
 }));
 
@@ -105,29 +103,8 @@ function locationOptions(el: HTMLElement): string[] {
 beforeEach(() => {
   saveSchedule.mockReset();
   saveSchedule.mockResolvedValue({ ok: true, data: null });
-  createLocation.mockReset();
-  createLocation.mockResolvedValue({ ok: true, data: { id: 'loc-baru', name: 'Tempat Baru' } });
   refresh.mockReset();
 });
-
-/** Tekan tombol yang teksnya memuat `label`. */
-function press(el: HTMLElement, label: string) {
-  return [...el.querySelectorAll('button')].find((b) => b.textContent?.includes(label));
-}
-
-/** Isi sebuah medan lewat setter asli agar React mendengarnya. */
-function fill(el: HTMLElement, selector: string, text: string) {
-  const field = el.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement;
-  const proto =
-    field.tagName === 'TEXTAREA'
-      ? window.HTMLTextAreaElement.prototype
-      : window.HTMLInputElement.prototype;
-  const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-  act(() => {
-    setter?.call(field, text);
-    field.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-}
 
 afterEach(() => {
   act(() => root?.unmount());
@@ -198,75 +175,5 @@ describe('lokasi yang ditawarkan', () => {
     const values = locationOptions(mount({ vendorId: undefined }));
     expect(values).toContain('loc-a');
     expect(values).toContain('loc-b');
-  });
-});
-
-/**
- * Mendaftarkan tempat baru dari panel jadwal.
- *
- * Tabel `locations` sebelumnya tidak punya satu pun jalan masuk lewat aplikasi
- * — barisnya hanya lahir dari seed, jadi menambah tempat menuntut akses
- * langsung ke database. Padahal lokasi salur berganti hampir tiap order, dan
- * yang tahu alamatnya adalah admin yang sedang menjadwalkan.
- */
-describe('mendaftarkan tempat baru', () => {
-  it('mengirim nama, alamat, dan order yang sedang dijadwalkan', async () => {
-    const el = mount({ vendorId: VENDOR_A });
-    act(() => press(el, 'Tempat baru')?.click());
-
-    fill(el, '#loc-name', 'Masjid Al-Ikhlas Depok');
-    fill(el, '#loc-address', 'Jl. Margonda No. 10, Depok');
-
-    await act(async () => press(el, 'Simpan tempat')?.click());
-
-    expect(createLocation).toHaveBeenCalledWith({
-      name: 'Masjid Al-Ikhlas Depok',
-      address: 'Jl. Margonda No. 10, Depok',
-      order_id: 'o1',
-      // Tanpa dicentang: tempat umum, bukan milik mitra.
-      owned_by_vendor: false,
-    });
-  });
-
-  it('langsung memasangnya sebagai pilihan sesudah tersimpan', async () => {
-    // Yang baru mendaftarkan tempat hampir pasti ingin memakainya sekarang,
-    // bukan mencarinya lagi di daftar.
-    const el = mount({ vendorId: VENDOR_A });
-    act(() => press(el, 'Tempat baru')?.click());
-    fill(el, '#loc-name', 'Panti Asuhan Harapan');
-
-    await act(async () => press(el, 'Simpan tempat')?.click());
-
-    const select = el.querySelector(
-      'select[aria-label="Pilih lokasi pelaksanaan"]',
-    ) as HTMLSelectElement;
-    expect(select.value).toBe('loc-baru');
-    // Formnya menutup sendiri — kalau tetap terbuka, tempat yang sama gampang
-    // didaftarkan dua kali.
-    expect(el.querySelector('#loc-name')).toBeNull();
-  });
-
-  it('menolak nama yang terlalu pendek sebelum menyentuh server', async () => {
-    const el = mount({ vendorId: VENDOR_A });
-    act(() => press(el, 'Tempat baru')?.click());
-    fill(el, '#loc-name', 'ab');
-
-    expect(press(el, 'Simpan tempat')?.disabled).toBe(true);
-    expect(createLocation).not.toHaveBeenCalled();
-  });
-
-  it('menawarkan penandaan milik mitra hanya bila mitranya ada', () => {
-    // Server menolak `owned_by_vendor` pada order tanpa mitra, jadi pilihan
-    // yang pasti ditolak lebih baik tidak ditawarkan.
-    const dengan = mount({ vendorId: VENDOR_A });
-    act(() => press(dengan, 'Tempat baru')?.click());
-    expect(dengan.querySelector('input[type="checkbox"]')).not.toBeNull();
-
-    act(() => root?.unmount());
-    container?.remove();
-
-    const tanpa = mount({ vendorId: undefined });
-    act(() => press(tanpa, 'Tempat baru')?.click());
-    expect(tanpa.querySelector('input[type="checkbox"]')).toBeNull();
   });
 });

@@ -2,18 +2,18 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CalendarDays, MapPin, Pencil, Plus, Store } from 'lucide-react';
+import { AlertCircle, CalendarDays, MapPin, Pencil, Plus, Store, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDate, formatTime } from '@/lib/format';
-import { assignVendor, createLocation, saveSchedule } from '@/server/actions/schedules';
+import { assignVendor, saveSchedule } from '@/server/actions/schedules';
 import { googleMapsUrl } from '../maps';
+import { LocationDialog } from './location-dialog';
+import { LocationDeleteDialog } from './location-delete-dialog';
 import type { LocationOption, ScheduleFormOptions, VendorOption } from '../queries';
-
-const EMPTY_LOCATION = { name: '', address: '', ownedByVendor: false };
 
 export type CurrentSchedule = {
   locationId: string | null;
@@ -51,6 +51,7 @@ export function ScheduleManager({
   vendors,
   canEdit,
   canAssign,
+  canDeleteLocation = false,
 }: {
   orderId: string;
   schedule: CurrentSchedule | null;
@@ -59,6 +60,12 @@ export function ScheduleManager({
   vendors: VendorOption[];
   canEdit: boolean;
   canAssign: boolean;
+  /**
+   * Menghapus lokasi berhenti di superadmin, sejalan dengan RLS
+   * `locations_delete`. Diturunkan dari halaman, bukan ditebak di sini —
+   * komponen klien tidak punya sesi untuk ditanyai.
+   */
+  canDeleteLocation?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -73,8 +80,6 @@ export function ScheduleManager({
   const [vendorDraft, setVendorDraft] = useState(vendor?.id ?? '');
   /** Pemilih lokasi di ringkasan — terpisah dari `draft` milik form penuh. */
   const [locationDraft, setLocationDraft] = useState(schedule?.locationId ?? '');
-  const [showNewLocation, setShowNewLocation] = useState(false);
-  const [newLocation, setNewLocation] = useState(EMPTY_LOCATION);
   /**
    * Lokasi yang baru saja didaftarkan, disimpan sampai `router.refresh()`
    * membawanya turun sebagai props.
@@ -107,6 +112,9 @@ export function ScheduleManager({
   ].filter(
     (l) => l.id === schedule?.locationId || !l.vendorId || !vendor?.id || l.vendorId === vendor.id,
   );
+
+  /** Lokasi yang sedang dipilih di dropdown — sasaran tombol Ubah & Hapus. */
+  const selectedLocation = selectableLocations.find((l) => l.id === locationDraft) ?? null;
 
   const mapsUrl = schedule ? googleMapsUrl(schedule.lat, schedule.lng) : null;
 
@@ -327,135 +335,87 @@ export function ScheduleManager({
                     Pindahkan ke lokasi ini
                   </Button>
 
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={pending}
-                    onClick={() => {
-                      setShowNewLocation((v) => !v);
-                      setError(null);
+                  {/* Menambah & menyunting tempat dari sini, bukan dari halaman
+                      master data tersendiri: lokasi salur berganti hampir tiap
+                      order, dan yang tahu alamatnya adalah admin yang sedang
+                      menjadwalkan. Selama pintunya tidak ada, yang terjadi bukan
+                      "minta tolong superadmin" melainkan alamat ditulis di kolom
+                      catatan — di luar jangkauan laporan dan tidak bisa dipakai
+                      ulang order berikutnya. */}
+                  <LocationDialog
+                    onSaved={(saved) => {
+                      // Disimpan sementara sampai `router.refresh()` membawanya
+                      // turun sebagai props, lalu langsung dipasang: yang baru
+                      // mendaftarkan tempat hampir pasti ingin memakainya
+                      // sekarang.
+                      setJustCreated((prev) => [
+                        ...prev,
+                        {
+                          id: saved.id,
+                          name: saved.name,
+                          address: saved.address,
+                          lat: null,
+                          lng: null,
+                          vendorId: null,
+                        },
+                      ]);
+                      setLocationDraft(saved.id);
                     }}
-                  >
-                    <Plus className="size-3.5" />
-                    Tempat baru
-                  </Button>
+                    trigger={
+                      <Button type="button" size="sm" variant="ghost" disabled={pending}>
+                        <Plus className="size-3.5" />
+                        Tambah lokasi
+                      </Button>
+                    }
+                  />
+
+                  {/* Menyunting yang sedang dipilih, bukan yang sedang
+                      terpasang: salah ketik paling sering ketahuan justru saat
+                      tempatnya dipilih untuk order berikutnya. */}
+                  {selectedLocation && (
+                    <LocationDialog
+                      location={selectedLocation}
+                      onSaved={(saved) =>
+                        // Perubahan nama ikut disimpan sementara supaya
+                        // labelnya tidak melompat balik ke nama lama sampai
+                        // refresh selesai.
+                        setJustCreated((prev) => [
+                          ...prev.filter((l) => l.id !== saved.id),
+                          { ...selectedLocation, name: saved.name, address: saved.address },
+                        ])
+                      }
+                      trigger={
+                        <Button type="button" size="sm" variant="ghost" disabled={pending}>
+                          <Pencil className="size-3.5" />
+                          Ubah lokasi
+                        </Button>
+                      }
+                    />
+                  )}
+
+                  {canDeleteLocation && selectedLocation && (
+                    <LocationDeleteDialog
+                      location={selectedLocation}
+                      onDeleted={() => setLocationDraft('')}
+                      trigger={
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          disabled={pending}
+                          aria-label={`Hapus lokasi ${selectedLocation.name}`}
+                        >
+                          <Trash2 className="size-3.5" />
+                          Hapus
+                        </Button>
+                      }
+                    />
+                  )}
                 </div>
 
-                {/* Mendaftarkan tempat baru dari sini, bukan dari halaman master
-                    data tersendiri: lokasi salur berganti hampir tiap order, dan
-                    yang tahu alamatnya adalah admin yang sedang menjadwalkan.
-                    Selama pintunya tidak ada, yang terjadi bukan "minta tolong
-                    superadmin" melainkan alamat ditulis di kolom catatan — di
-                    luar jangkauan laporan dan tidak bisa dipakai ulang. */}
-                {showNewLocation && (
-                  <div className="border-border bg-card space-y-2 rounded-lg border p-3">
-                    <div>
-                      <Label htmlFor="loc-name">Nama tempat</Label>
-                      <Input
-                        id="loc-name"
-                        value={newLocation.name}
-                        placeholder="Mis. Masjid Al-Ikhlas Depok"
-                        disabled={pending}
-                        onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
-                        className="mt-1.5"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="loc-address">Alamat lengkap</Label>
-                      <Textarea
-                        id="loc-address"
-                        rows={2}
-                        value={newLocation.address}
-                        placeholder="Jalan, nomor, RT/RW, kelurahan, kecamatan, kota"
-                        disabled={pending}
-                        onChange={(e) =>
-                          setNewLocation({ ...newLocation, address: e.target.value })
-                        }
-                        className="mt-1.5"
-                      />
-                    </div>
-
-                    {/* Hanya ditawarkan bila mitranya sudah ada — tanpa itu
-                        server menolaknya, dan pilihan yang pasti ditolak lebih
-                        buruk daripada tidak ditawarkan. */}
-                    {vendor && (
-                      <label className="flex items-start gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={newLocation.ownedByVendor}
-                          disabled={pending}
-                          onChange={(e) =>
-                            setNewLocation({ ...newLocation, ownedByVendor: e.target.checked })
-                          }
-                          className="border-border accent-primary mt-0.5 size-3.5 rounded"
-                        />
-                        <span className="text-muted-foreground">
-                          Milik {vendor.name} — hanya ditawarkan untuk order mitra ini. Biarkan
-                          kosong untuk tempat umum seperti masjid atau panti.
-                        </span>
-                      </label>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={pending || newLocation.name.trim().length < 3}
-                        onClick={() =>
-                          run(async () => {
-                            const result = await createLocation({
-                              name: newLocation.name,
-                              address: newLocation.address,
-                              order_id: orderId,
-                              owned_by_vendor: newLocation.ownedByVendor,
-                            });
-
-                            // Langsung dipasang sebagai pilihan: yang baru
-                            // mendaftarkan tempat hampir pasti ingin memakainya
-                            // sekarang, bukan mencarinya lagi di daftar.
-                            if (result.ok) {
-                              setJustCreated((prev) => [
-                                ...prev,
-                                {
-                                  id: result.data.id,
-                                  name: result.data.name,
-                                  address: newLocation.address || null,
-                                  lat: null,
-                                  lng: null,
-                                  vendorId: newLocation.ownedByVendor ? (vendor?.id ?? null) : null,
-                                },
-                              ]);
-                              setLocationDraft(result.data.id);
-                              setNewLocation(EMPTY_LOCATION);
-                              setShowNewLocation(false);
-                            }
-                            return result;
-                          })
-                        }
-                      >
-                        Simpan tempat
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={pending}
-                        onClick={() => {
-                          setShowNewLocation(false);
-                          setNewLocation(EMPTY_LOCATION);
-                        }}
-                      >
-                        Batal
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {noLocations && !showNewLocation && (
+                {noLocations && (
                   <p className="text-muted-foreground text-xs">
-                    Belum ada lokasi yang cocok untuk order ini — daftarkan lewat “Tempat baru”.
+                    Belum ada lokasi terdaftar — tambahkan lewat “Tambah lokasi”.
                   </p>
                 )}
               </dd>
