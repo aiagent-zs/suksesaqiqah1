@@ -320,4 +320,111 @@ describe('outbox — penandaan sudah ditangani', () => {
       expect(queued.some((r) => r.id === notif.id)).toBe(false);
     });
   });
+
+  describe('notifikasi ditutup sendiri begitu pekerjaannya selesai', () => {
+    /**
+     * Panel "Perlu Tindakan" menjawab satu pertanyaan: apa yang BELUM ditangani.
+     *
+     * Outbox dulu hanya tahu cara menerbitkan, tidak pernah tahu kapan sebuah
+     * notifikasi berhenti relevan — barisnya bertahan `queued` sampai ada admin
+     * yang menekan centang manual, dan tidak ada yang menekan centang untuk
+     * pekerjaan yang sudah ia kerjakan lewat jalan lain. Di produksi tiga dari
+     * empat barisnya menuntut tindakan yang sudah tidak ada.
+     *
+     * Panel yang isinya sebagian besar tugas semu berhenti dibaca, dan tugas yang
+     * sungguhan ikut tenggelam bersamanya. Itu yang dijaga di sini.
+     */
+    it('order tamu: tertutup begitu diverifikasi admin', async () => {
+      await inRollback(async (tx) => {
+        await actAsOwner(tx);
+        const [participant] = await tx<{ id: string }[]>`
+        insert into public.participants (name, phone)
+        values ('Uji Tutup Notif', '081200000001') returning id
+      `;
+        const [order] = await tx<{ id: string }[]>`
+        insert into public.orders (participant_id, status, distribution_mode, total_amount, created_by)
+        values (${participant.id}, 'new', 'salur', 1000000, null) returning id
+      `;
+
+        const terbit = (await notifsOf(tx, order.id)).filter(
+          (n) => n.template === 'guest_order_new' && n.status === 'queued',
+        );
+        expect(terbit).toHaveLength(1);
+
+        await tx`
+        update public.orders
+        set guest_verified_at = now(), guest_verified_by = ${SEED.admin}
+        where id = ${order.id}
+      `;
+
+        const sisa = (await notifsOf(tx, order.id)).filter(
+          (n) => n.template === 'guest_order_new' && n.status === 'queued',
+        );
+        expect(sisa).toHaveLength(0);
+      });
+    });
+
+    it('order tamu: tertutup juga bila ordernya dibatalkan', async () => {
+      // Order yang dibatalkan tidak akan pernah diverifikasi, jadi tugasnya
+      // hilang bukan karena selesai — melainkan karena tidak ada lagi.
+      await inRollback(async (tx) => {
+        await actAsOwner(tx);
+        const [participant] = await tx<{ id: string }[]>`
+        insert into public.participants (name, phone)
+        values ('Uji Batal Notif', '081200000002') returning id
+      `;
+        const [order] = await tx<{ id: string }[]>`
+        insert into public.orders (participant_id, status, distribution_mode, total_amount, created_by)
+        values (${participant.id}, 'new', 'salur', 1000000, null) returning id
+      `;
+
+        await tx`update public.orders set status = 'cancelled' where id = ${order.id}`;
+
+        const sisa = (await notifsOf(tx, order.id)).filter(
+          (n) => n.template === 'guest_order_new' && n.status === 'queued',
+        );
+        expect(sisa).toHaveLength(0);
+      });
+    });
+
+    it('bukti: tertutup begitu diputuskan — disetujui MAUPUN ditolak', async () => {
+      // Apa pun keputusannya, buktinya sudah tidak menunggu. Menutup hanya pada
+      // "disetujui" akan meninggalkan tugas semu tiap kali admin menolak.
+      for (const keputusan of ['approved', 'rejected'] as const) {
+        await inRollback(async (tx) => {
+          await actAsOwner(tx);
+          const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+          await assignVendor(tx, orderId);
+          const [tahap] = await stagesOf(tx, orderId);
+
+          const [doc] = await tx<{ id: string }[]>`
+          insert into public.documentations (
+            order_id, stage_event_id, stage, type, storage_path, uploaded_by, status
+          ) values (
+            ${orderId}, ${tahap.id}, ${tahap.stage}::public.doc_stage, 'photo',
+            ${'2026/09/uji/bukti.jpg'}, ${SEED.vendorUserA}, 'pending'
+          ) returning id
+        `;
+
+          const terbit = (await notifsOf(tx, orderId)).filter(
+            (n) => n.template === 'documentation_uploaded' && n.status === 'queued',
+          );
+          expect(terbit, keputusan).toHaveLength(1);
+
+          await tx`
+          update public.documentations
+          set status = ${keputusan}::public.doc_status,
+              reviewed_at = now(), reviewed_by = ${SEED.admin},
+              review_note = ${keputusan === 'rejected' ? 'foto buram' : null}
+          where id = ${doc.id}
+        `;
+
+          const sisa = (await notifsOf(tx, orderId)).filter(
+            (n) => n.template === 'documentation_uploaded' && n.status === 'queued',
+          );
+          expect(sisa, keputusan).toHaveLength(0);
+        });
+      }
+    });
+  });
 });
