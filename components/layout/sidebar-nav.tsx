@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { isNavItemActive, navItemsForRole } from './nav-items';
+import { RouteProgress } from './route-progress';
 import type { Database } from '@/types/database';
 
 type UserRole = Database['public']['Enums']['user_role'];
@@ -55,6 +56,10 @@ export function SidebarNav({ role }: { role: UserRole | undefined }) {
           >
             <Icon className="h-4 w-4 shrink-0" />
             <span>{item.label}</span>
+            {/* Harus di DALAM `<Link>`: `useLinkStatus` membaca status navigasi
+                dari Link terdekat di atasnya. Dipasang di luar, ia selalu
+                mengembalikan `pending: false`. */}
+            <RouteProgress />
           </Link>
         );
       })}

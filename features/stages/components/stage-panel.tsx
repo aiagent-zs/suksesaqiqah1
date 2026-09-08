@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Check, MapPin, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BusyButton } from '@/components/ui/busy-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -316,17 +317,22 @@ export function StagePanel({
 
                   {canValidate && row.status === 'reported' && (
                     <>
-                      <Button
+                      {/* Validasi menggerakkan tahap berikutnya sekaligus
+                          menyetujui buktinya — aksi paling menentukan di panel
+                          ini, jadi ia yang paling perlu mengatakan sedang
+                          berjalan. */}
+                      <BusyButton
                         type="button"
                         size="sm"
-                        disabled={pending}
+                        busy={pending}
+                        busyLabel="Memvalidasi…"
                         onClick={() =>
                           run(() => reviewStage({ stage_event_id: row.id, decision: 'validate' }))
                         }
                       >
                         <Check className="size-3.5" />
                         Validasi
-                      </Button>
+                      </BusyButton>
                       <Button
                         type="button"
                         size="sm"
@@ -487,10 +493,12 @@ export function StagePanel({
                   </div>
 
                   <div className="flex items-center gap-2 sm:col-span-2">
-                    <Button
+                    <BusyButton
                       type="button"
                       size="sm"
-                      disabled={pending || !draft.occurred_at}
+                      busy={pending}
+                      busyLabel="Menyimpan…"
+                      disabled={!draft.occurred_at}
                       onClick={() =>
                         run(() =>
                           reportStage({
@@ -511,7 +519,7 @@ export function StagePanel({
                       }
                     >
                       Simpan laporan
-                    </Button>
+                    </BusyButton>
                     <Button
                       type="button"
                       size="sm"

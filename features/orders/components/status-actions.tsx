@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, ArrowRight, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BusyButton } from '@/components/ui/busy-button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { changeOrderStatus } from '@/server/actions/orders';
@@ -66,18 +67,23 @@ export function StatusActions({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
+        {/* Transisi status memuat ulang seluruh halaman detail order — lima
+            query Supabase — jadi inilah aksi yang jedanya paling terasa, dan
+            paling sering disangka nge-lag. */}
         {options.map((option) => (
-          <Button
+          <BusyButton
             key={option.to}
             size="lg"
             variant={REASON_REQUIRED.includes(option.to) ? 'outline' : 'default'}
-            disabled={!option.allowed || pending}
+            busy={pending}
+            busyLabel="Memproses…"
+            disabled={!option.allowed}
             title={option.reason ?? undefined}
             onClick={() => handleClick(option)}
           >
             <ArrowRight className="size-4" />
             {option.label}
-          </Button>
+          </BusyButton>
         ))}
       </div>
 

@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { logout } from '@/server/actions/auth';
 import { ROLE_LABEL } from '@/lib/constants/roles';
 import { isNavItemActive, navItemsForRole } from './nav-items';
+import { RouteProgress } from './route-progress';
 import type { Database } from '@/types/database';
 
 type UserRole = Database['public']['Enums']['user_role'];
@@ -87,6 +88,8 @@ export function MobileNav({ fullName, role }: { fullName: string; role: UserRole
                 >
                   <Icon className="h-5 w-5 shrink-0" />
                   <span className="max-w-full truncate">{item.shortLabel}</span>
+                  {/* Di dalam `<Link>` — lihat catatan di `RouteProgress`. */}
+                  <RouteProgress />
                 </Link>
               </li>
             );
