@@ -348,6 +348,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       hasSchedule: schedule !== null,
       animalsTotal: Number(progress?.animals_total ?? 0),
       stagesTotal: Number(progress?.stages_total ?? 0),
+      stagesReported: Number(progress?.stages_reported ?? 0),
       stagesValidated: Number(progress?.stages_validated ?? 0),
       stagesRejected: Number(progress?.stages_rejected ?? 0),
       missingDocStages: progress?.missing_doc_stages ?? [],

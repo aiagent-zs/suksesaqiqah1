@@ -337,7 +337,7 @@ describe('penghapusan berhenti di superadmin', () => {
         insert into public.documentations (
           order_id, stage, type, storage_path, uploaded_by, status, reviewed_by, reviewed_at
         ) values (
-          ${orderId}, 'umum'::public.doc_stage, 'photo'::public.doc_type,
+          ${orderId}, 'sembelih'::public.doc_stage, 'photo'::public.doc_type,
           ${'2026/08/uji/tetap.jpg'}, ${SEED.vendorUserA},
           'approved'::public.doc_status, ${SEED.admin}, now()
         ) returning id

@@ -1,6 +1,35 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
+import { signPaths, type DocumentationRow } from '@/features/documentation/queries';
+import type { DocStage, DocStatus, DocType } from '@/features/documentation/storage';
 import type { FulfilmentStage, StageEventStatus } from './sequence';
+
+/**
+ * Medan bukti yang ikut terbaca di antrean.
+ *
+ * Lebih sempit daripada `DOC_SELECT` milik halaman order: antrean menilai
+ * laporan yang **belum** diputuskan, jadi nama peninjau dan waktu peninjauan
+ * belum ada isinya. Yang diambil hanya yang benar-benar dipakai kartu antrean.
+ */
+const DOC_QUEUE_FIELDS = `
+  id, type, stage, status, caption, review_note, created_at, reviewed_at,
+  storage_path, uploaded_by,
+  uploader:profiles!documentations_uploaded_by_fkey ( full_name )
+`;
+
+type RawQueueDoc = {
+  id: string;
+  type: DocType;
+  stage: DocStage;
+  status: DocStatus;
+  caption: string | null;
+  review_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+  storage_path: string | null;
+  uploaded_by: string | null;
+  uploader: { full_name: string | null } | null;
+};
 
 export type StageEventRow = {
   id: string;
@@ -109,6 +138,8 @@ export type StageQueueItem = StageEventRow & {
   orderNumber: string;
   vendorName: string | null;
   participantName: string;
+  /** Bukti yang menyertai laporan ini — dinilai bersamaan, bukan terpisah. */
+  docs: DocumentationRow[];
 };
 
 /**
@@ -116,11 +147,23 @@ export type StageQueueItem = StageEventRow & {
  *
  * Urut tertua dulu: laporan yang menggantung paling lama menahan seluruh tahap
  * sesudahnya, karena gerbangnya menuntut tahap sebelumnya **tervalidasi**.
+ *
+ * **Buktinya ikut.** Sebelumnya halaman `/validation` menampilkan antrean foto
+ * lintas order, sementara laporan tahapnya hanya bisa dinilai dari halaman
+ * order — dua antrean untuk satu keputusan. Sejak bukti menempel pada laporan
+ * tahapnya, keduanya dibaca sekaligus di sini.
+ *
+ * Dibatasi 50 tanpa paginasi: antreannya hanya berisi yang berstatus
+ * `reported`, jadi ia pendek menurut bentuknya sendiri.
+ * `ponytail: batas 50 tanpa Pagination — pasang kalau antreannya rutin penuh.`
  */
-export async function getStageQueue(limit = 50): Promise<StageQueueItem[]> {
+export async function getStageQueue(
+  filter?: { stage?: FulfilmentStage },
+  limit = 50,
+): Promise<StageQueueItem[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('order_stage_events')
     .select(
       `${STAGE_SELECT},
@@ -128,26 +171,45 @@ export async function getStageQueue(limit = 50): Promise<StageQueueItem[]> {
          id, order_number,
          participant:participants!orders_participant_id_fkey ( name ),
          vendor:vendors!orders_vendor_id_fkey ( name )
-       )`,
+       ),
+       documentations ( ${DOC_QUEUE_FIELDS} )`,
     )
     .eq('status', 'reported')
     .order('reported_at', { ascending: true })
     .limit(limit);
 
-  if (error) return [];
+  if (filter?.stage) query = query.eq('stage', filter.stage);
 
-  return (
-    (data ?? []) as unknown as Array<
-      RawStage & {
-        order: {
-          id: string;
-          order_number: string;
-          participant: { name: string } | null;
-          vendor: { name: string } | null;
-        } | null;
-      }
-    >
-  ).map((r) => ({
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('[stages] Gagal memuat antrian tahap:', error.code ?? '-', error.message);
+    return [];
+  }
+
+  const rows = (data ?? []) as unknown as Array<
+    RawStage & {
+      order: {
+        id: string;
+        order_number: string;
+        participant: { name: string } | null;
+        vendor: { name: string } | null;
+      } | null;
+      documentations: RawQueueDoc[] | null;
+    }
+  >;
+
+  // Seluruh berkas ditandatangani sekali untuk satu halaman — bukan per baris.
+  // Antrean 50 laporan yang masing-masing punya 3 foto berarti 150 permintaan
+  // kalau ditandatangani satu per satu.
+  const urlByPath = await signPaths(
+    supabase,
+    rows.flatMap((r) =>
+      (r.documentations ?? []).map((d) => d.storage_path).filter((p): p is string => Boolean(p)),
+    ),
+  );
+
+  return rows.map((r) => ({
     id: r.id,
     stage: r.stage,
     seq: r.seq,
@@ -173,5 +235,21 @@ export async function getStageQueue(limit = 50): Promise<StageQueueItem[]> {
     orderNumber: r.order?.order_number ?? '-',
     vendorName: r.order?.vendor?.name ?? null,
     participantName: r.order?.participant?.name ?? '-',
+    docs: (r.documentations ?? []).map((d) => ({
+      id: d.id,
+      type: d.type,
+      stage: d.stage,
+      status: d.status,
+      stageEventId: r.id,
+      caption: d.caption,
+      reviewNote: d.review_note,
+      createdAt: d.created_at,
+      reviewedAt: d.reviewed_at,
+      uploaderId: d.uploaded_by,
+      uploaderName: d.uploader?.full_name ?? null,
+      reviewerName: null,
+      animalTag: r.animal?.tag_code ?? null,
+      mediaUrl: d.storage_path ? (urlByPath.get(d.storage_path) ?? null) : null,
+    })),
   }));
 }

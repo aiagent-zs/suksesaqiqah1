@@ -38,19 +38,37 @@ function GuestBadge({ verifiedAt }: { verifiedAt: string | null }) {
   );
 }
 
-/** Tabel order untuk desktop (docs/14 section 6: tabel penuh di > 1024px). */
-export function OrderTable({ rows }: { rows: OrderListRow[] }) {
+/**
+ * Tabel order untuk desktop (docs/14 section 6: tabel penuh di > 1024px).
+ *
+ * `canSeeFinance` memotong tiga kolom sekaligus — Peserta, Pembayaran, dan
+ * Nilai. Kolomnya **tidak dirender**, bukan disembunyikan lewat CSS: angka yang
+ * ada di HTML tetap terbaca lewat "view source". Nama peserta sebenarnya sudah
+ * null lewat RLS untuk mitra, tetapi kolomnya tetap tampil berisi "-" di setiap
+ * baris — kolom kosong yang tidak menerangkan apa pun lebih baik dibuang.
+ */
+export function OrderTable({
+  rows,
+  canSeeFinance = true,
+}: {
+  rows: OrderListRow[];
+  canSeeFinance?: boolean;
+}) {
   return (
     <div className="border-border bg-card hidden overflow-hidden rounded-lg border shadow-sm lg:block">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Nomor Order</TableHead>
-            <TableHead>Peserta</TableHead>
+            {canSeeFinance && <TableHead>Peserta</TableHead>}
             <TableHead>Lokasi / PIC</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Pembayaran</TableHead>
-            <TableHead className="text-right">Nilai</TableHead>
+            {canSeeFinance && (
+              <>
+                <TableHead>Pembayaran</TableHead>
+                <TableHead className="text-right">Nilai</TableHead>
+              </>
+            )}
             <TableHead>Umur</TableHead>
           </TableRow>
         </TableHeader>
@@ -74,14 +92,16 @@ export function OrderTable({ rows }: { rows: OrderListRow[] }) {
                   </p>
                 )}
               </TableCell>
-              <TableCell>
-                <p className="font-medium">{row.participantName}</p>
-                {row.participantPhone && (
-                  <p className="text-muted-foreground text-xs tabular-nums">
-                    {row.participantPhone}
-                  </p>
-                )}
-              </TableCell>
+              {canSeeFinance && (
+                <TableCell>
+                  <p className="font-medium">{row.participantName}</p>
+                  {row.participantPhone && (
+                    <p className="text-muted-foreground text-xs tabular-nums">
+                      {row.participantPhone}
+                    </p>
+                  )}
+                </TableCell>
+              )}
               <TableCell>
                 {row.locationName ? (
                   <>
@@ -97,17 +117,21 @@ export function OrderTable({ rows }: { rows: OrderListRow[] }) {
               <TableCell>
                 <OrderStatusBadge status={row.status} />
               </TableCell>
-              <TableCell>
-                <PaymentStatusBadge status={row.payment_status} />
-                {row.payment_status === 'partial' && (
-                  <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                    {formatCurrency(row.paid_amount)}
-                  </p>
-                )}
-              </TableCell>
-              <TableCell className="text-right font-medium tabular-nums">
-                {formatCurrency(row.total_amount)}
-              </TableCell>
+              {canSeeFinance && (
+                <>
+                  <TableCell>
+                    <PaymentStatusBadge status={row.payment_status} />
+                    {row.payment_status === 'partial' && (
+                      <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                        {formatCurrency(row.paid_amount)}
+                      </p>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {formatCurrency(row.total_amount)}
+                  </TableCell>
+                </>
+              )}
               <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                 {formatRelative(row.created_at)}
               </TableCell>
@@ -119,8 +143,20 @@ export function OrderTable({ rows }: { rows: OrderListRow[] }) {
   );
 }
 
-/** Kartu order untuk mobile/tablet (docs/14 section 5: OrderCard). */
-export function OrderCardList({ rows }: { rows: OrderListRow[] }) {
+/**
+ * Kartu order untuk mobile/tablet (docs/14 section 5: OrderCard).
+ *
+ * `canSeeFinance` menahan hal yang sama dengan versi tabelnya — nama peserta
+ * dan angka uang. Mitra membaca daftar ini dari lapangan lewat ponsel, jadi
+ * batasnya harus sama persis di kedua breakpoint.
+ */
+export function OrderCardList({
+  rows,
+  canSeeFinance = true,
+}: {
+  rows: OrderListRow[];
+  canSeeFinance?: boolean;
+}) {
   return (
     <div className="grid gap-3 lg:hidden">
       {rows.map((row) => (
@@ -132,10 +168,12 @@ export function OrderCardList({ rows }: { rows: OrderListRow[] }) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-primary font-semibold tabular-nums">{row.order_number}</p>
-              <p className="mt-0.5 flex items-center gap-1.5 text-sm">
-                <User className="text-muted-foreground size-3.5" />
-                {row.participantName}
-              </p>
+              {canSeeFinance && (
+                <p className="mt-0.5 flex items-center gap-1.5 text-sm">
+                  <User className="text-muted-foreground size-3.5" />
+                  {row.participantName}
+                </p>
+              )}
               {row.isGuest && (
                 <p className="mt-1.5">
                   <GuestBadge verifiedAt={row.guestVerifiedAt} />
@@ -157,10 +195,12 @@ export function OrderCardList({ rows }: { rows: OrderListRow[] }) {
             </p>
           </div>
 
-          <div className="border-border mt-3 flex items-center justify-between border-t pt-3">
-            <PaymentStatusBadge status={row.payment_status} />
-            <span className="font-semibold tabular-nums">{formatCurrency(row.total_amount)}</span>
-          </div>
+          {canSeeFinance && (
+            <div className="border-border mt-3 flex items-center justify-between border-t pt-3">
+              <PaymentStatusBadge status={row.payment_status} />
+              <span className="font-semibold tabular-nums">{formatCurrency(row.total_amount)}</span>
+            </div>
+          )}
         </Link>
       ))}
     </div>

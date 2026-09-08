@@ -178,6 +178,38 @@ export async function reviewStage(input: unknown): Promise<ActionResult<{ id: st
     return conflict('Keputusan tidak tersimpan: status sudah berubah lebih dulu.');
   }
 
+  // Memvalidasi tahap sekaligus menyetujui bukti yang menyertainya.
+  //
+  // Admin sudah melihat keduanya di layar yang sama dan memutuskan sekali;
+  // meminta klik tambahan per foto hanya mengembalikan gesekan yang justru
+  // dihapus oleh penggabungan ini. Bukti yang ditolak sendiri-sendiri tetap
+  // bisa lewat `reviewDocumentation` — itu untuk kasus "tiga foto bagus, satu
+  // buram", bukan untuk jalur normalnya.
+  //
+  // `neq('uploaded_by', session.id)` menjaga pemisahan tugas: trigger
+  // `enforce_documentation_review` menolak pengunggah yang menyetujui
+  // unggahannya sendiri, dan tanpa penyaring ini penolakan itu akan
+  // menggagalkan seluruh pembaruan — termasuk bukti milik orang lain.
+  if (v.decision === 'validate') {
+    const { error: docError } = await supabase
+      .from('documentations')
+      .update({ status: 'approved', reviewed_at: new Date().toISOString() })
+      .eq('stage_event_id', v.stage_event_id)
+      .eq('status', 'pending')
+      .neq('uploaded_by', session.id);
+
+    // Tahapnya sudah tervalidasi dan itu yang menggerakkan gerbang berikutnya;
+    // bukti yang gagal disetujui tidak boleh membatalkannya. Dicatat supaya
+    // kegagalannya tidak lenyap tanpa jejak.
+    if (docError) {
+      console.error(
+        '[stages] Tahap tervalidasi tapi buktinya gagal disetujui:',
+        docError.code ?? '-',
+        docError.message,
+      );
+    }
+  }
+
   revalidatePath(`/orders/${row.order_id}`);
   revalidatePath('/validation');
   return { ok: true, data: { id: row.id } };

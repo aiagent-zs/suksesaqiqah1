@@ -20,13 +20,11 @@ import { StagePanel } from '@/features/stages/components/stage-panel';
 import { getOrderStages } from '@/features/stages/queries';
 import { IssueListPanel } from '@/features/issues/components/issue-list-panel';
 import { getOrderIssues } from '@/features/issues/queries';
-import { DocumentationManager } from '@/features/documentation/components/documentation-manager';
 import { getOrderDocumentations } from '@/features/documentation/queries';
-import { canValidateDocumentation } from '@/features/documentation/review';
 import { ReportManager } from '@/features/reporting/components/report-manager';
 import { getOrderReports } from '@/features/reporting/queries';
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/data/status-badge';
-import { ORDER_STATUS_META } from '@/lib/constants/order';
+import { DOC_STAGE_LABEL, ORDER_STATUS_META, type DocStage } from '@/lib/constants/order';
 import { formatCurrency, formatDate, formatDateTime, formatTime } from '@/lib/format';
 import {
   Table,
@@ -54,6 +52,22 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
 
   const role = session.profile?.role;
   const canManageSchedule = canDo(role, 'MANAGE_SCHEDULE');
+  /**
+   * Angka uang berhenti di staf.
+   *
+   * `orders_select` memakai `can_read_order`, jadi mitra memang membaca baris
+   * ordernya termasuk `total_amount` — RLS tidak bisa menahan satu kolom. Yang
+   * menahannya di layar adalah kapabilitas ini.
+   */
+  const canSeeFinance = canDo(role, 'VIEW_ORDER_FINANCE');
+  /** Jejak audit adalah keputusan internal; `audit_logs_select` menuntut staf. */
+  const canSeeAudit = canDo(role, 'VIEW_FULL_AUDIT');
+  /**
+   * Tautan `/r/{token}` membuka identitas & alamat pemesan tanpa login, dan
+   * mengirim laporan ke peserta adalah urusan kami dengan pembeli. Sengaja
+   * diikat ke GENERATE_REPORT: yang membuat laporan adalah yang membagikannya.
+   */
+  const canShareReport = canDo(role, 'GENERATE_REPORT');
 
   const [
     timeline,
@@ -65,14 +79,16 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
     reports,
     issues,
   ] = await Promise.all([
-    getOrderTimeline(id),
+    // Ditolak RLS bagi mitra dan mengembalikan array kosong; dilewati supaya
+    // tidak ada perjalanan bolak-balik untuk panel yang tidak dirender.
+    canSeeAudit ? getOrderTimeline(id) : Promise.resolve([]),
     getOrderPayments(id),
     // Daftar lokasi hanya dibutuhkan oleh yang berhak menyunting.
     canManageSchedule ? getScheduleFormOptions() : Promise.resolve({ locations: [] }),
     canManageSchedule ? getVendorOptions() : Promise.resolve([]),
     getOrderStages(id),
     getOrderDocumentations(id),
-    getOrderReports(id),
+    canShareReport ? getOrderReports(id) : Promise.resolve([]),
     getOrderIssues(id),
   ]);
 
@@ -94,11 +110,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   // Vendor tidak pernah melihat data pembayaran (RLS `payments_select`) — uang
   // mengalir antara pembeli dan kami, bukan antara pembeli dan vendor. Panelnya
   // karena itu tidak dirender sama sekali untuk mereka.
-  const showPayments = role !== 'vendor';
-  // Tautan `/r/{token}` membuka identitas & alamat pemesan tanpa login, dan
-  // mengirim laporan ke peserta adalah urusan kami dengan pembeli. Sengaja
-  // diikat ke GENERATE_REPORT: yang membuat laporan adalah yang membagikannya.
-  const canShareReport = canDo(role, 'GENERATE_REPORT');
+  const showPayments = canSeeFinance;
   // Tahap yang buktinya belum lengkap — dihitung database dari
   // `stage_requirements` menurut cara penyaluran order.
   const missingDoc = guard.missingDocStages;
@@ -150,11 +162,17 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
 
       {/* --- Order tamu ---
           Di luar grid dan tepat di bawah header: selama belum diverifikasi,
-          panel ini yang menjelaskan kenapa aksi status tidak bergerak. */}
-      {isGuestOrder && (
+          panel ini yang menjelaskan kenapa aksi status tidak bergerak.
+
+          Berhenti di yang berhak memverifikasi. Isinya data pemesan — tempat
+          & tanggal lahir anak, lembaga penerima, kode referal — dan mitra tidak
+          bisa memverifikasi apa pun di sini, jadi bagi mereka panel ini murni
+          keterbukaan tanpa guna. Alamat pengiriman tetap sampai ke mitra lewat
+          panel Tahap, di mana ia memang dibutuhkan untuk mengantar. */}
+      {isGuestOrder && canDo(role, 'VERIFY_GUEST_ORDER') && (
         <GuestOrderPanel
           orderId={order.id}
-          canVerify={canDo(role, 'VERIFY_GUEST_ORDER')}
+          canVerify
           info={{
             orderNumber: order.order_number,
             participantName: participant?.name ?? null,
@@ -181,13 +199,23 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             <div className="border-border border-b px-5 py-4">
               <h2 className="text-base font-semibold">Item Layanan</h2>
             </div>
+            {/* Harga tidak dirender untuk mitra — bukan disembunyikan lewat
+                CSS. Angka yang ada di HTML tetap terbaca lewat "view source",
+                jadi yang dipotong adalah datanya, bukan tampilannya. Mitra
+                dibayar lewat `vendor_services.vendor_price`; harga jual ke
+                pembeli adalah angka yang menentukan margin, dan tabel
+                `vendor_services` sendiri ditutup `is_staff()` justru untuk itu. */}
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Layanan</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Harga Satuan</TableHead>
-                  <TableHead className="text-right">Subtotal</TableHead>
+                  {canSeeFinance && (
+                    <>
+                      <TableHead className="text-right">Harga Satuan</TableHead>
+                      <TableHead className="text-right">Subtotal</TableHead>
+                    </>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -200,12 +228,16 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                       </p>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{item.qty}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(item.unit_price)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {formatCurrency(item.qty * item.unit_price)}
-                    </TableCell>
+                    {canSeeFinance && (
+                      <>
+                        <TableCell className="text-right tabular-nums">
+                          {formatCurrency(item.unit_price)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          {formatCurrency(item.qty * item.unit_price)}
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -295,21 +327,37 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           </PhaseSection>
 
           {/* --- Tahap pelaksanaan --- */}
+          {/* Bukti kini hidup di dalam tiap tahap, jadi kelengkapannya ikut
+              diringkas di sini — panel Dokumentasi yang dulu memuat kalimat
+              ini sudah tidak ada. */}
           <PhaseSection
             id="tahap"
             title="Tahap Pelaksanaan"
             active={relevant('tahap')}
-            complete={guard.stagesTotal > 0 && guard.stagesValidated >= guard.stagesTotal}
+            complete={
+              guard.stagesTotal > 0 &&
+              guard.stagesValidated >= guard.stagesTotal &&
+              missingDoc.length === 0
+            }
             summary={
               guard.stagesTotal === 0
                 ? 'Daftar tahap terbit setelah mitra ditetapkan'
-                : `${guard.stagesValidated} dari ${guard.stagesTotal} tahap tervalidasi`
+                : `${guard.stagesValidated} dari ${guard.stagesTotal} tahap tervalidasi · ${
+                    missingDoc.length === 0
+                      ? 'bukti lengkap'
+                      : `bukti kurang: ${missingDoc.map((s) => DOC_STAGE_LABEL[s as DocStage] ?? s).join(', ')}`
+                  }`
             }
           >
             <StagePanel
               stages={stages}
+              docs={documentations.rows}
               canReport={canReportStageWork}
               canValidate={canValidateStage}
+              canUpload={canDo(role, 'UPLOAD_DOCUMENTATION')}
+              currentUserId={session.id}
+              orderNumber={order.order_number}
+              orderCreatedAt={order.created_at}
               deliveryAddress={order.delivery_address}
             />
           </PhaseSection>
@@ -317,112 +365,97 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           {/* --- Kendala --- */}
           <IssueListPanel orderId={order.id} summary={issues} canManage={canManageIssues} />
 
-          {/* --- Dokumentasi --- */}
-          <PhaseSection
-            id="dokumentasi"
-            title="Dokumentasi"
-            active={relevant('dokumentasi')}
-            complete={missingDoc.length === 0}
-            summary={
-              documentations.pendingReview > 0
-                ? `${documentations.rows.length} berkas · ${documentations.pendingReview} menunggu validasi`
-                : missingDoc.length === 0
-                  ? `${documentations.rows.length} berkas · kelengkapan minimum terpenuhi`
-                  : `${documentations.rows.length} berkas · belum lengkap`
-            }
-          >
-            <DocumentationManager
-              orderId={order.id}
-              orderNumber={order.order_number}
-              orderCreatedAt={order.created_at}
-              summary={documentations}
-              missingDocStages={missingDoc}
-              animals={animals.map((a) => ({ id: a.id, tagCode: a.tag_code }))}
-              canUpload={canDo(role, 'UPLOAD_DOCUMENTATION')}
-              canDelete={role === 'superadmin' || role === 'admin'}
-              canValidate={canValidateDocumentation(role)}
-              currentUserId={session.id}
-            />
-          </PhaseSection>
+          {/* Panel Dokumentasi yang berdiri sendiri dihapus 8 September: bukti
+              kini menempel pada baris tahapnya di panel di atas. Sebelumnya
+              mitra melapor di satu panel lalu mengunggah fotonya di panel lain,
+              dan admin memutuskan keduanya di dua layar berbeda. */}
 
           {/* --- Laporan ---
-              Token hanya dikirim ke yang berhak membagikannya. Merender
-              komponennya dengan token utuh lalu menyembunyikan tautannya di
-              CSS tetap menaruh token itu di HTML yang sampai ke browser
-              vendor — jadi yang disembunyikan bukan panelnya, melainkan
-              nilainya. */}
-          <PhaseSection
-            id="laporan"
-            title="Laporan Peserta"
-            active={relevant('laporan')}
-            complete={guard.reportSent}
-            summary={
-              reports.length === 0
-                ? 'Belum pernah dibuat'
-                : guard.reportSent
-                  ? `${reports.length} versi · sudah dikirim ke peserta`
-                  : `${reports.length} versi · belum ditandai terkirim`
-            }
-          >
-            <ReportManager
-              orderId={order.id}
-              publicToken={canShareReport ? order.public_token : ''}
-              appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
-              reports={reports}
-              canGenerate={canDo(role, 'GENERATE_REPORT')}
-              canShare={canShareReport}
-              documentationReady={missingDoc.length === 0}
-              missingDocumentation={missingDoc}
-            />
-          </PhaseSection>
+              Seluruh panelnya berhenti di yang berhak membuat laporan. Laporan
+              peserta adalah urusan kami dengan pembeli; mitra mengerjakan
+              pelaksanaannya, bukan penyampaiannya. Menyembunyikan tautannya
+              saja tidak cukup — daftar versi pun bukan miliknya. */}
+          {canShareReport && (
+            <PhaseSection
+              id="laporan"
+              title="Laporan Peserta"
+              active={relevant('laporan')}
+              complete={guard.reportSent}
+              summary={
+                reports.length === 0
+                  ? 'Belum pernah dibuat'
+                  : guard.reportSent
+                    ? `${reports.length} versi · sudah dikirim ke peserta`
+                    : `${reports.length} versi · belum ditandai terkirim`
+              }
+            >
+              <ReportManager
+                orderId={order.id}
+                publicToken={order.public_token}
+                appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
+                reports={reports}
+                canGenerate={canShareReport}
+                canShare={canShareReport}
+                documentationReady={missingDoc.length === 0}
+                missingDocumentation={missingDoc}
+              />
+            </PhaseSection>
+          )}
 
-          {/* --- Riwayat --- */}
-          <section className="border-border bg-card rounded-lg border shadow-sm">
-            <div className="border-border border-b px-5 py-4">
-              <h2 className="text-base font-semibold">Riwayat</h2>
-              <p className="text-muted-foreground mt-0.5 text-sm">
-                Jejak audit perubahan order (docs/05 section 4.17)
-              </p>
-            </div>
+          {/* --- Riwayat ---
+              Berhenti di staf, sejalan dengan `audit_logs_select`. Sebelumnya
+              panelnya tetap dirender untuk mitra dan selalu kosong, dengan
+              kalimat yang menawarkan dua kemungkinan sekaligus ("belum ada
+              riwayat, atau tidak berhak") — pembacanya tidak pernah tahu yang
+              mana. Tidak merendernya lebih jujur daripada kosong yang ambigu. */}
+          {canSeeAudit && (
+            <section className="border-border bg-card rounded-lg border shadow-sm">
+              <div className="border-border border-b px-5 py-4">
+                <h2 className="text-base font-semibold">Riwayat</h2>
+                <p className="text-muted-foreground mt-0.5 text-sm">
+                  Jejak audit perubahan order (docs/05 section 4.17)
+                </p>
+              </div>
 
-            {timeline.length === 0 ? (
-              <p className="text-muted-foreground px-5 py-10 text-center text-sm">
-                Belum ada riwayat, atau role Anda tidak berhak melihat audit trail order ini.
-              </p>
-            ) : (
-              <ol className="divide-border divide-y">
-                {timeline.map((entry) => (
-                  <li key={entry.id} className="flex gap-3 px-5 py-3.5">
-                    <span className="bg-primary mt-1.5 size-2 shrink-0 rounded-full" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm">
-                        {entry.action === 'status_change' && entry.toStatus ? (
-                          <>
-                            Status berubah
-                            {entry.fromStatus
-                              ? ` dari ${ORDER_STATUS_META[entry.fromStatus as keyof typeof ORDER_STATUS_META]?.label ?? entry.fromStatus}`
-                              : ''}{' '}
-                            menjadi{' '}
-                            <span className="font-medium">
-                              {ORDER_STATUS_META[entry.toStatus as keyof typeof ORDER_STATUS_META]
-                                ?.label ?? entry.toStatus}
-                            </span>
-                          </>
-                        ) : entry.action === 'create' ? (
-                          'Order dibuat'
-                        ) : (
-                          'Data order diperbarui'
-                        )}
-                      </p>
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        {formatDateTime(entry.createdAt)} · {entry.actorName ?? 'Sistem'}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
+              {timeline.length === 0 ? (
+                <p className="text-muted-foreground px-5 py-10 text-center text-sm">
+                  Belum ada riwayat pada order ini.
+                </p>
+              ) : (
+                <ol className="divide-border divide-y">
+                  {timeline.map((entry) => (
+                    <li key={entry.id} className="flex gap-3 px-5 py-3.5">
+                      <span className="bg-primary mt-1.5 size-2 shrink-0 rounded-full" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm">
+                          {entry.action === 'status_change' && entry.toStatus ? (
+                            <>
+                              Status berubah
+                              {entry.fromStatus
+                                ? ` dari ${ORDER_STATUS_META[entry.fromStatus as keyof typeof ORDER_STATUS_META]?.label ?? entry.fromStatus}`
+                                : ''}{' '}
+                              menjadi{' '}
+                              <span className="font-medium">
+                                {ORDER_STATUS_META[entry.toStatus as keyof typeof ORDER_STATUS_META]
+                                  ?.label ?? entry.toStatus}
+                              </span>
+                            </>
+                          ) : entry.action === 'create' ? (
+                            'Order dibuat'
+                          ) : (
+                            'Data order diperbarui'
+                          )}
+                        </p>
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          {formatDateTime(entry.createdAt)} · {entry.actorName ?? 'Sistem'}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          )}
         </div>
 
         {/* --- Sidebar kanan --- */}
@@ -438,14 +471,27 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           <section className="border-border bg-card rounded-lg border p-5 shadow-sm">
             <h2 className="text-base font-semibold">Ringkasan</h2>
             <dl className="mt-4 space-y-3.5 text-sm">
+              {/* Kontak pemesan tertutup `participants_select` yang menuntut
+                  `is_staff()`, jadi bagi mitra `participant` memang sudah null
+                  di sini. Yang diperbaiki bukan aksesnya — melainkan barisnya
+                  yang dulu terbaca "-", seolah datanya kosong padahal ia
+                  memang bukan haknya. */}
               <div className="flex gap-3">
                 <User className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                 <div>
                   <dt className="text-muted-foreground">Peserta</dt>
-                  <dd className="font-medium">{participant?.name ?? '-'}</dd>
-                  {participant?.phone && (
-                    <dd className="text-muted-foreground text-xs tabular-nums">
-                      {participant.phone}
+                  {participant ? (
+                    <>
+                      <dd className="font-medium">{participant.name}</dd>
+                      {participant.phone && (
+                        <dd className="text-muted-foreground text-xs tabular-nums">
+                          {participant.phone}
+                        </dd>
+                      )}
+                    </>
+                  ) : (
+                    <dd className="text-muted-foreground text-xs">
+                      Tidak termasuk cakupan akses Anda
                     </dd>
                   )}
                 </div>

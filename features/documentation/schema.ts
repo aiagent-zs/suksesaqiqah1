@@ -2,35 +2,11 @@ import { z } from 'zod';
 
 const uuid = z.string().uuid('ID tidak valid');
 
-/**
- * Tahap bukti — cerminan `fulfilment_stage` + `umum`.
- *
- * Keselarasan ini struktural, bukan kesepakatan tak tertulis: gerbang
- * kelengkapan di `v_order_progress` membandingkan `documentations.stage`
- * dengan `stage_requirements.stage` secara langsung.
- */
-export const DOC_STAGES = [
-  'persiapan',
-  'sembelih',
-  'masak',
-  'salur',
-  'kirim',
-  'terkirim',
-  'umum',
-] as const;
+export const DOC_STAGES = ['persiapan', 'sembelih', 'masak', 'salur', 'kirim', 'terkirim'] as const;
 
-/**
- * Unggah satu dokumentasi (docs/10 section 3).
- *
- * `type` ikut dikirim karena `note` tidak punya berkas sama sekali —
- * constraint `documentations_storage_path_check` menuntut `storage_path`
- * terisi untuk photo/video, dan membiarkannya kosong untuk note.
- */
 export const uploadDocumentationSchema = z
   .object({
-    order_id: uuid,
-    animal_id: uuid.optional().or(z.literal('')),
-    stage: z.enum(DOC_STAGES),
+    stage_event_id: uuid,
     type: z.enum(['photo', 'video', 'note']),
     storage_path: z.string().trim().max(300).optional().or(z.literal('')),
     caption: z.string().trim().max(500).optional().or(z.literal('')),
@@ -45,13 +21,7 @@ export const uploadDocumentationSchema = z
     message: 'Catatan wajib diisi',
   });
 
-/**
- * Keputusan validasi, dipakai kedua tingkat (docs/10 section 4).
- *
- * Tingkat mana yang berlaku ditentukan role pemanggil di server action, bukan
- * oleh klien — supaya vendor tidak bisa meminta status `approved` untuk
- * unggahannya sendiri.
- */
+  
 export const reviewDocumentationSchema = z
   .object({
     documentation_id: uuid,

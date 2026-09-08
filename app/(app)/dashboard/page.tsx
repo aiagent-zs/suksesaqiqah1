@@ -93,7 +93,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </Link>
       </header>
 
-      <KpiCards summary={summary} pendingGuestOrders={pendingGuestOrders} />
+      <KpiCards
+        summary={summary}
+        pendingGuestOrders={pendingGuestOrders}
+        // Mitra melihat volume kerjanya, bukan tagihan & margin — angka margin
+        // justru dirakit ulang `v_vendor_kpi` dari data yang di tempat lain
+        // sengaja ditutup untuknya.
+        canSeeFinance={canDo(session.profile?.role, 'VIEW_ORDER_FINANCE')}
+      />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <AlertPanel alerts={alerts} />

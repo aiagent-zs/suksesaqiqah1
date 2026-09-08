@@ -24,6 +24,8 @@ export type OrderGuardContext = {
   animalsTotal: number;
   /** Dari `v_order_stages`. */
   stagesTotal: number;
+  /** Sudah dilaporkan mitra, menunggu keputusan admin. */
+  stagesReported: number;
   stagesValidated: number;
   stagesRejected: number;
   /**
@@ -124,11 +126,25 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
     {
       to: 'validation',
       roles: FIELD,
+      /**
+       * Cukup seluruh tahap **dilaporkan**, bukan tervalidasi.
+       *
+       * Dilonggarkan bersama `enforce_stage_order` 8 September. Menuntut
+       * validasi di sini membuat fase `validation` tidak punya pekerjaan
+       * tersisa — order baru boleh masuk ke sana justru setelah semua yang
+       * perlu divalidasi sudah divalidasi. Itu terbalik: fase ini memang
+       * tempat admin memvalidasi, jadi yang mengantarkannya ke sini adalah
+       * selesainya pekerjaan lapangan.
+       *
+       * Yang menahan sesudah ini tetap ada, dan itu yang sebenarnya penting:
+       * `validation → reporting` menuntut bukti `approved` lengkap.
+       */
       guard: (ctx) => {
         if (ctx.stagesTotal === 0) return 'Daftar tahap belum terbit.';
-        if (ctx.stagesValidated < ctx.stagesTotal) {
-          const sisa = ctx.stagesTotal - ctx.stagesValidated;
-          return `Masih ada ${sisa} tahap yang belum tervalidasi.`;
+        const dilaporkan = ctx.stagesReported + ctx.stagesValidated;
+        if (dilaporkan < ctx.stagesTotal) {
+          const sisa = ctx.stagesTotal - dilaporkan;
+          return `Masih ada ${sisa} tahap yang belum dilaporkan mitra.`;
         }
         return null;
       },

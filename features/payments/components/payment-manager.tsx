@@ -19,7 +19,7 @@ import { deletePayment, recordPayment, verifyPayment } from '@/server/actions/pa
 import { PROOF_BUCKET, buildProofPath, checkProofFile } from '../storage';
 import type { PaymentSummary } from '../queries';
 
-type ActionOutcome = { ok: boolean; error?: { message: string } };
+type ActionOutcome = { ok: boolean; error?: { message: string }; data?: unknown };
 
 /**
  * Pencatatan & verifikasi pembayaran per order (`prd.md` section 7.4).
@@ -86,7 +86,15 @@ export function PaymentManager({
    * hilang sendiri setelah 5 detik, jadi ia tidak boleh jadi satu-satunya
    * tempat alasan kegagalan terbaca.
    */
-  function run(fn: () => Promise<ActionOutcome>, successMessage: string) {
+  function run(
+    fn: () => Promise<ActionOutcome>,
+    /**
+     * Pesan sukses. Boleh berupa fungsi supaya kalimatnya bisa menyesuaikan
+     * hasil — verifikasi yang sekalian menaikkan status order mengatakan
+     * keduanya, jadi kenaikan itu tidak lewat tanpa disadari.
+     */
+    successMessage: string | ((data: unknown) => string),
+  ) {
     setError(null);
     startTransition(async () => {
       const result = await fn();
@@ -96,7 +104,10 @@ export function PaymentManager({
         show('error', message);
         return;
       }
-      show('success', successMessage);
+      show(
+        'success',
+        typeof successMessage === 'function' ? successMessage(result.data) : successMessage,
+      );
       router.refresh();
     });
   }
@@ -344,7 +355,10 @@ export function PaymentManager({
                         onClick={() =>
                           run(
                             () => verifyPayment({ payment_id: payment.id, decision: 'verified' }),
-                            'Pembayaran diverifikasi.',
+                            (data) =>
+                              (data as { advancedToPaid?: boolean })?.advancedToPaid
+                                ? 'Pembayaran diverifikasi — order naik ke Terbayar.'
+                                : 'Pembayaran diverifikasi.',
                           )
                         }
                       >

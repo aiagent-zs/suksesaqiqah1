@@ -154,8 +154,8 @@ export const DOC_STATUS_META: Record<DocStatus, StatusMeta> = {
 };
 
 /**
- * Label tahap bukti. Nilainya cerminan `fulfilment_stage` + `umum`, karena
- * gerbang kelengkapan membandingkan keduanya secara langsung.
+ * Label tahap bukti. Nilainya **persis** `fulfilment_stage` sejak `umum`
+ * dicabut — gerbang kelengkapan membandingkan keduanya secara langsung.
  */
 export const DOC_STAGE_LABEL: Record<DocStage, string> = {
   persiapan: 'Persiapan',
@@ -164,7 +164,6 @@ export const DOC_STAGE_LABEL: Record<DocStage, string> = {
   salur: 'Salur',
   kirim: 'Pengiriman',
   terkirim: 'Terkirim',
-  umum: 'Umum',
 };
 
 export const DOC_TYPE_LABEL: Record<DocType, string> = {

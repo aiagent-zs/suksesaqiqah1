@@ -20,6 +20,7 @@ function ctx(overrides: Partial<OrderGuardContext> = {}): OrderGuardContext {
     hasSchedule: true,
     animalsTotal: 2,
     stagesTotal: 5,
+    stagesReported: 0,
     stagesValidated: 5,
     stagesRejected: 0,
     missingDocStages: [],
@@ -103,20 +104,43 @@ describe('tahap pelaksanaan', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('in_progress tidak dapat naik ke validation bila ada tahap belum tervalidasi', () => {
+  it('in_progress tertahan bila masih ada tahap yang belum DILAPORKAN', () => {
+    // Dilonggarkan 8 September: yang dihitung kini laporan, bukan validasi.
+    // Tiga dilaporkan dari lima berarti dua tahap belum disentuh mitra.
     const result = checkTransition(
       'in_progress',
       'validation',
       'vendor',
-      ctx({ stagesTotal: 5, stagesValidated: 3 }),
+      ctx({ stagesTotal: 5, stagesReported: 3, stagesValidated: 0 }),
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.message).toContain('2 tahap');
   });
 
-  it('lolos ketika seluruh tahap tervalidasi', () => {
+  it('lolos begitu seluruh tahap dilaporkan — tanpa menunggu admin', () => {
+    // Inti perubahannya. Fase `validation` justru **tempat** admin memvalidasi,
+    // jadi menuntut validasi untuk masuk ke sana membuatnya tidak punya
+    // pekerjaan tersisa.
     expect(
-      checkTransition('in_progress', 'validation', 'vendor', ctx({ stagesValidated: 5 })).ok,
+      checkTransition(
+        'in_progress',
+        'validation',
+        'vendor',
+        ctx({ stagesTotal: 5, stagesReported: 5, stagesValidated: 0 }),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it('campuran dilaporkan & tervalidasi ikut terhitung', () => {
+    // Admin yang sudah memvalidasi sebagian tidak boleh membuat ordernya
+    // seolah mundur: keduanya sama-sama berarti "mitra sudah mengerjakannya".
+    expect(
+      checkTransition(
+        'in_progress',
+        'validation',
+        'vendor',
+        ctx({ stagesTotal: 5, stagesReported: 2, stagesValidated: 3 }),
+      ).ok,
     ).toBe(true);
   });
 });

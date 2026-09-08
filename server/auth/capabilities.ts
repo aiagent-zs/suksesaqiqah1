@@ -115,6 +115,23 @@ export const CAPABILITIES = {
   MANAGE_ISSUES: ALL,
 
   /**
+   * Lihat angka uang sebuah order: nilai total, harga satuan, subtotal, dan
+   * catatan pembayaran.
+   *
+   * Dipisah dari `RECORD_PAYMENT` karena yang ini soal **membaca**, bukan
+   * mencatat — dua hal yang kebetulan berhenti di role yang sama tapi menjawab
+   * pertanyaan berbeda.
+   *
+   * Kapabilitas ini perlu ada justru karena RLS tidak bisa menjawabnya:
+   * `orders_select` memakai `can_read_order`, jadi mitra memang membaca baris
+   * ordernya **termasuk `total_amount`** — kebijakan baris tidak bisa menahan
+   * satu kolom. Yang menahannya di layar adalah ini. Sejalan dengan
+   * `payments_select` yang menuntut `is_staff()`, dan dengan `vendor_services`
+   * yang ditutup justru supaya margin tidak terbaca mitra.
+   */
+  VIEW_ORDER_FINANCE: STAFF,
+
+  /**
    * Catat pembayaran masuk & unggah bukti transfer.
    *
    * Vendor sama sekali di luar urusan pembayaran: uang mengalir antara pembeli

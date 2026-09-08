@@ -33,6 +33,7 @@ function ctx(over: Partial<OrderGuardContext> = {}): OrderGuardContext {
     hasSchedule: false,
     animalsTotal: 0,
     stagesTotal: 0,
+    stagesReported: 0,
     stagesValidated: 0,
     stagesRejected: 0,
     missingDocStages: [],
@@ -44,8 +45,9 @@ function ctx(over: Partial<OrderGuardContext> = {}): OrderGuardContext {
 describe('panel yang terbuka mengikuti fase', () => {
   it('order baru hanya membuka panel verifikasi', () => {
     expect(isPanelRelevant('new', 'verifikasi')).toBe(true);
-    // Inti keluhannya: dokumentasi & laporan memenuhi layar sejak hari pertama.
-    expect(isPanelRelevant('new', 'dokumentasi')).toBe(false);
+    // Inti keluhannya: panel yang belum ada gunanya memenuhi layar sejak hari
+    // pertama.
+    expect(isPanelRelevant('new', 'tahap')).toBe(false);
     expect(isPanelRelevant('new', 'laporan')).toBe(false);
   });
 
@@ -54,6 +56,13 @@ describe('panel yang terbuka mengikuti fase', () => {
     // berada di dua panel yang berbeda.
     expect(isPanelRelevant('paid', 'jadwal')).toBe(true);
     expect(isPanelRelevant('paid', 'hewan')).toBe(true);
+  });
+
+  it('fase validasi mengarah ke panel tahap — bukti sudah ada di dalamnya', () => {
+    // Panel Dokumentasi yang berdiri sendiri dihapus 8 September; buktinya
+    // menempel pada baris tahapnya. Kalau ini kembali menunjuk dua panel,
+    // berarti pemisahannya diam-diam hidup lagi.
+    expect(isPanelRelevant('validation', 'tahap')).toBe(true);
   });
 
   it('tiap status dalam rangkaian punya panel yang dituju', () => {

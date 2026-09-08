@@ -139,9 +139,21 @@ function pct(value: number): string {
 export function KpiCards({
   summary,
   pendingGuestOrders,
+  canSeeFinance = true,
 }: {
   summary: KpiSummary;
   pendingGuestOrders: number | null;
+  /**
+   * Pita keuangan berhenti di staf.
+   *
+   * `v_vendor_kpi` merakit ulang angka yang justru sengaja ditutup di tempat
+   * lain: `vendor_services` dikunci `is_staff()` supaya harga modal — dan
+   * karenanya margin — tidak terbaca mitra, tetapi view ini menyandingkan
+   * `revenue_total` dengan `vendor_cost_total` dan menyajikan selisihnya.
+   * Mitra yang membuka dashboardnya sendiri melihat berapa yang kami ambil
+   * dari pekerjaannya.
+   */
+  canSeeFinance?: boolean;
 }) {
   const waiting = [
     pendingGuestOrders !== null && {
@@ -198,56 +210,81 @@ export function KpiCards({
   return (
     <div className="space-y-5">
       <section className="border-border bg-card rounded-xl border p-5 shadow-sm md:p-6">
-        <div className="grid gap-5 sm:grid-cols-3 sm:gap-6">
-          <MoneyFigure
-            label="Tagihan masuk"
-            value={summary.revenueTotal}
-            hint={`${summary.ordersTotal.toLocaleString('id-ID')} order`}
-            lead
-          />
-          <MoneyFigure label="Modal ke mitra" value={summary.vendorCostTotal} />
-          <MoneyFigure
-            label="Margin"
-            value={summary.marginTotal}
-            hint={`${pct(summary.marginPct)} dari tagihan`}
-          />
-        </div>
+        {canSeeFinance ? (
+          <>
+            <div className="grid gap-5 sm:grid-cols-3 sm:gap-6">
+              <MoneyFigure
+                label="Tagihan masuk"
+                value={summary.revenueTotal}
+                hint={`${summary.ordersTotal.toLocaleString('id-ID')} order`}
+                lead
+              />
+              <MoneyFigure label="Modal ke mitra" value={summary.vendorCostTotal} />
+              <MoneyFigure
+                label="Margin"
+                value={summary.marginTotal}
+                hint={`${pct(summary.marginPct)} dari tagihan`}
+              />
+            </div>
 
-        {/* Meter margin: bidangnya terisi sejauh persentase margin, jalurnya
-            langkah lebih terang dari ramp yang sama supaya keadaannya terbaca
-            di seluruh lebar bar — bukan cuma di bagian yang terisi. */}
-        <div
-          className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-emerald-100"
-          role="progressbar"
-          aria-valuenow={Math.round(summary.marginPct)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="Margin terhadap tagihan"
-        >
-          <div
-            className="h-full rounded-full bg-emerald-600"
-            style={{ width: `${Math.min(100, Math.max(0, summary.marginPct))}%` }}
-          />
-        </div>
+            {/* Meter margin: bidangnya terisi sejauh persentase margin, jalurnya
+                langkah lebih terang dari ramp yang sama supaya keadaannya terbaca
+                di seluruh lebar bar — bukan cuma di bagian yang terisi. */}
+            <div
+              className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-emerald-100"
+              role="progressbar"
+              aria-valuenow={Math.round(summary.marginPct)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Margin terhadap tagihan"
+            >
+              <div
+                className="h-full rounded-full bg-emerald-600"
+                style={{ width: `${Math.min(100, Math.max(0, summary.marginPct))}%` }}
+              />
+            </div>
+          </>
+        ) : (
+          // Mitra melihat volume kerjanya, bukan uangnya. Angka yang sama
+          // (`ordersTotal`, `ordersCompleted`) tetap dipakai — yang dicabut
+          // hanya rupiahnya.
+          <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-sm">Order ditugaskan</p>
+              <p className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
+                {summary.ordersTotal.toLocaleString('id-ID')}
+              </p>
+              <p className="text-muted-foreground mt-1 text-xs">{cycleHint}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-sm">Selesai</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight">
+                {summary.ordersCompleted.toLocaleString('id-ID')}
+              </p>
+            </div>
+          </div>
+        )}
 
-        <div className="border-border text-muted-foreground mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-4 text-xs">
-          <span>
-            <strong className="text-foreground font-semibold">
-              {summary.ordersCompleted.toLocaleString('id-ID')}
-            </strong>{' '}
-            dari {summary.ordersTotal.toLocaleString('id-ID')} order selesai
-          </span>
-          <span aria-hidden>·</span>
-          <Link href="/vendors" className="hover:text-foreground inline-flex items-center gap-1">
-            <strong className="text-foreground font-semibold">
-              {summary.activeVendors.toLocaleString('id-ID')}
-            </strong>{' '}
-            mitra aktif
-            <ArrowRight className="size-3" />
-          </Link>
-          <span aria-hidden>·</span>
-          <span>{cycleHint}</span>
-        </div>
+        {canSeeFinance && (
+          <div className="border-border text-muted-foreground mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-4 text-xs">
+            <span>
+              <strong className="text-foreground font-semibold">
+                {summary.ordersCompleted.toLocaleString('id-ID')}
+              </strong>{' '}
+              dari {summary.ordersTotal.toLocaleString('id-ID')} order selesai
+            </span>
+            <span aria-hidden>·</span>
+            <Link href="/vendors" className="hover:text-foreground inline-flex items-center gap-1">
+              <strong className="text-foreground font-semibold">
+                {summary.activeVendors.toLocaleString('id-ID')}
+              </strong>{' '}
+              mitra aktif
+              <ArrowRight className="size-3" />
+            </Link>
+            <span aria-hidden>·</span>
+            <span>{cycleHint}</span>
+          </div>
+        )}
       </section>
 
       <section>

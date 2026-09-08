@@ -9,7 +9,7 @@ import {
   reviewDocumentationSchema,
   uploadDocumentationSchema,
 } from '@/features/documentation/schema';
-import { isDocPathForOrder } from '@/features/documentation/storage';
+import { isDocPathForOrder, type DocStage } from '@/features/documentation/storage';
 import { checkReview } from '@/features/documentation/review';
 import {
   conflict,
@@ -27,11 +27,18 @@ const internalError = scopedInternalError('documentation');
 // =============================================================================
 
 /**
- * Simpan satu dokumentasi berstatus `pending`.
+ * Simpan satu bukti berstatus `pending`, menempel pada satu laporan tahap.
  *
  * Berkasnya sudah diunggah klien langsung ke Storage; action ini hanya mencatat
  * `storage_path` setelah memverifikasi bahwa path itu benar milik order & tahap
  * yang bersangkutan.
+ *
+ * **Tahap, order, dan hewan dibaca dari baris tahapnya — bukan dari klien.**
+ * Sebelumnya ketiganya dikirim form, sehingga bukti masak bisa diaku sebagai
+ * bukti sembelih dan gerbang kelengkapan (`missing_doc_stages`) ikut tertipu.
+ * Sekarang klien hanya menyebut laporan tahap mana yang dibuktikannya; sisanya
+ * turunan. Trigger `enforce_documentation_stage_match` tetap jadi lapis kedua
+ * di database.
  */
 export async function uploadDocumentation(input: unknown): Promise<ActionResult<{ id: string }>> {
   const session = await requireAuth();
@@ -42,29 +49,33 @@ export async function uploadDocumentation(input: unknown): Promise<ActionResult<
 
   const parsed = uploadDocumentationSchema.safeParse(input);
   if (!parsed.success) return validationError(parsed.error);
-  const { order_id, animal_id, stage, type, storage_path, caption } = parsed.data;
+  const { stage_event_id, type, storage_path, caption } = parsed.data;
 
   const supabase = await createClient();
 
-  const { data: orderRow } = await supabase
-    .from('orders')
-    .select('id, order_number, created_at, vendor:vendors!orders_vendor_id_fkey ( code )')
-    .eq('id', order_id)
+  // RLS `order_stage_events_select` memakai `can_read_order`, jadi baris di
+  // luar akses pemanggil tidak terbaca sama sekali — itulah penjaga aksesnya.
+  const { data: eventRow } = await supabase
+    .from('order_stage_events')
+    .select('id, stage, animal_id, order:orders!inner ( id, order_number )')
+    .eq('id', stage_event_id)
     .maybeSingle();
 
-  if (!orderRow) return notFound('Order tidak ditemukan atau di luar akses Anda.');
+  if (!eventRow) return notFound('Tahap tidak ditemukan atau di luar akses Anda.');
 
-  const order = orderRow as unknown as {
+  const event = eventRow as unknown as {
     id: string;
-    order_number: string;
-    created_at: string;
-    vendor: { code: string } | null;
+    stage: DocStage;
+    animal_id: string | null;
+    order: { id: string; order_number: string };
   };
 
   // Kebijakan `storage_documentation_insert` hanya menuntut pengunggah punya
   // role — sama sekali tidak membatasi folder. Tanpa cek ini, berkas milik
-  // order lain bisa ditautkan ke dokumentasi ini.
-  if (storage_path && !isDocPathForOrder(storage_path, order.order_number, stage)) {
+  // order lain bisa ditautkan ke bukti ini. Dibandingkan terhadap tahap
+  // **hasil baca**, jadi path yang dibangun di folder tahap yang keliru
+  // tertolak di sini, bukan menunggu trigger database.
+  if (storage_path && !isDocPathForOrder(storage_path, event.order.order_number, event.stage)) {
     return {
       ok: false,
       error: {
@@ -75,32 +86,15 @@ export async function uploadDocumentation(input: unknown): Promise<ActionResult<
     };
   }
 
-  // Hewan yang ditautkan wajib milik order yang sama.
-  if (animal_id) {
-    const { data: animal } = await supabase
-      .from('animals')
-      .select('id, order_id')
-      .eq('id', animal_id)
-      .maybeSingle();
-
-    if (!animal || animal.order_id !== order_id) {
-      return {
-        ok: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Hewan yang ditautkan bukan milik order ini.',
-          fields: { animal_id: 'Hewan tidak valid.' },
-        },
-      };
-    }
-  }
-
   const { data, error } = await supabase
     .from('documentations')
     .insert({
-      order_id,
-      animal_id: animal_id || null,
-      stage,
+      order_id: event.order.id,
+      stage_event_id: event.id,
+      // Baris `sembelih` terbit satu per ekor, jadi hewannya sudah tertaut di
+      // laporan tahapnya — tidak perlu ditanyakan lagi, dan tidak bisa keliru.
+      animal_id: event.animal_id,
+      stage: event.stage,
       type,
       storage_path: storage_path ?? '',
       caption: caption || null,
@@ -113,7 +107,7 @@ export async function uploadDocumentation(input: unknown): Promise<ActionResult<
   if (error) return internalError('Gagal menyimpan dokumentasi', error);
   if (!data) return forbidden('Unggahan ditolak untuk order di luar akses Anda.');
 
-  revalidatePath(`/orders/${order_id}`);
+  revalidatePath(`/orders/${event.order.id}`);
   revalidatePath('/validation');
   revalidatePath('/dashboard');
   return { ok: true, data: { id: data.id } };

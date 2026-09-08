@@ -1,12 +1,15 @@
 /**
  * Dua gerbang yang hanya hidup di database:
  *
- * - `enforce_stage_order` — tahap ke-N tertutup sampai seluruh tahap
- *   sebelumnya **tervalidasi**, bukan sekadar dilaporkan.
+ * - `enforce_stage_order` — tahap ke-N tertutup sampai tahap sebelumnya
+ *   **dilaporkan**. Dilonggarkan 8 September dari `validated`: admin tidak lagi
+ *   menghambat pekerjaan lapangan di tiap tahap, tetapi urutannya masih
+ *   dijaga — yang belum disentuh (`pending`) dan yang **ditolak** (`rejected`)
+ *   tetap menahan.
  * - `enforce_stage_review` — yang melapor tidak boleh menyatakan laporannya
  *   sendiri benar, dan `validated_by` diturunkan dari sesi.
  *
- * UI punya cerminan aturan ini (tombol tahap berikutnya dimatikan), tapi UI
+ * UI punya cerminan aturan ini (`canReportStage` mematikan tombolnya), tapi UI
  * bisa dilewati. Yang diuji di sini adalah penegakan yang tidak bisa dilewati.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -33,7 +36,7 @@ beforeAll(async () => {
 });
 
 describe('enforce_stage_order', () => {
-  it('menolak melapor tahap 2 sebelum tahap 1 tervalidasi', async () => {
+  it('menolak melapor tahap 2 sebelum tahap 1 disentuh sama sekali', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
       const { orderId } = await makePaidOrder(tx, { mode: 'kirim' });
@@ -43,7 +46,7 @@ describe('enforce_stage_order', () => {
       const sembelih = stages.find((s) => s.stage === 'sembelih')!;
       const failure = await expectFailure(() => reportStage(tx, sembelih.id));
 
-      expect(failure.message).toMatch(/Tahap sebelumnya belum tervalidasi/);
+      expect(failure.message).toMatch(/Tahap sebelumnya belum dilaporkan/);
       // Kode galat diuji eksplisit: kalau kelak gagalnya karena sebab lain
       // (kolom hilang, tipe salah), tes yang hanya menuntut "melempar" akan
       // tetap hijau dan menyembunyikan hilangnya gerbang ini.
@@ -51,23 +54,57 @@ describe('enforce_stage_order', () => {
     });
   });
 
-  it('menolak melapor tahap 2 ketika tahap 1 baru dilaporkan, belum divalidasi', async () => {
+  it('MENGIZINKAN tahap 2 ketika tahap 1 baru dilaporkan, belum divalidasi', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
       const { orderId } = await makePaidOrder(tx, { mode: 'kirim' });
       await assignVendor(tx, orderId);
       const stages = await stagesOf(tx, orderId);
 
-      // Ini pembeda penting: gerbangnya di `validated`, bukan `reported`.
-      // Kalau kelak dilonggarkan ke `in ('reported','validated')` seperti yang
-      // dipertimbangkan di komentar migration, tes inilah yang akan merah dan
-      // memaksa keputusan itu disadari.
+      // Pelonggaran 8 September, persis yang diramalkan komentar migration
+      // aslinya: gerbangnya pindah dari `validated` ke
+      // `in ('reported','validated')`. Alasannya operasional — admin jadi
+      // penghambat di tiap tahap, dan mitra berhenti di lapangan menunggu
+      // orang yang sedang tidak di depan layar.
+      await actAs(tx, SEED.vendorUserA);
       await reportStage(tx, stages.find((s) => s.stage === 'persiapan')!.id);
+      await reportStage(tx, stages.find((s) => s.stage === 'sembelih')!.id);
 
+      const after = await stagesOf(tx, orderId);
+      expect(after.find((s) => s.stage === 'sembelih')!.status).toBe('reported');
+      // Persiapan tetap menunggu keputusan admin — pekerjaan lapangan jalan
+      // terus, penilaiannya menyusul.
+      expect(after.find((s) => s.stage === 'persiapan')!.status).toBe('reported');
+    });
+  });
+
+  it('tahap yang DITOLAK tetap menahan tahap sesudahnya', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const { orderId } = await makePaidOrder(tx, { mode: 'kirim' });
+      await assignVendor(tx, orderId);
+      const stages = await stagesOf(tx, orderId);
+
+      const persiapan = stages.find((s) => s.stage === 'persiapan')!;
+      await actAs(tx, SEED.vendorUserA);
+      await reportStage(tx, persiapan.id);
+
+      // Admin menolak: tahapnya sudah dinilai dan dinyatakan kurang.
+      await actAs(tx, SEED.admin);
+      await tx`
+        update public.order_stage_events
+        set status = 'rejected'::public.stage_event_status, review_note = 'foto buram'
+        where id = ${persiapan.id}
+      `;
+
+      // Melanjutkan di atasnya berarti menumpuk pekerjaan di atas dasar yang
+      // sudah dinyatakan salah — inilah yang sengaja TIDAK ikut dilonggarkan.
+      await actAs(tx, SEED.vendorUserA);
       const failure = await expectFailure(() =>
         reportStage(tx, stages.find((s) => s.stage === 'sembelih')!.id),
       );
       expect(failure.message).toMatch(/persiapan/);
+      expect(failure.code).toBe('23514');
     });
   });
 
@@ -121,7 +158,7 @@ describe('enforce_stage_order', () => {
     });
   });
 
-  it('masak tertutup sampai SEMUA ekor sembelih tervalidasi', async () => {
+  it('masak tertutup sampai SEMUA ekor sembelih dilaporkan', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
       const { orderId } = await makePaidOrder(tx, { mode: 'kirim', animals: 2 });

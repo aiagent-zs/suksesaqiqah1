@@ -193,7 +193,7 @@ describe('enforce_animal_delete', () => {
       await assignVendor(tx, orderId);
 
       // `persiapan` dilalui lebih dulu: `enforce_stage_order` menolak laporan
-      // tahap ke-2 selama tahap ke-1 belum tervalidasi.
+      // tahap ke-2 selama tahap ke-1 belum dilaporkan.
       await walkStagesUpTo(tx, orderId, 'persiapan');
 
       const sembelih = (await stagesOf(tx, orderId)).filter((s) => s.stage === 'sembelih');

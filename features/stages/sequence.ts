@@ -109,15 +109,32 @@ export function currentStage(
 }
 
 /**
+ * Status tahap sebelumnya yang **tidak** menahan tahap berikutnya.
+ *
+ * Dilonggarkan 8 September: cukup `reported`, tidak perlu menunggu admin
+ * memvalidasi. Sebelumnya gerbangnya di `validated`, dan konsekuensinya persis
+ * seperti yang diperingatkan migration aslinya — admin jadi penghambat di tiap
+ * tahap, dan mitra berhenti di lapangan menunggu orang yang sedang tidak di
+ * depan layar.
+ *
+ * `rejected` sengaja tidak ikut: tahap itu sudah dinilai dan dinyatakan kurang,
+ * jadi melanjutkan di atasnya berarti menumpuk pekerjaan di atas dasar yang
+ * admin sudah bilang salah.
+ */
+const UNBLOCKING_STATUSES: StageEventStatus[] = ['reported', 'validated'];
+
+/**
  * Apakah tahap ini boleh dilaporkan sekarang.
  *
- * Cerminan trigger `enforce_stage_order`: tahap ke-N tertutup sampai seluruh
- * tahap sebelumnya **tervalidasi**. Dipakai untuk menonaktifkan tombol di layar
- * — bukan sebagai pengaman, karena pengamannya ada di database.
+ * **Cerminan trigger `enforce_stage_order`** — keduanya wajib bergerak bersama.
+ * Kalau menyimpang, tombol di layar menawarkan sesuatu yang database tolak,
+ * atau menyembunyikan yang sebenarnya boleh. Yang mengikat tetap database;
+ * fungsi ini hanya menonaktifkan tombolnya lebih dulu supaya mitra tidak
+ * menekan sesuatu yang pasti gagal.
  */
 export function canReportStage(
   events: Array<{ stage: FulfilmentStage; seq: number; status: StageEventStatus }>,
   seq: number,
 ): boolean {
-  return events.filter((e) => e.seq < seq).every((e) => e.status === 'validated');
+  return events.filter((e) => e.seq < seq).every((e) => UNBLOCKING_STATUSES.includes(e.status));
 }

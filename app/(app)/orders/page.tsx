@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Plus, PackageSearch } from 'lucide-react';
 import { requireAuth } from '@/server/auth/session';
+import { canDo } from '@/server/auth/capabilities';
 import { listOrders } from '@/features/orders/queries';
 import { orderFilterSchema } from '@/features/orders/schema';
 import { OrderFilters } from '@/features/orders/components/order-filters';
@@ -26,6 +27,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Searc
   const result = await listOrders(filter);
 
   const canCreate = session.profile?.role === 'admin' || session.profile?.role === 'superadmin';
+  // Nilai order & kontak peserta berhenti di staf — lihat `VIEW_ORDER_FINANCE`.
+  const canSeeFinance = canDo(session.profile?.role, 'VIEW_ORDER_FINANCE');
 
   return (
     <div className="space-y-6">
@@ -63,8 +66,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Searc
         </div>
       ) : (
         <>
-          <OrderTable rows={result.data} />
-          <OrderCardList rows={result.data} />
+          <OrderTable rows={result.data} canSeeFinance={canSeeFinance} />
+          <OrderCardList rows={result.data} canSeeFinance={canSeeFinance} />
           <Pagination
             page={result.page}
             pageSize={result.page_size}

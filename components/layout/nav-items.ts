@@ -42,14 +42,14 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/schedule', label: 'Jadwal', shortLabel: 'Jadwal', icon: CalendarDays },
   {
     href: '/validation',
-    label: 'Validasi Dokumentasi',
+    label: 'Validasi Tahap',
     shortLabel: 'Validasi',
     icon: FileText,
-    // Vendor mengunggah bukti, tidak menilainya (`VALIDATE_DOCUMENTATION`
-    // berhenti di staf). Halamannya sendiri sudah menolak mereka dengan
-    // penjelasan — tapi menu yang selalu berujung penolakan mengajak menekan
-    // sesuatu yang tidak pernah bisa dipakai, dan itu terbaca sebagai fitur
-    // yang rusak, bukan sebagai batas wewenang.
+    // Mitra melaporkan tahap dan mengunggah buktinya, tidak menilainya
+    // (`VALIDATE_STAGE_REPORT` berhenti di staf). Halamannya sendiri sudah
+    // menolak mereka dengan penjelasan — tapi menu yang selalu berujung
+    // penolakan mengajak menekan sesuatu yang tidak pernah bisa dipakai, dan
+    // itu terbaca sebagai fitur yang rusak, bukan sebagai batas wewenang.
     roles: ['superadmin', 'admin'],
   },
   {

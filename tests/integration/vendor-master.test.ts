@@ -427,12 +427,14 @@ describe('batas penawaran per mitra', () => {
           notes = excluded.notes
       `;
 
-      const [after] = await tx<{
-        min_qty: number;
-        max_qty: number | null;
-        lead_time_hours: number | null;
-        notes: string | null;
-      }[]>`
+      const [after] = await tx<
+        {
+          min_qty: number;
+          max_qty: number | null;
+          lead_time_hours: number | null;
+          notes: string | null;
+        }[]
+      >`
         select min_qty, max_qty, lead_time_hours, notes from public.vendor_services
         where vendor_id = ${SEED.vendorA} and service_id = ${SEED.serviceKambing}
       `;

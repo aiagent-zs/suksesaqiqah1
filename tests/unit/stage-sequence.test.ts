@@ -108,36 +108,61 @@ describe('gerbang urutan tahap', () => {
     expect(canReportStage(e, 1)).toBe(true);
   });
 
-  it('tahap berikutnya tertutup sampai yang sebelumnya TERVALIDASI', () => {
+  it('DILAPORKAN saja sudah membuka tahap berikutnya', () => {
+    // Dilonggarkan 8 September. Aturan lama menuntut `validated`, dan
+    // konsekuensinya persis seperti yang diperingatkan migration aslinya:
+    // admin jadi penghambat di tiap tahap, dan mitra berhenti di lapangan
+    // menunggu orang yang sedang tidak di depan layar.
     const e = events([
       ['persiapan', 1, 'reported'],
       ['sembelih', 2, 'pending'],
     ]);
-    // Dilaporkan saja tidak cukup — cerminan trigger enforce_stage_order.
-    expect(canReportStage(e, 2)).toBe(false);
+    expect(canReportStage(e, 2)).toBe(true);
   });
 
-  it('terbuka setelah seluruh tahap sebelumnya tervalidasi', () => {
+  it('tervalidasi tentu juga membuka', () => {
     const e = events([
       ['persiapan', 1, 'validated'],
       ['sembelih', 2, 'pending'],
     ]);
     expect(canReportStage(e, 2)).toBe(true);
+  });
+
+  it('yang belum disentuh tetap menahan — urutannya masih dijaga', () => {
+    // Longgar bukan berarti bebas: laporan tidak boleh masuk dengan urutan
+    // yang mustahil, misalnya salur sebelum sembelih.
+    const e = events([
+      ['persiapan', 1, 'pending'],
+      ['sembelih', 2, 'pending'],
+    ]);
+    expect(canReportStage(e, 2)).toBe(false);
   });
 
   it('sembelih beberapa ekor berbagi satu seq, jadi tetap paralel', () => {
     const e = events([
       ['persiapan', 1, 'validated'],
-      ['sembelih', 2, 'validated'],
+      ['sembelih', 2, 'reported'],
       ['sembelih', 2, 'pending'],
     ]);
     // Ekor kedua tidak terhalang ekor pertama.
     expect(canReportStage(e, 2)).toBe(true);
-    // Tapi masak tetap tertahan sampai KEDUANYA tervalidasi.
+    // Masak tetap tertahan: ekor kedua belum dilaporkan sama sekali.
     expect(canReportStage(e, 3)).toBe(false);
   });
 
-  it('tahap yang ditolak menahan tahap sesudahnya', () => {
+  it('masak terbuka begitu KEDUA ekor dilaporkan', () => {
+    const e = events([
+      ['persiapan', 1, 'validated'],
+      ['sembelih', 2, 'reported'],
+      ['sembelih', 2, 'reported'],
+    ]);
+    expect(canReportStage(e, 3)).toBe(true);
+  });
+
+  it('tahap yang DITOLAK tetap menahan tahap sesudahnya', () => {
+    // Sengaja tidak ikut dilonggarkan: tahap ini sudah dinilai dan dinyatakan
+    // kurang, jadi melanjutkan di atasnya berarti menumpuk pekerjaan di atas
+    // dasar yang admin sudah bilang salah.
     const e = events([
       ['persiapan', 1, 'validated'],
       ['sembelih', 2, 'rejected'],

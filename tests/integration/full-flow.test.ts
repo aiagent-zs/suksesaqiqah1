@@ -224,7 +224,7 @@ describe('alur penuh — mode kirim (5 tahap, berujung konfirmasi penerima)', ()
           where id = ${checklist.find((s) => s.stage === 'masak')!.id}
         `,
       );
-      expect(skip.message).toMatch(/Tahap sebelumnya belum tervalidasi/);
+      expect(skip.message).toMatch(/Tahap sebelumnya belum dilaporkan/);
 
       // ---------------------------------------------------------------- 5
       // Tahapan lapangan dijalankan berurutan, dengan bukti pada tahap yang
@@ -467,8 +467,8 @@ describe('gerbang bukti dokumentasi', () => {
         insert into public.documentations (
           order_id, stage, type, storage_path, uploaded_by
         ) values (
-          ${order.id}, 'umum'::public.doc_stage, 'photo'::public.doc_type,
-          ${'2026/08/uji/umum.jpg'}, ${SEED.vendorUserA}
+          ${order.id}, 'sembelih'::public.doc_stage, 'photo'::public.doc_type,
+          ${'2026/08/uji/sembelih.jpg'}, ${SEED.vendorUserA}
         ) returning id
       `;
 

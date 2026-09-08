@@ -11,6 +11,8 @@ export type DocumentationRow = {
   type: DocType;
   stage: DocStage;
   status: DocStatus;
+  /** Laporan tahap yang dibuktikan baris ini — dasar pengelompokan di layar. */
+  stageEventId: string | null;
   caption: string | null;
   reviewNote: string | null;
   createdAt: string;
@@ -25,14 +27,12 @@ export type DocumentationRow = {
 
 export type DocumentationSummary = {
   rows: DocumentationRow[];
-  /** Jumlah bukti tervalidasi per tahap, mis. `{ sembelih: 2, masak: 1 }`. */
-  approvedByStage: Record<string, number>;
   pendingReview: number;
 };
 
 const DOC_SELECT = `
   id, type, stage, status, caption, review_note, created_at, reviewed_at,
-  storage_path, uploaded_by,
+  storage_path, uploaded_by, stage_event_id,
   uploader:profiles!documentations_uploaded_by_fkey ( full_name ),
   reviewer:profiles!documentations_reviewed_by_fkey ( full_name ),
   animal:animals ( tag_code )
@@ -43,6 +43,7 @@ type RawDoc = {
   type: DocType;
   stage: DocStage;
   status: DocStatus;
+  stage_event_id: string | null;
   caption: string | null;
   review_note: string | null;
   created_at: string;
@@ -61,7 +62,7 @@ type RawDoc = {
  * pemuatan halaman menandatangani ulang. Dilakukan sekali untuk semua path
  * supaya tidak ada roundtrip berurutan saat satu order punya banyak foto.
  */
-async function signPaths(
+export async function signPaths(
   supabase: Awaited<ReturnType<typeof createClient>>,
   paths: string[],
 ): Promise<Map<string, string>> {
@@ -84,6 +85,7 @@ function mapDoc(r: RawDoc, urlByPath: Map<string, string>): DocumentationRow {
     type: r.type,
     stage: r.stage,
     status: r.status,
+    stageEventId: r.stage_event_id,
     caption: r.caption,
     reviewNote: r.review_note,
     createdAt: r.created_at,
@@ -106,7 +108,15 @@ export async function getOrderDocumentations(orderId: string): Promise<Documenta
     .eq('order_id', orderId)
     .order('created_at', { ascending: false });
 
-  if (error) return { rows: [], approvedByStage: {}, pendingReview: 0 };
+  if (error) {
+    // Penolakan RLS bagi role yang tidak berhak tampak sebagai error di sini;
+    // galat lain dicatat supaya kesalahan bentuk query tidak lagi menyamar
+    // jadi panel kosong — persis yang pernah terjadi pada `getOrderPayments`.
+    if (error.code !== '42501' && error.code !== 'PGRST301') {
+      console.error('[documentation] Gagal memuat bukti:', error.code ?? '-', error.message);
+    }
+    return { rows: [], pendingReview: 0 };
+  }
 
   const raw = (data ?? []) as unknown as RawDoc[];
   const urlByPath = await signPaths(
@@ -118,13 +128,6 @@ export async function getOrderDocumentations(orderId: string): Promise<Documenta
 
   return {
     rows,
-    // Hitungan per tahap tidak lagi diturunkan di sini: gerbang kelengkapan
-    // dibaca dari `v_order_progress.missing_doc_stages`, yang menghitungnya
-    // menurut `stage_requirements` dan cara penyaluran order.
-    approvedByStage: rows.reduce<Record<string, number>>((acc, r) => {
-      if (r.status === 'approved') acc[r.stage] = (acc[r.stage] ?? 0) + 1;
-      return acc;
-    }, {}),
     pendingReview: rows.filter((r) => r.status === 'pending').length,
   };
 }

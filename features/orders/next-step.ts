@@ -11,8 +11,7 @@ type UserRole = Database['public']['Enums']['user_role'];
  * di `app/(app)/orders/[id]/page.tsx`: sekali untuk menggulir ke panelnya, dan
  * sekali untuk memutuskan panel mana yang terbuka pada fase ini.
  */
-export type PanelId =
-  'verifikasi' | 'pembayaran' | 'jadwal' | 'hewan' | 'tahap' | 'dokumentasi' | 'laporan';
+export type PanelId = 'verifikasi' | 'pembayaran' | 'jadwal' | 'hewan' | 'tahap' | 'laporan';
 
 export const PANEL_LABEL: Record<PanelId, string> = {
   verifikasi: 'Order dari checkout publik',
@@ -20,7 +19,6 @@ export const PANEL_LABEL: Record<PanelId, string> = {
   jadwal: 'Jadwal & Mitra',
   hewan: 'Hewan',
   tahap: 'Tahap Pelaksanaan',
-  dokumentasi: 'Dokumentasi',
   laporan: 'Laporan Peserta',
 };
 
@@ -59,7 +57,8 @@ const RELEVANT_PANELS: Record<OrderStatus, PanelId[]> = {
   paid: ['jadwal', 'hewan'],
   assigned: ['tahap'],
   in_progress: ['tahap'],
-  validation: ['dokumentasi', 'tahap'],
+  // Bukti kini hidup di dalam panel tahap, jadi keduanya satu tempat.
+  validation: ['tahap'],
   reporting: ['laporan'],
   completed: ['laporan'],
   // Tidak ada satu pekerjaan yang jelas: yang menahan ada di alasan statusnya.
@@ -74,7 +73,7 @@ const STEP_TITLE: Record<OrderStatus, string> = {
   paid: 'Tetapkan mitra pelaksana dan daftarkan hewannya',
   assigned: 'Menunggu mitra mulai mengerjakan tahap lapangan',
   in_progress: 'Validasi laporan tahap yang dikirim mitra',
-  validation: 'Validasi bukti dokumentasi dari mitra',
+  validation: 'Validasi laporan tahap beserta buktinya',
   reporting: 'Buat laporan peserta lalu kirimkan tautannya',
   completed: 'Order selesai — tidak ada yang perlu dikerjakan',
   on_hold: 'Order ditahan — lanjutkan bila penyebabnya sudah selesai',
