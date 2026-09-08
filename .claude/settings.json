@@ -10,7 +10,9 @@
       "Bash(node -e ' *)",
       "Bash(echo \"--- typecheck exit: $? ---\")",
       "Bash(node --input-type=module -e ' *)",
-      "Bash(cd \"c:/Users/shola/OneDrive/Documents/ZS_FOLDER/SuksesAqiqah\" && cp features/reporting/components/report-manager.tsx /tmp/rm.bak && python -c \" *)"
+      "Bash(cd \"c:/Users/shola/OneDrive/Documents/ZS_FOLDER/SuksesAqiqah\" && cp features/reporting/components/report-manager.tsx /tmp/rm.bak && python -c \" *)",
+      "Bash(cd \"c:/Users/shola/OneDrive/Documents/ZS_FOLDER/SuksesAqiqah\" && cp features/payments/components/payment-manager.tsx /tmp/pm.bak && python -c \" *)",
+      "Bash(grep -n 'label={`Harga jual' features/services/components/service-form.tsx)"
     ],
     "additionalDirectories": [
       "\\tmp"

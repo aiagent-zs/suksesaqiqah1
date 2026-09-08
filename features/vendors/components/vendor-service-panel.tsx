@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -195,14 +196,12 @@ export function VendorServicePanel({
 
           <div>
             <Label htmlFor="vs-price">Harga modal</Label>
-            <Input
+            <CurrencyInput
               id="vs-price"
-              type="number"
-              inputMode="numeric"
               value={price}
               disabled={pending}
               placeholder="2325000"
-              onChange={(e) => setPrice(e.target.value)}
+              onValueChange={setPrice}
               className="mt-1.5"
             />
             {/* Margin dihitung di layar sebelum disimpan: modal yang keliru
@@ -397,14 +396,11 @@ export function VendorServicePanel({
                     <Label htmlFor={`vs-edit-${r.id}`} className="sr-only">
                       Harga modal {r.serviceName}
                     </Label>
-                    <Input
+                    <CurrencyInput
                       id={`vs-edit-${r.id}`}
-                      type="number"
-                      inputMode="numeric"
-                      autoFocus
                       value={edit.price}
                       disabled={pending}
-                      onChange={(e) => setEditing({ ...edit, price: e.target.value })}
+                      onValueChange={(price) => setEditing({ ...edit, price })}
                     />
                   </div>
                 ) : null}

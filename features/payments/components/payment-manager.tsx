@@ -4,11 +4,14 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Check, FileText, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PaymentVerificationBadge } from '@/components/data/status-badge';
+import { Toast } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABEL, type PaymentMethod } from '@/lib/constants/order';
@@ -47,6 +50,7 @@ export function PaymentManager({
   canVerify: boolean;
 }) {
   const router = useRouter();
+  const { toast, show, dismiss } = useToast();
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -68,14 +72,31 @@ export function PaymentManager({
   const dpMet = paidAmount >= dpTarget && totalAmount > 0;
   const busy = pending || uploading;
 
-  function run(fn: () => Promise<ActionOutcome>) {
+  /**
+   * Jalankan satu aksi, lalu **katakan hasilnya**.
+   *
+   * Sebelum ini keberhasilan sama sekali tidak diberitahukan: form tertutup,
+   * `router.refresh()` memuat ulang data, dan tidak ada satu pun tanda bahwa
+   * sesuatu terjadi. Yang tertangkap operator hanya form yang menghilang —
+   * sama persis dengan tampilan gagal-diam. Pada aksi yang tidak idempoten
+   * seperti mencatat pembayaran, yang ragu akan menyimpan ulang, dan itu
+   * berarti dua baris pembayaran untuk satu transfer.
+   *
+   * Galat tetap ditulis di panel (`setError`), bukan hanya di toast: toast
+   * hilang sendiri setelah 5 detik, jadi ia tidak boleh jadi satu-satunya
+   * tempat alasan kegagalan terbaca.
+   */
+  function run(fn: () => Promise<ActionOutcome>, successMessage: string) {
     setError(null);
     startTransition(async () => {
       const result = await fn();
       if (!result.ok) {
-        setError(result.error?.message ?? 'Terjadi kesalahan.');
+        const message = result.error?.message ?? 'Terjadi kesalahan.';
+        setError(message);
+        show('error', message);
         return;
       }
+      show('success', successMessage);
       router.refresh();
     });
   }
@@ -98,6 +119,7 @@ export function PaymentManager({
       const check = checkProofFile(file);
       if (!check.ok) {
         setError(check.message);
+        show('error', check.message);
         return;
       }
 
@@ -111,7 +133,13 @@ export function PaymentManager({
           .upload(proofPath, file, { contentType: file.type, upsert: false });
 
         if (uploadError) {
-          setError(`Gagal mengunggah bukti transfer: ${uploadError.message}`);
+          // Kegagalan unggah paling sering justru bukan soal berkasnya: sesi
+          // yang kedaluwarsa membuat kebijakan Storage menolak diam-diam.
+          // Pesannya dibawa apa adanya supaya penyebabnya terbaca, bukan
+          // ditelan jadi "terjadi kesalahan".
+          const message = `Gagal mengunggah bukti transfer: ${uploadError.message}`;
+          setError(message);
+          show('error', message);
           return;
         }
       } finally {
@@ -132,32 +160,21 @@ export function PaymentManager({
       });
       if (result.ok) resetForm();
       return result;
-    });
+    }, 'Pembayaran tercatat — menunggu verifikasi.');
   }
 
   return (
-    <section className="border-border bg-card rounded-lg border shadow-sm">
-      <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-        <div>
-          <h2 className="text-base font-semibold">Pembayaran</h2>
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            {summary.payments.length} catatan
-            {summary.pendingCount > 0 && (
-              <span className="text-amber-700">
-                {' · '}
-                {summary.pendingCount} menunggu verifikasi ({formatCurrency(summary.pendingTotal)})
-              </span>
-            )}
-          </p>
-        </div>
+    <div>
+      <Toast state={toast} onDismiss={dismiss} />
 
-        {canRecord && outstanding > 0 && (
+      {canRecord && outstanding > 0 && (
+        <div className="border-border flex justify-end border-b px-5 py-3">
           <Button type="button" variant="outline" size="sm" onClick={() => setShowForm((v) => !v)}>
             <Plus className="size-3.5" />
             Catat pembayaran
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Ringkasan angka: dasar gate DP pada state machine (docs/08). */}
       <dl className="border-border bg-border grid grid-cols-2 gap-px border-b sm:grid-cols-4">
@@ -195,16 +212,15 @@ export function PaymentManager({
         <div className="border-border bg-muted/30 grid gap-3 border-b p-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="pay-amount">Nominal</Label>
-            <Input
+            {/* Pemisah ribuan sambil diketik: `5600000` dan `56000000` berbeda
+                satu nol dan terlihat nyaris sama, sementara salah ketiknya
+                ikut menentukan gate DP. */}
+            <CurrencyInput
               id="pay-amount"
-              type="number"
-              min={1}
-              step="0.01"
-              inputMode="decimal"
-              placeholder={String(outstanding)}
               value={draft.amount}
-              onChange={(e) => setDraft({ ...draft, amount: e.target.value })}
-              className="bg-card mt-1.5 tabular-nums"
+              placeholder={String(outstanding)}
+              onValueChange={(amount) => setDraft({ ...draft, amount })}
+              className="mt-1.5"
             />
             <p className="text-muted-foreground mt-1 text-xs">
               Sisa tagihan {formatCurrency(outstanding)}
@@ -326,7 +342,10 @@ export function PaymentManager({
                         size="sm"
                         disabled={busy}
                         onClick={() =>
-                          run(() => verifyPayment({ payment_id: payment.id, decision: 'verified' }))
+                          run(
+                            () => verifyPayment({ payment_id: payment.id, decision: 'verified' }),
+                            'Pembayaran diverifikasi.',
+                          )
                         }
                       >
                         <Check className="size-3.5" />
@@ -354,7 +373,12 @@ export function PaymentManager({
                       size="sm"
                       variant="destructive"
                       disabled={busy}
-                      onClick={() => run(() => deletePayment({ payment_id: payment.id }))}
+                      onClick={() =>
+                        run(
+                          () => deletePayment({ payment_id: payment.id }),
+                          'Catatan pembayaran dihapus.',
+                        )
+                      }
                     >
                       <Trash2 className="size-3.5" />
                       Hapus
@@ -389,7 +413,7 @@ export function PaymentManager({
                           });
                           if (result.ok) setRejectingId(null);
                           return result;
-                        })
+                        }, 'Pembayaran ditolak.')
                       }
                     >
                       Tolak pembayaran
@@ -410,6 +434,6 @@ export function PaymentManager({
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

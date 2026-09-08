@@ -84,25 +84,21 @@ export function StagePanel({
     });
   }
 
+  // Judul dipegang `PhaseSection` di halaman detail order; yang tersisa di sini
+  // keterangan yang benar-benar khas tahap.
   if (stages.length === 0) {
     return (
-      <section className="border-border bg-card rounded-lg border p-5 shadow-sm">
-        <h2 className="text-base font-semibold">Tahap Pelaksanaan</h2>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Daftar tahap terbit otomatis setelah mitra pelaksana ditetapkan.
-        </p>
-      </section>
+      <p className="text-muted-foreground px-5 py-6 text-sm">
+        Daftar tahap terbit otomatis setelah mitra pelaksana ditetapkan.
+      </p>
     );
   }
 
   return (
-    <section className="border-border bg-card rounded-lg border shadow-sm">
-      <div className="border-border border-b px-5 py-4">
-        <h2 className="text-base font-semibold">Tahap Pelaksanaan</h2>
-        <p className="text-muted-foreground mt-0.5 text-sm">
-          Tiap tahap dilaporkan mitra, lalu divalidasi admin sebelum tahap berikutnya terbuka.
-        </p>
-      </div>
+    <div>
+      <p className="border-border text-muted-foreground border-b px-5 py-3 text-sm">
+        Tiap tahap dilaporkan mitra, lalu divalidasi admin sebelum tahap berikutnya terbuka.
+      </p>
 
       {error && (
         <p className="border-destructive/20 bg-destructive/5 text-destructive flex items-start gap-2 border-b px-5 py-3 text-sm">
@@ -398,6 +394,6 @@ export function StagePanel({
           );
         })}
       </ol>
-    </section>
+    </div>
   );
 }

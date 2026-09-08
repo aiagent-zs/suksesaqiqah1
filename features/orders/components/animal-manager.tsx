@@ -55,21 +55,17 @@ export function AnimalManager({
   }
 
   return (
-    <section className="border-border bg-card rounded-lg border shadow-sm">
-      <div className="border-border flex items-center justify-between border-b px-5 py-4">
-        <div>
-          <h2 className="text-base font-semibold">Hewan</h2>
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            {animals.length} ekor terdaftar pada order ini
-          </p>
-        </div>
-        {canEdit && (
+    // Judul & hitungan ekornya kini dipegang `PhaseSection` di halaman detail
+    // order — dua judul bertumpuk hanya membuang tinggi layar.
+    <div>
+      {canEdit && (
+        <div className="border-border flex justify-end border-b px-5 py-3">
           <Button type="button" variant="outline" size="sm" onClick={() => setShowForm((v) => !v)}>
             <Plus className="size-3.5" />
             Tambah hewan
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {error && (
         <p className="border-destructive/20 bg-destructive/5 text-destructive flex items-start gap-2 border-b px-5 py-3 text-sm">
@@ -192,6 +188,6 @@ export function AnimalManager({
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

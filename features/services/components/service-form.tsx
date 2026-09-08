@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -195,16 +196,14 @@ export function ServiceForm({
         </Field>
 
         <Field
-          label={`Harga jual (Rp per ${draft.type === 'nasi_box' ? 'box' : 'ekor'})`}
+          // "Rp" dibuang dari label: satuannya kini melekat di dalam kotaknya.
+          label={`Harga jual per ${draft.type === 'nasi_box' ? 'box' : 'ekor'}`}
           error={fieldErrors.price}
           hint="Order yang sudah berjalan tidak ikut berubah — harganya sudah tersalin saat order dibuat."
         >
-          <Input
-            type="number"
-            min={0}
-            inputMode="numeric"
+          <CurrencyInput
             value={draft.price}
-            onChange={(e) => setDraft({ ...draft, price: e.target.value })}
+            onValueChange={(price) => setDraft({ ...draft, price })}
             placeholder={draft.type === 'nasi_box' ? '21000' : '2300000'}
           />
         </Field>

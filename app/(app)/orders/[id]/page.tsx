@@ -5,6 +5,9 @@ import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import { getOrderDetail, getOrderTimeline } from '@/features/orders/queries';
 import { getTransitionOptions } from '@/features/orders/state-machine';
+import { deriveNextStep, isPanelRelevant } from '@/features/orders/next-step';
+import { NextStepCard } from '@/features/orders/components/next-step-card';
+import { PhaseSection } from '@/features/orders/components/phase-section';
 import { StatusActions } from '@/features/orders/components/status-actions';
 import { StatusStepper } from '@/features/orders/components/status-stepper';
 import { AnimalManager } from '@/features/orders/components/animal-manager';
@@ -74,6 +77,12 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   ]);
 
   const transitions = getTransitionOptions(order.status, role, guard);
+  // "Apa yang harus dikerjakan sekarang", diturunkan dari state machine yang
+  // sama dengan yang ditegakkan server action — jadi layar tidak pernah
+  // menjanjikan sesuatu yang lalu ditolak tombolnya.
+  const nextStep = deriveNextStep(order.status, role, guard);
+  const relevant = (panel: Parameters<typeof isPanelRelevant>[1]) =>
+    isPanelRelevant(order.status, panel);
   // Sumber kebenaran sama dengan yang ditegakkan server action — daftar role
   // yang di-hardcode di sini akan menyimpang begitu CAPABILITIES berubah.
   const canEditAnimals = canDo(role, 'MANAGE_ANIMALS');
@@ -134,6 +143,10 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           </p>
         )}
       </header>
+
+      {/* Satu jawaban untuk pertanyaan yang selalu ditanyakan saat halaman ini
+          dibuka: sekarang giliran siapa, mengisi apa, di panel mana. */}
+      <NextStepCard step={nextStep} />
 
       {/* --- Order tamu ---
           Di luar grid dan tepat di bawah header: selama belum diverifikasi,
@@ -199,71 +212,135 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             </Table>
           </section>
 
-          {/* --- Jadwal & penugasan --- */}
-          <ScheduleManager
-            orderId={order.id}
-            schedule={
-              schedule
-                ? {
-                    locationId: schedule.location_id,
-                    locationName: schedule.locationName,
-                    locationAddress: schedule.locationAddress,
-                    lat: schedule.lat,
-                    lng: schedule.lng,
-                    scheduledDate: schedule.scheduled_date,
-                    scheduledTime: schedule.scheduled_time,
-                    notes: schedule.notes,
-                  }
-                : null
-            }
-            vendor={vendor ? { id: vendor.id, name: vendor.name, phone: vendor.phone } : null}
-            vendors={vendorOptions}
-            options={scheduleOptions}
-            canEdit={canManageSchedule}
-            canAssign={canDo(role, 'ASSIGN_VENDOR')}
-          />
-
-          {/* --- Pembayaran --- */}
+          {/* --- Pembayaran ---
+              Naik ke atas Jadwal: gate DP menahan `verified → paid`, jadi
+              inilah yang lebih dulu dikerjakan dalam urutan sungguhannya. */}
           {showPayments && (
-            <PaymentManager
-              orderId={order.id}
-              orderNumber={order.order_number}
-              summary={payments}
-              totalAmount={Number(order.total_amount)}
-              paidAmount={Number(order.paid_amount)}
-              minDpRatio={guard.minDpRatio}
-              canRecord={canRecordPayment}
-              canVerify={canVerifyPayment}
-            />
+            <PhaseSection
+              id="pembayaran"
+              title="Pembayaran"
+              active={relevant('pembayaran')}
+              complete={guard.paidAmount >= guard.totalAmount * guard.minDpRatio}
+              summary={
+                payments.pendingCount > 0
+                  ? `${payments.payments.length} catatan · ${payments.pendingCount} menunggu verifikasi`
+                  : `${payments.payments.length} catatan · terverifikasi ${formatCurrency(payments.verifiedTotal)} dari ${formatCurrency(order.total_amount)}`
+              }
+            >
+              <PaymentManager
+                orderId={order.id}
+                orderNumber={order.order_number}
+                summary={payments}
+                totalAmount={Number(order.total_amount)}
+                paidAmount={Number(order.paid_amount)}
+                minDpRatio={guard.minDpRatio}
+                canRecord={canRecordPayment}
+                canVerify={canVerifyPayment}
+              />
+            </PhaseSection>
           )}
 
+          {/* --- Jadwal & penugasan --- */}
+          <PhaseSection
+            id="jadwal"
+            title="Jadwal & Mitra"
+            active={relevant('jadwal')}
+            complete={Boolean(vendor)}
+            summary={
+              vendor
+                ? `${vendor.name}${schedule ? ` · ${formatDate(schedule.scheduled_date)}` : ''}`
+                : 'Mitra pelaksana belum ditetapkan'
+            }
+          >
+            <ScheduleManager
+              orderId={order.id}
+              schedule={
+                schedule
+                  ? {
+                      locationId: schedule.location_id,
+                      locationName: schedule.locationName,
+                      locationAddress: schedule.locationAddress,
+                      lat: schedule.lat,
+                      lng: schedule.lng,
+                      scheduledDate: schedule.scheduled_date,
+                      scheduledTime: schedule.scheduled_time,
+                      notes: schedule.notes,
+                    }
+                  : null
+              }
+              vendor={vendor ? { id: vendor.id, name: vendor.name, phone: vendor.phone } : null}
+              vendors={vendorOptions}
+              options={scheduleOptions}
+              canEdit={canManageSchedule}
+              canAssign={canDo(role, 'ASSIGN_VENDOR')}
+            />
+          </PhaseSection>
+
           {/* --- Hewan --- */}
-          <AnimalManager orderId={order.id} animals={animals} canEdit={canEditAnimals} />
+          <PhaseSection
+            id="hewan"
+            title="Hewan"
+            active={relevant('hewan')}
+            complete={animals.length > 0}
+            summary={
+              animals.length === 0
+                ? 'Belum ada hewan terdaftar'
+                : `${animals.length} ekor terdaftar`
+            }
+          >
+            <AnimalManager orderId={order.id} animals={animals} canEdit={canEditAnimals} />
+          </PhaseSection>
 
           {/* --- Tahap pelaksanaan --- */}
-          <StagePanel
-            stages={stages}
-            canReport={canReportStageWork}
-            canValidate={canValidateStage}
-            deliveryAddress={order.delivery_address}
-          />
+          <PhaseSection
+            id="tahap"
+            title="Tahap Pelaksanaan"
+            active={relevant('tahap')}
+            complete={guard.stagesTotal > 0 && guard.stagesValidated >= guard.stagesTotal}
+            summary={
+              guard.stagesTotal === 0
+                ? 'Daftar tahap terbit setelah mitra ditetapkan'
+                : `${guard.stagesValidated} dari ${guard.stagesTotal} tahap tervalidasi`
+            }
+          >
+            <StagePanel
+              stages={stages}
+              canReport={canReportStageWork}
+              canValidate={canValidateStage}
+              deliveryAddress={order.delivery_address}
+            />
+          </PhaseSection>
 
           {/* --- Kendala --- */}
           <IssueListPanel orderId={order.id} summary={issues} canManage={canManageIssues} />
 
           {/* --- Dokumentasi --- */}
-          <DocumentationManager
-            orderId={order.id}
-            orderNumber={order.order_number}
-            orderCreatedAt={order.created_at}
-            summary={documentations}
-            missingDocStages={missingDoc}
-            animals={animals.map((a) => ({ id: a.id, tagCode: a.tag_code }))}
-            canUpload={canDo(role, 'UPLOAD_DOCUMENTATION')}
-            canDelete={role === 'superadmin' || role === 'admin'}
-            canValidate={canValidateDocumentation(role)}
-            currentUserId={session.id}
-          />
+          <PhaseSection
+            id="dokumentasi"
+            title="Dokumentasi"
+            active={relevant('dokumentasi')}
+            complete={missingDoc.length === 0}
+            summary={
+              documentations.pendingReview > 0
+                ? `${documentations.rows.length} berkas · ${documentations.pendingReview} menunggu validasi`
+                : missingDoc.length === 0
+                  ? `${documentations.rows.length} berkas · kelengkapan minimum terpenuhi`
+                  : `${documentations.rows.length} berkas · belum lengkap`
+            }
+          >
+            <DocumentationManager
+              orderId={order.id}
+              orderNumber={order.order_number}
+              orderCreatedAt={order.created_at}
+              summary={documentations}
+              missingDocStages={missingDoc}
+              animals={animals.map((a) => ({ id: a.id, tagCode: a.tag_code }))}
+              canUpload={canDo(role, 'UPLOAD_DOCUMENTATION')}
+              canDelete={role === 'superadmin' || role === 'admin'}
+              canValidate={canValidateDocumentation(role)}
+              currentUserId={session.id}
+            />
+          </PhaseSection>
 
           {/* --- Laporan ---
               Token hanya dikirim ke yang berhak membagikannya. Merender
@@ -271,16 +348,30 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               CSS tetap menaruh token itu di HTML yang sampai ke browser
               vendor — jadi yang disembunyikan bukan panelnya, melainkan
               nilainya. */}
-          <ReportManager
-            orderId={order.id}
-            publicToken={canShareReport ? order.public_token : ''}
-            appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
-            reports={reports}
-            canGenerate={canDo(role, 'GENERATE_REPORT')}
-            canShare={canShareReport}
-            documentationReady={missingDoc.length === 0}
-            missingDocumentation={missingDoc}
-          />
+          <PhaseSection
+            id="laporan"
+            title="Laporan Peserta"
+            active={relevant('laporan')}
+            complete={guard.reportSent}
+            summary={
+              reports.length === 0
+                ? 'Belum pernah dibuat'
+                : guard.reportSent
+                  ? `${reports.length} versi · sudah dikirim ke peserta`
+                  : `${reports.length} versi · belum ditandai terkirim`
+            }
+          >
+            <ReportManager
+              orderId={order.id}
+              publicToken={canShareReport ? order.public_token : ''}
+              appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
+              reports={reports}
+              canGenerate={canDo(role, 'GENERATE_REPORT')}
+              canShare={canShareReport}
+              documentationReady={missingDoc.length === 0}
+              missingDocumentation={missingDoc}
+            />
+          </PhaseSection>
 
           {/* --- Riwayat --- */}
           <section className="border-border bg-card rounded-lg border shadow-sm">

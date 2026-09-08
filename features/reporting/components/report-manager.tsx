@@ -67,15 +67,9 @@ export function ReportManager({
   );
 
   return (
-    <section className="border-border bg-card rounded-lg border shadow-sm">
-      <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-        <div>
-          <h2 className="text-base font-semibold">Laporan Peserta</h2>
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            {reports.length === 0 ? 'Belum pernah dibuat' : `${reports.length} versi tersimpan`}
-          </p>
-        </div>
-
+    // Judul & hitungan versinya dipegang `PhaseSection` di halaman detail order.
+    <div>
+      <div className="border-border flex flex-wrap items-center justify-end gap-3 border-b px-5 py-3">
         {canGenerate && (
           <Button
             type="button"
@@ -194,6 +188,6 @@ export function ReportManager({
           </ul>
         </>
       )}
-    </section>
+    </div>
   );
 }

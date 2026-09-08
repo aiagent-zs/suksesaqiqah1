@@ -4,7 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
-import { assignVendorSchema, saveScheduleSchema } from '@/features/schedules/schema';
+import {
+  assignVendorSchema,
+  createLocationSchema,
+  saveScheduleSchema,
+} from '@/features/schedules/schema';
 
 import {
   conflict,
@@ -108,6 +112,92 @@ export async function saveSchedule(input: unknown): Promise<ActionResult<null>> 
   revalidatePath(`/orders/${order_id}`);
   revalidatePath('/schedule');
   return { ok: true, data: null };
+}
+
+// =============================================================================
+// Daftarkan lokasi baru
+// =============================================================================
+
+/**
+ * Buat satu lokasi pelaksanaan baru.
+ *
+ * Tabel `locations` sebelumnya tidak punya satu pun jalan masuk lewat aplikasi:
+ * barisnya hanya lahir dari seed, sehingga menambah tempat baru menuntut akses
+ * langsung ke database. Itu tidak berkelanjutan — lokasi salur berganti hampir
+ * tiap order (masjid, panti, kampung penerima manfaat yang berbeda-beda),
+ * sementara yang tahu tempatnya adalah admin yang sedang menjadwalkan.
+ *
+ * **`vendor_id` diisi server, tidak pernah diterima dari klien.** Kalau boleh
+ * dikirim, seseorang bisa mendaftarkan lokasi atas nama mitra lain lalu
+ * memakainya untuk menembus pemeriksaan "lokasi ini milik mitra lain" di
+ * `saveSchedule` — penjaga yang justru baru punya arti sejak lokasi dimiliki
+ * mitra.
+ *
+ * Wewenangnya `MANAGE_SCHEDULE` (staf), bukan `MANAGE_MASTER_DATA`: lokasi
+ * dibuat di tengah penjadwalan, oleh orang yang sedang mengerjakan order itu.
+ * Menahannya di superadmin berarti admin harus meminta tolong setiap kali ada
+ * alamat baru — dan yang terjadi kemudian adalah alamat ditulis di kolom
+ * catatan, di luar jangkauan seluruh laporan.
+ *
+ * RLS `locations_write` masih menuntut `is_superadmin()`, jadi admin tetap
+ * ditolak database sampai migration pendampingnya ikut naik. Penolakannya
+ * dikenali dan diterjemahkan di bawah, bukan dibiarkan tampil sebagai galat
+ * internal yang tidak bisa ditindaklanjuti siapa pun.
+ */
+export async function createLocation(
+  input: unknown,
+): Promise<ActionResult<{ id: string; name: string }>> {
+  const session = await requireAuth();
+
+  if (!canDo(session.profile?.role, 'MANAGE_SCHEDULE')) {
+    return forbidden('Role Anda tidak berhak mendaftarkan lokasi.');
+  }
+
+  const parsed = createLocationSchema.safeParse(input);
+  if (!parsed.success) return validationError(parsed.error);
+  const { name, address, order_id, owned_by_vendor } = parsed.data;
+
+  const supabase = await createClient();
+
+  // Mitra diambil dari order, bukan dari klien — inilah yang membuat penjaga
+  // kepemilikan di `saveSchedule` tidak bisa dilangkahi lewat pintu ini.
+  const { data: order } = await supabase
+    .from('orders')
+    .select('id, vendor_id')
+    .eq('id', order_id)
+    .maybeSingle();
+
+  if (!order) return notFound('Order tidak ditemukan atau di luar akses Anda.');
+
+  if (owned_by_vendor && !order.vendor_id) {
+    return conflict(
+      'Order ini belum punya mitra, jadi lokasinya belum bisa ditandai milik mitra. Simpan sebagai tempat umum, atau tetapkan mitranya lebih dulu.',
+    );
+  }
+
+  const { data, error } = await supabase
+    .from('locations')
+    .insert({
+      name,
+      address: address || null,
+      vendor_id: owned_by_vendor ? order.vendor_id : null,
+    })
+    .select('id, name')
+    .maybeSingle();
+
+  // `42501` = insufficient_privilege, penolakan RLS yang eksplisit.
+  if (error?.code === '42501') {
+    return forbidden('Pendaftaran lokasi baru masih dibatasi superadmin.');
+  }
+  if (error) return internalError('Gagal mendaftarkan lokasi', error);
+
+  // PostgREST tidak menganggap insert yang tersaring RLS sebagai error; tanpa
+  // cek ini penolakannya terlihat sebagai sukses di layar.
+  if (!data) return forbidden('Pendaftaran lokasi ditolak untuk role Anda.');
+
+  revalidatePath(`/orders/${order_id}`);
+  revalidatePath('/schedule');
+  return { ok: true, data: { id: data.id, name: data.name } };
 }
 
 // =============================================================================

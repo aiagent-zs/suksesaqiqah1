@@ -48,6 +48,36 @@ export const assignVendorSchema = z.object({
 });
 
 /**
+ * Daftarkan lokasi pelaksanaan baru.
+ *
+ * Tabel `locations` sebelumnya **tidak punya satu pun jalan masuk lewat
+ * aplikasi** — barisnya hanya lahir dari seed, jadi menambah tempat baru
+ * menuntut akses langsung ke database. Padahal lokasi salur berganti tiap
+ * order: masjid, panti, atau kampung penerima manfaat yang berbeda-beda.
+ *
+ * `vendor_id` sengaja tidak diterima dari klien. Ia diisi server dari mitra
+ * order yang bersangkutan, atau NULL untuk tempat umum — kalau boleh dikirim,
+ * seseorang bisa mendaftarkan lokasi atas nama mitra lain dan memakainya untuk
+ * menembus pemeriksaan "lokasi ini milik mitra lain" di `saveSchedule`.
+ */
+export const createLocationSchema = z.object({
+  name: z.string().trim().min(3, 'Nama tempat minimal 3 karakter').max(150, 'Nama terlalu panjang'),
+  address: z.string().trim().max(500, 'Alamat terlalu panjang').optional().or(z.literal('')),
+  /**
+   * Order yang sedang dijadwalkan. Dipakai server untuk menentukan pemilik
+   * lokasinya — bukan untuk menyimpan tautan ke order.
+   */
+  order_id: uuid,
+  /**
+   * `true` = milik mitra order ini; `false` = tempat umum (masjid, panti) yang
+   * bisa dipakai order mana pun.
+   */
+  owned_by_vendor: z.boolean().default(false),
+});
+
+export type CreateLocationInput = z.infer<typeof createLocationSchema>;
+
+/**
  * Filter halaman Jadwal (`prd.md` FR-S2: lihat jadwal per lokasi & per petugas).
  * Seluruhnya `.catch()` — isinya query string yang bisa disunting siapa saja.
  */

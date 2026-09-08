@@ -157,25 +157,16 @@ export function DocumentationManager({
   }
 
   return (
-    <section className="border-border bg-card rounded-lg border shadow-sm">
-      <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-        <div>
-          <h2 className="text-base font-semibold">Dokumentasi</h2>
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            {summary.rows.length} berkas
-            {summary.pendingReview > 0 && (
-              <span className="text-amber-700"> · {summary.pendingReview} menunggu validasi</span>
-            )}
-          </p>
-        </div>
-
-        {canUpload && (
+    // Judul & hitungan berkasnya dipegang `PhaseSection` di halaman detail order.
+    <div>
+      {canUpload && (
+        <div className="border-border flex justify-end border-b px-5 py-3">
           <Button type="button" variant="outline" size="sm" onClick={() => setShowForm((v) => !v)}>
             <Plus className="size-3.5" />
             Unggah dokumentasi
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Kelengkapan minimum — dasar gate menuju Pelaporan (docs/10 section 5). */}
       <p
@@ -391,6 +382,6 @@ export function DocumentationManager({
           })}
         </ul>
       )}
-    </section>
+    </div>
   );
 }
