@@ -1,4 +1,4 @@
-import { EMPTY_DELIVERY_ADDRESS, type DeliveryAddressValue } from './components/address-picker';
+import { EMPTY_DELIVERY_ADDRESS, type DeliveryAddressValue } from './address';
 
 /**
  * Isian checkout yang dipegang form, beserta penyimpanan sementaranya.

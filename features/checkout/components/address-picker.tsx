@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useRegionCascade } from '../use-region-cascade';
 import type { RegionOption } from '../queries';
+import type { DeliveryAddressValue } from '../address';
 
 /**
  * Bagian alamat yang dipegang form. Kode **dan** nama: kodenya yang dikirim ke
@@ -16,31 +17,10 @@ import type { RegionOption } from '../queries';
  * `regions` berdasarkan kodenya, karena nama yang dikirim klien bisa tidak
  * cocok dengan kodenya dan yang dibaca kurir adalah namanya.
  */
-export type DeliveryAddressValue = {
-  province_code: string;
-  province_name: string;
-  city_code: string;
-  city_name: string;
-  district_code: string;
-  district_name: string;
-  village_code: string;
-  village_name: string;
-  postal_code: string;
-  detail: string;
-};
-
-export const EMPTY_DELIVERY_ADDRESS: DeliveryAddressValue = {
-  province_code: '',
-  province_name: '',
-  city_code: '',
-  city_name: '',
-  district_code: '',
-  district_name: '',
-  village_code: '',
-  village_name: '',
-  postal_code: '',
-  detail: '',
-};
+// Bentuknya tinggal di `../address` — data murni, tanpa React. Di-ekspor ulang
+// dari sini supaya pemanggil lama tidak perlu berubah, sementara `draft.ts`
+// bisa mengimpornya tanpa menyeret seluruh rantai UI.
+export { EMPTY_DELIVERY_ADDRESS, type DeliveryAddressValue } from '../address';
 
 /** Tingkat yang isinya diambil dari peramban — provinsi sudah datang dari server. */
 type Level = 'city' | 'district' | 'village';
