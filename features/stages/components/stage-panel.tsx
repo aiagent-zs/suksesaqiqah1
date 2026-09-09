@@ -6,12 +6,16 @@ import { AlertCircle, Check, MapPin, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BusyButton } from '@/components/ui/busy-button';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { DocStatusBadge } from '@/components/data/status-badge';
 import { formatDateTime } from '@/lib/format';
 import { reportStage, reviewStage } from '@/server/actions/stages';
+import { uploadDocumentation } from '@/server/actions/documentation';
+import { createClient } from '@/lib/supabase/client';
+import { DOC_BUCKET, buildDocPath, checkDocFile } from '@/features/documentation/storage';
 import { DocPreview } from '@/features/documentation/components/doc-preview';
 import { DocReviewActions } from '@/features/documentation/components/doc-review-actions';
 import { StageDocUpload } from '@/features/documentation/components/stage-doc-upload';
@@ -83,6 +87,12 @@ export function StagePanel({
   const [openId, setOpenId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState('');
+  /** Foto yang dipilih di form laporan, diunggah bersamaan saat Simpan. */
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  // Input file tidak bisa dikosongkan lewat prop `value`; menaikkan key ini
+  // memasang ulang elemennya sehingga nama berkas lama hilang dari layar.
+  const [fileKey, setFileKey] = useState(0);
   const [draft, setDraft] = useState({
     occurred_at: '',
     notes: '',
@@ -117,13 +127,109 @@ export function StagePanel({
       setOpenId(null);
       setRejectId(null);
       setRejectNote('');
+      setFiles([]);
+      setFileKey((k) => k + 1);
       router.refresh();
+    });
+  }
+
+  /**
+   * Simpan laporan **beserta fotonya**, dalam satu tekan.
+   *
+   * Urutannya foto dulu, laporan kemudian. Kalau dibalik, laporan tersimpan
+   * lebih dulu dan kegagalan unggah meninggalkan tahap yang tampak selesai
+   * tanpa bukti — persis keadaan yang paling sulit disadari, karena baru
+   * ketahuan saat gerbang Pelaporan menolaknya berhari-hari kemudian.
+   *
+   * Berkasnya diunggah **langsung dari browser ke Storage**: badan Server
+   * Action dibatasi 1 MB sementara bucket menerima 25 MB, dan foto dari kamera
+   * ponsel rutin melewati batas itu.
+   */
+  async function submitReport(row: StageEventRow) {
+    setError(null);
+
+    // `note` tidak mungkin muncul di sini — `checkDocFile` menurunkannya dari
+    // MIME berkas, dan catatan tertulis tidak punya berkas sama sekali.
+    const paths: Array<{ path: string; type: 'photo' | 'video' | 'note' }> = [];
+
+    if (files.length > 0) {
+      for (const file of files) {
+        const check = checkDocFile(file);
+        if (!check.ok) {
+          setError(`${file.name}: ${check.message}`);
+          return;
+        }
+      }
+
+      setUploading(true);
+      try {
+        const supabase = createClient();
+        for (const file of files) {
+          const check = checkDocFile(file);
+          if (!check.ok) return;
+
+          const path = buildDocPath({
+            orderNumber,
+            orderCreatedAt,
+            stage: row.stage,
+            uuid: crypto.randomUUID(),
+            ext: check.ext,
+          });
+
+          const { error: uploadError } = await supabase.storage
+            .from(DOC_BUCKET)
+            .upload(path, file, { contentType: file.type, upsert: false });
+
+          if (uploadError) {
+            // Penyebab tersering justru bukan berkasnya, melainkan sesi yang
+            // kedaluwarsa — pesannya dibawa apa adanya supaya terbaca.
+            setError(`Gagal mengunggah ${file.name}: ${uploadError.message}`);
+            return;
+          }
+          paths.push({ path, type: check.type });
+        }
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    run(async () => {
+      const reported = await reportStage({
+        stage_event_id: row.id,
+        occurred_at: new Date(draft.occurred_at).toISOString(),
+        notes: draft.notes,
+        packages_count: draft.packages_count ? Number(draft.packages_count) : undefined,
+        recipient_name: draft.recipient_name,
+        recipient_phone: draft.recipient_phone,
+        recipient_area: draft.recipient_area,
+        weight_kg: draft.weight_kg ? Number(draft.weight_kg) : undefined,
+        lat: draft.lat ? Number(draft.lat) : undefined,
+        lng: draft.lng ? Number(draft.lng) : undefined,
+      });
+      if (!reported.ok) return reported;
+
+      // Berkasnya sudah di Storage; yang tersisa mencatatkan barisnya. Satu
+      // yang gagal dilaporkan apa adanya — laporannya sendiri sudah tersimpan,
+      // jadi menggagalkan keseluruhannya justru menyesatkan.
+      for (const { path, type } of paths) {
+        const saved = await uploadDocumentation({
+          stage_event_id: row.id,
+          type,
+          storage_path: path,
+          caption: '',
+        });
+        if (!saved.ok) return saved;
+      }
+
+      return reported;
     });
   }
 
   function openForm(row: StageEventRow) {
     setOpenId(row.id);
     setError(null);
+    setFiles([]);
+    setFileKey((k) => k + 1);
     setDraft({
       // Prasetel waktu sekarang: yang dilaporkan hampir selalu baru terjadi.
       occurred_at: localDateTimeValue(new Date()),
@@ -169,12 +275,61 @@ export function StagePanel({
           const unlocked = canReportStage(stages, row.seq);
           const editable = canReport && row.status !== 'validated' && unlocked;
 
+          // Penomoran ekor untuk tahap yang terbit per hewan (`sembelih`).
+          //
+          // `tag_code` dipakai bila ada, tapi ia opsional — dan pada kenyataannya
+          // hampir selalu kosong: formulir hewan tidak mewajibkannya. Tanpa
+          // penomoran ini kedua baris "Sembelih" tampak identik, dan ketika yang
+          // satu punya tombol Laporkan sementara yang lain tidak (karena sudah
+          // dilaporkan), itu terbaca sebagai tombol yang hilang — bukan sebagai
+          // dua ekor berbeda.
+          const sameStage = stages.filter((s) => s.stage === row.stage);
+          const perAnimal = sameStage.length > 1 && row.animalId !== null;
+          const animalLabel = perAnimal
+            ? (row.animalTag ?? `Ekor ${sameStage.findIndex((s) => s.id === row.id) + 1}`)
+            : row.animalTag;
+
+          // Tahap mana yang sedang menahan baris ini — cerminan `canReportStage`
+          // dan trigger `enforce_stage_order`: yang `pending` atau `rejected`.
+          const blockedBy = unlocked
+            ? []
+            : [
+                ...new Set(
+                  stages
+                    .filter(
+                      (s) => s.seq < row.seq && s.status !== 'reported' && s.status !== 'validated',
+                    )
+                    .map((s) => STAGE_META[s.stage].label),
+                ),
+              ];
+
           // Per `stageEventId`, bukan per `stage` — lihat catatan di docblock
           // komponen: mengelompokkan per tahap menempelkan bukti ekor kedua ke
           // baris ekor pertama.
           const rowDocs = docs.filter((d) => d.stageEventId === row.id);
-          // Bukti masih bisa ditambahkan selama tahapnya belum tervalidasi.
-          const canAddDoc = canUpload && row.status !== 'validated' && unlocked;
+          /**
+           * Bukti yang sudah tersimpan pada baris ini.
+           *
+           * Yang ditolak sengaja tidak dihitung: admin sudah menyatakannya
+           * kurang, jadi memperlakukannya sebagai bukti yang sah membuat mitra
+           * bisa menyimpan ulang laporan tanpa memperbaiki apa pun.
+           */
+          const hasEvidence = rowDocs.some((d) => d.status !== 'rejected');
+          /**
+           * "Tambah bukti" hanya muncul untuk tahap yang **sudah dilaporkan**.
+           *
+           * Selama tahapnya masih `pending`, satu-satunya jalan yang benar
+           * adalah tombol Laporkan — dan form-nya sudah memuat medan foto.
+           * Menampilkan dua tombol di situ menawarkan dua jalan untuk satu
+           * pekerjaan, dan yang menempuh jalan bukti duluan meninggalkan foto
+           * yang menggantung tanpa laporan yang menerangkannya.
+           *
+           * Sesudah dilaporkan ia berguna: foto menyusul dari lapangan, atau
+           * mengganti yang ditolak admin. Berhenti begitu tahapnya tervalidasi
+           * — yang sudah disetujui tidak lagi menerima tambahan.
+           */
+          const canAddDoc =
+            canUpload && row.status !== 'pending' && row.status !== 'validated' && unlocked;
 
           return (
             <li key={row.id} className="px-5 py-4">
@@ -186,9 +341,9 @@ export function StagePanel({
                         satu baris per ekor, jadi order dua ekor menampilkan
                         "Sembelih" dua kali. Tanpa pembeda yang menonjol, kedua
                         baris itu terbaca seperti duplikat yang keliru. */}
-                    {row.animalTag && (
+                    {animalLabel && (
                       <Badge className="border-slate-200 bg-slate-100 text-slate-700 tabular-nums">
-                        {row.animalTag}
+                        {animalLabel}
                       </Badge>
                     )}
                     <Badge className={statusMeta.className}>{statusMeta.label}</Badge>
@@ -226,9 +381,17 @@ export function StagePanel({
                     <p className="text-destructive mt-1.5 text-xs">Ditolak: {row.reviewNote}</p>
                   )}
 
+                  {/* Menyebut tahap mana yang menahannya, bukan sekadar "tahap
+                      sebelumnya". Pada order dua ekor, yang menahan `masak`
+                      biasanya satu baris `sembelih` yang belum disentuh —
+                      sementara baris sembelih satunya sudah dilaporkan dan
+                      terlihat selesai. Tanpa menyebut namanya, layar hanya
+                      berkata "belum bisa" tanpa memberi tahu apa yang kurang. */}
                   {!unlocked && row.status === 'pending' && (
                     <p className="text-muted-foreground mt-1.5 text-xs">
-                      Menunggu tahap sebelumnya dilaporkan.
+                      {blockedBy.length > 0
+                        ? `Menunggu ${blockedBy.join(' & ')} dilaporkan lebih dulu.`
+                        : 'Menunggu tahap sebelumnya dilaporkan.'}
                     </p>
                   )}
 
@@ -286,7 +449,12 @@ export function StagePanel({
                         </ul>
                       )}
 
-                      {canAddDoc && (
+                      {/* Menambah bukti SESUDAH melapor — mis. foto menyusul
+                          dari lapangan, atau mengganti yang ditolak admin.
+                          Disembunyikan selama form laporan terbuka: di sana
+                          fotonya sudah jadi medan tersendiri, dan dua jalan
+                          unggah di layar yang sama membingungkan. */}
+                      {canAddDoc && openId !== row.id && (
                         <div className="mt-2">
                           <StageDocUpload
                             stageEventId={row.id}
@@ -397,9 +565,8 @@ export function StagePanel({
                   {row.stage === 'sembelih' && (
                     <div>
                       <Label htmlFor={`weight-${row.id}`}>Bobot hasil (kg, opsional)</Label>
-                      <Input
+                      <NumberInput
                         id={`weight-${row.id}`}
-                        type="number"
                         step="0.1"
                         value={draft.weight_kg}
                         onChange={(e) => setDraft({ ...draft, weight_kg: e.target.value })}
@@ -411,9 +578,8 @@ export function StagePanel({
                   {(row.stage === 'salur' || row.stage === 'kirim' || row.stage === 'terkirim') && (
                     <div>
                       <Label htmlFor={`pkg-${row.id}`}>Jumlah paket</Label>
-                      <Input
+                      <NumberInput
                         id={`pkg-${row.id}`}
-                        type="number"
                         value={draft.packages_count}
                         onChange={(e) => setDraft({ ...draft, packages_count: e.target.value })}
                         className="bg-card mt-1.5"
@@ -481,12 +647,41 @@ export function StagePanel({
                     </>
                   )}
 
+                  {/* Foto bagian dari laporan, bukan aksi terpisah.
+                      Sebelumnya bukti diunggah lewat tombol sendiri di luar
+                      form — jadi mitra harus mengingat dua langkah untuk satu
+                      pekerjaan, dan yang lupa langkah kedua meninggalkan
+                      laporan tanpa bukti yang baru ketahuan saat gerbang
+                      Pelaporan menolaknya berhari-hari kemudian.
+
+                      Boleh lebih dari satu: satu tahap sering perlu beberapa
+                      sudut pengambilan. */}
                   <div className="sm:col-span-2">
-                    <Label htmlFor={`notes-${row.id}`}>Catatan</Label>
+                    <Label htmlFor={`photo-${row.id}`}>Foto dokumentasi</Label>
+                    <Input
+                      key={`${row.id}-${fileKey}`}
+                      id={`photo-${row.id}`}
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp,video/mp4"
+                      disabled={pending || uploading}
+                      onChange={(e) => setFiles([...(e.target.files ?? [])])}
+                      className="bg-card mt-1.5"
+                    />
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {hasEvidence
+                        ? `${rowDocs.length} bukti sudah terlampir — tambahkan lagi bila perlu.`
+                        : 'Wajib — laporan tanpa foto tidak bisa disimpan. JPG, PNG, WebP, atau MP4 · maksimal 25 MB per berkas.'}
+                    </p>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`notes-${row.id}`}>Catatan (opsional)</Label>
                     <Textarea
                       id={`notes-${row.id}`}
                       rows={2}
                       value={draft.notes}
+                      placeholder="Keterangan tambahan bila ada"
                       onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
                       className="bg-card mt-1.5"
                     />
@@ -496,27 +691,14 @@ export function StagePanel({
                     <BusyButton
                       type="button"
                       size="sm"
-                      busy={pending}
-                      busyLabel="Menyimpan…"
-                      disabled={!draft.occurred_at}
-                      onClick={() =>
-                        run(() =>
-                          reportStage({
-                            stage_event_id: row.id,
-                            occurred_at: new Date(draft.occurred_at).toISOString(),
-                            notes: draft.notes,
-                            packages_count: draft.packages_count
-                              ? Number(draft.packages_count)
-                              : undefined,
-                            recipient_name: draft.recipient_name,
-                            recipient_phone: draft.recipient_phone,
-                            recipient_area: draft.recipient_area,
-                            weight_kg: draft.weight_kg ? Number(draft.weight_kg) : undefined,
-                            lat: draft.lat ? Number(draft.lat) : undefined,
-                            lng: draft.lng ? Number(draft.lng) : undefined,
-                          }),
-                        )
-                      }
+                      busy={pending || uploading}
+                      busyLabel={uploading ? 'Mengunggah foto…' : 'Menyimpan…'}
+                      // Foto wajib. Baris yang sudah punya bukti terlampir
+                      // boleh disimpan ulang tanpa memilih berkas lagi —
+                      // memperbaiki bobot atau catatan tidak menuntut memotret
+                      // ulang apa yang sudah terbukti.
+                      disabled={!draft.occurred_at || (!hasEvidence && files.length === 0)}
+                      onClick={() => submitReport(row)}
                     >
                       Simpan laporan
                     </BusyButton>
