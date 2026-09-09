@@ -6,6 +6,7 @@ import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -209,8 +210,7 @@ export function ServiceForm({
         </Field>
 
         <Field label="Urutan tampil" error={fieldErrors.sort_order} hint="Makin kecil makin atas.">
-          <Input
-            type="number"
+          <NumberInput
             min={0}
             inputMode="numeric"
             value={draft.sort_order}
@@ -275,8 +275,7 @@ export function ServiceForm({
               error={fieldErrors.porsi}
               hint="Keterangan hasil untuk pembeli, bukan batas pesanan — ia tetap bebas memesan berapa ekor."
             >
-              <Input
-                type="number"
+              <NumberInput
                 min={1}
                 inputMode="numeric"
                 value={draft.porsi}

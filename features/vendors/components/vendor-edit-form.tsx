@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DISTRIBUTION_MODE_LABEL } from '@/features/stages/sequence';
@@ -361,12 +362,16 @@ function Field({
   hint?: string;
   type?: string;
 }) {
+  // Medan angka lewat `NumberInput`: `type="number"` polos akan berubah
+  // nilainya saat halaman digulir dengan roda tetikus di atasnya.
+  const Control = type === 'number' ? NumberInput : Input;
+
   return (
     <div>
       <Label htmlFor={id}>{label}</Label>
-      <Input
+      <Control
         id={id}
-        type={type}
+        {...(type === 'number' ? {} : { type })}
         value={value}
         aria-invalid={Boolean(error)}
         onChange={(e) => onChange(e.target.value)}

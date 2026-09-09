@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Eye, MapPin, Pencil, Phone, Plus, Trash2, UserX } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -174,9 +175,8 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
 
           <div>
             <Label htmlFor="v-capacity">Kapasitas per hari (ekor)</Label>
-            <Input
+            <NumberInput
               id="v-capacity"
-              type="number"
               value={draft.daily_capacity}
               onChange={(e) => setDraft({ ...draft, daily_capacity: e.target.value })}
               className="mt-1.5 max-w-40"

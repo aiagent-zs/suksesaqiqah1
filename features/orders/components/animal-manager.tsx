@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { addAnimal, deleteAnimal } from '@/server/actions/orders';
@@ -103,9 +104,8 @@ export function AnimalManager({
           </div>
           <div>
             <Label htmlFor="new-weight">Berat (kg)</Label>
-            <Input
+            <NumberInput
               id="new-weight"
-              type="number"
               step="0.1"
               min={0}
               value={draft.weight_kg}

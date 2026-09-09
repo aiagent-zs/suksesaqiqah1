@@ -1,7 +1,7 @@
 'use client';
 
 import { Baby, Check, Minus, Plus, ShoppingBag } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { ANIMAL_SPECIES_LABEL } from '@/lib/constants/order';
 import { formatCurrency } from '@/lib/format';
@@ -299,9 +299,8 @@ export function StepPesanan({
             <Label htmlFor="co-boxqty" className="text-sm font-semibold text-neutral-800">
               Jumlah Box <span className="text-red-500">*</span>
             </Label>
-            <Input
+            <NumberInput
               id="co-boxqty"
-              type="number"
               min={1}
               max={5000}
               step="1"

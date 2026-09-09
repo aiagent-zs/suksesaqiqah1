@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -226,9 +226,8 @@ export function VendorServicePanel({
               <Label htmlFor="vs-min">
                 Minimum pesanan{selected ? ` (${unitOf(selected.type)})` : ''}
               </Label>
-              <Input
+              <NumberInput
                 id="vs-min"
-                type="number"
                 min={1}
                 inputMode="numeric"
                 value={offer.min_qty}
@@ -243,9 +242,8 @@ export function VendorServicePanel({
               <Label htmlFor="vs-max">
                 Maks per hari{selected ? ` (${unitOf(selected.type)})` : ''}
               </Label>
-              <Input
+              <NumberInput
                 id="vs-max"
-                type="number"
                 min={1}
                 inputMode="numeric"
                 value={offer.max_qty}
@@ -261,9 +259,8 @@ export function VendorServicePanel({
 
             <div>
               <Label htmlFor="vs-lead">Jeda persiapan (jam)</Label>
-              <Input
+              <NumberInput
                 id="vs-lead"
-                type="number"
                 min={0}
                 inputMode="numeric"
                 value={offer.lead_time_hours}
@@ -521,9 +518,8 @@ export function VendorServicePanel({
                         <Label htmlFor={`vs-min-${r.id}`}>
                           Minimum pesanan ({unitOf(r.serviceType)})
                         </Label>
-                        <Input
+                        <NumberInput
                           id={`vs-min-${r.id}`}
-                          type="number"
                           min={1}
                           inputMode="numeric"
                           value={edit.min_qty}
@@ -538,9 +534,8 @@ export function VendorServicePanel({
                         <Label htmlFor={`vs-max-${r.id}`}>
                           Maks per hari ({unitOf(r.serviceType)})
                         </Label>
-                        <Input
+                        <NumberInput
                           id={`vs-max-${r.id}`}
-                          type="number"
                           min={1}
                           inputMode="numeric"
                           value={edit.max_qty}
@@ -556,9 +551,8 @@ export function VendorServicePanel({
 
                       <div>
                         <Label htmlFor={`vs-lead-${r.id}`}>Jeda persiapan (jam)</Label>
-                        <Input
+                        <NumberInput
                           id={`vs-lead-${r.id}`}
-                          type="number"
                           min={0}
                           inputMode="numeric"
                           value={edit.lead_time_hours}

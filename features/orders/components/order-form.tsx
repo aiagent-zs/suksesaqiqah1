@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -270,9 +271,8 @@ export function OrderForm({
               </div>
               <div>
                 <Label htmlFor={`qty-${item.key}`}>Qty</Label>
-                <Input
+                <NumberInput
                   id={`qty-${item.key}`}
-                  type="number"
                   min={1}
                   value={item.qty}
                   onChange={(e) => updateItem(item.key, { qty: Number(e.target.value) })}
@@ -404,9 +404,8 @@ export function OrderForm({
                 </div>
                 <div>
                   <Label htmlFor={`w-${animal.key}`}>Berat (kg)</Label>
-                  <Input
+                  <NumberInput
                     id={`w-${animal.key}`}
-                    type="number"
                     step="0.1"
                     min={0}
                     value={animal.weight_kg}
