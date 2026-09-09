@@ -21,7 +21,6 @@ export const uploadDocumentationSchema = z
     message: 'Catatan wajib diisi',
   });
 
-  
 export const reviewDocumentationSchema = z
   .object({
     documentation_id: uuid,
