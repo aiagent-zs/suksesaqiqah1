@@ -166,30 +166,45 @@ export function OpenOrdersCardList({ rows }: { rows: OpenOrderRow[] }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-primary font-semibold tabular-nums">{row.orderNumber}</p>
-              <p className="mt-0.5 flex items-center gap-1.5 truncate text-sm">
-                <User className="text-muted-foreground size-3.5 shrink-0" />
-                {row.participantName}
-              </p>
+              {/* Nama peserta hanya dirender bila memang ada. `participant_name`
+                  selalu null bagi mitra — `participants_select` menuntut staf —
+                  jadi barisnya dulu selalu berbunyi "-", memakan tinggi dan
+                  ikon tanpa memberi tahu apa pun. */}
+              {row.participantName && row.participantName !== '-' && (
+                <p className="mt-0.5 flex items-center gap-1.5 truncate text-sm">
+                  <User className="text-muted-foreground size-3.5 shrink-0" />
+                  {row.participantName}
+                </p>
+              )}
             </div>
             <OrderStatusBadge status={row.status} />
           </div>
 
-          <div className="text-muted-foreground mt-3 space-y-1 text-xs">
-            <p className="flex items-center gap-1.5">
-              <MapPin className="size-3.5 shrink-0" />
-              {row.locationName ?? 'Belum dijadwalkan'}
-              {row.vendorName ? ` · ${row.vendorName}` : ' · Mitra belum ditugaskan'}
+          {/* `min-w-0` + `break-words` di tiap baris: nama lokasi seperti
+              "Rumah Tahfidz Sukses Subulunnajjah · Ummi Aqiqah" melampaui lebar
+              layar 360px, dan tanpa ini teksnya melebar keluar kartu. */}
+          <div className="text-muted-foreground mt-3 space-y-1.5 text-xs">
+            <p className="flex items-start gap-1.5">
+              <MapPin className="mt-0.5 size-3.5 shrink-0" />
+              <span className="min-w-0 break-words">
+                {row.locationName ?? 'Belum dijadwalkan'}
+                {row.vendorName ? ` · ${row.vendorName}` : ' · Mitra belum ditugaskan'}
+              </span>
             </p>
-            <p className="flex items-center gap-1.5">
-              <CalendarDays className="size-3.5 shrink-0" />
-              {row.scheduledDate ? formatDate(row.scheduledDate) : 'Tanggal belum diatur'}
-              {' · '}
-              <AgeLabel days={row.ageDays} />
+            <p className="flex items-start gap-1.5">
+              <CalendarDays className="mt-0.5 size-3.5 shrink-0" />
+              <span className="min-w-0">
+                {row.scheduledDate ? formatDate(row.scheduledDate) : 'Tanggal belum diatur'}
+                {' · '}
+                <AgeLabel days={row.ageDays} />
+              </span>
             </p>
-            <p className="flex items-center gap-1.5">
-              <PawPrint className="size-3.5 shrink-0" />
-              {row.animalsSlaughtered}/{row.animalsTotal} dipotong · Dok.{' '}
-              {Math.round(row.pctDocumentation)}%
+            <p className="flex items-start gap-1.5">
+              <PawPrint className="mt-0.5 size-3.5 shrink-0" />
+              <span className="min-w-0">
+                {row.animalsSlaughtered}/{row.animalsTotal} dipotong · Dok.{' '}
+                {Math.round(row.pctDocumentation)}%
+              </span>
             </p>
           </div>
 

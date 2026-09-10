@@ -111,3 +111,62 @@ export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 /** Hapus akun — `deleted_at`, bukan `delete`. Lihat `deleteUser`. */
 export const deleteUserSchema = z.object({ user_id: uuid });
+
+/**
+ * Ganti kata sandi akun **sendiri**.
+ *
+ * `current_password` bukan formalitas: `supabase.auth.updateUser()` menerima
+ * sesi yang sudah hidup tanpa menanyakan apa pun, jadi laptop yang ditinggal
+ * terbuka sebentar cukup untuk mengunci pemiliknya keluar dari akunnya
+ * sendiri. Diverifikasi server dengan mencoba login memakai email pemanggil.
+ *
+ * Berbeda dari `updateUserSchema` yang dipakai superadmin di `/users`: di sana
+ * yang mengubah bukan pemilik akunnya, jadi tidak ada sandi lama yang bisa ia
+ * ketahui — kewenangannya yang menjadi pembuktian.
+ */
+export const changeOwnPasswordSchema = z
+  .object({
+    current_password: z.string().min(1, 'Kata sandi saat ini wajib diisi'),
+    new_password: z
+      .string()
+      .min(8, 'Kata sandi minimal 8 karakter')
+      .max(72, 'Kata sandi terlalu panjang'),
+    confirm_password: z.string(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.new_password !== v.confirm_password) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['confirm_password'],
+        message: 'Ulangan kata sandi tidak sama',
+      });
+    }
+    // Sandi yang "diganti" jadi sandi yang sama membuat orang mengira dirinya
+    // sudah aman padahal tidak ada yang berubah.
+    if (v.current_password === v.new_password) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['new_password'],
+        message: 'Kata sandi baru harus berbeda dari yang sekarang',
+      });
+    }
+  });
+
+/**
+ * Ganti email akun **sendiri**.
+ *
+ * Sandi tetap diminta: email adalah identitas login sekaligus alamat pemulihan
+ * akun. Yang berhasil mengubahnya diam-diam bisa mengambil alih akun itu lewat
+ * "lupa sandi" kapan pun kemudian.
+ *
+ * Perpindahannya tidak seketika — Supabase mengirim tautan konfirmasi ke
+ * alamat baru, dan email lama tetap berlaku sampai tautannya diklik. Itu
+ * disengaja: salah ketik tidak mengunci siapa pun keluar.
+ */
+export const changeOwnEmailSchema = z.object({
+  new_email: z.string().trim().toLowerCase().email('Format email tidak valid'),
+  current_password: z.string().min(1, 'Kata sandi wajib diisi untuk mengubah email'),
+});
+
+export type ChangeOwnPasswordInput = z.infer<typeof changeOwnPasswordSchema>;
+export type ChangeOwnEmailInput = z.infer<typeof changeOwnEmailSchema>;

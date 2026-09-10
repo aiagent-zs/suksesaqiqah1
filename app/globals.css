@@ -524,3 +524,21 @@ html {
     @apply font-sans;
   }
 }
+
+/* Panel filter yang terlipat di ponsel, tetapi selalu terbuka di layar lebar.
+ *
+ * `<details>` menyembunyikan isinya saat tertutup — dan di `lg` ringkasannya
+ * sendiri disembunyikan, jadi tanpa aturan ini filternya tidak bisa dibuka
+ * sama sekali di desktop.
+ *
+ * Dua selektor karena peramban menyembunyikan isinya dengan cara berbeda:
+ * Chrome ≥129 lewat pseudo-element `::details-content`, yang lain lewat
+ * anak-anak elemennya langsung. Yang tidak dikenal peramban diabaikan. */
+@media (min-width: 64rem) {
+  details.filter-collapsible > :not(summary) {
+    display: block;
+  }
+  details.filter-collapsible::details-content {
+    content-visibility: visible;
+  }
+}

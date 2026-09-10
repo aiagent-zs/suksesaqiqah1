@@ -29,6 +29,7 @@ const PROTECTED_PREFIXES = [
   '/validation',
   '/vendors',
   '/users',
+  '/profil',
 ];
 
 function isProtectedRoute(pathname: string): boolean {

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Drawer } from '@base-ui/react/drawer';
-import { LogOut, Menu, X } from 'lucide-react';
+import { LogOut, Menu, UserCog, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logout } from '@/server/actions/auth';
 import { ROLE_LABEL } from '@/lib/constants/roles';
@@ -33,6 +33,30 @@ const SHEET_ITEM =
   'flex min-h-12 w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors';
 
 /**
+ * Batas tab yang muat di bottom-nav, di luar tombol "Menu".
+ *
+ * Empat, bukan lima: pada layar 360px — ukuran ponsel yang paling lazim di
+ * sini — lima kolom menyisakan 72px per tab, dan label seperti "Validasi"
+ * terpotong jadi "Valida…". Dengan empat, tiap tab dapat 90px dan labelnya
+ * utuh.
+ */
+const MAX_TABS = 4;
+
+/**
+ * Kelas kolom yang ditulis lengkap, bukan `grid-cols-${n}`.
+ *
+ * Tailwind memindai kode sebagai teks; kelas yang dirakit lewat interpolasi
+ * tidak pernah ikut ke CSS yang dihasilkan, dan gridnya diam-diam runtuh jadi
+ * satu kolom.
+ */
+const TAB_GRID: Record<number, string> = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+  5: 'grid-cols-5',
+};
+
+/**
  * Navigasi mobile & tablet (< lg): bottom-nav + panel `≡` untuk sisanya.
  *
  * Polanya mengikuti `docs/14 section 5-6` — `AppShell` disebut "sidebar
@@ -50,6 +74,21 @@ export function MobileNav({ fullName, role }: { fullName: string; role: UserRole
   const pathname = usePathname();
   const items = navItemsForRole(role);
   const [open, setOpen] = useState(false);
+
+  /**
+   * Menu dibagi dua: yang muat jadi tab, sisanya masuk panel.
+   *
+   * Jumlahnya berbeda per role — mitra 3, admin 4, superadmin 6 — sementara
+   * gridnya dulu dipatok `grid-cols-5`. Akibatnya mitra menyisakan satu kolom
+   * kosong di kanan (terlihat di layar 360px sebagai ruang menganga), dan
+   * superadmin menjejalkan 7 kolom ke ruang 5: labelnya terpotong dan lebar
+   * sentuhnya turun di bawah 44px.
+   *
+   * Yang berlebih **harus** ikut ke panel. Memotongnya begitu saja membuat
+   * superadmin kehilangan jalan ke Mitra dan Pengguna dari ponsel sama sekali.
+   */
+  const tabs = items.slice(0, MAX_TABS);
+  const overflow = items.slice(MAX_TABS);
   const [renderedPathname, setRenderedPathname] = useState(pathname);
 
   // Panel ditutup begitu halaman berpindah.
@@ -74,8 +113,8 @@ export function MobileNav({ fullName, role }: { fullName: string; role: UserRole
         aria-label="Navigasi utama"
         className="border-sidebar-border bg-sidebar fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
-        <ul className="grid grid-cols-5">
-          {items.map((item) => {
+        <ul className={cn('grid', TAB_GRID[tabs.length + 1])}>
+          {tabs.map((item) => {
             const active = isNavItemActive(pathname, item.href);
             const Icon = item.icon;
 
@@ -153,7 +192,58 @@ export function MobileNav({ fullName, role }: { fullName: string; role: UserRole
                 </Drawer.Close>
               </div>
 
+              {/* Menu yang tidak muat jadi tab. Tanpa blok ini superadmin
+                  kehilangan jalan ke Mitra dan Pengguna dari ponsel. */}
+              {overflow.length > 0 && (
+                <div className="border-sidebar-border/80 mt-4 space-y-1 border-t pt-4">
+                  {overflow.map((item) => {
+                    const active = isNavItemActive(pathname, item.href);
+                    const Icon = item.icon;
+
+                    return (
+                      <Drawer.Close
+                        key={item.href}
+                        render={
+                          <Link
+                            href={item.href}
+                            aria-current={active ? 'page' : undefined}
+                            className={cn(
+                              SHEET_ITEM,
+                              active
+                                ? 'bg-emerald-600/20 text-emerald-400'
+                                : 'active:bg-sidebar-accent text-slate-300',
+                            )}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span>{item.label}</span>
+                          </Link>
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="border-sidebar-border/80 mt-4 space-y-1 border-t pt-4">
+                {/* Di desktop jalannya lewat blok profil di sidebar; pengguna
+                    ponsel tidak pernah melihat blok itu, jadi tanpa baris ini
+                    mereka tidak punya jalan sama sekali ke halaman akunnya. */}
+                {/* `Drawer.Close` membungkus tautannya — persis yang disarankan
+                    docblock di atas: menutup panel dan bernavigasi terjadi
+                    bersamaan, jadi panelnya tidak sempat tergambar di halaman
+                    baru sebelum menutup. */}
+                <Drawer.Close
+                  render={
+                    <Link
+                      href="/profil"
+                      className={cn(SHEET_ITEM, 'active:bg-sidebar-accent text-slate-300')}
+                    >
+                      <UserCog className="h-4 w-4 shrink-0" />
+                      <span>Profil Saya</span>
+                    </Link>
+                  }
+                />
+
                 <form action={logout}>
                   <button
                     type="submit"

@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { requireAuth } from '@/server/auth/session';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { IdleLogout } from '@/components/providers/idle-logout';
@@ -59,8 +60,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {/* User Profile Summary */}
-          <div className="border-sidebar-border/80 bg-sidebar-accent/50 border-b px-5 py-4">
+          {/* User Profile Summary — sekaligus jalan ke halaman profil.
+              Blok ini tempat paling alami mencarinya: orang menuju namanya
+              sendiri ketika hendak mengurus akunnya, bukan ke menu terpisah
+              yang bersaing dengan menu pekerjaan. */}
+          <Link
+            href="/profil"
+            className="border-sidebar-border/80 bg-sidebar-accent/50 hover:bg-sidebar-accent block border-b px-5 py-4 transition-colors"
+          >
             <p className="mb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
               Staf Terotentikasi
             </p>
@@ -71,8 +78,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
                 {ROLE_LABEL[session.profile?.role ?? ''] ?? 'Staf'}
               </span>
+              <span className="text-[11px] text-slate-400">Kelola akun</span>
             </div>
-          </div>
+          </Link>
 
           {/* Navigasi Utama — penanda aktif diturunkan dari pathname (client) */}
           <SidebarNav role={session.profile?.role} />
