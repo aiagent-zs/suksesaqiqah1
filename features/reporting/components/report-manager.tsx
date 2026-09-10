@@ -6,6 +6,7 @@ import { AlertCircle, Copy, Download, FileText, Send, Sparkles } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/format';
 import { generateReport, markReportSent } from '@/server/actions/reports';
+import { DeleteReportDialog } from './delete-report-dialog';
 import type { ReportListItem } from '../queries';
 
 /**
@@ -172,6 +173,8 @@ export function ReportManager({
                   </p>
                 </div>
 
+                {report.sentAt && <span className="text-xs text-emerald-700">Terkirim</span>}
+
                 {report.pdfUrl && (
                   <a
                     href={report.pdfUrl}
@@ -182,6 +185,20 @@ export function ReportManager({
                     <Download className="size-3.5" />
                     Unduh PDF
                   </a>
+                )}
+
+                {/* Versi yang sudah terkirim tidak menampilkan tombol hapus
+                    sama sekali, bukan menampilkannya dalam keadaan mati:
+                    tombol mati mengundang orang mencari cara menyalakannya,
+                    sementara aturannya di sini memang mutlak. Alasannya
+                    dijelaskan lewat kalimat "Terkirim" di sebelahnya. */}
+                {canGenerate && !report.sentAt && (
+                  <DeleteReportDialog
+                    reportId={report.id}
+                    version={report.version}
+                    disabled={pending}
+                    onRun={run}
+                  />
                 )}
               </li>
             ))}

@@ -334,3 +334,81 @@ export async function markReportSent(input: unknown): Promise<ActionResult<null>
   revalidatePath('/dashboard');
   return { ok: true, data: null };
 }
+
+const deleteReportSchema = z.object({ report_id: z.string().uuid('ID tidak valid') });
+
+/**
+ * Hapus satu versi laporan.
+ *
+ * **Versi yang sudah ditandai terkirim tidak bisa dihapus.** Tautannya sudah
+ * ada di tangan peserta dan bisa sedang dibuka; menghapus barisnya mematikan
+ * tautan itu tanpa mereka tahu kenapa. `sent_at` juga yang dibaca
+ * `v_order_progress.report_sent` — menghapusnya mengembalikan order ke keadaan
+ * "belum pernah mengirim laporan" dan menutup lagi gerbang
+ * `reporting → completed` yang sudah terlewati.
+ *
+ * Yang salah cetak dibetulkan dengan **membuat versi baru**, bukan menghapus
+ * yang lama: tautan publiknya melekat pada order, jadi versi terbaru langsung
+ * menggantikan yang dibaca peserta.
+ *
+ * Penjagaannya dua lapis dan itu disengaja — `.is('sent_at', null)` pada UPDATE
+ * berjalan di database, jadi permintaan yang dikirim langsung ke API tetap
+ * tertolak meski tombolnya di layar dilewati.
+ */
+export async function deleteReport(input: unknown): Promise<ActionResult<null>> {
+  const session = await requireAuth();
+
+  if (!canDo(session.profile?.role, 'GENERATE_REPORT')) {
+    return forbidden('Role Anda tidak berhak menghapus laporan.');
+  }
+
+  const parsed = deleteReportSchema.safeParse(input);
+  if (!parsed.success) return validationError(parsed.error);
+
+  const supabase = await createClient();
+
+  const { data: row } = await supabase
+    .from('reports')
+    .select('order_id, pdf_path, sent_at')
+    .eq('id', parsed.data.report_id)
+    .maybeSingle();
+
+  if (!row) return notFound('Laporan tidak ditemukan atau di luar akses Anda.');
+
+  if (row.sent_at) {
+    return conflict(
+      'Versi ini sudah dikirim ke peserta, jadi tidak bisa dihapus. ' +
+        'Buat versi baru bila isinya perlu dibetulkan.',
+    );
+  }
+
+  const { data: deleted, error } = await supabase
+    .from('reports')
+    .delete()
+    .eq('id', parsed.data.report_id)
+    // Dijaga ulang di database: antara pembacaan di atas dan penghapusan ini,
+    // orang lain bisa saja menandainya terkirim.
+    .is('sent_at', null)
+    .select('id');
+
+  if (error) return internalError('Gagal menghapus laporan', error);
+
+  if ((deleted ?? []).length === 0) {
+    return conflict('Laporan baru saja ditandai terkirim. Muat ulang halaman.');
+  }
+
+  // PDF-nya ikut dibuang: tanpa barisnya ia tidak bisa dijangkau dari mana pun
+  // dan hanya menumpuk di bucket. Kegagalannya tidak membatalkan penghapusan —
+  // barisnya sudah hilang, dan menggagalkan seluruhnya justru menyisakan
+  // keadaan yang lebih membingungkan daripada satu berkas yatim.
+  if (row.pdf_path) {
+    const { error: storageError } = await supabase.storage.from('reports').remove([row.pdf_path]);
+    if (storageError) {
+      console.error('[reports] PDF tertinggal di storage:', row.pdf_path, storageError.message);
+    }
+  }
+
+  revalidatePath(`/orders/${row.order_id}`);
+  revalidatePath('/dashboard');
+  return { ok: true, data: null };
+}
