@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, MessageCircle } from 'lucide-react';
+import { Check, Loader2, MessageCircle } from 'lucide-react';
 import { markNotificationSent } from '@/server/actions/notifications';
 
 /**
@@ -45,22 +45,39 @@ export function AlertActions({ id, waHref }: { id: string; waHref: string | null
             target="_blank"
             rel="noopener noreferrer"
             onClick={markSent}
-            className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100"
+            // Ikut meredup selagi penandaan berjalan — ia memanggil `markSent`
+            // yang sama, dan menekannya dua kali menerbitkan permintaan kedua
+            // untuk baris yang sudah ditandai. Tautannya sengaja tetap bisa
+            // ditekan: membukanya ke WhatsApp adalah pekerjaan yang sedang
+            // dikerjakan admin, dan menahannya justru menghalangi.
+            aria-busy={pending || undefined}
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 aria-busy:opacity-60"
           >
             <MessageCircle className="size-3.5" />
             Kirim WA
           </a>
         ) : null}
 
+        {/* Barisnya lenyap begitu penandaannya berhasil — `router.refresh()`
+            memuat ulang panel tanpa baris ini. Selama jeda itu tombolnya dulu
+            hanya mati tanpa berkata apa-apa, dan pada panel yang barisnya
+            memang akan hilang, diam terbaca sebagai kliknya tidak masuk.
+            Spinner-nya menggantikan centang, bukan menumpuk: kotaknya 32px
+            dan tidak ada ruang untuk keduanya. */}
         <button
           type="button"
           onClick={markSent}
           disabled={pending}
+          aria-busy={pending || undefined}
           title="Tandai sudah ditangani"
           aria-label="Tandai sudah ditangani"
           className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-8 items-center justify-center rounded-md transition-colors disabled:opacity-50"
         >
-          <Check className="size-4" />
+          {pending ? (
+            <Loader2 className="animate-working size-4 animate-spin" aria-hidden />
+          ) : (
+            <Check className="size-4" />
+          )}
         </button>
       </div>
 
