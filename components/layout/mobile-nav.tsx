@@ -203,9 +203,22 @@ export function MobileNav({ fullName, role }: { fullName: string; role: UserRole
                     return (
                       <Drawer.Close
                         key={item.href}
+                        // Yang dirender `<a>`, bukan `<button>`. Tanpa ini
+                        // Base UI memasang semantik tombol pada tautan dan
+                        // memperingatkannya di konsol — dan pembaca layar
+                        // mengumumkan "tombol" untuk sesuatu yang sebenarnya
+                        // berpindah halaman.
+                        nativeButton={false}
                         render={
                           <Link
                             href={item.href}
+                            // Base UI tetap memasang `role="button"` pada apa
+                            // pun yang direndernya. Untuk tautan itu keliru:
+                            // pembaca layar mengumumkan "tombol" padahal ia
+                            // berpindah halaman, dan pemakainya kehilangan
+                            // isyarat bahwa ada tujuan di baliknya. Ditimpa
+                            // dengan `link` — peran yang sebenarnya.
+                            role="link"
                             aria-current={active ? 'page' : undefined}
                             className={cn(
                               SHEET_ITEM,
@@ -233,9 +246,13 @@ export function MobileNav({ fullName, role }: { fullName: string; role: UserRole
                     bersamaan, jadi panelnya tidak sempat tergambar di halaman
                     baru sebelum menutup. */}
                 <Drawer.Close
+                  // Tautan, bukan tombol — lihat catatan pada daftar di atas.
+                  nativeButton={false}
                   render={
                     <Link
                       href="/profil"
+                      // Lihat catatan pada daftar di atas.
+                      role="link"
                       className={cn(SHEET_ITEM, 'active:bg-sidebar-accent text-slate-300')}
                     >
                       <UserCog className="h-4 w-4 shrink-0" />

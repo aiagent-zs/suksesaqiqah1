@@ -110,7 +110,7 @@ export async function createUser(
   try {
     admin = adminClient();
   } catch (e) {
-    return internalError('Kunci service role belum tersedia', e as { message: string });
+    return internalError('Pengaturan server belum lengkap', e as { message: string });
   }
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({
@@ -234,7 +234,7 @@ export async function updateUser(input: unknown): Promise<ActionResult<null>> {
     try {
       admin = adminClient();
     } catch (e) {
-      return internalError('Kunci service role belum tersedia', e as { message: string });
+      return internalError('Pengaturan server belum lengkap', e as { message: string });
     }
 
     const { error: authError } = await admin.auth.admin.updateUserById(v.user_id, {
@@ -402,7 +402,7 @@ export async function deleteUser(input: unknown): Promise<ActionResult<null>> {
   try {
     admin = adminClient();
   } catch (e) {
-    return internalError('Kunci service role belum tersedia', e as { message: string });
+    return internalError('Pengaturan server belum lengkap', e as { message: string });
   }
 
   const { data, error } = await supabase

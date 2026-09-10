@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { readFileSync } from 'node:fs';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { navItemsForRole } from '@/components/layout/nav-items';
 
@@ -147,5 +148,70 @@ describe('menu yang berlebih tidak hilang', () => {
     const teks = document.body.textContent ?? '';
     expect(teks).not.toContain('Pengguna');
     expect(teks).not.toContain('Validasi');
+  });
+});
+
+describe('tautan di panel tetap berupa tautan', () => {
+  /**
+   * `Drawer.Close` menganggap yang direndernya `<button>` secara default
+   * (`nativeButton` = true). Merender `<Link>` tanpa mematikannya membuat Base
+   * UI memasang semantik tombol pada tautan — konsol dev dipenuhi peringatan,
+   * dan pembaca layar mengumumkan "tombol" untuk sesuatu yang sebenarnya
+   * berpindah halaman.
+   *
+   * **Tidak diuji lewat konsol.** Peringatan Base UI hanya menyala saat
+   * `NODE_ENV === 'development'`, sementara vitest berjalan di `test` — tes
+   * yang menyadapnya akan selalu hijau tanpa menjaga apa pun. Yang diuji di
+   * sini akibatnya yang bisa diamati: elemennya `<a>`, dan tidak memakai
+   * atribut tombol yang dipasang Base UI saat ia menyangka itu tombol.
+   */
+  function openPanel(role: Role) {
+    const el = mount(role);
+    const trigger = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Menu'));
+    act(() => trigger?.click());
+    return el;
+  }
+
+  it('dirender sebagai <a>, bukan <button>', () => {
+    openPanel('superadmin');
+    const profil = document.querySelector('[href="/profil"]');
+    expect(profil?.tagName).toBe('A');
+  });
+
+  it('menu berlebih juga tetap <a>', () => {
+    openPanel('superadmin');
+    for (const href of ['/vendors', '/users']) {
+      expect(document.querySelector(`[href="${href}"]`)?.tagName, href).toBe('A');
+    }
+  });
+
+  it('tidak memakai role="button" yang dipasang Base UI', () => {
+    // Yang muncul saat `nativeButton` dibiarkan true pada elemen non-tombol.
+    openPanel('superadmin');
+    const profil = document.querySelector('[href="/profil"]');
+    expect(profil?.getAttribute('role')).not.toBe('button');
+  });
+
+  it('setiap Drawer.Close yang merender tautan mematikan nativeButton', () => {
+    // Penjagaan terhadap penambahan berikutnya: yang lupa menyetelnya tidak
+    // akan ketahuan dari DOM, karena Base UI tetap merender `<a>` — yang
+    // berubah hanya atribut dan peringatan di konsol dev.
+    const src = readFileSync('components/layout/mobile-nav.tsx', 'utf8');
+
+    // Tiap blok `<Drawer.Close ... />`, dipotong pada penutup mandiri di awal
+    // baris: `/>` juga menutup elemen anak di dalamnya, jadi pola yang tidak
+    // menambatkan diri akan berhenti terlalu cepat.
+    const blocks = [...src.matchAll(/<Drawer\.Close[\s\S]*?\n\s*\/>/g)].map((m) => m[0]);
+    const renderingLink = blocks.filter((b) => b.includes('<Link'));
+
+    // Kalau polanya patah, `renderingLink` kosong dan perulangan di bawah tidak
+    // menguji apa pun.
+    expect(renderingLink.length, 'pola tidak menemukan Drawer.Close mana pun').toBeGreaterThan(0);
+
+    for (const block of renderingLink) {
+      expect(block, 'Drawer.Close merender <Link> tanpa nativeButton={false}').toContain(
+        'nativeButton={false}',
+      );
+    }
   });
 });
