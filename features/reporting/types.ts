@@ -49,6 +49,13 @@ export type ReportData = {
    *
    * Null untuk order qurban dan untuk order sebelum 19 Agustus 2026.
    */
+  /**
+   * Foto anak untuk sertifikat bervarian foto. Null = sertifikat teks saja.
+   *
+   * Disimpan di bucket `documentation` dengan nomor order sebagai segmen ke-3,
+   * jadi ikut ter-scope policy yang sudah ada.
+   */
+  childPhotoPath: string | null;
   childBirthPlace: string | null;
   childBirthDate: string | null;
   services: Array<{ name: string; qty: number }>;

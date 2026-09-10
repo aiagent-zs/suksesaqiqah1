@@ -22,9 +22,15 @@ const PDF_URL_TTL_SECONDS = 600;
 export async function getOrderReports(orderId: string): Promise<ReportListItem[]> {
   const supabase = await createClient();
 
+  // Nama pembuat dibaca lewat join, bukan disalin ke `generated_by`: kolomnya
+  // `uuid` dengan FK ke `profiles`. Menyimpan namanya di situ pernah membuat
+  // seluruh INSERT ditolak `22P02` — dan nama yang disalin juga membeku saat
+  // orangnya berganti nama.
   const { data, error } = await supabase
     .from('reports')
-    .select('id, version, generated_at, sent_at, generated_by, pdf_path')
+    .select(
+      'id, version, generated_at, sent_at, pdf_path, generator:profiles!reports_generated_by_fkey ( full_name )',
+    )
     .eq('order_id', orderId)
     .order('version', { ascending: false });
 
@@ -48,7 +54,7 @@ export async function getOrderReports(orderId: string): Promise<ReportListItem[]
     version: r.version,
     generatedAt: r.generated_at,
     sentAt: r.sent_at,
-    generatedBy: r.generated_by,
+    generatedBy: (r.generator as { full_name: string } | null)?.full_name ?? null,
     pdfPath: r.pdf_path,
     pdfUrl: r.pdf_path ? (urlByPath.get(r.pdf_path) ?? null) : null,
   }));
@@ -68,7 +74,7 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
     .select(
       `
       order_number, status, created_at,
-      child_birth_place, child_birth_date,
+      child_birth_place, child_birth_date, child_photo_path,
       vendor:vendors!orders_vendor_id_fkey ( name ),
       participant:participants!orders_participant_id_fkey ( name ),
       items:order_items ( qty, service:services ( name ) ),
@@ -90,6 +96,7 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
     created_at: string;
     child_birth_place: string | null;
     child_birth_date: string | null;
+    child_photo_path: string | null;
     vendor: { name: string } | null;
     participant: { name: string } | null;
     items: Array<{ qty: number; service: { name: string } | null }>;
@@ -137,6 +144,7 @@ export async function getReportData(orderId: string): Promise<ReportData | null>
     createdAt: r.created_at,
     vendorName: r.vendor?.name ?? null,
     participantName: r.participant?.name ?? null,
+    childPhotoPath: r.child_photo_path,
     childBirthPlace: r.child_birth_place,
     childBirthDate: r.child_birth_date,
     services: (r.items ?? []).map((i) => ({ name: i.service?.name ?? '-', qty: i.qty })),

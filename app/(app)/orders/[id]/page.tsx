@@ -22,6 +22,7 @@ import { IssueListPanel } from '@/features/issues/components/issue-list-panel';
 import { getOrderIssues } from '@/features/issues/queries';
 import { getOrderDocumentations } from '@/features/documentation/queries';
 import { ReportManager } from '@/features/reporting/components/report-manager';
+import { CertificatePanel } from '@/features/reporting/components/certificate-panel';
 import { getOrderReports } from '@/features/reporting/queries';
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/data/status-badge';
 import { DOC_STAGE_LABEL, ORDER_STATUS_META, type DocStage } from '@/lib/constants/order';
@@ -114,6 +115,11 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   // Tahap yang buktinya belum lengkap — dihitung database dari
   // `stage_requirements` menurut cara penyaluran order.
   const missingDoc = guard.missingDocStages;
+  // Nama pada "atas nama" tiap hewan, tanpa duplikat: aqiqah anak laki-laki
+  // memakai dua kambing atas nama anak yang sama, dan sertifikatnya satu.
+  const childNames = [
+    ...new Set(animals.map((a) => a.on_behalf_of).filter((n): n is string => Boolean(n))),
+  ];
 
   return (
     <div className="space-y-6">
@@ -398,6 +404,37 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                 canShare={canShareReport}
                 documentationReady={missingDoc.length === 0}
                 missingDocumentation={missingDoc}
+              />
+            </PhaseSection>
+          )}
+
+          {/* --- Sertifikat aqiqah ------------------------------------------
+              Panel sendiri, bukan bagian panel Laporan: sertifikat sudah benar
+              isinya sejak hari penyembelihan dan keluarga memintanya saat itu
+              juga, sementara laporan menunggu seluruh tahap tervalidasi. Yang
+              sama tetap ikut sebagai halaman lanjutan di PDF laporan.
+
+              Qurban tidak menerbitkan sertifikat aqiqah — panelnya
+              disembunyikan, bukan ditampilkan kosong. */}
+          {canShareReport && childNames.length > 0 && (
+            <PhaseSection
+              id="sertifikat"
+              title="Sertifikat Aqiqah"
+              active={false}
+              complete={Boolean(order.child_photo_path)}
+              summary={
+                childNames.length === 1
+                  ? `Untuk ${childNames[0]}`
+                  : `${childNames.length} lembar · ${childNames.join(', ')}`
+              }
+            >
+              <CertificatePanel
+                orderId={order.id}
+                orderNumber={order.order_number}
+                orderCreatedAt={order.created_at}
+                childPhotoPath={order.child_photo_path}
+                childNames={childNames}
+                canManage={canShareReport}
               />
             </PhaseSection>
           )}

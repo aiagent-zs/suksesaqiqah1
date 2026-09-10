@@ -5,8 +5,10 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import { getReportData } from '@/features/reporting/queries';
-import { renderReportPdf } from '@/server/services/report-pdf';
+import { renderReportPdf, renderCertificatePdf } from '@/server/services/report-pdf';
 import { selectEmbeddablePhotos } from '@/features/reporting/photos';
+import { groupAnimalsByChild } from '@/features/reporting/certificate';
+import { downloadChildPhoto } from '@/features/reporting/child-photo.server';
 import type { EmbeddedPhoto } from '@/features/reporting/pdf';
 import { DOC_BUCKET } from '@/features/documentation/storage';
 import { isDocumentationComplete } from '@/features/documentation/review';
@@ -117,6 +119,8 @@ export async function generateReport(
       },
       photos,
       publicUrl,
+      // Sertifikat ikut sebagai halaman lanjutan; fotonya dipakai bila ada.
+      await downloadChildPhoto(supabase, data.childPhotoPath),
     );
   } catch (error) {
     return internalError('Gagal merender PDF laporan', {
@@ -139,7 +143,13 @@ export async function generateReport(
       order_id,
       pdf_path: pdfPath,
       version: nextVersion,
-      generated_by: session.profile?.full_name ?? session.email ?? 'sistem',
+      // **uuid profil, bukan namanya.** Kolomnya `uuid` dengan FK ke
+      // `profiles`; mengisinya dengan nama membuat Postgres menolak seluruh
+      // INSERT dengan `22P02 invalid input syntax for type uuid` — dan
+      // laporannya tidak pernah tercatat meski PDF-nya sudah terunggah.
+      // Nama pembuatnya dibaca lewat join saat ditampilkan, jadi tidak ada
+      // yang hilang.
+      generated_by: session.profile?.id ?? null,
     })
     .select('version')
     .maybeSingle();
@@ -158,6 +168,132 @@ export async function generateReport(
   revalidatePath(`/orders/${order_id}`);
   revalidatePath('/dashboard');
   return { ok: true, data: { version: inserted.version, publicToken: order.public_token } };
+}
+
+const certificateSchema = z.object({ order_id: z.string().uuid('ID tidak valid') });
+
+/**
+ * Sertifikat aqiqah sebagai PDF tersendiri.
+ *
+ * **Tidak menunggu kelengkapan bukti**, berbeda dari `generateReport`. Yang
+ * dicatat sertifikat adalah bahwa penyembelihan atas nama anak itu terjadi —
+ * dan keluarga meminta lembarannya sesudah acara, bukan berhari-hari kemudian
+ * saat seluruh tahap salur ikut tervalidasi. Menahannya di gerbang yang sama
+ * berarti menunda dokumen yang isinya sudah benar sejak hari pelaksanaan.
+ *
+ * **Tidak disimpan ke Storage dan tidak dicatat sebagai versi.** Isinya
+ * seluruhnya diturunkan dari data order, jadi mencetaknya ulang selalu
+ * menghasilkan lembar yang sama. Menyimpannya berarti dua sumber kebenaran
+ * yang bisa berbeda saat nama anak dibetulkan — dan riwayat versinya tidak
+ * menjawab pertanyaan siapa pun.
+ *
+ * Dikembalikan sebagai base64: Server Action tidak bisa mengalirkan berkas,
+ * dan sertifikat satu-dua halaman tanpa foto lapangan jauh di bawah batas
+ * badan responsnya.
+ */
+export async function generateCertificate(
+  input: unknown,
+): Promise<ActionResult<{ fileName: string; pdfBase64: string; count: number }>> {
+  const session = await requireAuth();
+
+  if (!canDo(session.profile?.role, 'GENERATE_REPORT')) {
+    return forbidden('Role Anda tidak berhak membuat sertifikat.');
+  }
+
+  const parsed = certificateSchema.safeParse(input);
+  if (!parsed.success) return validationError(parsed.error);
+  const { order_id } = parsed.data;
+
+  const supabase = await createClient();
+
+  const { data: orderRow } = await supabase
+    .from('orders')
+    .select('order_number, public_token')
+    .eq('id', order_id)
+    .maybeSingle();
+
+  if (!orderRow) return notFound('Order tidak ditemukan atau di luar akses Anda.');
+
+  const data = await getReportData(order_id);
+  if (!data) return notFound('Data order tidak dapat dimuat.');
+
+  const children = groupAnimalsByChild(data.animals);
+  if (children.length === 0) {
+    // Nama anak adalah isi pokok lembarannya; tanpa itu tidak ada yang bisa
+    // dicetak. Disebutkan apa yang kurang, bukan sekadar "tidak bisa".
+    return conflict(
+      'Sertifikat belum dapat dibuat: belum ada hewan yang tercatat atas nama siapa pun. ' +
+        'Isi "Atas nama" pada daftar hewan lebih dulu.',
+    );
+  }
+
+  const childPhoto = await downloadChildPhoto(supabase, data.childPhotoPath);
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
+  const publicUrl = `${appUrl.replace(/\/$/, '')}/r/${orderRow.public_token}`;
+
+  let pdf: Buffer;
+  try {
+    pdf = await renderCertificatePdf(data, publicUrl, childPhoto);
+  } catch (error) {
+    return internalError('Gagal merender sertifikat', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return {
+    ok: true,
+    data: {
+      fileName: `Sertifikat-Aqiqah-${orderRow.order_number}.pdf`,
+      pdfBase64: pdf.toString('base64'),
+      count: children.length,
+    },
+  };
+}
+
+const childPhotoSchema = z.object({
+  order_id: z.string().uuid('ID tidak valid'),
+  /** Kosongkan untuk melepas foto — sertifikat kembali ke varian teks saja. */
+  storage_path: z.string().trim().max(300).optional().or(z.literal('')),
+});
+
+/**
+ * Pasang atau lepas foto anak untuk sertifikat.
+ *
+ * Berkasnya sudah lebih dulu diunggah langsung dari browser ke Storage; yang
+ * dikerjakan di sini hanya mencatat path-nya. Pola yang sama dengan bukti
+ * tahap, dan alasannya sama: badan Server Action dibatasi 1 MB sementara foto
+ * dari kamera ponsel rutin melewatinya.
+ *
+ * `UPDATE_ORDER`, bukan `GENERATE_REPORT` — foto anak bagian dari data order,
+ * dan yang boleh membetulkan nama anaknya semestinya boleh pula memperbaiki
+ * fotonya.
+ */
+export async function setChildPhoto(input: unknown): Promise<ActionResult<null>> {
+  const session = await requireAuth();
+
+  if (!canDo(session.profile?.role, 'UPDATE_ORDER')) {
+    return forbidden('Role Anda tidak berhak mengubah data order.');
+  }
+
+  const parsed = childPhotoSchema.safeParse(input);
+  if (!parsed.success) return validationError(parsed.error);
+  const { order_id, storage_path } = parsed.data;
+
+  const supabase = await createClient();
+
+  const { data: updated, error } = await supabase
+    .from('orders')
+    .update({ child_photo_path: storage_path || null })
+    .eq('id', order_id)
+    .select('id')
+    .maybeSingle();
+
+  if (error) return internalError('Gagal menyimpan foto anak', error);
+  if (!updated) return forbidden('Perubahan ditolak untuk order di luar akses Anda.');
+
+  revalidatePath(`/orders/${order_id}`);
+  return { ok: true, data: null };
 }
 
 const markSentSchema = z.object({ report_id: z.string().uuid('ID tidak valid') });

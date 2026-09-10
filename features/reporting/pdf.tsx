@@ -1,6 +1,7 @@
 import 'server-only';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { ANIMAL_SPECIES_LABEL, DOC_STAGE_LABEL } from '@/lib/constants/order';
+import { CertificatePages, type ChildPhoto } from './certificate';
 import type { ReportData } from './types';
 
 /**
@@ -102,10 +103,13 @@ export function ReportDocument({
   data,
   photos,
   publicUrl,
+  childPhoto = null,
 }: {
   data: ReportData;
   photos: EmbeddedPhoto[];
   publicUrl: string;
+  /** Foto anak; bila ada, sertifikat di belakang laporan memakai varian foto. */
+  childPhoto?: ChildPhoto | null;
 }) {
   const animalSummary = data.animals.length
     ? Object.entries(
@@ -266,6 +270,18 @@ export function ReportDocument({
           <Text style={{ marginTop: 3 }}>Zakat Sukses · Sukses Aqiqah</Text>
         </View>
       </Page>
+
+      {/* Sertifikat menyusul sebagai halaman berikutnya — satu per anak.
+          Laporan dibaca sekali lalu diarsipkan; sertifikat dicetak dan
+          dibingkai. Menyatukannya berarti keluarga yang menerima laporan tidak
+          perlu meminta berkas kedua, sementara tombol unduh tersendiri tetap
+          ada untuk yang memintanya sebelum laporan bisa dibuat. */}
+      <CertificatePages
+        data={data}
+        childPhoto={childPhoto}
+        publicUrl={publicUrl}
+        withPhoto={childPhoto !== null}
+      />
     </Document>
   );
 }

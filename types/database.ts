@@ -177,7 +177,7 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           stage: Database["public"]["Enums"]["doc_stage"]
-          stage_event_id: string | null
+          stage_event_id: string
           status: Database["public"]["Enums"]["doc_status"]
           storage_path: string
           type: Database["public"]["Enums"]["doc_type"]
@@ -194,7 +194,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           stage: Database["public"]["Enums"]["doc_stage"]
-          stage_event_id?: string | null
+          stage_event_id: string
           status?: Database["public"]["Enums"]["doc_status"]
           storage_path: string
           type?: Database["public"]["Enums"]["doc_type"]
@@ -211,7 +211,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           stage?: Database["public"]["Enums"]["doc_stage"]
-          stage_event_id?: string | null
+          stage_event_id?: string
           status?: Database["public"]["Enums"]["doc_status"]
           storage_path?: string
           type?: Database["public"]["Enums"]["doc_type"]
@@ -717,6 +717,7 @@ export type Database = {
           aqiqah_for: string | null
           child_birth_date: string | null
           child_birth_place: string | null
+          child_photo_path: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -759,6 +760,7 @@ export type Database = {
           aqiqah_for?: string | null
           child_birth_date?: string | null
           child_birth_place?: string | null
+          child_photo_path?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -801,6 +803,7 @@ export type Database = {
           aqiqah_for?: string | null
           child_birth_date?: string | null
           child_birth_place?: string | null
+          child_photo_path?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -1721,6 +1724,10 @@ export type Database = {
       booking_min_days: { Args: never; Returns: number }
       can_read_order: { Args: { p_order_id: string }; Returns: boolean }
       can_write_order: { Args: { p_order_id: string }; Returns: boolean }
+      close_dashboard_notification: {
+        Args: { p_order_id: string; p_template: string }
+        Returns: undefined
+      }
       confirm_delivery: {
         Args: { p_ip?: string; p_token: string }
         Returns: Json

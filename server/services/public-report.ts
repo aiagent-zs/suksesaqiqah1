@@ -150,6 +150,12 @@ export async function getPublicReport(token: string): Promise<PublicReport | nul
     // dan tampilan menyembunyikan barisnya, bukan mencetak "-".
     childBirthPlace: p.child_birth_place ?? null,
     childBirthDate: p.child_birth_date ?? null,
+    // **Selalu null di jalur publik.** Foto anak hanya untuk sertifikat yang
+    // diserahkan ke keluarganya; halaman `/r/{token}` dibuka siapa pun yang
+    // memegang tautan, dan foto anak bukan bagian dari pembuktian pelaksanaan.
+    // Ditulis di sini, bukan sekadar tidak diambil dari RPC — supaya
+    // penambahan kolom di RPC kelak tidak diam-diam membocorkannya.
+    childPhotoPath: null,
     services: p.services ?? [],
     animals: (p.animals ?? []).map((a) => ({
       species: a.species,

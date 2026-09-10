@@ -18,7 +18,13 @@
       "Bash(cp /tmp/zt.test.ts tests/unit/zz-probe.test.ts)",
       "Bash(npx vitest *)",
       "Bash(grep -E \"OK$|DITOLAK\" /tmp/probe.log)",
-      "Bash(rm -f tests/unit/zz-probe.test.ts)"
+      "Bash(rm -f tests/unit/zz-probe.test.ts)",
+      "Bash(grep -n \"Laporkan\\\\|Simpan laporan\\\\|Validasi$\\\\|Memproses\" features/stages/components/stage-panel.tsx features/orders/components/status-actions.tsx)",
+      "Bash(read d *)",
+      "Bash([ -f \"$d/loading.tsx\" ])",
+      "Bash(cd \"c:/Users/shola/OneDrive/Documents/ZS_FOLDER/SuksesAqiqah\" && npx vitest run tests/unit/stage-panel-multi-animal.test.tsx > /tmp/sp.log 2>&1; grep -E \"×|Tests |AssertionError|Error:\" /tmp/sp.log | head -10; tail -4 /tmp/sp.log)",
+      "Bash(cd \"c:/Users/shola/OneDrive/Documents/ZS_FOLDER/SuksesAqiqah\" && npx vitest run tests/unit/stage-panel-multi-animal.test.tsx > /tmp/sp2.log 2>&1; grep -E \"×|Tests \" /tmp/sp2.log | head -4)",
+      "Bash(npx --yes rg --version)"
     ],
     "additionalDirectories": [
       "\\tmp"
