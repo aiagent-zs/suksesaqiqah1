@@ -78,8 +78,17 @@ export function UserDialog({
   function submit() {
     setError(null);
     startTransition(async () => {
+      // `password` sengaja tidak ikut saat menyunting — `updateUserSchema`
+      // tidak lagi mengenalnya, dan mengirimnya hanya akan diabaikan.
       const result = user
-        ? await updateUser({ ...draft, user_id: user.id })
+        ? await updateUser({
+            user_id: user.id,
+            email: draft.email,
+            full_name: draft.full_name,
+            phone: draft.phone,
+            role: draft.role,
+            vendor_id: draft.vendor_id,
+          })
         : await createUser(draft);
 
       if (!result.ok) {
@@ -105,9 +114,9 @@ export function UserDialog({
     !pending &&
     draft.email.trim().length > 0 &&
     draft.full_name.trim().length >= 2 &&
-    // Kosong = tidak diubah saat menyunting; saat membuat, akun tanpa sandi
-    // tidak bisa dipakai siapa pun.
-    (isEdit ? draft.password === '' || draft.password.length >= 8 : draft.password.length >= 8) &&
+    // Hanya saat membuat: akun tanpa sandi tidak bisa dipakai siapa pun.
+    // Menyunting tidak lagi menyentuh sandi sama sekali.
+    (isEdit || draft.password.length >= 8) &&
     (!needsVendor || draft.vendor_id !== '');
 
   return (
@@ -224,24 +233,29 @@ export function UserDialog({
               </div>
             )}
 
-            <div>
-              <Label htmlFor={`${fieldId}-pass`}>
-                {isEdit ? 'Kata sandi baru (opsional)' : 'Kata sandi awal'}
-              </Label>
-              <Input
-                id={`${fieldId}-pass`}
-                type="text"
-                value={draft.password}
-                placeholder={isEdit ? 'Kosongkan bila tidak diubah' : 'Minimal 8 karakter'}
-                onChange={(e) => setDraft({ ...draft, password: e.target.value })}
-                className="mt-1.5"
-              />
-              <p className="text-muted-foreground mt-1 text-xs">
-                {isEdit
-                  ? 'Isi hanya bila sandinya perlu diganti. Sampaikan langsung ke pemiliknya.'
-                  : 'Sampaikan sandi ini langsung ke pemiliknya, lalu minta ia menggantinya.'}
-              </p>
-            </div>
+            {/* Sandi hanya diisi saat **membuat** akun — sesudah itu ia milik
+                pemiliknya sendiri. Menyuntingnya dari sini berarti sandi
+                seseorang lahir di tangan orang lain lalu disampaikan lewat
+                WhatsApp atau lisan: tidak pernah benar-benar rahasia, dan tidak
+                bisa dibedakan dari sandi yang bocor. Yang lupa sandinya dibantu
+                lewat tombol "Kirim tautan atur ulang" di baris daftar. */}
+            {!isEdit && (
+              <div>
+                <Label htmlFor={`${fieldId}-pass`}>Kata sandi awal</Label>
+                <Input
+                  id={`${fieldId}-pass`}
+                  type="text"
+                  value={draft.password}
+                  placeholder="Minimal 8 karakter"
+                  onChange={(e) => setDraft({ ...draft, password: e.target.value })}
+                  className="mt-1.5"
+                />
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Sampaikan sandi ini langsung ke pemiliknya, lalu minta ia menggantinya di menu
+                  Profil Saya.
+                </p>
+              </div>
+            )}
 
             <div className="mt-1 flex items-center justify-end gap-2">
               <Dialog.Close

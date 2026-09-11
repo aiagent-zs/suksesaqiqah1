@@ -225,8 +225,10 @@ export async function updateUser(input: unknown): Promise<ActionResult<null>> {
     }
   }
 
+  // Hanya email yang menyentuh `auth.users` di sini. Sandi tidak lagi bisa
+  // disetel dari halaman ini — lihat catatan di `updateUserSchema`.
   const emailChanged = v.email !== target.email;
-  const needsAuthWrite = emailChanged || Boolean(v.password);
+  const needsAuthWrite = emailChanged;
 
   let admin: ReturnType<typeof adminClient> | null = null;
 
@@ -238,8 +240,8 @@ export async function updateUser(input: unknown): Promise<ActionResult<null>> {
     }
 
     const { error: authError } = await admin.auth.admin.updateUserById(v.user_id, {
-      ...(emailChanged ? { email: v.email, email_confirm: true } : {}),
-      ...(v.password ? { password: v.password } : {}),
+      email: v.email,
+      email_confirm: true,
     });
 
     if (authError) {

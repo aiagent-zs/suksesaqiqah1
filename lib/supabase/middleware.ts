@@ -103,7 +103,7 @@ export async function updateSession(request: NextRequest) {
     url.pathname = '/login';
     return redirectCarryingCookies(url, supabaseResponse);
   }
-  
+
   if (user) {
     const now = Date.now();
     const lastActivity = parseActivity(request.cookies.get(ACTIVITY_COOKIE)?.value);

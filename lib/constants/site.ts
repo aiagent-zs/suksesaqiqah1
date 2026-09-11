@@ -6,6 +6,17 @@
  * Fallback dipakai agar halaman tetap tampil saat env belum diisi (dev).
  */
 
+/**
+ * Alamat aplikasi, **tanpa garis miring di akhir**.
+ *
+ * Nilainya diketik manusia di dashboard hosting, dan garis miring penutup
+ * gampang ikut tersalin — `${appUrl()}/atur-sandi` lalu jadi `...app//atur-sandi`.
+ * Dinormalkan sekali di sini supaya tiap pemanggil tidak perlu mengingatnya.
+ */
+export function appUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+}
+
 const rawWhatsapp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '6281234567890';
 // Normalisasi: buang karakter non-digit agar aman untuk link wa.me.
 const whatsappNumber = rawWhatsapp.replace(/[^0-9]/g, '');
@@ -23,7 +34,7 @@ export const siteConfig = {
   description:
     'Layanan Aqiqah dan Sedekah Daging yang syar’i, amanah, dan terdokumentasi. ' +
     'Pantau setiap tahap secara real-time dan terima laporan transparan tanpa perlu bertanya.',
-  url: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+  url: appUrl(),
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'halo@zakatsukses.org',
   instagram: {
     handle: '@zakatsukses',

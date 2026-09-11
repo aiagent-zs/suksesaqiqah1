@@ -1,9 +1,9 @@
-import Image from 'next/image';
+import Link from 'next/link';
 import { loginWithEmail, type LoginErrorCode } from '@/server/actions/auth';
 import { LoginSubmitButton } from './submit-button';
 import { Input } from '@/components/ui/input';
+import { AuthShell, AUTH_FIELD_CLASS } from '../auth-shell';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Clock } from 'lucide-react';
 import { IDLE_NOTICE, IDLE_TIMEOUT_MS } from '@/lib/auth/idle';
@@ -29,6 +29,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     invalid_credentials: 'Email atau kata sandi salah. Silakan periksa kembali.',
     email_not_confirmed: 'Email belum dikonfirmasi. Periksa kotak masuk Anda.',
     rate_limited: 'Terlalu banyak percobaan masuk. Tunggu beberapa saat lalu coba lagi.',
+    // Tautan atur ulang hanya berlaku sekali dan punya masa berlaku. Kalimatnya
+    // menyebutkan jalan keluarnya, bukan sekadar menyatakan gagal.
+    reset_expired:
+      'Tautan atur ulang kata sandi sudah tidak berlaku. Minta tautan baru lewat "Lupa kata sandi?" di bawah formulir.',
+    oauth_failed:
+      'Tautan tidak bisa diproses. Kalau ini tautan atur ulang kata sandi, mintalah yang baru.',
     unknown: 'Login gagal. Coba lagi atau hubungi administrator.',
   };
 
@@ -43,105 +49,84 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       : null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0b1c30] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#004d1f] via-[#0b1c30] to-[#051120] p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Logo & Brand Header */}
-        <div className="space-y-2 text-center">
-          <div className="mb-2 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 p-1.5 shadow-lg ring-1 shadow-emerald-900/50 ring-white/20 backdrop-blur-sm">
-            <Image
-              src="/images/logo_new.webp"
-              alt="Logo Sukses Aqiqah"
-              width={64}
-              height={64}
-              priority
-              className="h-full w-full object-contain"
-            />
-          </div>
-          <h1 className="font-sans text-3xl font-bold tracking-tight text-white">
-            <span className="text-[#6EAF13]">Sukses</span>{' '}
-            <span className="text-[#FF7200]">Aqiqah</span>
-          </h1>
-          <p className="text-xs font-semibold tracking-wider text-emerald-400 uppercase">
-            Command Center · Tebarkan Manfaat
-          </p>
-        </div>
-
-        {/* Card Form (16px radius matching design.md) */}
-        <Card className="rounded-2xl border-[#213145] bg-[#15273e]/90 shadow-2xl backdrop-blur-xl">
-          <CardHeader className="space-y-1.5 pb-4">
-            <CardTitle className="text-xl font-semibold tracking-tight text-white">
-              Masuk Staf Internal
-            </CardTitle>
-            <CardDescription className="text-sm text-slate-400">
-              Masukkan kredensial terotorisasi untuk mengakses dashboard
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-5">
-            {/* Keluar otomatis karena menganggur — pemberitahuan, bukan kegagalan */}
-            {noticeMsg && (
-              <Alert className="rounded-lg border-amber-500/50 bg-amber-950/50 text-amber-200">
-                <Clock className="h-4 w-4 shrink-0 text-amber-400" />
-                <AlertDescription className="text-sm text-amber-200">{noticeMsg}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Error Alert */}
-            {errorMsg && (
-              <Alert
-                variant="destructive"
-                className="rounded-lg border-red-500/50 bg-red-950/50 text-red-200"
-              >
-                <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
-                <AlertDescription className="text-sm text-red-200">{errorMsg}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Login Form */}
-            <form action={loginWithEmail} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="input-email" className="text-sm font-medium text-slate-200">
-                  Email Staf
-                </Label>
-                <Input
-                  id="input-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  placeholder="nama@zakatsukses.org"
-                  className="h-11 rounded-lg border-[#213145] bg-[#0b1c30]/80 text-white placeholder:text-slate-500 focus-visible:border-[#16A34A] focus-visible:ring-[#16A34A]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="input-password" className="text-sm font-medium text-slate-200">
-                  Kata Sandi
-                </Label>
-                <Input
-                  id="input-password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  placeholder="••••••••"
-                  className="h-11 rounded-lg border-[#213145] bg-[#0b1c30]/80 text-white placeholder:text-slate-500 focus-visible:border-[#16A34A] focus-visible:ring-[#16A34A]"
-                />
-              </div>
-
-              <LoginSubmitButton />
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Footer info */}
+    <AuthShell
+      title="Masuk Staf Internal"
+      description="Masukkan kredensial terotorisasi untuk mengakses dashboard"
+      footer={
         <div className="space-y-1 text-center">
           <p className="text-xs text-slate-400">
-            Akses terbatas hanya untuk staf & pengelola terotorisasi.
+            Akses terbatas hanya untuk staf &amp; pengelola terotorisasi.
           </p>
           <p className="text-[11px] text-slate-500">Sukses Aqiqah © 2026 · Hak Cipta Dilindungi</p>
         </div>
-      </div>
-    </div>
+      }
+    >
+      {/* Keluar otomatis karena menganggur — pemberitahuan, bukan kegagalan */}
+      {noticeMsg && (
+        <Alert className="rounded-lg border-amber-500/50 bg-amber-950/50 text-amber-200">
+          <Clock className="h-4 w-4 shrink-0 text-amber-400" />
+          <AlertDescription className="text-sm text-amber-200">{noticeMsg}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Error Alert */}
+      {errorMsg && (
+        <Alert
+          variant="destructive"
+          className="rounded-lg border-red-500/50 bg-red-950/50 text-red-200"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+          <AlertDescription className="text-sm text-red-200">{errorMsg}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Login Form */}
+      <form action={loginWithEmail} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="input-email" className="text-sm font-medium text-slate-200">
+            Email Staf
+          </Label>
+          <Input
+            id="input-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="nama@zakatsukses.org"
+            className={AUTH_FIELD_CLASS}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="input-password" className="text-sm font-medium text-slate-200">
+            Kata Sandi
+          </Label>
+          <Input
+            id="input-password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            placeholder="••••••••"
+            className={AUTH_FIELD_CLASS}
+          />
+        </div>
+
+        <LoginSubmitButton />
+      </form>
+
+      {/* Tautan, bukan panel yang mekar di bawah formulir: dua kotak
+                email pada satu layar membuat orang ragu yang mana harus diisi
+                — dan yang mencarinya justru orang yang sudah gagal masuk
+                beberapa kali. */}
+      <p className="mt-4 text-center">
+        <Link
+          href="/lupa-sandi"
+          className="text-xs text-slate-400 underline-offset-4 transition-colors hover:text-emerald-400 hover:underline"
+        >
+          Lupa kata sandi?
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

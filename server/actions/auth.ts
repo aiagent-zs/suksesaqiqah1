@@ -5,6 +5,8 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { ACTIVITY_COOKIE, ACTIVITY_COOKIE_MAX_AGE_S, IDLE_NOTICE } from '@/lib/auth/idle';
+import { appUrl } from '@/lib/constants/site';
+import { requestPasswordResetSchema, resetPasswordSchema } from '@/features/users/schema';
 
 /**
  * Mulai jendela menganggur yang baru.
@@ -38,7 +40,15 @@ async function clearActivityWindow() {
  * detail internal penyedia auth.
  */
 export type LoginErrorCode =
-  'invalid_input' | 'invalid_credentials' | 'email_not_confirmed' | 'rate_limited' | 'unknown';
+  | 'invalid_input'
+  | 'invalid_credentials'
+  | 'email_not_confirmed'
+  | 'rate_limited'
+  /** Tautan atur ulang sandi sudah dipakai, kedaluwarsa, atau dibuka di peramban lain. */
+  | 'reset_expired'
+  /** Penukaran kode di `/auth/callback` gagal — termasuk tautan atur ulang. */
+  | 'oauth_failed'
+  | 'unknown';
 
 const credentialsSchema = z.object({
   email: z.string().trim().min(1, 'Email wajib diisi').email(),
@@ -121,4 +131,94 @@ export async function logoutIdle() {
   await supabase.auth.signOut();
   await clearActivityWindow();
   redirect(`/login?notice=${IDLE_NOTICE}`);
+}
+
+/**
+ * Minta tautan atur ulang sandi dari halaman masuk.
+ *
+ * **Selalu mengaku berhasil**, bahkan untuk email yang tidak terdaftar. Pesan
+ * yang membedakan keduanya mengubah halaman ini jadi alat pemeriksa: siapa pun
+ * bisa mencoba satu per satu email dan mengetahui mana yang punya akun di
+ * sini. Padahal daftar akun kami memuat mitra dan staf, bukan sesuatu yang
+ * pantas bisa ditebak orang luar.
+ *
+ * Yang benar-benar terjadi — email terkirim atau tidak — hanya diketahui
+ * pemilik kotak masuknya, dan itu memang satu-satunya yang berhak tahu.
+ */
+export async function requestPasswordReset(
+  formData: FormData,
+): Promise<{ ok: boolean; message: string }> {
+  const parsed = requestPasswordResetSchema.safeParse({ email: formData.get('email') });
+
+  if (!parsed.success) {
+    return { ok: false, message: 'Masukkan alamat email yang benar.' };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    // Lewat callback, bukan langsung: tautannya membawa `code` yang harus
+    // ditukar jadi sesi lebih dulu — tanpa itu halaman tujuan tidak tahu
+    // siapa yang datang, dan `updateUser` akan menolak.
+    redirectTo: `${appUrl()}/auth/callback?next=/atur-sandi`,
+  });
+
+  // Batas pengiriman tetap disampaikan: itu keadaan sementara yang bisa
+  // ditindaklanjuti ("tunggu sebentar"), bukan petunjuk ada-tidaknya akun.
+  if (error && toLoginErrorCode(error) === 'rate_limited') {
+    return { ok: false, message: 'Terlalu sering mencoba. Tunggu beberapa menit lalu ulangi.' };
+  }
+
+  if (error) {
+    console.error('[auth] gagal mengirim tautan atur ulang:', error.code ?? '-', error.message);
+  }
+
+  return {
+    ok: true,
+    message:
+      'Kalau email itu terdaftar, tautan untuk mengatur ulang kata sandi sudah dikirim. ' +
+      'Periksa kotak masuk dan folder spam.',
+  };
+}
+
+/**
+ * Setel sandi baru sesudah menekan tautan atur ulang.
+ *
+ * Tidak menuntut sandi lama — justru yang lupa sandinyalah yang memakai ini.
+ * Yang membuktikan haknya adalah tautan di emailnya, yang sudah ditukar jadi
+ * sesi sementara oleh `/auth/callback` sebelum halaman ini terbuka.
+ */
+export async function resetPassword(
+  input: unknown,
+): Promise<{ ok: boolean; message: string; fields?: Record<string, string> }> {
+  const parsed = resetPasswordSchema.safeParse(input);
+
+  if (!parsed.success) {
+    const fields: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0];
+      if (typeof key === 'string' && !fields[key]) fields[key] = issue.message;
+    }
+    return { ok: false, message: 'Kata sandi belum memenuhi syarat.', fields };
+  }
+
+  const supabase = await createClient();
+
+  // Tanpa sesi dari tautannya, `updateUser` akan mengubah sandi siapa pun yang
+  // kebetulan sedang masuk di peramban itu — bukan pemilik tautannya.
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    return {
+      ok: false,
+      message: 'Tautan sudah kedaluwarsa atau tidak sah. Minta tautan baru dari halaman masuk.',
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.new_password });
+
+  if (error) {
+    return { ok: false, message: `Gagal menyimpan kata sandi: ${error.message}` };
+  }
+
+  await startActivityWindow();
+  return { ok: true, message: 'Kata sandi berhasil diperbarui.' };
 }

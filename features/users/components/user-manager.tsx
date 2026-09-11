@@ -42,7 +42,6 @@ export function UserManager({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-
   function toggleActive(user: UserRow) {
     setError(null);
     startTransition(async () => {

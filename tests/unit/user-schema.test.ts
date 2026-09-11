@@ -6,9 +6,15 @@
  * jadi akun yang hidup tapi buta (`can_read_order` tidak punya pembanding), dan
  * staf yang merangkap vendor bisa memvalidasi pekerjaannya sendiri.
  *
- * `updateUserSchema` menambah satu kaidah yang tidak ada di `createUserSchema`:
- * sandi opsional. Mengharuskan sandi baru setiap kali seseorang membetulkan
- * nomor telepon justru mendorong sandi yang gampang ditebak.
+ * `updateUserSchema` **tidak mengenal sandi sama sekali** — perbedaan yang
+ * disengaja dengan `createUserSchema`. Superadmin dulu bisa menyetel sandi
+ * orang lain dari formulir sunting, dan itu berarti sandi seseorang lahir di
+ * tangan orang lain lalu disampaikan lewat WhatsApp atau lisan: tidak pernah
+ * benar-benar rahasia, dan tidak bisa dibedakan dari sandi yang bocor.
+ *
+ * Penggantinya dua, dan pada keduanya yang menentukan sandi barunya adalah
+ * pemilik akun: `/profil` untuk yang ingat sandi lamanya, dan tautan atur ulang
+ * lewat email untuk yang lupa.
  */
 import { describe, expect, it } from 'vitest';
 import { createUserSchema, deleteUserSchema, updateUserSchema } from '@/features/users/schema';
@@ -24,16 +30,17 @@ const STAF = {
 };
 
 describe('updateUserSchema', () => {
-  it('menerima penyuntingan tanpa sandi baru', () => {
+  it('menerima penyuntingan tanpa menyinggung sandi', () => {
     expect(updateUserSchema.safeParse(STAF).success).toBe(true);
     expect(updateUserSchema.safeParse({ ...STAF, password: undefined }).success).toBe(true);
   });
 
-  it('menolak sandi baru yang terlalu pendek', () => {
-    // Kosong berarti "tidak diubah"; terisi berarti benar-benar dipakai, jadi
-    // ambang 8 karakter tetap berlaku begitu kolomnya disentuh.
-    expect(updateUserSchema.safeParse({ ...STAF, password: 'pendek' }).success).toBe(false);
-    expect(updateUserSchema.safeParse({ ...STAF, password: 'cukuppanjang' }).success).toBe(true);
+  it('tidak pernah meneruskan sandi, bahkan bila dikirim', () => {
+    // Bukan sekadar "tidak divalidasi": medannya memang tidak ada, jadi
+    // permintaan yang menyelipkannya — dari klien lama atau dari luar aplikasi
+    // — tetap tidak bisa menyetel sandi siapa pun.
+    const parsed = updateUserSchema.parse({ ...STAF, password: 'sandiBaruRahasia' });
+    expect(parsed).not.toHaveProperty('password');
   });
 
   it('menormalkan email ke huruf kecil', () => {

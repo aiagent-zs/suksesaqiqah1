@@ -64,10 +64,17 @@ export const setUserActiveSchema = z.object({
 /**
  * Sunting akun.
  *
- * `email` dan `password` menyentuh `auth.users`, bukan `profiles` — keduanya
- * hanya bisa lewat Admin API. Sandi opsional: kosong berarti tidak diubah,
- * karena sebagian besar penyuntingan hanya membetulkan nama atau peran dan
- * mengharuskan sandi baru setiap kali justru mendorong sandi yang gampang.
+ * `email` menyentuh `auth.users`, bukan `profiles` — hanya bisa lewat Admin API.
+ *
+ * **Tanpa medan sandi.** Superadmin dulu bisa menyetel sandi orang lain dari
+ * sini, dan itu berarti sandi seseorang lahir di tangan orang lain lalu
+ * disampaikan lewat WhatsApp atau lisan — tidak pernah benar-benar rahasia,
+ * dan tidak bisa dibedakan dari sandi yang bocor.
+ *
+ * Penggantinya dua: pemiliknya mengganti sendiri di `/profil` (dengan sandi
+ * lama sebagai pembuktian), dan yang lupa memakai "Lupa sandi" di halaman
+ * masuk atau tautan yang dikirim superadmin. Pada keduanya, yang menentukan
+ * sandi barunya adalah pemilik akun.
  */
 export const updateUserSchema = z
   .object({
@@ -83,12 +90,6 @@ export const updateUserSchema = z
       .or(z.literal('')),
     role: z.enum(['superadmin', 'admin', 'vendor']),
     vendor_id: uuid.optional().or(z.literal('')),
-    password: z
-      .string()
-      .min(8, 'Kata sandi minimal 8 karakter')
-      .max(72, 'Kata sandi terlalu panjang')
-      .optional()
-      .or(z.literal('')),
   })
   .superRefine((v, ctx) => {
     if (v.role === 'vendor' && !v.vendor_id) {
@@ -108,6 +109,31 @@ export const updateUserSchema = z
   });
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+/** Minta tautan atur ulang sandi dari halaman masuk. */
+export const requestPasswordResetSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Format email tidak valid'),
+});
+
+/**
+ * Setel sandi baru sesudah menekan tautan atur ulang.
+ *
+ * Tanpa `current_password` — justru yang lupa sandinyalah yang memakai ini.
+ * Yang membuktikan haknya adalah tautan di emailnya: Supabase menukarnya jadi
+ * sesi sementara sebelum halaman ini terbuka.
+ */
+export const resetPasswordSchema = z
+  .object({
+    new_password: z
+      .string()
+      .min(8, 'Kata sandi minimal 8 karakter')
+      .max(72, 'Kata sandi terlalu panjang'),
+    confirm_password: z.string(),
+  })
+  .refine((v) => v.new_password === v.confirm_password, {
+    path: ['confirm_password'],
+    message: 'Ulangan kata sandi tidak sama',
+  });
 
 /** Hapus akun — `deleted_at`, bukan `delete`. Lihat `deleteUser`. */
 export const deleteUserSchema = z.object({ user_id: uuid });
