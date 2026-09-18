@@ -54,24 +54,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     ? DASHBOARD_HEADING[session.profile.role]
     : { title: 'Dashboard', subtitle: 'Ringkasan operasional dalam cakupan akses Anda.' };
 
-  // Kelimanya berangkat bersamaan. `getPendingAlerts` dulu menunggu keempat
-  // yang lain selesai sebelum berangkat — satu perjalanan bolak-balik penuh ke
-  // Supabase yang ditumpuk di belakang, padahal ia tidak bergantung pada
-  // satu pun hasil mereka.
   const [branchRows, openOrders, issues, pendingGuestOrders, alerts] = await Promise.all([
     getVendorKpi(),
     getOpenOrders(filter),
     getIssueBreakdown(),
-    // Sengaja di luar `v_branch_kpi`: view itu tidak punya dimensi asal order,
-    // dan menambahkannya berarti mengubah view (migration, satu pintu di Bani).
-    // Hanya dihitung untuk yang bisa menindaklanjutinya — bagi vendor
-    // angkanya selalu 0 (order tamu belum punya PIC), jadi kartunya cuma bising.
     canDo(session.profile?.role, 'VERIFY_GUEST_ORDER')
       ? countPendingGuestOrders()
       : Promise.resolve(null),
-    // Outbox notifikasi. RLS-nya menuntut `is_staff()`, jadi vendor mendapat
-    // array kosong tanpa penjagaan tambahan di sini — dan panelnya sendiri sudah
-    // menangani keadaan kosong, jadi tidak perlu dirender bersyarat.
     getPendingAlerts(),
   ]);
 

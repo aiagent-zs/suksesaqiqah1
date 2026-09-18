@@ -4,15 +4,402 @@
 > Urutan tahap mengikuti `TEAM_PLAN.md §3`; definisi modul mengikuti `docs/06_MODULE_BREAKDOWN.md`.
 > Urutan otoritas kebenaran: **migrations → kode (`features/`, `app/`, `server/`) → `prd.md` → `docs/`**.
 
-| Field                            | Value                                                                                                                                                                                                                                                                                                                                                                                           |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                                                                                                                                                                      |
-| Diperbarui                       | 2026-09-07                                                                                                                                                                                                                                                                                                                                                                                      |
-| Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                                                        |
-| Estimasi Phase 1                 | **± 87%** (dari 85% — katalog & konten landing kini dikelola sendiri lewat aplikasi, lihat _Perubahan 3 September_)                                                                                                                                                                                                                                                                             |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(nol warning)** · `npm run build` ✅ **(20 rute, landing tetap prerender statis)** · **555 unit test hijau (41 file)** · **159 tes integrasi hijau (11 file) terhadap Postgres lokal** · **42 migration jalan bersih di lokal ✅ dan 42/42 selaras di cloud ✅** · **RLS katalog terbukti di cloud lewat jalur `anon`: baca ✅, tulis ditolak ✅** |
+| Field                            | Value                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                                                                                                                                     |
+| Diperbarui                       | 2026-09-18                                                                                                                                                                                                                                                                                                                                                     |
+| Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                       |
+| Estimasi Phase 1                 | **± 90%** (dari 87% — pelaporan tahap, sertifikat, akun sendiri, & lupa sandi masuk; lihat _Perubahan 8–11 September_)                                                                                                                                                                                                                                         |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ⚠️ **(1 warning — lihat §10)** · `npm run build` ✅ **(23 rute, landing tetap prerender statis)** · **764 unit test hijau (65 file)** · **53 migration** (9 baru sejak pembaruan lalu) · ⚠️ **tes integrasi & migration lokal TIDAK dijalankan pada pembaruan ini — Docker tidak hidup di mesin ini saat pemeriksaan** |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
+
+---
+
+## Perubahan 8–11 September
+
+Enam belas commit dan sembilan migration sesudah pembaruan 7 September. Porosnya
+satu: **halaman detail order dan pelaporan tahap** — yang selama ini benar secara
+database tetapi menuntut operator menebak apa yang harus dikerjakan sekarang.
+Tiga kebocoran pada akun mitra ikut ditemukan dan ditutup di jalan.
+
+### Tiga kebocoran & satu kebutaan pada akun mitra (`20260908010000`)
+
+Ditemukan saat menelusuri apa yang **benar-benar** terbaca akun vendor, bukan apa
+yang seharusnya. Dibuktikan lewat impersonasi (`set_config('request.jwt.claims', …)`)
+di dalam transaksi yang di-rollback. Keadaan sebelum perbaikan, untuk akun mitra
+pemilik dua order:
+
+```
+orders terbaca      : 2
+v_open_orders       : 0     <-- kosong, padahal ordernya dua
+locations           : 4     <-- seluruhnya, termasuk milik mitra lain
+participants        : 0     (benar — memang tertutup)
+```
+
+**1. Dashboard mitra kosong permanen.** `v_open_orders` memakai
+`join public.participants` — inner join. `participants_select` menuntut
+`is_staff()` dan view-nya `security_invoker`, jadi bagi mitra tabel itu kosong dan
+inner join menghapus **setiap** baris. Halaman berjudul "Order yang ditugaskan
+kepada Anda" tidak pernah menampilkan satu pun order. `left join` menjawab keduanya
+sekaligus: barisnya tetap ada, `participant_name`/`participant_phone` bernilai NULL
+bagi yang tidak berhak — penyaringan PII tetap dikerjakan RLS, bukan oleh view.
+
+**2. Bucket dokumentasi tidak ter-scope.** `storage_documentation_read` memberi
+SELECT atas **seluruh** bucket kepada siapa pun yang login. Komentar migration
+aslinya menyerahkan pembatasan folder ke `isDocPathForOrder` di server action —
+tetapi itu hanya menjaga jalur **tulis**. Klien Supabase di browser sudah dipakai
+untuk mengunggah, jadi `storage.from('documentation').list()` dari sana melewatinya
+sepenuhnya: satu mitra bisa membaca foto lapangan mitra lain. Ditutup dengan
+men-scope lewat `split_part(name, '/', 3)` — segmen ketiga adalah nomor order,
+nilai yang unik global dan beku seumur hidup order.
+
+**3. Seluruh lokasi terbaca setiap mitra.** `locations_select` memakai
+`using (true)`: tiap mitra membaca nama dan alamat seluruh fasilitas di sistem,
+termasuk milik pesaingnya. Kini yang terbuka hanya lokasi tanpa pemilik (masjid,
+panti, tempat salur umum) dan miliknya sendiri.
+
+> **Kenapa view-nya ditulis ulang utuh.** `create or replace view` menolak
+> perubahan pada daftar kolom maupun bentuk join, jadi ia harus di-drop dulu.
+> Grant-nya dipulihkan eksplisit: `20260820001000_grants.sql` memberikannya lewat
+> `on all tables in schema public`, yang hanya berlaku atas view yang **ada** saat
+> itu — yang lahir sesudahnya tidak ikut.
+
+### Bukti wajib menempel pada laporan tahap (`20260908020000` & `20260908030000`)
+
+Dua migration, satu keputusan: **bukti tidak lagi mengambang**.
+
+`documentations.stage_event_id` sudah ada sejak 20 Agustus beserta triggernya,
+tetapi **tidak pernah diisi** — `uploadDocumentation` mengabaikannya, dan panel
+Dokumentasi yang berdiri sendiri memang tidak tahu tahap mana yang sedang
+dibuktikan. Buktinya terikat ke order, bukan ke pekerjaan yang dibuktikannya.
+
+Kini kolomnya `not null`. Yang ikut berubah dan **harus** ikut: `on delete set null`
+tidak bisa hidup bersama NOT NULL — menghapus laporan tahap akan mencoba
+mengosongkan tautannya dan menabrak constraint, sehingga penghapusan yang sah justru
+gagal. Diganti `cascade`, sebab bukti bagi laporan yang sudah tidak ada adalah bukti
+yatim yang tetap terhitung di gerbang kelengkapan — dan itu membuat gerbangnya
+berbohong.
+
+`umum` ikut dicabut dari enum `doc_stage`. `fulfilment_stage` tidak punya nilai itu,
+dan `enforce_documentation_stage_match` menuntut keduanya sama — jadi begitu
+`stage_event_id` wajib, `umum` tidak akan pernah bisa lolos. Membiarkannya di enum
+berarti TypeScript terus menawarkannya sebagai pilihan yang sah: di layar tampak
+boleh, di database pasti ditolak.
+
+> **Konsekuensi yang diterima, bukan efek samping.** Bukti tidak bisa lagi diunggah
+> sebelum mitra ditugaskan, sebab baris tahap baru terbit di situ. Jalur "admin
+> mengunggah bukti umum lebih awal" ditutup dengan sadar.
+
+Produksi diperiksa lebih dulu: **nol baris** `documentations`, dan seed tidak
+menyisipkannya sama sekali. Baris warisan di mesin dev dibuang — bukan ditebak ke
+tahap mana pun.
+
+### Gerbang urutan tahap dilonggarkan (`20260908040000`)
+
+Aturan lama menutup tahap ke-N sampai seluruh tahap sebelumnya **tervalidasi
+admin**. Migration aslinya (`20260820000400`) sudah menuliskan konsekuensinya dan
+menyiapkan jalan keluarnya:
+
+> _"Konsekuensinya nyata — admin jadi penghambat di tiap tahap. Kalau lapangan
+> mengeluh, longgarkan ke `status in ('reported','validated')`; satu baris. Mulai
+> ketat lebih murah daripada mengetatkan setelah orang terlanjur terbiasa longgar."_
+
+Lapangan mengeluh. Ini jalan keluar itu, persis seperti yang disiapkan — mitra
+tidak lagi menunggu admin di tiap tahap; selesai melaporkan sembelih ia bisa
+langsung melaporkan masak.
+
+Yang **tidak** berubah, dan itu disengaja:
+
+1. Tahap `pending` masih menahan tahap sesudahnya — urutan yang mustahil tetap ditolak
+2. Tahap **`rejected` tetap menahan** — melanjutkan di atas dasar yang admin sudah bilang salah tidak masuk akal
+3. Pemisahan tugas (`enforce_stage_review`) tidak tersentuh
+4. Gerbang kelengkapan bukti tetap menuntut bukti **`approved`** — melonggarkan urutan kerja tidak berarti melonggarkan apa yang tercetak di laporan peserta
+
+`canReportStage` di TypeScript diubah dalam commit yang sama: kalau keduanya
+menyimpang, tombol di layar menawarkan sesuatu yang database tolak — atau
+sebaliknya, menyembunyikan yang sebenarnya boleh.
+
+### Notifikasi ditutup sendiri begitu pekerjaannya selesai (`20260908050000`)
+
+Outbox hanya tahu cara **menerbitkan** notifikasi, tidak pernah tahu kapan ia
+berhenti relevan. Barisnya bertahan `queued` sampai ada admin yang menekan centang
+manual — dan tidak ada yang menekan centang untuk pekerjaan yang sudah ia kerjakan
+lewat jalan lain. Terlihat langsung di produksi:
+
+```
+guest_order_new  IA-202609-0003  order sudah `assigned`     <-- sudah diverifikasi
+guest_order_new  IA-202609-0002  order sudah `in_progress`  <-- sudah diverifikasi
+guest_order_new  IA-202609-0001  order sudah `cancelled`    <-- tidak akan pernah diverifikasi
+```
+
+Tiga dari empat barisnya menuntut tindakan yang sudah tidak ada. **Panel yang isinya
+sebagian besar tugas semu berhenti dibaca, dan tugas yang sungguhan ikut tenggelam
+bersamanya.**
+
+Tiga trigger baru menutupnya lewat satu fungsi bersama
+(`close_dashboard_notification`): order tamu diverifikasi/dibatalkan, bukti
+diputuskan (disetujui **maupun** ditolak), kendala `high` diselesaikan. Yang
+terlanjur basi dibersihkan sekali di akhir migration.
+
+> **`sent`, bukan nilai enum baru.** Bagi kanal `dashboard` tidak ada yang
+> benar-benar "dikirim" — `markNotificationSent` sudah memakainya untuk menandai
+> "sudah ditangani". Menambah nilai enum berarti menyentuh setiap pembacaan status
+> demi perbedaan yang tidak dipakai siapa pun.
+>
+> Yang **tidak** ditutup otomatis: kanal WhatsApp/email. Baris itu menunggu
+> benar-benar terkirim ke pemesan, dan pengirimannya belum dibangun (Tahap 8).
+> Menutupnya di sini berarti menyatakan pesan terkirim padahal tidak pernah ada yang
+> mengirimnya.
+
+### Halaman detail order disusun per fase
+
+Halaman merender sembilan panel sekaligus, **semuanya terbuka penuh apa pun status
+ordernya** — jadi pada order yang baru masuk, panel Dokumentasi dan Laporan ikut
+memenuhi layar padahal keduanya baru berguna berminggu-minggu kemudian. Admin harus
+menggulir melewati semuanya untuk menemukan satu form yang benar-benar perlu diisi
+sekarang.
+
+- **`next-step.ts`** menjawab "apa yang harus dikerjakan sekarang" sebagai satu
+  kalimat perintah plus panel tujuannya. `blockers` diambil **apa adanya** dari
+  `guard` state machine, jadi layar dan penolakan server tidak pernah berbeda kalimat
+- **`PhaseSection`** melipat panel yang di luar fase. **Dilipat, bukan
+  disembunyikan**: memeriksa pembayaran saat order sudah di tahap lapangan adalah hal
+  yang wajar, dan panel yang lenyap sama sekali membuat orang mengira datanya hilang.
+  Ringkasan satu baris tetap terbaca dalam keadaan terlipat
+- Sengaja `<details>` bawaan peramban, bukan state React — bisa dibuka sebelum
+  JavaScript termuat, isinya tetap ditemukan Ctrl+F, dan keyboard sudah bekerja tanpa
+  satu baris pun penanganan tombol
+
+### Antrean validasi: satu kartu, satu keputusan
+
+Antrean lama per-foto lintas order membuat admin menyetujui sebuah foto **tanpa
+melihat laporan yang dibuktikannya**, lalu memvalidasi laporannya di halaman lain
+**tanpa melihat fotonya**. Dua keputusan terpisah untuk satu pekerjaan, dan tidak
+satu pun punya konteks yang utuh.
+
+`StageQueue` menggantikannya: satu kartu = satu laporan tahap **beserta buktinya**.
+Memvalidasi tahapnya sekaligus menyetujui bukti yang menyertainya (`reviewStage`
+yang mengerjakannya), jadi yang ditekan admin cuma satu tombol.
+`validation-queue.tsx` & `documentation-manager.tsx` dihapus.
+
+### Foto masuk ke form laporan tahap dan jadi wajib
+
+Dulu dua langkah untuk satu pekerjaan: isi laporan, lalu tekan "Tambah bukti"
+terpisah. Yang lupa langkah kedua meninggalkan tahap yang **tampak selesai tanpa
+bukti** — baru ketahuan saat gerbang Pelaporan menolaknya berhari-hari kemudian.
+
+Foto kini medan di dalam form, wajib, dan **diunggah lebih dulu**: kalau dibalik,
+kegagalan unggah meninggalkan persis keadaan itu. Bukti yang sudah ada boleh
+disimpan ulang tanpa foto baru; yang ditolak admin tidak dihitung. "Tambah bukti"
+hanya muncul sesudah tahapnya dilaporkan.
+
+### Baris tahap per ekor bisa dibedakan
+
+Order dua ekor menampilkan "Sembelih" dua kali. Pembedanya `tag_code` — tapi kolom
+itu opsional dan **keempat hewan di produksi bernilai null**, jadi kedua baris
+tampak identik. Ketika satu punya tombol Laporkan dan satunya tidak, itu terbaca
+sebagai tombol yang hilang tanpa sebab.
+
+Badge "Ekor 1/2" saat tag kosong, dan penahannya disebut namanya: "Menunggu Sembelih
+dilaporkan lebih dulu", bukan "tahap sebelumnya".
+
+### Sertifikat aqiqah (`20260910020000`)
+
+Lembar yang diberikan kepada keluarga — **berbeda tujuan dari laporan peserta**, dan
+itu menentukan seluruh bentuknya. Laporan **membuktikan** pekerjaan: tahap, foto
+lapangan, dibaca sekali lalu diarsipkan. Sertifikat **dikenang**: dicetak, dibingkai,
+disimpan bertahun-tahun. Jadi ia landscape satu halaman, isinya sedikit, dan tidak
+memuat satu pun angka operasional.
+
+**Satu per anak, bukan per ekor.** Aqiqah anak laki-laki memakai dua kambing atas
+nama anak yang sama — di produksi persis begitu: `IA-202609-0002` punya dua baris
+`animals` dengan `on_behalf_of` identik. Hewannya dikelompokkan per nama dan disebut
+di dalam lembar yang sama ("2 ekor kambing").
+
+**Foto anak jadi kolom di `orders`, bukan baris `documentations`.** Sejak
+`20260908030000` tiap dokumentasi wajib terikat satu laporan tahap — dan foto anak
+bukan bukti pelaksanaan tahap mana pun. Memaksanya masuk ke sana berarti mengendurkan
+lagi keterikatan yang baru saja diperketat. Path-nya tetap mengikuti pola bucket
+`documentation` (`{YYYY}/{MM}/{order_number}/anak/{uuid}.{ext}`), jadi
+`storage_documentation_read` yang men-scope lewat segmen ketiga ikut berlaku tanpa
+diubah.
+
+### Laporan tidak bisa dibuat ulang — bug produksi (`20260910010000`)
+
+`generateReport` mengunggah dengan `upsert: true`, dan `upsert` di Storage adalah
+**UPDATE** terhadap baris `storage.objects` yang sudah ada — bukan INSERT. Bucket
+`reports` hanya punya policy SELECT dan INSERT, jadi setiap penimpaan ditolak RLS.
+
+Akibatnya di produksi: PDF versi 1 order `IA-202609-0002` sudah terunggah (2,5 MB),
+tetapi barisnya **tidak pernah masuk tabel `reports`** karena aksinya berhenti di
+unggah. Percobaan berikutnya menghitung `nextVersion` dari tabel yang kosong, jadi
+selalu v1 — path yang sama, ditolak lagi. **Order yang pekerjaannya sudah lengkap
+terkunci permanen** dengan pesan "Gagal menyimpan PDF laporan".
+
+Dibuktikan terhadap produksi sebagai superadmin sungguhan:
+
+```
+POST x-upsert ke path baru        -> 200
+POST x-upsert ke path yang ada    -> 403 "new row violates RLS policy"
+```
+
+Kewenangannya disamakan dengan INSERT-nya (`is_staff()`): yang boleh membuat laporan
+boleh pula membuatnya ulang. Menaikkannya ke superadmin akan membuat admin bisa
+membuat v1 tapi tidak bisa mengulanginya saat render pertama menghasilkan berkas yang
+keliru. `storage-upsert-policies.test.ts` menjaganya — tesnya memindai kode untuk
+tiap bucket yang di-`upsert` lalu menuntut policy UPDATE-nya ada.
+
+### Lokasi bisa didaftarkan staf (`20260907020000`)
+
+`locations_write` menuntut `is_superadmin()`, dan sampai hari itu **tidak ada satu
+pun jalan masuk lewat aplikasi**: tidak ada halaman, tidak ada server action, tidak
+ada form. Barisnya hanya lahir dari seed.
+
+Itu tidak berkelanjutan justru karena sifat datanya: lokasi salur berganti hampir
+tiap order — masjid, panti, kampung penerima manfaat yang berbeda-beda — sementara
+yang tahu tempatnya adalah admin yang sedang menjadwalkan order itu. Yang terjadi
+selama pintunya tertutup bukan "admin meminta tolong superadmin", melainkan **alamat
+ditulis di kolom catatan jadwal**: di luar jangkauan `v_open_orders`, di luar laporan
+peserta, dan tidak bisa dipakai ulang order berikutnya.
+
+Kebijakannya dipecah per operasi: `insert`/`update` → staf, `delete` → superadmin.
+Menghapus tetap berhenti di superadmin sebab `orders` dan `schedules` menahan lokasi
+lewat rujukan, dan menghapus tempat yang sudah dipakai order lama memutus jejak ke
+mana hewan itu disalurkan.
+
+### Akun sendiri & lupa sandi
+
+- **`/profil`** — ganti email & kata sandi sendiri. Sandi sekarang **wajib
+  dibuktikan lebih dulu**: `supabase.auth.updateUser()` menerima sesi yang sudah
+  hidup tanpa menanyakan apa pun, jadi tanpa pemeriksaan ini laptop yang ditinggal
+  terbuka sebentar cukup untuk mengganti sandi dan email pemiliknya — mengunci dia
+  keluar dari akunnya sendiri, permanen
+- **Klien sekali pakai tanpa cookie** untuk pemeriksaan itu, dan itu bukan kerapian
+  belaka: klien server biasa menulis cookie sesi, jadi memakainya untuk
+  `signInWithPassword` akan menimpa sesi yang sedang berjalan — dan ketika sandinya
+  ternyata salah, pemanggilnya justru terlempar keluar
+- **`/lupa-sandi` & `/atur-sandi`** — jalur reset lewat email
+- **`AuthShell`** menyatukan latar & logo ketiga halaman auth; `auth-shell.test.ts`
+  menuntut tidak ada halaman yang menyusun latarnya sendiri
+- **`20260910030000`** — `profiles.email` diselaraskan lewat trigger saat email login
+  berpindah. `auth.users` punya `on_auth_user_created` untuk saat akun **dibuat**,
+  tapi nol trigger untuk saat email itu **berubah**, jadi `profiles.email` membeku
+  pada alamat lama selamanya. Bukan sekadar tampilan basi: nilai itu jadi nilai awal
+  form saat superadmin menyunting akun orang lain, jadi menyimpan form akan
+  **mengembalikan email login ke alamat lama** tanpa ia bermaksud demikian. Ditulis
+  di database sebab perpindahan email tidak selesai di server action — Supabase baru
+  memindahkannya saat tautan konfirmasi diklik, di lain waktu, tanpa melewati kode
+  kita. `when (old.email is distinct from new.email)` menyaring di database:
+  `auth.users` ikut ter-UPDATE tiap login dan tiap refresh token
+
+### Umpan balik: tombol & navigasi mengatakan dirinya sedang bekerja
+
+78 tombol memakai `disabled={pending}` — mati saat ditekan tapi **diam**, dan mati
+tanpa berkata apa-apa terbaca sama persis dengan rusak.
+
+- `BusyButton` mengganti ikon dengan spinner (lebar tombol tidak berubah) + `aria-busy`
+- `RouteProgress` memakai `useLinkStatus` Next 16 untuk garis progres saat berpindah halaman
+- **Semuanya tertunda 120ms** — aksi yang selesai sekejap tidak berkedip
+- **`loading.tsx` untuk enam rute** yang belum punya. Hanya dashboard yang punya;
+  rute lain menahan navigasi sampai seluruh query selesai sementara peramban masih
+  menampilkan halaman sebelumnya — operator tidak bisa membedakan "sedang dimuat"
+  dari "kliknya tidak masuk"
+
+### Dua bug yang dampaknya sampai ke pembeli
+
+**Input angka berubah saat halaman digulir.** `type=number` menangkap roda tetikus
+selama terfokus, jadi mengetik `100` lalu menggulir turun diam-diam mengubahnya jadi
+`90` — **tanpa tanda apa pun di layar**. Kena 16 medan di 8 berkas, termasuk jumlah
+ekor di checkout yang diisi pembeli. `NumberInput` melepas fokus alih-alih
+`preventDefault()`, supaya halaman tetap bisa digulir; tombol panah papan ketik tidak
+disentuh — itu tindakan yang disengaja. Tesnya memindai seluruh `.tsx` dan gagal bila
+`type=number` polos muncul lagi.
+
+**Rujukan dokumen internal bocor ke layar.** Dua kalimat di halaman detail order
+menyebut nomor dokumen spesifikasi dan istilah "state machine" — dirender untuk
+admin, superadmin, **dan mitra**. Bagi mereka itu bukan keterangan melainkan kode
+yang tidak bisa ditindaklanjuti: tidak ada dokumen itu yang bisa mereka buka.
+Kalimat seperti itu lahir saat fitur dibangun sambil menengok spesifikasi, dan
+bertahan karena tidak ada yang menyalahkan — build lolos, tes lolos, layar tetap
+tampil; yang menemukan biasanya pengguna, di produksi. `no-internal-jargon.test.ts`
+menjaganya, dan yang dijaga **teks yang dirender, bukan komentar** — komentar justru
+tempat yang benar untuk menyebut nomor dokumennya.
+
+### `VIEW_ORDER_FINANCE` — kapabilitas yang RLS tidak bisa jawab
+
+Angka uang sebuah order (nilai total, harga satuan, subtotal) dipisah dari
+`RECORD_PAYMENT`: yang ini soal **membaca**, bukan mencatat.
+
+Perlu ada justru karena RLS tidak bisa menjawabnya. `orders_select` memakai
+`can_read_order`, jadi mitra memang membaca baris ordernya **termasuk
+`total_amount`** — kebijakan **baris** tidak bisa menahan satu **kolom**. Yang
+menahannya di layar adalah kapabilitas ini. Sejalan dengan `payments_select` yang
+menuntut `is_staff()`, dan dengan `vendor_services` yang ditutup justru supaya margin
+tidak terbaca mitra.
+
+### Rapi-rapi & lain-lain
+
+- **Hapus laporan** (`deleteReport` + dialog konfirmasi) — sebelumnya laporan yang
+  salah hanya bisa ditumpuk versi baru
+- **CRUD lokasi lewat aplikasi** — dialog tambah/sunting/hapus di panel Jadwal
+- **`CurrencyInput`** memformat rupiah saat diketik
+- **Dashboard mobile** dirombak: filter & tabel order dibuat terbaca di layar kecil
+- **Animasi pending di `alert-actions`** — tombol panel "Perlu Tindakan"
+- **`features/checkout/address.ts`** dipisah dari `address-picker`. `draft.ts`
+  mengimpor satu **tipe** dari sana, yang menyeret `lucide-react`, Base UI, dan empat
+  komponen UI; tesnya memanggil `resetModules()` tiap kasus, jadi rantai itu dimuat
+  ulang belasan kali dan sesekali menembus batas 5 detik — flake yang muncul tiga
+  kali. Waktu impor **~2s → ~125ms**
+
+### Tes bertambah 209 unit
+
+**764 unit (65 berkas)** dari 555/41. **24 berkas baru**, di antaranya:
+
+| Berkas                                | Cakupan                                                                                               |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `order-next-step.test.ts`             | Kalimat perintah & panel tujuan per status; `blockers` sama persis dengan `guard`                     |
+| `stage-report-with-photo.test.tsx`    | Foto wajib di form laporan; urutan unggah-lebih-dulu; bukti lama boleh disimpan ulang                 |
+| `stage-panel-multi-animal.test.tsx`   | Badge "Ekor 1/2" saat `tag_code` null; penahan menyebut nama tahapnya                                 |
+| `number-input.test.tsx`               | Roda tetikus tidak mengubah nilai; **memindai seluruh `.tsx`** agar `type=number` polos tidak kembali |
+| `no-internal-jargon.test.ts`          | Rujukan dokumen internal & nama komponen tidak sampai ke teks yang dirender                           |
+| `storage-upsert-policies.test.ts`     | Tiap bucket yang di-`upsert` di kode punya policy UPDATE                                              |
+| `certificate.test.tsx`                | Satu sertifikat per anak (bukan per ekor); dua wujud berbagi satu tata letak                          |
+| `own-account.test.ts`                 | Sandi lama wajib dibuktikan; klien pemeriksa tidak menyentuh cookie sesi                              |
+| `password-reset.test.ts`              | Jalur `/lupa-sandi` → `/atur-sandi`                                                                   |
+| `auth-shell.test.ts`                  | Ketiga halaman auth memakai `AuthShell`, tidak menyusun latar/logo sendiri                            |
+| `busy-button.test.tsx`                | Spinner menggantikan ikon tanpa mengubah lebar; tunda 120ms                                           |
+| `payment-auto-advance.test.ts`        | Status order naik sendiri saat pembayaran lunas                                                       |
+| `order-table-finance.test.tsx`        | Kolom uang tidak dirender tanpa `VIEW_ORDER_FINANCE`                                                  |
+| `location-crud.test.tsx`              | Tambah/sunting/hapus lokasi; hapus berhenti di superadmin                                             |
+| `documentation-upload-schema.test.ts` | `stage_event_id` wajib; `umum` bukan lagi nilai yang sah                                              |
+
+Integrasi bertambah di berkas yang sudah ada — `notification-outbox.test.ts`
+(penutupan otomatis ketiga template) dan `stage-gates.test.ts` (`reported` membuka
+tahap berikutnya, `rejected` tetap menahan). Berkasnya kini memuat **151 tes di 11
+berkas** menurut pembacaan statis.
+
+> ⚠️ **Tes integrasi tidak dijalankan pada pembaruan ini.** Docker tidak hidup di
+> mesin ini saat pemeriksaan, jadi angka di atas **dihitung dari berkasnya, bukan
+> dari jalannya** — dan kesembilan migration baru **belum dibuktikan jalan bersih
+> dari nol di lokal**. Ini satu-satunya angka di dokumen ini yang tidak berasal dari
+> eksekusi; perlakukan sebagai belum terverifikasi sampai `npm run test:integration`
+> benar-benar dijalankan.
+
+### ⚠️ Status cloud tidak diketahui untuk kesembilan migration
+
+Pembaruan 3 September mencatat **42/42 selaras**. Sembilan migration lahir sesudahnya
+(`20260907020000` … `20260910030000`) dan **tidak ada catatan `db push` untuk satu
+pun di antaranya** — sementara beberapa komentar migration menyebut pemeriksaan
+langsung terhadap produksi (nol baris `documentations`, PDF 2,5 MB yang tersangkut,
+tiga notifikasi basi), jadi sebagiannya mungkin sudah di sana.
+
+**Yang mana sudah dan yang mana belum tidak bisa dipastikan dari repo ini.** Langkah
+pertama sebelum apa pun: `supabase migration list` untuk melihat keadaannya, bukan
+menebak. Dua di antaranya destruktif terhadap data
+(`delete from public.documentations`), dan keduanya menyertakan catatan bahwa produksi
+sudah diperiksa nol baris lebih dulu — **pemeriksaan itu perlu diulang sebelum push**,
+sebab produksi sudah dipakai sejak.
 
 ---
 
@@ -828,6 +1215,7 @@ yang ditulis ulang), sehingga tetap benar kalau order demo ditambah.
 > _"Berapa order yang belum selesai, di lokasi mana, siapa mitranya, apa kendalanya?"_ — harus terjawab **< 10 detik**.
 
 - [x] Terjawab di `/dashboard` lewat `v_open_orders` — nomor order, mitra, lokasi, tahap berjalan, status, kendala, umur, terurut keparahan lalu umur.
+- [x] **Terjawab bagi mitra juga — baru sejak 8 September.** Centang di atas selama ini benar hanya untuk staf: inner join ke `participants` membuat `v_open_orders` mengembalikan **nol baris** bagi akun mitra, jadi litmus test-nya tidak pernah terjawab di layar yang justru paling sering dibuka orang lapangan (`20260908010000`, lihat §5).
 - [x] Seed baru jalan di Postgres lokal (3 order menempuh keadaan berbeda: satu `in_progress` mode kirim, satu `assigned` mode salur, satu order tamu `new` yang belum diverifikasi).
 - [x] **Alur penuh terbukti di lokal secara otomatis** — `tests/integration/full-flow.test.ts` menempuh kedua percabangan sampai `completed`, dan menegaskan order selesai keluar dari `v_open_orders` (24 Agustus).
 - [ ] ⚠️ Belum diulang di **cloud** — verifikasi cloud yang lama hangus bersama skema lama. Yang berubah sejak 21 Agustus: alurnya kini punya tes yang bisa **diarahkan** ke cloud, jadi verifikasinya tidak lagi manual.
@@ -848,7 +1236,12 @@ yang ditulis ulang), sehingga tetap benar kalau order demo ditambah.
 
 ### Tahap 1 · Database — _Bani_
 
-**37 migration**, 14 di antaranya lahir 20–21 Agustus. 21 tabel, 4 view, 26 fungsi.
+**53 migration** (keadaan 18 September; 37 saat bagian ini ditulis, 14 di antaranya lahir 20–21 Agustus). 21 tabel, 4 view, 26 fungsi.
+
+> Angka-angka di bawah ini menggambarkan keadaan **21 Agustus** dan sengaja tidak
+> ditulis ulang — yang berubah sesudahnya tercatat di bagian _Perubahan_ masing-masing.
+> Yang **tidak** boleh dibaca sebagai masih berlaku: klaim selaras dengan cloud,
+> sebab sembilan migration 7–10 September belum jelas statusnya (§11 butir 0).
 
 - [x] **`20260820000000_reset_keep_regions.sql`** membuang seluruh tabel
       operasional, fungsi, dan enum lama, lalu membangun ulang dari nol. `regions`
@@ -912,6 +1305,26 @@ yang ditulis ulang), sehingga tetap benar kalau order demo ditambah.
       kini **tertutup**: selama pendaftaran mandiri terbuka di Supabase, metadata
       role berarti siapa pun bisa mendaftar sebagai admin. Role ditetapkan lewat
       UPDATE terpisah oleh superadmin
+- [x] **Lupa sandi & atur sandi — 11 September.** `/lupa-sandi` mengirim tautan
+      reset, `/atur-sandi` menerimanya. Sebelumnya akun yang lupa sandinya hanya
+      bisa dipulihkan lewat dashboard Supabase
+- [x] **Akun sendiri bisa diurus sendiri** (`/profil`) — ganti email & kata sandi.
+      **Sandi sekarang wajib dibuktikan lebih dulu**: `supabase.auth.updateUser()`
+      menerima sesi yang sudah hidup tanpa menanyakan apa pun, jadi tanpa
+      pemeriksaan ini laptop yang ditinggal terbuka sebentar cukup untuk mengganti
+      sandi **dan** email pemiliknya — mengunci dia keluar dari akunnya sendiri,
+      permanen. Pemeriksaannya memakai **klien sekali pakai tanpa cookie**: klien
+      server biasa menulis cookie sesi, jadi memakainya untuk `signInWithPassword`
+      akan menimpa sesi yang sedang berjalan — dan ketika sandinya ternyata salah,
+      pemanggilnya justru terlempar keluar
+- [x] **`profiles.email` tidak lagi membeku** (`20260910030000`). `auth.users` punya
+      trigger untuk saat akun **dibuat** tapi nol untuk saat emailnya **berubah**.
+      Bukan sekadar tampilan basi: nilai itu jadi nilai awal form saat superadmin
+      menyunting akun orang lain, jadi menyimpan form akan **mengembalikan email
+      login ke alamat lama** tanpa ia bermaksud demikian. Ditulis di database
+      sebab perpindahan email tidak selesai di server action — Supabase baru
+      memindahkannya saat tautan konfirmasi diklik, tanpa melewati kode kita
+- [x] **`AuthShell`** menyatukan latar & logo ketiga halaman auth
 
 ### Tahap 3 · RBAC / RLS — _Bani_
 
@@ -979,15 +1392,53 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [x] `assignVendor()` berdiri sendiri sebagai aksi
 - [x] Halaman `/schedule`: filter lokasi / status / rentang tanggal, tabel desktop + kartu mobile, paginasi URL
 - [x] Tautan Google Maps dari koordinat lokasi
+- [x] **Lokasi bisa didaftarkan & disunting staf lewat aplikasi — 7 September**
+      (`20260907020000` + dialog CRUD di panel Jadwal). `locations_write` menuntut
+      `is_superadmin()` dan **tidak ada satu pun jalan masuk lewat aplikasi**:
+      barisnya hanya lahir dari seed. Yang terjadi selama pintunya tertutup bukan
+      "admin meminta tolong superadmin", melainkan **alamat ditulis di kolom
+      catatan jadwal** — di luar jangkauan `v_open_orders`, di luar laporan
+      peserta, dan tidak bisa dipakai ulang order berikutnya. Kebijakannya dipecah
+      per operasi: insert/update → staf, **delete tetap superadmin** (order lama
+      menahan lokasi lewat rujukan, dan menghapusnya memutus jejak ke mana hewan
+      itu disalurkan)
+- [x] **Lokasi mitra lain tidak lagi terbaca** (`20260908010000`) — `locations_select`
+      memakai `using (true)`, jadi tiap mitra membaca nama & alamat seluruh
+      fasilitas di sistem termasuk milik pesaingnya. Kini hanya lokasi tanpa
+      pemilik dan miliknya sendiri
 
 #### Stage Events — menggantikan Slaughter & Distribution
 
-- [x] **Satu panel tahap** menggantikan panel sembelih + distribusi. Vendor mengisi daftar yang sudah menunggu; tombol tahap berikutnya **mati sampai tahap sebelumnya divalidasi**, mencerminkan trigger di database
+- [x] **Satu panel tahap** menggantikan panel sembelih + distribusi. Vendor mengisi daftar yang sudah menunggu; tombol tahap berikutnya **mati sampai tahap sebelumnya dilaporkan** (sejak 8 September — sebelumnya: sampai divalidasi), mencerminkan trigger di database
 - [x] Daftar tahap **terbit otomatis** saat mitra ditugaskan (`generate_stage_checklist`) — vendor tidak bisa mengarang tahap
 - [x] Urutan ditegakkan trigger `enforce_stage_order` — lompat tahap ditolak di database, bukan hanya di UI
 - [x] **Pada tahap kirim, alamat pembeli DITAMPILKAN ke vendor**, tidak diketik ulang. Sebelumnya alamat terstruktur itu tersimpan tapi tak pernah dibaca siapa pun sesudah checkout
 - [x] `features/stages/sequence.ts` — kembaran `fulfilment_sequence()` di SQL, dengan tes yang **membaca berkas migration langsung** dan menuntut keduanya identik
 - [x] Hapus laporan tahap dibatasi superadmin (`DELETE_STAGE_REPORT`)
+- [x] **Gerbang urutan dilonggarkan `validated` → `reported` — 8 September**
+      (`20260908040000`). Mitra tidak lagi menunggu admin di tiap tahap; selesai
+      melaporkan sembelih ia bisa langsung melaporkan masak. Ini **jalan keluar
+      yang sudah disiapkan migration aslinya** (`20260820000400`), yang menulis
+      sendiri: _"kalau lapangan mengeluh, longgarkan ke status reported atau
+      validated; satu baris"_. Yang tidak berubah: `pending` dan **`rejected`
+      tetap menahan**, pemisahan tugas tidak tersentuh, dan gerbang kelengkapan
+      bukti tetap menuntut `approved` — melonggarkan urutan kerja tidak berarti
+      melonggarkan apa yang tercetak di laporan peserta. `canReportStage` diubah
+      dalam commit yang sama supaya layar & database tidak menyimpang
+- [x] **Baris tahap per ekor bisa dibedakan — 9 September.** Order dua ekor
+      menampilkan "Sembelih" dua kali; pembedanya `tag_code`, tetapi kolom itu
+      opsional dan **keempat hewan di produksi bernilai null**. Ketika satu punya
+      tombol Laporkan dan satunya tidak, itu terbaca sebagai tombol yang hilang
+      tanpa sebab. Badge "Ekor 1/2" saat tag kosong, dan penahannya menyebut nama
+      tahapnya alih-alih "tahap sebelumnya"
+- [x] **Halaman detail order disusun per fase** — `next-step.ts` menjawab "apa yang
+      harus dikerjakan sekarang" dengan `blockers` yang diambil apa adanya dari
+      `guard` state machine, jadi layar dan penolakan server tidak pernah berbeda
+      kalimat; `PhaseSection` melipat (bukan menyembunyikan) panel di luar fase
+- [x] **`VIEW_ORDER_FINANCE`** memisahkan _membaca_ angka uang dari mencatatnya.
+      Perlu ada justru karena RLS tidak bisa menjawabnya: `orders_select` memakai
+      `can_read_order`, jadi mitra memang membaca baris ordernya **termasuk
+      `total_amount`** — kebijakan baris tidak bisa menahan satu kolom
 
 #### Issues
 
@@ -1049,7 +1500,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ---
 
-## 3. Tahap 5 · Documentation Flow — **± 88%** — _Bani_
+## 3. Tahap 5 · Documentation Flow — **± 92%** — _Bani_
 
 - [x] Tabel `documentations` + enum + RLS
 - [x] Unggah foto/video/catatan tertaut ke order + **tahap** + hewan (opsional)
@@ -1059,10 +1510,15 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [x] `enforce_documentation_stage_match` — bukti yang dilampirkan ke tahap yang salah ditolak di database
 - [x] **Gerbang kelengkapan bukti dibaca dari `v_order_progress.missing_doc_stages`**, tidak lagi dihitung ulang di TypeScript. Dengan tahapan yang bercabang, aturan yang disalin ke kode akan jadi empat tempat yang harus sinkron. Sumbernya `stage_requirements`, jadi menambah tahap baru tidak menyentuh satu baris TypeScript pun
 - [x] Halaman `/validation` — satu antrian, filter tahap, urut tertua dulu, paginasi
+- [x] **Bukti wajib menempel pada satu laporan tahap — 8 September.** `stage_event_id` kini `not null` (`20260908030000`); sebelumnya kolomnya ada sejak 20 Agustus tetapi **tidak pernah diisi**, jadi bukti terikat ke order dan bukan ke pekerjaan yang dibuktikannya. FK ikut jadi `cascade` — `set null` tidak bisa hidup bersama NOT NULL, dan bukti yatim tetap terhitung di gerbang kelengkapan
+- [x] **`umum` dicabut dari `doc_stage`** (`20260908020000`) — nilai yang di layar tampak boleh tetapi di database pasti ditolak `enforce_documentation_stage_match`
+- [x] **Foto jadi medan wajib di form laporan tahap — 9 September.** Dulu dua langkah untuk satu pekerjaan, dan yang lupa langkah kedua meninggalkan tahap yang tampak selesai tanpa bukti. Diunggah lebih dulu; kalau dibalik, kegagalan unggah meninggalkan persis keadaan itu
+- [x] **Antrean validasi jadi per laporan tahap, bukan per foto** (`StageQueue`) — satu kartu memuat laporan **beserta** buktinya, satu tombol memutuskan keduanya. `validation-queue.tsx` & `documentation-manager.tsx` dihapus
+- [x] **Bucket dokumentasi di-scope per mitra** (`20260908010000`) — `storage_documentation_read` sebelumnya memberi SELECT atas seluruh bucket kepada siapa pun yang login, dan klien di browser melewati penjagaan server action sepenuhnya
 - [x] Pratinjau media memakai `<img>`/`<video>` biasa, bukan `next/image`
 - [x] Dokumentasi `approved` tidak dapat dihapus
-- [ ] Antrian validasi belum tampil di dashboard (`docs/09 §4`) — saat ini hanya di `/validation`
-- [ ] Notifikasi ke admin saat ada unggahan baru & ke vendor saat ditolak — bergantung Tahap 8
+- [ ] Antrian validasi belum tampil di dashboard (`docs/09 §4`) — saat ini hanya di `/validation`, tetapi panel "Perlu Tindakan" sudah membawa langsung ke barisnya
+- [ ] Notifikasi ke admin saat ada unggahan baru & ke vendor saat ditolak — outbox-nya sudah terbit sejak 24 Agustus dan kini **ikut tertutup sendiri** begitu buktinya diputuskan (`20260908050000`); yang belum pengirimannya, bergantung Tahap 8
 - [ ] Kompresi gambar di klien & antrian upload offline — bergantung PWA
 - [ ] Pelucutan EXIF/GPS sebelum unggah (`docs/17 §4`, `docs/20`)
 - [x] **Gerbang bukti & pemisahan tugas terjaga tes integrasi** — bukti yang dilampirkan ke tahap yang salah ditolak, pengunggah tidak bisa menyetujui unggahannya sendiri (`full-flow.test.ts`, 24 Agustus)
@@ -1070,13 +1526,16 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ---
 
-## 4. Tahap 6 · Reporting Engine — **± 80%** — _Awalin_
+## 4. Tahap 6 · Reporting Engine — **± 88%** — _Awalin_
 
 - [x] Generate PDF per order (React PDF)
 - [x] **Laporan bercerita per tahap**, bukan sekadar "distribusi sekian paket" — halaman publik & PDF sama-sama menyusunnya dari `order_stage_events` yang sudah tervalidasi
 - [x] Halaman publik bertoken `app/r/[token]` tanpa login, `noindex`, `/r/` masuk `robots.txt`
 - [x] Unduh PDF lewat signed URL (TTL 10 menit)
 - [x] Versi laporan tercatat; generate ulang menambah versi **tanpa** mengubah `public_token`
+- [x] **Generate ulang akhirnya benar-benar bisa — 10 September** (`20260910010000`). Bucket `reports` hanya punya policy SELECT & INSERT, sementara `generateReport` mengunggah dengan `upsert: true` yang di Storage adalah **UPDATE** — jadi tiap penimpaan ditolak RLS. Di produksi PDF v1 `IA-202609-0002` terunggah 2,5 MB tetapi barisnya tidak pernah masuk tabel `reports`, sehingga `nextVersion` selalu menghitung v1 dan **order yang pekerjaannya sudah lengkap terkunci permanen**
+- [x] **Hapus laporan** (`deleteReport` + dialog konfirmasi) — sebelumnya laporan yang salah hanya bisa ditumpuk versi baru
+- [x] **Sertifikat aqiqah** — lembar untuk keluarga, terpisah dari laporan peserta: landscape satu halaman, nol angka operasional, **satu per anak bukan per ekor** (aqiqah anak laki-laki memakai dua kambing atas nama yang sama). Dua wujud, dengan & tanpa foto anak (`20260910020000` menambah `orders.child_photo_path`)
 - [x] Hanya dokumentasi `approved` yang masuk laporan; kontak peserta tidak pernah ikut
 - [x] Gate kelengkapan diperiksa ulang saat generate
 - [x] Kirim tautan via WA.me + salin tautan + tandai terkirim
@@ -1117,7 +1576,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ---
 
-## 5. Tahap 7 · Dashboard & Monitoring — **± 85%** — _Awalin_
+## 5. Tahap 7 · Dashboard & Monitoring — **± 90%** — _Awalin_
 
 ### Sudah jadi
 
@@ -1137,6 +1596,18 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [x] Filter tahap / keparahan / hanya-berkendala (form GET, state di URL)
 - [x] Drill-down KPI card & baris tabel → `/orders`
 - [x] Unit test agregasi (termasuk pembobotan siklus) + filter schema
+- [x] **Dashboard mitra tidak lagi kosong permanen — 8 September**
+      (`20260908010000`). `v_open_orders` memakai `join public.participants` —
+      inner join — sementara `participants_select` menuntut `is_staff()` dan
+      view-nya `security_invoker`. Bagi mitra tabel itu kosong, jadi inner join
+      menghapus **setiap** baris: halaman berjudul "Order yang ditugaskan kepada
+      Anda" tidak pernah menampilkan satu pun order, dan panel kendala di
+      sampingnya ikut nol. Dibuktikan lewat impersonasi di transaksi yang
+      di-rollback: **orders terbaca 2, `v_open_orders` 0**. `left join` menjawab
+      keduanya — barisnya tetap ada, nama peserta tetap NULL bagi yang tidak
+      berhak, sebab penyaringan PII memang tugas RLS dan bukan tugas view
+- [x] **Dashboard terbaca di layar kecil** — filter & tabel order dirombak untuk
+      mobile (`dashboard-mobile.test.tsx`, `mobile-nav-columns.test.tsx`)
 
 ### Harus dikejar
 
@@ -1148,7 +1619,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ---
 
-## 6. Tahap 8 · Automation & Notification — **± 45%** — _Bani_
+## 6. Tahap 8 · Automation & Notification — **± 55%** — _Bani_
 
 - [x] Tabel `notifications` + enum channel/status
 - [x] **Outbox terisi — 24 Agustus.** Tabelnya ada sejak 20 Agustus tapi **nol
@@ -1191,6 +1662,20 @@ Tiga role tetap: **superadmin · admin · vendor**.
       `markNotificationSent` menutupnya — dikunci `.eq('status','queued')` supaya
       penekanan kedua tidak menggeser `sent_at`, dan "Kirim WA" menandai
       sekaligus agar tidak ada langkah kedua yang bisa dilupakan
+- [x] **Antrian menutup dirinya sendiri (8 September)** — `markNotificationSent`
+      menutup celah "tidak ada penulis `sent`", tetapi masih menuntut **seseorang
+      menekan centang**; dan tidak ada yang menekan centang untuk pekerjaan yang
+      sudah ia kerjakan lewat jalan lain. Di produksi 3 dari 4 barisnya menuntut
+      tindakan yang sudah tidak ada — dua order tamu yang sudah diverifikasi dan
+      satu yang ordernya dibatalkan. **Panel yang isinya sebagian besar tugas semu
+      berhenti dibaca, dan tugas yang sungguhan ikut tenggelam bersamanya.**
+      `20260908050000` menambah tiga trigger penutup lewat satu fungsi bersama
+      (`close_dashboard_notification`): order tamu diverifikasi/dibatalkan, bukti
+      diputuskan (disetujui maupun ditolak), kendala `high` diselesaikan. Yang
+      terlanjur basi dibersihkan sekali di akhir migration. **Hanya kanal
+      `dashboard`** — kanal kirim menunggu benar-benar terkirim, dan menutupnya di
+      sini berarti menyatakan pesan terkirim padahal tidak pernah ada yang
+      mengirimnya. 14 tes integrasi (dari 11)
 - [ ] **Worker pengirim** — pengiriman masih manual-klik. Yang berubah: tidak
       ada lagi yang terlewat, sebab semuanya tercatat sebagai antrian.
       **28 Agustus menutup satu arah saja**: pemesan kini bisa menyapa admin
@@ -1442,7 +1927,8 @@ Tiga role tetap: **superadmin · admin · vendor**.
       `rounded-3xl`, `hover:-translate-y`, dan `backdrop-blur` di HTML hasil render
 - [x] Warning lint lama ikut tertutup (`siteConfig` tak terpakai di `Logo.tsx`,
       beserta prop `light` yang ternyata memilih dua warna yang sama persis) —
-      **lint kini nol warning**
+      **lint nol warning** _(keadaan 21 Agustus; satu warning baru muncul sejak
+      galeri dicabut — lihat §10)_
 
 #### Animasi & keresponsifan mobile (21 Agustus)
 
@@ -1546,6 +2032,13 @@ Tiga role tetap: **superadmin · admin · vendor**.
       Kalimat "bukan foto ilustrasi" sudah dicabut dari galeri supaya halaman
       tidak menjanjikan yang tidak dipenuhi; **lisensi CC BY-SA belum
       ditelusuri** dan wajib beres sebelum produksi — lihat §11 butir 1
+- [ ] ⚠️ **Section Galeri kini dicabut dari halaman**, bukan hanya kalimatnya.
+      `{/* <GallerySection /> */}` di `app/(site)/page.tsx` — komponennya utuh,
+      pemanggilnya yang dikomentari, jadi mengembalikannya satu baris. Ini langkah
+      yang lebih jujur daripada memajang enam foto stok pada bagian yang isinya
+      **janji dokumentasi**, tetapi konsekuensinya halaman kehilangan bagian yang
+      paling menjelaskan produknya — dan lint menandainya sebagai komponen tak
+      terpakai (§10). Keduanya selesai bersamaan begitu foto asli masuk
 - [ ] Kode pos masih diketik manual — dataset Kemendagri tidak memuatnya
 - [ ] Alamat pemesan (`participants.address`) masih teks bebas
 - [ ] Panel jadwal admin belum memakai `requested_date` sebagai nilai awal
@@ -1604,7 +2097,7 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ## 10. Kualitas & Rapi-rapi
 
-- [x] **519 unit test hijau di 36 file** — state machine order, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, **katalog landing kini satu sumber dengan `services`**, alur & path dokumentasi, kapabilitas, **schema master mitra**, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, **penyimpanan sementara isian checkout**, rem laju & normalisasi nomor WhatsApp, **ringkasan pesanan untuk WhatsApp admin**, **schema, rute, isi paket katalog, batas penawaran mitra, & umpan balik aksi**
+- [x] **764 unit test hijau di 65 berkas** — state machine order, urutan tahap (dibaca langsung dari migration), payload RPC laporan publik, katalog landing satu sumber dengan `services`, alur & path dokumentasi, kapabilitas, schema master mitra, filter schema, agregasi dashboard, format & aritmetika tanggal WIB, path & schema pembayaran, schema & wizard checkout, penyimpanan sementara isian checkout, rem laju & normalisasi nomor WhatsApp, ringkasan pesanan untuk WhatsApp admin, schema & isi paket katalog, dan — sejak 8–11 September — **langkah berikutnya per status order, foto wajib di laporan tahap, roda tetikus pada input angka, policy upsert Storage, sertifikat per anak, akun sendiri, & jargon internal yang bocor ke layar**
 - [x] `ActionResult` + helper error disatukan di `server/actions/result.ts`
 - [x] **Navigasi < 1024px** — bottom-nav + panel `≡`, disaring per role
 - [x] Penanda aktif sidebar diturunkan dari `pathname`, berhenti di batas segmen
@@ -1644,9 +2137,17 @@ Tiga role tetap: **superadmin · admin · vendor**.
   - **30 tes baru** — 14 integrasi (`vendor-master.test.ts`: RLS ketiga tabel,
     admin baca-tapi-tidak-ubah, cascade vs restrict) + 16 unit
     (`vendor-schema.test.ts`)
-- [x] **`tests/integration/` terisi — 159 tes di 11 berkas** (27 Agustus, ditambah 28 Agustus & 3 September). Kelima trigger sasaran (`generate_stage_checklist`, `enforce_stage_order`, `enforce_stage_review`, `enforce_vendor_assignment`, `enforce_animal_delete`) plus `create_guest_order`, `get_public_report`, `confirm_delivery`, outbox notifikasi, progres hewan dari tahap, **RLS katalog paket, gerbang `landing_requires_active`, keutuhan `services.meta`, & batas penawaran mitra**, dan alur penuh kedua percabangan. Prasyarat & rancangannya di `tests/integration/README.md`
+- [x] **`tests/integration/` terisi — 151 tes di 11 berkas** (hitungan statis; angka 159 sebelumnya berasal dari jalannya) (27 Agustus, ditambah 28 Agustus & 3 September). Kelima trigger sasaran (`generate_stage_checklist`, `enforce_stage_order`, `enforce_stage_review`, `enforce_vendor_assignment`, `enforce_animal_delete`) plus `create_guest_order`, `get_public_report`, `confirm_delivery`, outbox notifikasi, progres hewan dari tahap, **RLS katalog paket, gerbang `landing_requires_active`, keutuhan `services.meta`, & batas penawaran mitra**, dan alur penuh kedua percabangan. Ditambah 8 September: penutupan otomatis notifikasi dashboard, dan gerbang urutan yang kini menerima `reported`. Prasyarat & rancangannya di `tests/integration/README.md`. ⚠️ **Tidak dijalankan pada pembaruan 18 September — Docker tidak hidup di mesin ini**
 - [x] **RLS per role terjaga — 21 tes** (`rls.test.ts`, 24 Agustus). Yang dibuktikan: vendor A tidak melihat order/tahap/bukti/jadwal/kendala/laporan milik vendor B; order tanpa mitra tidak terbaca vendor mana pun; pembayaran & notifikasi tertutup dari vendor; **admin tidak dapat mengubah role** (termasuk dirinya sendiri) sementara superadmin bisa; vendor tidak dapat memindahkan dirinya ke mitra lain; bukti `approved` dan kendala tidak dapat dihapus siapa pun; `anon` membaca `services`+`regions` tetapi ditolak pada `orders`/`profiles`/`payments`; dan **view KPI menghormati RLS pemanggilnya** (`security_invoker`)
 - [ ] `tests/e2e/` masih kosong (`.gitkeep`) — target: alur order → laporan end-to-end (`docs/21`)
+- [ ] ⚠️ **Lint tidak lagi nol warning (18 September).** Satu tersisa:
+      `GallerySection` didefinisikan tapi tidak dipakai di `app/(site)/page.tsx`
+      — pemanggilnya dikomentari, bukan komponennya dihapus. Itu bukan sisa yang
+      lupa dibersihkan melainkan **keputusan yang belum selesai**: galerinya
+      dicabut dari halaman karena keenam fotonya masih stok Wikimedia (§11 butir
+      1). Jadi warning-nya justru penanda yang benar — ia hilang sendiri begitu
+      foto asli masuk dan baris `{/* <GallerySection /> */}` dibuka kembali.
+      Klaim "nol warning" di §8 kini **hanya berlaku untuk keadaan 21 Agustus**
 - [ ] Checklist keamanan `docs/20_SECURITY_CHECKLIST.md` belum ditelusuri satu per satu
 - [ ] **Akun demo `*@suksesaqiqah.test` (password `Password123!`)** — `02_demo.sql` tidak ikut `db push`, tapi akun lama yang terlanjur ada di cloud wajib dihapus sebelum produksi
 - [x] **`docs/05`–`08` ditulis ulang — 3 September.** Keempatnya tertinggal enam
@@ -1782,14 +2283,20 @@ Tiga role tetap: **superadmin · admin · vendor**.
       hijau untuk seluruh 18 rute
 - [x] **`prefers-reduced-motion` ditegakkan global** (§9) — sebelumnya
       `scroll-behavior: smooth` berjalan tanpa guard sama sekali
-- [ ] **§8 State & Feedback — sebagian tertutup.** **Toast kini dipakai
-      checkout & seluruh layar katalog** lewat `hooks/use-toast.ts` (3
-      September), pada jalur berhasil **dan** gagal. Sebelumnya menyimpan
-      katalog tidak meninggalkan tanda apa pun — tampilannya sama persis dengan
-      gagal-diam, dan yang ragu menyimpan ulang. Halaman staf **lainnya**
-      (order, pembayaran, jadwal, validasi) masih memakai pesan sebaris. Yang
-      belum sama sekali: `Skeleton`, `loading.tsx`/`error.tsx`, konfirmasi aksi
-      destruktif, dan banner "Mode offline"
+- [ ] **§8 State & Feedback — sebagian besar tertutup.** **Toast** dipakai
+      checkout & seluruh layar katalog lewat `hooks/use-toast.ts` (3 September),
+      pada jalur berhasil **dan** gagal. **8 September menutup tiga lagi**:
+      `loading.tsx` untuk enam rute yang belum punya (sebelumnya hanya dashboard —
+      rute lain menahan navigasi sementara peramban masih menampilkan halaman
+      sebelumnya, jadi operator tidak bisa membedakan "sedang dimuat" dari
+      "kliknya tidak masuk"), `ListPageSkeleton`, dan **konfirmasi aksi
+      destruktif** (dialog hapus laporan & hapus lokasi). `BusyButton` +
+      `RouteProgress` menutup keluhan yang mendasarinya: **78 tombol** memakai
+      `disabled={pending}` — mati saat ditekan tapi diam, dan mati tanpa berkata
+      apa-apa terbaca sama persis dengan rusak; semuanya tertunda 120ms supaya
+      aksi yang selesai sekejap tidak berkedip. Yang tersisa: halaman staf lain
+      (order, pembayaran, jadwal) masih memakai pesan sebaris, `error.tsx` belum
+      ada, dan banner "Mode offline" menunggu PWA
 - [ ] Token semantik `success`/`warning`/`danger`/`info` terdefinisi tapi hampir tak terpakai
 - [x] **Navy sidebar disatukan ke token (24 Agustus).** `#0b1c30` sebelumnya
       ditulis ulang di lima tempat sementara `--sidebar` justru bernilai hijau dan
@@ -1820,20 +2327,21 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 ## 11. Urutan kejar berikutnya
 
-| #     | Pekerjaan                                                                                            | Kenapa didahulukan                                                                                                                                                                                                                                                                                                                                                                                                                                   | Pemilik       |
-| ----- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| **1** | **Ganti 10 foto stok dengan foto pelaksanaan sungguhan** → `public/images/landing/`                  | Kesepuluh slot **sudah terisi** 28 Agustus, tetapi dengan foto Wikimedia Commons sebagai penahan sementara. Dua sebab menggantinya: **lisensi CC BY-SA menuntut atribusi** yang belum ditelusuri sama sekali, dan galeri yang menjanjikan dokumentasi jauh lebih meyakinkan dengan foto sendiri. Kalimat "bukan foto ilustrasi" menunggu dikembalikan begitu keenam foto galeri asli masuk — instruksinya ada di komentar `GallerySection`           | Pemilik usaha |
-| 2     | **Uji alur penuh di cloud** — _jalankan `full-flow.test.ts` dengan `TEST_DB_URL` diarahkan ke cloud_ | Alurnya sudah terbukti di lokal (§0), jadi yang tersisa membuktikannya di sana. **Butuh keputusan lebih dulu**: tes ini menulis baris, dan cloud sudah berisi 3 order + 2 pembayaran. Pilihannya — pakai project Supabase terpisah untuk staging, atau jalankan di cloud produksi dengan sadar bahwa `inRollback` membatalkan tiap transaksi (tetapi `order_counters` dan sequence tetap maju). Ini pula yang menahan butir Definition of Done (§12) | Bani          |
-| 3     | **`tests/e2e/` masih kosong** (§10)                                                                  | Lapisan yang tersisa sesudah unit + integrasi: alur order → laporan lewat UI sungguhan (`docs/21`). Nilainya kini berbeda dari sebelumnya — rantai databasenya sudah terbukti, jadi e2e tinggal menjaga lapisan yang belum tersentuh: formulir, navigasi, dan unggahan berkas                                                                                                                                                                        | Awalin        |
-| 4     | **Worker pengirim** (sisa Tahap 8)                                                                   | Outbox & alert in-app **selesai 24 Agustus** — peristiwanya kini tercatat dan tidak ada lagi yang terlewat, tetapi pengirimannya masih manual-klik. Yang tersisa: worker yang membaca antrian queued dan benar-benar mengirim. Butuh keputusan kredensial (n8n vs di dalam app) — lihat §6                                                                                                                                                           | Bani          |
-| 5     | **PWA** (kamera, kompresi klien, antrian offline)                                                    | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai vendor di lapangan                                                                                                                                                                                                                                                                                                                                                                        | Awalin        |
-| 6     | **`design.md §8`** — toast, `loading.tsx`/`error.tsx`, `Skeleton`                                    | Celah design system yang paling terasa pengguna; murah dan menyentuh seluruh halaman                                                                                                                                                                                                                                                                                                                                                                 | Awalin        |
-| 7     | Realtime + filter periode dashboard                                                                  | Penyempurnaan, bukan penghalang                                                                                                                                                                                                                                                                                                                                                                                                                      | Awalin        |
-| ~~—~~ | ~~**Push `20260903020000` ke cloud**~~                                                               | **Selesai 3 September** — `db push --dry-run` melaporkan _"Remote database is up to date"_ dan `migration list` menunjukkan **42/42 selaras**. Kesepuluh baris katalog diperiksa utuh sesudahnya lewat jalur `anon`. Bug slug bekas paket terhapus kini tertutup di produksi                                                                                                                                                                         | Bani          |
-| ~~—~~ | ~~**Verifikasi RLS katalog di cloud**~~                                                              | **Selesai 3 September** — diuji sebagai `anon` dengan kunci publik: UPDATE harga, INSERT, DELETE, serta perubahan `tagline`/`meta`/`is_popular`/`show_on_landing` semuanya ditolak, dan tiap penolakan dibuktikan lewat baca ulang (RLS menyaring baris, jadi `200`/`204` bukan tanda lolos). Qurban tetap tidak dipasarkan                                                                                                                          | Bani          |
-| ~~—~~ | ~~**Jalankan `20260821010000` di lokal**~~                                                           | **Selesai 21 Agustus** — 37 migration jalan bersih, terverifikasi lewat jalur `anon` di lokal **dan** cloud (§4)                                                                                                                                                                                                                                                                                                                                     | Bani          |
-| ~~—~~ | ~~**`npm run db:push`**~~                                                                            | **Selesai** — seluruh 37 migration sudah ter-push; `db push --dry-run` melaporkan remote up-to-date, dan inspeksi tabel remote memastikan skema barunya hidup (§1 Tahap 1)                                                                                                                                                                                                                                                                           | Bani          |
-| ~~—~~ | ~~**Putuskan nasib Qurban**~~                                                                        | **Diputuskan 21 Agustus: dicabut dari pemasaran, fokus aqiqah** (§8)                                                                                                                                                                                                                                                                                                                                                                                 | —             |
+| #     | Pekerjaan                                                                                                          | Kenapa didahulukan                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Pemilik       |
+| ----- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| **0** | **Pastikan keadaan cloud: `supabase migration list`** — lalu putuskan push untuk sembilan migration 7–10 September | Pembaruan 3 September mencatat 42/42 selaras; sembilan migration lahir sesudahnya dan **tidak ada satu pun catatan `db push`** untuknya. Sebagian komentar migration menyebut pemeriksaan langsung terhadap produksi, jadi mungkin sebagiannya sudah di sana — dan **yang mana sudah tidak bisa dipastikan dari repo ini**. Dua di antaranya destruktif (`delete from public.documentations`) dengan catatan "produksi nol baris" yang **perlu diulang**, sebab produksi sudah dipakai sejak. Selama ini belum jelas, tiap butir cloud di bawahnya berdiri di atas tanah yang tidak diketahui                   | Bani          |
+| **1** | **Ganti 10 foto stok dengan foto pelaksanaan sungguhan** → `public/images/landing/`                                | Kesepuluh slot **sudah terisi** 28 Agustus, tetapi dengan foto Wikimedia Commons sebagai penahan sementara. Dua sebab menggantinya: **lisensi CC BY-SA menuntut atribusi** yang belum ditelusuri sama sekali, dan galeri yang menjanjikan dokumentasi jauh lebih meyakinkan dengan foto sendiri. **Sejak itu galerinya ikut dicabut dari halaman** (`{/* <GallerySection /> */}`), jadi yang menunggu bukan lagi sekadar mengganti berkas: mengembalikan section-nya satu baris, dan warning lint §10 ikut hilang bersamanya. Kalimat "bukan foto ilustrasi" menunggu dikembalikan di komentar `GallerySection` | Pemilik usaha |
+| 2     | **Uji alur penuh di cloud** — _jalankan `full-flow.test.ts` dengan `TEST_DB_URL` diarahkan ke cloud_               | Alurnya sudah terbukti di lokal (§0), jadi yang tersisa membuktikannya di sana. **Butuh keputusan lebih dulu**: tes ini menulis baris, dan cloud sudah berisi 3 order + 2 pembayaran. Pilihannya — pakai project Supabase terpisah untuk staging, atau jalankan di cloud produksi dengan sadar bahwa `inRollback` membatalkan tiap transaksi (tetapi `order_counters` dan sequence tetap maju). Ini pula yang menahan butir Definition of Done (§12)                                                                                                                                                            | Bani          |
+| 3     | **`tests/e2e/` masih kosong** (§10)                                                                                | Lapisan yang tersisa sesudah unit + integrasi: alur order → laporan lewat UI sungguhan (`docs/21`). Nilainya kini berbeda dari sebelumnya — rantai databasenya sudah terbukti, jadi e2e tinggal menjaga lapisan yang belum tersentuh: formulir, navigasi, dan unggahan berkas                                                                                                                                                                                                                                                                                                                                   | Awalin        |
+| 4     | **Worker pengirim** (sisa Tahap 8)                                                                                 | Outbox & alert in-app **selesai 24 Agustus** — peristiwanya kini tercatat dan tidak ada lagi yang terlewat, tetapi pengirimannya masih manual-klik. Yang tersisa: worker yang membaca antrian queued dan benar-benar mengirim. Butuh keputusan kredensial (n8n vs di dalam app) — lihat §6                                                                                                                                                                                                                                                                                                                      | Bani          |
+| 5     | **PWA** (kamera, kompresi klien, antrian offline)                                                                  | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai vendor di lapangan                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Awalin        |
+| 6     | **`design.md §8`** — toast, `loading.tsx`/`error.tsx`, `Skeleton`                                                  | Celah design system yang paling terasa pengguna; murah dan menyentuh seluruh halaman                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Awalin        |
+| 7     | Realtime + filter periode dashboard                                                                                | Penyempurnaan, bukan penghalang                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Awalin        |
+| ~~—~~ | ~~**Push `20260903020000` ke cloud**~~                                                                             | **Selesai 3 September** — `db push --dry-run` melaporkan _"Remote database is up to date"_ dan `migration list` menunjukkan **42/42 selaras**. Kesepuluh baris katalog diperiksa utuh sesudahnya lewat jalur `anon`. Bug slug bekas paket terhapus kini tertutup di produksi                                                                                                                                                                                                                                                                                                                                    | Bani          |
+| ~~—~~ | ~~**Verifikasi RLS katalog di cloud**~~                                                                            | **Selesai 3 September** — diuji sebagai `anon` dengan kunci publik: UPDATE harga, INSERT, DELETE, serta perubahan `tagline`/`meta`/`is_popular`/`show_on_landing` semuanya ditolak, dan tiap penolakan dibuktikan lewat baca ulang (RLS menyaring baris, jadi `200`/`204` bukan tanda lolos). Qurban tetap tidak dipasarkan                                                                                                                                                                                                                                                                                     | Bani          |
+| ~~—~~ | ~~**Jalankan `20260821010000` di lokal**~~                                                                         | **Selesai 21 Agustus** — 37 migration jalan bersih, terverifikasi lewat jalur `anon` di lokal **dan** cloud (§4)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Bani          |
+| ~~—~~ | ~~**`npm run db:push`**~~                                                                                          | **Selesai** — seluruh 37 migration sudah ter-push; `db push --dry-run` melaporkan remote up-to-date, dan inspeksi tabel remote memastikan skema barunya hidup (§1 Tahap 1)                                                                                                                                                                                                                                                                                                                                                                                                                                      | Bani          |
+| ~~—~~ | ~~**Putuskan nasib Qurban**~~                                                                                      | **Diputuskan 21 Agustus: dicabut dari pemasaran, fokus aqiqah** (§8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | —             |
 
 ---
 
@@ -1857,6 +2365,15 @@ Yang masih menahan centangnya jujur saja bukan lagi soal "apakah kodenya
 bekerja", melainkan dua hal yang tidak bisa digantikan tes: **dijalankan di
 cloud**, dan **dijalankan oleh orang** dengan data sungguhan. Butir 3 dan 5
 memang menunggu itu; butir 4 menunggu Tahap 8.
+
+> **Tambahan 18 September.** Butir 1 sempat lebih jauh dari tercentang daripada
+> yang tertulis di atas: litmus test **tidak terjawab sama sekali bagi akun
+> mitra** sampai 8 September, sebab `v_open_orders` mengembalikan nol baris bagi
+> mereka. Yang tercatat "terbukti di lokal" waktu itu benar — tesnya memang
+> hijau — tetapi tesnya menempuh jalur staf, dan peran yang paling sering membuka
+> halaman itu justru tidak pernah diuji terhadapnya. Pengingat yang berlaku untuk
+> keempat butir sisanya: **terbukti untuk satu peran bukan terbukti untuk
+> semuanya.**
 
 ---
 
