@@ -70,6 +70,8 @@ const RELEVANT_PANELS: Record<OrderStatus, PanelId[]> = {
 const STEP_TITLE: Record<OrderStatus, string> = {
   new: 'Periksa isi pesanan, lalu tandai terverifikasi',
   verified: 'Catat pembayaran masuk dan verifikasi buktinya',
+  // Katering tidak mendaftarkan hewan; kalimatnya disesuaikan di
+  // `deriveNextStep`, bukan di sini — daftar ini per status, bukan per jenis.
   paid: 'Tetapkan mitra pelaksana dan daftarkan hewannya',
   assigned: 'Menunggu mitra mulai mengerjakan tahap lapangan',
   in_progress: 'Validasi laporan tahap yang dikirim mitra',
@@ -99,7 +101,12 @@ export function deriveNextStep(
   ctx: OrderGuardContext,
 ): NextStep {
   const done = status === 'completed' || status === 'cancelled';
-  const panels = RELEVANT_PANELS[status];
+  // Panel `hewan` tidak relevan untuk katering — ia tidak punya hewan untuk
+  // didaftarkan, dan menunjuk ke sana sebagai pekerjaan berikutnya mengirim
+  // admin ke panel yang memang kosong selamanya.
+  const panels = ctx.isCateringOrder
+    ? RELEVANT_PANELS[status].filter((p) => p !== 'hewan')
+    : RELEVANT_PANELS[status];
 
   // Transisi maju saja. `on_hold` dan `cancelled` adalah jalan keluar, bukan
   // langkah berikutnya — menawarkannya sebagai "yang siap dikerjakan" membuat
@@ -111,7 +118,10 @@ export function deriveNextStep(
   const ready = forward.find((o) => o.allowed) ?? null;
 
   return {
-    title: STEP_TITLE[status],
+    title:
+      ctx.isCateringOrder && status === 'paid'
+        ? 'Tetapkan mitra pelaksana'
+        : STEP_TITLE[status],
     panel: panels[0] ?? null,
     blockers: forward.filter((o) => !o.allowed && o.reason).map((o) => o.reason as string),
     readyFor: ready?.to ?? null,

@@ -112,13 +112,13 @@ export function VendorServicePanel({
   /**
    * Satuan pesanan mengikuti jenis paketnya.
    *
-   * Aqiqah dipesan per **ekor**, nasi box per **box** — dan keduanya memang
-   * pesanan yang terpisah: nasi box adalah paket tersendiri dengan harga
-   * sendiri, bukan turunan dari paket aqiqah. Label yang memakai satu satuan
-   * untuk keduanya (seperti "maks 100 box" pada paket aqiqah) menyesatkan
-   * justru karena terbaca masuk akal.
+   * Aqiqah dipesan per **ekor**, nasi box dan katering per **box** — dan
+   * ketiganya pesanan yang terpisah: nasi box tambahan atas pesanan aqiqah,
+   * katering berdiri sendiri, masing-masing dengan harganya sendiri. Label yang
+   * memakai satu satuan untuk semuanya (seperti "maks 100 box" pada paket
+   * aqiqah) menyesatkan justru karena terbaca masuk akal.
    */
-  const unitOf = (type: string) => (type === 'nasi_box' ? 'box' : 'ekor');
+  const unitOf = (type: string) => (type === 'nasi_box' || type === 'katering' ? 'box' : 'ekor');
 
   /**
    * Angka opsional dari medan teks.

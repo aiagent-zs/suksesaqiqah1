@@ -17,11 +17,25 @@ import { join } from 'node:path';
  * **tidak adanya nama yang sudah tidak ada** dipakai sebagai deskripsi.
  */
 describe('docs selaras dengan skema', () => {
+  /**
+   * 09, 16, dan 20 menyusul 21 September.
+   *
+   * Ketiganya luput dari daftar semula dan **basi tiga bulan lebih lama**
+   * daripada 05–08: `16_API_SPEC` masih merancang REST API bergaya
+   * `/api/orders/{id}/status` yang tidak satu pun dibangun, `09_DASHBOARD_SPEC`
+   * masih membagi dashboard per cabang, dan `20_SECURITY_CHECKLIST` masih
+   * mencentang "6 role". Daftar yang tidak lengkap menjaga sebagian dokumen
+   * sambil memberi kesan seluruhnya terjaga — itu lebih buruk daripada tidak
+   * menjaga sama sekali, karena tidak ada yang curiga.
+   */
   const DOCS = [
     '05_DATABASE_DESIGN.md',
     '06_MODULE_BREAKDOWN.md',
     '07_USER_ROLES.md',
     '08_WORKFLOW_MAP.md',
+    '09_DASHBOARD_SPEC.md',
+    '16_API_SPEC.md',
+    '20_SECURITY_CHECKLIST.md',
   ];
 
   /** Nama yang benar-benar dihapus dari database 20 Agustus. */
@@ -102,6 +116,54 @@ describe('docs selaras dengan skema', () => {
     // itulah perubahan yang membuat v1.0 keliru.
     expect(src).toContain('persiapan → sembelih → masak → salur');
     expect(src).toContain('persiapan → sembelih → masak → kirim → terkirim');
+  });
+
+  it('gerbang urutan tahap terbaca `reported`, bukan `validated`', () => {
+    // Dilonggarkan 8 September (20260908040000). Docs sempat tertinggal dan
+    // menyatakan gerbangnya masih di `validated` — pembacanya akan menyimpulkan
+    // mitra harus menunggu admin di tiap tahap, yang sudah tidak benar.
+    const migration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260908040000_stage_order_allow_reported.sql'),
+      'utf8',
+    );
+    expect(migration).toContain("not in ('reported', 'validated')");
+
+    for (const file of ['05_DATABASE_DESIGN.md', '08_WORKFLOW_MAP.md']) {
+      const src = readFileSync(join(process.cwd(), 'docs', file), 'utf8');
+      const salah = barisAktif(src).filter(({ line }) =>
+        /gerbangnya di `validated`|gerbangnya di \*\*`validated`\*\*/.test(line),
+      );
+      expect(salah.map((s) => `${file}:${s.no}`)).toEqual([]);
+    }
+  });
+
+  it('`umum` tidak lagi disebut sebagai nilai doc_stage yang sah', () => {
+    // Dicabut 8 September (20260908020000). Enum di TypeScript ikut menyempit,
+    // jadi dokumen yang masih menawarkannya keliru dua kali: di layar tampak
+    // boleh, di database pasti ditolak.
+    const src = readFileSync(join(process.cwd(), 'docs/05_DATABASE_DESIGN.md'), 'utf8');
+    const salah = barisAktif(src).filter(
+      ({ line }) => /doc_stage/.test(line) && /\+ `umum`|\+ umum/.test(line),
+    );
+    expect(salah.map((s) => s.no)).toEqual([]);
+  });
+
+  it('urutan tahap di SQL dan TypeScript identik', () => {
+    // Kembaran yang paling gampang menyimpang diam-diam: yang di SQL menegakkan
+    // urutan lewat trigger, yang di TypeScript merender stepper.
+    const sql = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260820000400_stage_events.sql'),
+      'utf8',
+    );
+    const ts = readFileSync(join(process.cwd(), 'features/stages/sequence.ts'), 'utf8');
+
+    for (const [mode, stages] of [
+      ['salur', ['persiapan', 'sembelih', 'masak', 'salur']],
+      ['kirim', ['persiapan', 'sembelih', 'masak', 'kirim', 'terkirim']],
+    ] as const) {
+      expect(sql).toContain(`when '${mode}' then array[${stages.map((s) => `'${s}'`).join(',')}]`);
+      expect(ts).toContain(`${mode}: [${stages.map((s) => `'${s}'`).join(', ')}]`);
+    }
   });
 
   it('design.md menyebut pustaka yang benar-benar dipakai', () => {

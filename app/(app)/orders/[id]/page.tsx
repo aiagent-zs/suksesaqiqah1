@@ -317,20 +317,26 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             />
           </PhaseSection>
 
-          {/* --- Hewan --- */}
-          <PhaseSection
-            id="hewan"
-            title="Hewan"
-            active={relevant('hewan')}
-            complete={animals.length > 0}
-            summary={
-              animals.length === 0
-                ? 'Belum ada hewan terdaftar'
-                : `${animals.length} ekor terdaftar`
-            }
-          >
-            <AnimalManager orderId={order.id} animals={animals} canEdit={canEditAnimals} />
-          </PhaseSection>
+          {/* --- Hewan ---
+              Disembunyikan seluruhnya untuk order katering: tidak ada hewan
+              yang disembelih, jadi panelnya akan kosong selamanya. Berbeda dari
+              panel lain yang cukup dilipat ketika "belum waktunya" — yang ini
+              memang tidak akan pernah berisi. */}
+          {!guard.isCateringOrder && (
+            <PhaseSection
+              id="hewan"
+              title="Hewan"
+              active={relevant('hewan')}
+              complete={animals.length > 0}
+              summary={
+                animals.length === 0
+                  ? 'Belum ada hewan terdaftar'
+                  : `${animals.length} ekor terdaftar`
+              }
+            >
+              <AnimalManager orderId={order.id} animals={animals} canEdit={canEditAnimals} />
+            </PhaseSection>
+          )}
 
           {/* --- Tahap pelaksanaan --- */}
           {/* Bukti kini hidup di dalam tiap tahap, jadi kelengkapannya ikut

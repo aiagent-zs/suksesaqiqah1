@@ -111,6 +111,67 @@ export async function assignVendor(tx: postgres.TransactionSql, orderId: string)
   `;
 }
 
+/**
+ * Sisipkan bukti yang menempel pada satu laporan tahap.
+ *
+ * ## Kenapa helper ini ada
+ *
+ * Sejak `20260908030000`, `documentations.stage_event_id` **NOT NULL**: tiap
+ * bukti wajib menunjuk laporan tahap yang dibuktikannya. Bukti yang mengambang
+ * — terikat ke order tapi tidak ke pekerjaan tertentu — tidak bisa dinilai, dan
+ * gerbang kelengkapan ikut menghitungnya sehingga gerbangnya berbohong.
+ *
+ * Lima tes yang lahir sebelum migration itu menyisipkan `documentations`
+ * langsung tanpa `stage_event_id`, dan semuanya patah. Tidak ada yang tahu
+ * selama berminggu-minggu karena Docker tidak hidup di mesin mana pun yang
+ * menjalankannya — inilah harga tes integrasi yang tidak pernah dijalankan.
+ *
+ * `stage` diturunkan dari baris tahapnya, tidak diterima sebagai argumen:
+ * `enforce_documentation_stage_match` menuntut keduanya sama, jadi menerimanya
+ * dari pemanggil hanya membuka jalan untuk salah ketik yang pasti ditolak.
+ *
+ * Cast `::text::public.doc_stage` bukan hiasan: `doc_stage` dan
+ * `fulfilment_stage` adalah **dua tipe enum berbeda** yang nilainya sengaja
+ * dicerminkan, dan Postgres tidak meng-cast otomatis antar enum.
+ */
+export async function attachDoc(
+  tx: postgres.TransactionSql,
+  opts: {
+    orderId: string;
+    stageEventId: string;
+    status?: 'pending' | 'approved' | 'rejected';
+    uploadedBy?: string | null;
+    reviewedBy?: string | null;
+    storagePath?: string;
+  },
+): Promise<string> {
+  const {
+    orderId,
+    stageEventId,
+    status = 'pending',
+    uploadedBy = null,
+    reviewedBy = null,
+    storagePath = 'a/b.webp',
+  } = opts;
+
+  const [doc] = await tx<{ id: string }[]>`
+    insert into public.documentations (
+      order_id, stage_event_id, stage, type, storage_path, status,
+      uploaded_by, reviewed_by, reviewed_at, review_note
+    )
+    select
+      ${orderId}, ${stageEventId}, e.stage::text::public.doc_stage, 'photo', ${storagePath},
+      ${status}::public.doc_status,
+      ${uploadedBy}, ${reviewedBy},
+      ${status === 'pending' ? null : tx`now()`},
+      ${status === 'rejected' ? 'Buktinya kurang jelas' : null}
+    from public.order_stage_events e
+    where e.id = ${stageEventId}
+    returning id
+  `;
+  return doc.id;
+}
+
 /** Daftar tahap sebuah order, terurut sebagaimana gerbang urutan membacanya. */
 export async function stagesOf(tx: postgres.TransactionSql, orderId: string): Promise<StageRow[]> {
   return tx<StageRow[]>`

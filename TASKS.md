@@ -7,12 +7,114 @@
 | Field                            | Value                                                                                                                                                                                                                                                                                                                                                          |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                                                                                                                                     |
-| Diperbarui                       | 2026-09-18                                                                                                                                                                                                                                                                                                                                                     |
+| Diperbarui                       | 2026-09-21                                                                                                                                                                                                                                                                                                                                                     |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                       |
 | Estimasi Phase 1                 | **± 90%** (dari 87% — pelaporan tahap, sertifikat, akun sendiri, & lupa sandi masuk; lihat _Perubahan 8–11 September_)                                                                                                                                                                                                                                         |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ⚠️ **(1 warning — lihat §10)** · `npm run build` ✅ **(23 rute, landing tetap prerender statis)** · **764 unit test hijau (65 file)** · **53 migration** (9 baru sejak pembaruan lalu) · ⚠️ **tes integrasi & migration lokal TIDAK dijalankan pada pembaruan ini — Docker tidak hidup di mesin ini saat pemeriksaan** |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(bersih)** · `npm run build` ✅ **(24 rute, `/checkout/katering` terdaftar, landing tetap prerender statis)** · **798 unit test hijau (66 file)** · **183 tes integrasi hijau (12 file)** — dijalankan pertama kalinya sejak 3 September, dan membongkar 7 tes yang sudah patah sejak 8 September · **56 migration** dijalankan bersih lewat `db reset` · `types/database.ts` di-generate ulang dari database |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
+
+---
+
+## Perubahan 21 September — katering, cloud disamakan, `docs/` disinkronkan
+
+### Pemesanan katering — Tahap 1–5 ditulis
+
+Checkout publik kini melayani **katering tanpa aqiqah** lewat
+`/checkout/katering`. Rute & form terpisah, bukan cabang di `/checkout`:
+pesanan aqiqah melahirkan baris `animals` dan segala yang mengalir darinya,
+katering tidak punya satu pun dari itu.
+
+**Tiga keputusan pemilik** (`docs/29 §2`): tahap `persiapan` dibiarkan;
+bukti masak **tidak wajib** untuk katering; satu order **boleh memuat beberapa
+paket** sekaligus.
+
+K2 tidak dikerjakan dengan menurunkan `stage_requirements.min_docs` — tabel itu
+berlaku global per tahap, jadi menurunkannya akan ikut melepas gerbang bukti
+masak **seluruh order aqiqah yang sudah berjalan**, tanpa satu pun galat.
+Gerbangnya yang diajari membedakan: `missing_doc_stages` melewati `masak` bila
+`is_catering_order(o.id)`.
+
+Yang **tidak** perlu diubah, dan ini temuan paling menghemat: urutan tahap.
+Cabang `sembelih` mengambil barisnya dari tabel hewan, jadi order tanpa hewan
+menghasilkan nol baris sembelih dengan sendirinya → `persiapan → masak → kirim
+→ terkirim`. Nol perubahan pada `fulfilment_sequence()` maupun kembarannya di
+TypeScript.
+
+✅ **Terverifikasi terhadap database.** Ketiga migration jalan bersih lewat
+`db reset`, `types/database.ts` di-generate ulang (suntingan tangan sementara
+tertimpa, sebagaimana mestinya), dan `catering-rpc.test.ts` **19/19 hijau** —
+termasuk yang membuktikan nol baris `animals`, tahapnya persis empat, dan
+`masak` tidak muncul di `missing_doc_stages`.
+
+### Tujuh tes integrasi yang ternyata sudah patah sejak 8 September
+
+Menjalankan `test:integration` untuk pertama kalinya sejak Docker hidup
+membongkar kerusakan yang **tidak ada hubungannya dengan katering**:
+
+| Berkas | Patah | Sebab |
+| --- | ---: | --- |
+| `notification-outbox` | 5 | Menyisipkan `documentations` tanpa `stage_event_id` |
+| `rls` | 1 | Sama |
+| `full-flow` | 1 | Sama |
+
+Ketiganya lahir sebelum `20260908030000` membuat `stage_event_id` NOT NULL, dan
+**tidak ada yang tahu selama dua pekan** karena tes integrasi tidak pernah
+dijalankan — `TASKS.md` mencatatnya "TIDAK dijalankan" pada tiga pembaruan
+berturut-turut.
+
+Diperbaiki lewat satu helper baru `attachDoc()` di `helpers/fixtures.ts`, yang
+menurunkan `stage` dari baris tahapnya (cermin `enforce_documentation_stage_match`)
+dan meng-cast antar enum — `doc_stage` & `fulfilment_stage` bernilai sama tapi
+bertipe beda, dan Postgres tidak meng-cast otomatis.
+
+> **Pelajaran yang sama bentuknya dengan daftar `DOCS` yang tidak lengkap:**
+> penjaga yang tidak pernah dijalankan bukan penjaga. Ia memberi kesan terjaga
+> sambil membiarkan kerusakan menumpuk — dan makin lama tidak dijalankan, makin
+> sulit membedakan mana yang rusak karena pekerjaan hari ini dan mana yang sudah
+> rusak sejak dulu.
+
+### Cloud & dokumentasi
+
+**Cloud: 53/53 tercatat, skema terverifikasi, data utuh.** Prioritas 0 (§11)
+tuntas — rinciannya di §11 beserta catatan push yang layak dibaca sebelum
+`db push` berikutnya.
+
+### Sinkronisasi `docs/` ke kode
+
+Tidak ada perubahan perilaku. Yang dikerjakan: menelusuri seluruh migration sejak
+reset 20 Agustus dan alur checkout end-to-end, lalu membetulkan `docs/` yang
+tertinggal di belakangnya.
+
+**Yang diperbaiki — docs salah, kode benar:**
+
+| Dokumen | Yang salah                                                            |
+| ------- | --------------------------------------------------------------------- |
+| `05`    | Gerbang tahap masih `validated`; `doc_stage` masih memuat `umum`; "35 fungsi, 41 trigger" (sebenarnya 40/46); "42 migration, 42/42 di cloud" |
+| `07`    | Tiga kebocoran akun mitra (8 Sept) tidak tercatat; `locations` masih superadmin-only |
+| `08`    | Gerbang tahap masih `validated`; aktor `terkirim` tertulis pembeli (sebenarnya vendor melapor, pembeli mengonfirmasi terpisah) |
+| `09`    | Masih membagi dashboard per cabang & lima role — yang dibangun satu dashboard yang isinya ditentukan RLS |
+| `16`    | **Merancang REST API yang tidak pernah dibangun.** Hanya 2 route handler ada; kontraknya 54 Server Action |
+| `20`    | Masih mencentang "6 role" dan scoping `branch_id`                     |
+
+**Dua komentar kode yang menyesatkan** ikut dibetulkan: `server/actions/checkout.ts`
+dan `features/checkout/schema.ts` masih menerangkan `branch_id`/`branches.is_default`
+sebagai perilaku berjalan, padahal tabelnya dihapus 20 Agustus.
+
+**Penjaga diperluas** (`tests/unit/docs-schema-sync.test.ts`, 11 → 17 tes): daftar
+`DOCS` kini memuat `09`, `16`, `20` — ketiganya luput dari daftar semula dan
+karena itu basi tiga bulan lebih lama daripada 05–08. Tiga pemeriksaan baru
+menjaga gerbang tahap, pencabutan `umum`, dan kembaran urutan tahap SQL ↔ TypeScript.
+
+> **Pelajaran yang layak dicatat:** daftar penjaga yang tidak lengkap lebih buruk
+> daripada tidak ada penjaga — ia menjaga sebagian sambil memberi kesan seluruhnya
+> terjaga, jadi tidak ada yang curiga.
+
+**Belum dikerjakan (utang yang sengaja ditinggal):** 17 dokumen masih v1.0 (14 Juni)
+berstatus Draft — `01`–`04`, `10`–`15`, `17`–`19`, `21`–`25`. Sebagian menggambarkan
+rencana yang memang belum dibangun (PWA, AI Layer, chatbot), jadi basinya tidak
+menyesatkan dengan cara yang sama. Yang paling layak menyusul: **`10_DOCUMENTATION_FLOW`**
+(masih validasi dua tingkat) dan **`15_PAGE_MAP`** (masih rute per cabang).
 
 ---
 
@@ -2329,9 +2431,9 @@ Tiga role tetap: **superadmin · admin · vendor**.
 
 | #     | Pekerjaan                                                                                                          | Kenapa didahulukan                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Pemilik       |
 | ----- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| **0** | **Pastikan keadaan cloud: `supabase migration list`** — lalu putuskan push untuk sembilan migration 7–10 September | Pembaruan 3 September mencatat 42/42 selaras; sembilan migration lahir sesudahnya dan **tidak ada satu pun catatan `db push`** untuknya. Sebagian komentar migration menyebut pemeriksaan langsung terhadap produksi, jadi mungkin sebagiannya sudah di sana — dan **yang mana sudah tidak bisa dipastikan dari repo ini**. Dua di antaranya destruktif (`delete from public.documentations`) dengan catatan "produksi nol baris" yang **perlu diulang**, sebab produksi sudah dipakai sejak. Selama ini belum jelas, tiap butir cloud di bawahnya berdiri di atas tanah yang tidak diketahui                   | Bani          |
-| **1** | **Ganti 10 foto stok dengan foto pelaksanaan sungguhan** → `public/images/landing/`                                | Kesepuluh slot **sudah terisi** 28 Agustus, tetapi dengan foto Wikimedia Commons sebagai penahan sementara. Dua sebab menggantinya: **lisensi CC BY-SA menuntut atribusi** yang belum ditelusuri sama sekali, dan galeri yang menjanjikan dokumentasi jauh lebih meyakinkan dengan foto sendiri. **Sejak itu galerinya ikut dicabut dari halaman** (`{/* <GallerySection /> */}`), jadi yang menunggu bukan lagi sekadar mengganti berkas: mengembalikan section-nya satu baris, dan warning lint §10 ikut hilang bersamanya. Kalimat "bukan foto ilustrasi" menunggu dikembalikan di komentar `GallerySection` | Pemilik usaha |
-| 2     | **Uji alur penuh di cloud** — _jalankan `full-flow.test.ts` dengan `TEST_DB_URL` diarahkan ke cloud_               | Alurnya sudah terbukti di lokal (§0), jadi yang tersisa membuktikannya di sana. **Butuh keputusan lebih dulu**: tes ini menulis baris, dan cloud sudah berisi 3 order + 2 pembayaran. Pilihannya — pakai project Supabase terpisah untuk staging, atau jalankan di cloud produksi dengan sadar bahwa `inRollback` membatalkan tiap transaksi (tetapi `order_counters` dan sequence tetap maju). Ini pula yang menahan butir Definition of Done (§12)                                                                                                                                                            | Bani          |
+| ~~**0**~~ | ~~**Pastikan keadaan cloud**~~                                                                                  | **Selesai 21 September.** `supabase db push` dijalankan; cloud kini **53/53 tercatat** dan skemanya terverifikasi selaras lewat sebelas penanda: `vendors` & `order_stage_events` ada, `doc_stage` tanpa `umum`, `documentations.stage_event_id` NOT NULL, gerbang tahap `reported`, `locations_insert` ada, `v_open_orders` LEFT JOIN, `child_photo_path` ada, `booking_min_days` = 1, profil superadmin hidup. **Data produksi utuh** — 4 order, 2 pembayaran, 15 peserta, 7 dokumentasi, 3 laporan, `regions` 91.599. Lihat catatan push di bawah tabel ini | Bani          |
+| **1** | **Uji alur penuh di cloud** — _jalankan `full-flow.test.ts` dengan `TEST_DB_URL` diarahkan ke cloud_               | Naik dari #2 setelah §0 tuntas — **inilah sekarang yang menahan tiga dari lima butir Definition of Done** (§12). Alurnya sudah terbukti di lokal, yang tersisa membuktikannya di sana. **Butuh keputusan lebih dulu**: tes ini menulis baris, dan cloud sudah berisi 4 order + 2 pembayaran sungguhan. Pilihannya — pakai project Supabase terpisah untuk staging, atau jalankan di produksi dengan sadar bahwa `inRollback` membatalkan tiap transaksi (tetapi `order_counters` dan sequence tetap maju). **Ingat pelajaran 18 September**: terbukti untuk satu peran bukan terbukti untuk semuanya — jalankan juga sebagai akun mitra | Bani          |
+| **2** | **Ganti 10 foto stok dengan foto pelaksanaan sungguhan** → `public/images/landing/`                                | Kesepuluh slot **sudah terisi** 28 Agustus, tetapi dengan foto Wikimedia Commons sebagai penahan sementara. Dua sebab menggantinya: **lisensi CC BY-SA menuntut atribusi** yang belum ditelusuri sama sekali, dan galeri yang menjanjikan dokumentasi jauh lebih meyakinkan dengan foto sendiri. **Sejak itu galerinya ikut dicabut dari halaman** (`{/* <GallerySection /> */}`), jadi yang menunggu bukan lagi sekadar mengganti berkas: mengembalikan section-nya satu baris, dan warning lint §10 ikut hilang bersamanya. Kalimat "bukan foto ilustrasi" menunggu dikembalikan di komentar `GallerySection` | Pemilik usaha |
 | 3     | **`tests/e2e/` masih kosong** (§10)                                                                                | Lapisan yang tersisa sesudah unit + integrasi: alur order → laporan lewat UI sungguhan (`docs/21`). Nilainya kini berbeda dari sebelumnya — rantai databasenya sudah terbukti, jadi e2e tinggal menjaga lapisan yang belum tersentuh: formulir, navigasi, dan unggahan berkas                                                                                                                                                                                                                                                                                                                                   | Awalin        |
 | 4     | **Worker pengirim** (sisa Tahap 8)                                                                                 | Outbox & alert in-app **selesai 24 Agustus** — peristiwanya kini tercatat dan tidak ada lagi yang terlewat, tetapi pengirimannya masih manual-klik. Yang tersisa: worker yang membaca antrian queued dan benar-benar mengirim. Butuh keputusan kredensial (n8n vs di dalam app) — lihat §6                                                                                                                                                                                                                                                                                                                      | Bani          |
 | 5     | **PWA** (kamera, kompresi klien, antrian offline)                                                                  | Dokumentasi sudah bisa diunggah, tapi belum nyaman dipakai vendor di lapangan                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Awalin        |
@@ -2343,11 +2445,47 @@ Tiga role tetap: **superadmin · admin · vendor**.
 | ~~—~~ | ~~**`npm run db:push`**~~                                                                                          | **Selesai** — seluruh 37 migration sudah ter-push; `db push --dry-run` melaporkan remote up-to-date, dan inspeksi tabel remote memastikan skema barunya hidup (§1 Tahap 1)                                                                                                                                                                                                                                                                                                                                                                                                                                      | Bani          |
 | ~~—~~ | ~~**Putuskan nasib Qurban**~~                                                                                      | **Diputuskan 21 Agustus: dicabut dari pemasaran, fokus aqiqah** (§8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | —             |
 
+> **Catatan push 21 September — `db push` menawarkan SELURUH 53 berkas, bukan 3.**
+>
+> Pembukuan `supabase_migrations.schema_migrations` di cloud ternyata **kosong**,
+> padahal skemanya sudah maju. CLI karena itu menganggap tidak ada satu pun
+> migration pernah dijalankan, dan menawarkan seluruh riwayat — termasuk
+> `20260820000000_reset_keep_regions.sql` yang men-`drop table` seluruh tabel
+> operasional. Daftar persetujuannya bahkan memuat `20260908010000` dan
+> `20260908020000` **dua kali**.
+>
+> **Data selamat**, dan alasannya layak dicatat: daftar `drop table` pada reset
+> itu berisi skema **lama**, sementara `vendors`, `vendor_services`,
+> `order_stage_events`, dan `stage_requirements` lahir sesudahnya. Tabel-tabel
+> itu tersisa, penjaga di akhir berkas (`raise exception 'Reset tidak bersih'`)
+> menyalak, dan **satu berkas migration = satu transaksi** membatalkan seluruh
+> drop. Penjaga itu ditulis untuk alasan lain; hari itu ia mencegah kehilangan
+> data produksi.
+>
+> **Aturan yang berlaku mulai sekarang:**
+>
+> 1. **Jalankan `supabase migration list` SEBELUM `db push`**, selalu. Ia membaca
+>    pembukuan; `db push` hanya menyimpulkan dari selisih.
+> 2. **Jangan jawab "Yes" bila daftarnya lebih panjang dari yang diharapkan.**
+>    Daftar panjang berarti pembukuannya tidak sinkron — bukan berarti ada banyak
+>    pekerjaan tertunda. Yang benar: `supabase migration repair --status applied
+>    <versi>` untuk yang sebetulnya sudah jalan, baru push sisanya.
+> 3. **Gejala bukan pembukuan.** Sempat disimpulkan dari galat
+>    `invalid input value for enum doc_stage: "umum"` bahwa `20260908020000`
+>    sudah ter-push — kesimpulannya kebetulan benar, metodenya tidak. Enum bisa
+>    berubah lewat jalur lain, dan pembukuan bisa kosong meski skemanya maju.
+>    Persis itu yang terjadi di sini.
+>
+> **Belum terjelaskan:** kenapa pembukuannya kosong padahal pembaruan 3 September
+> mencatat `migration list` menunjukkan 42/42. Tidak mendesak — keadaan sekarang
+> sudah benar dan tercatat 53/53 — tetapi kalau terulang, itu petunjuk ada yang
+> me-reset tabel pembukuan di luar alur `db push`.
+
 ---
 
 ## 12. Definition of Done — Phase 1
 
-- [ ] Litmus test terjawab < 10 detik di dashboard — terbukti di lokal (§0), **belum di cloud**
+- [ ] Litmus test terjawab < 10 detik di dashboard — terbukti di lokal (§0); **skema cloud kini selaras (21 Sept)**, tetapi belum dibuka orang sungguhan di sana
 - [ ] 1 pilot jalan end-to-end: order → pembayaran → penugasan mitra → tahapan lapangan → dokumentasi → laporan → konfirmasi terkirim — **rantainya terbukti utuh di lokal** lewat `full-flow.test.ts` (kedua percabangan, 24 Agustus); yang kurang: dijalankan di cloud oleh orang sungguhan
 - [ ] ≥ 95% order selesai punya dokumentasi tervalidasi — butuh data operasional, bukan kode
 - [ ] Laporan terkirim otomatis ke peserta via link unik — bergantung Tahap 8

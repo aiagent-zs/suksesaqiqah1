@@ -19,6 +19,7 @@ function ctx(overrides: Partial<OrderGuardContext> = {}): OrderGuardContext {
     hasVendor: true,
     hasSchedule: true,
     animalsTotal: 2,
+    isCateringOrder: false,
     stagesTotal: 5,
     stagesReported: 0,
     stagesValidated: 5,

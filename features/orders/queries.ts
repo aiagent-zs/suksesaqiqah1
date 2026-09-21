@@ -347,6 +347,9 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       hasVendor: r.vendor_id !== null,
       hasSchedule: schedule !== null,
       animalsTotal: Number(progress?.animals_total ?? 0),
+      // Diturunkan dari item yang sudah dimuat query di atas, bukan query
+      // tambahan — cermin `public.is_catering_order()` di database.
+      isCateringOrder: (r.items ?? []).some((i) => i.service?.type === 'katering'),
       stagesTotal: Number(progress?.stages_total ?? 0),
       stagesReported: Number(progress?.stages_reported ?? 0),
       stagesValidated: Number(progress?.stages_validated ?? 0),

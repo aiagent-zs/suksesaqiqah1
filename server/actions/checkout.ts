@@ -81,8 +81,6 @@ export async function createGuestOrderAction(
         address: data.address || null,
       },
       service_id: data.service_id,
-      // `branch_id` sengaja tidak dikirim: pemilih wilayah dicabut dari form,
-      // dan RPC menjatuhkannya ke `branches.is_default`.
       species: data.species,
       qty: data.qty,
       aqiqah_for: data.aqiqah_for,

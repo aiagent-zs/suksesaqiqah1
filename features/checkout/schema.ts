@@ -118,12 +118,12 @@ export const guestCheckoutSchema = z
     service_id: uuid,
 
     /**
-     * Cabang **tidak** ada di sini, dan itu disengaja.
+     * Mitra pelaksana **tidak** ada di sini, dan itu disengaja.
      *
-     * Pemilih wilayah layanan dihapus dari form (19 Agustus 2026);
-     * `orders.branch_id` tetap NOT NULL, jadi cabangnya ditentukan
-     * `create_guest_order` dari `branches.is_default`. Menerimanya dari form
-     * berarti pengunjung anonim bisa menyetir order ke cabang mana pun.
+     * `orders.vendor_id` diisi admin sesudah verifikasi (`assignVendor`), bukan
+     * dipilih pemesan. Ia sekaligus gerbang akses data — menerimanya dari form
+     * berarti pengunjung anonim bisa menentukan mitra mana yang berhak membaca
+     * ordernya. `branches` sendiri sudah dihapus 20 Agustus 2026.
      */
 
     /** Tahap 1 — dasar anjuran jumlah ekor (2 laki-laki, 1 perempuan). */

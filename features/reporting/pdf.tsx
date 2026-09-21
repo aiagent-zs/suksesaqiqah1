@@ -194,12 +194,19 @@ export function ReportDocument({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Status Pelaksanaan</Text>
           <View style={styles.statusRow}>
-            <Text style={styles.statusPill}>
-              Dipotong {data.progress.animalsSlaughtered}/{data.progress.animalsTotal} ekor
-            </Text>
-            <Text style={styles.statusPill}>
-              Distribusi {data.progress.animalsDistributed}/{data.progress.animalsTotal} ekor
-            </Text>
+            {/* Pil per-ekor hanya untuk pesanan yang memang punya hewan —
+                katering selalu 0/0, dan mencetak "Dipotong 0/0 ekor" pada
+                laporan yang diterima pembeli terbaca seperti kelalaian. */}
+            {data.progress.animalsTotal > 0 && (
+              <>
+                <Text style={styles.statusPill}>
+                  Dipotong {data.progress.animalsSlaughtered}/{data.progress.animalsTotal} ekor
+                </Text>
+                <Text style={styles.statusPill}>
+                  Distribusi {data.progress.animalsDistributed}/{data.progress.animalsTotal} ekor
+                </Text>
+              </>
+            )}
             <Text style={styles.statusPill}>
               {data.progress.stagesValidated}/{data.progress.stagesTotal} tahap tervalidasi
             </Text>

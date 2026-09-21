@@ -36,12 +36,15 @@ describe('createServiceSchema', () => {
   });
 
   it('menolak jenis di luar enum service_type', () => {
-    const result = createServiceSchema.safeParse({ ...VALID, type: 'katering' });
+    // `katering` dulu dipakai sebagai contoh jenis yang tidak ada — ia menjadi
+    // nilai enum yang sah pada 21 September, jadi contohnya diganti yang
+    // memang tidak pernah ada.
+    const result = createServiceSchema.safeParse({ ...VALID, type: 'laundry' });
     expect(result.success).toBe(false);
   });
 
-  it('menerima keempat jenis yang ada di enum', () => {
-    for (const type of ['aqiqah', 'qurban', 'sedekah_daging', 'nasi_box']) {
+  it('menerima kelima jenis yang ada di enum', () => {
+    for (const type of ['aqiqah', 'qurban', 'sedekah_daging', 'nasi_box', 'katering']) {
       expect(createServiceSchema.safeParse({ ...VALID, type }).success).toBe(true);
     }
   });

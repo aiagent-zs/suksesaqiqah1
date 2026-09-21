@@ -18,7 +18,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { actAs, actAsOwner, expectFailureInSavepoint, inRollback, isReady } from './helpers/db';
-import { SEED } from './helpers/fixtures';
+import { SEED, assignVendor, attachDoc, makePaidOrder, stagesOf } from './helpers/fixtures';
 import type postgres from 'postgres';
 
 const SERVICE_AQIQAH = 'a2000000-0000-4000-8000-000000000002';
@@ -449,28 +449,20 @@ describe('gerbang bukti dokumentasi', () => {
   it('menolak pengunggah menyetujui buktinya sendiri', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
-      const [order] = await tx<{ id: string }[]>`
-        insert into public.orders (
-          participant_id, vendor_id, status, payment_status, total_amount, paid_amount,
-          distribution_mode, aqiqah_for, requested_date, requested_time,
-          guest_verified_at, guest_verified_by
-        ) values (
-          ${SEED.participant}, ${SEED.vendorA}, 'paid'::public.order_status,
-          'paid'::public.payment_status, 2800000, 2800000,
-          'salur'::public.distribution_mode, 'laki_laki', current_date + 3, '09:00',
-          now(), ${SEED.admin}
-        ) returning id
-      `;
+      // Lewat fixture, bukan INSERT manual: sejak `20260908030000` bukti wajib
+      // menempel pada satu laporan tahap, dan baris tahap `sembelih` hanya
+      // terbit untuk order yang benar-benar punya hewan.
+      const { orderId } = await makePaidOrder(tx, { mode: 'salur', vendorId: SEED.vendorA });
+      await assignVendor(tx, orderId);
+      const sembelih = (await stagesOf(tx, orderId)).find((s) => s.stage === 'sembelih');
 
       await actAs(tx, SEED.vendorUserA);
-      const [doc] = await tx<{ id: string }[]>`
-        insert into public.documentations (
-          order_id, stage, type, storage_path, uploaded_by
-        ) values (
-          ${order.id}, 'sembelih'::public.doc_stage, 'photo'::public.doc_type,
-          ${'2026/08/uji/sembelih.jpg'}, ${SEED.vendorUserA}
-        ) returning id
-      `;
+      const docId = await attachDoc(tx, {
+        orderId,
+        stageEventId: sembelih!.id,
+        uploadedBy: SEED.vendorUserA,
+        storagePath: '2026/08/uji/sembelih.jpg',
+      });
 
       const selfApprove = await expectFailureInSavepoint(
         tx,
@@ -478,7 +470,7 @@ describe('gerbang bukti dokumentasi', () => {
           update public.documentations set
             status = 'approved'::public.doc_status,
             reviewed_by = ${SEED.vendorUserA}, reviewed_at = now()
-          where id = ${doc.id}
+          where id = ${docId}
         `,
       );
       expect(selfApprove.message).toMatch(/sendiri|pengunggah|validasi/i);

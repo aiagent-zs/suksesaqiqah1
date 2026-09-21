@@ -31,7 +31,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { actAs, actAsOwner, expectFailureInSavepoint, inRollback, isReady } from './helpers/db';
-import { SEED, makePaidOrder } from './helpers/fixtures';
+import { SEED, assignVendor, attachDoc, makePaidOrder, stagesOf } from './helpers/fixtures';
 import type postgres from 'postgres';
 
 beforeAll(async () => {
@@ -333,20 +333,24 @@ describe('penghapusan berhenti di superadmin', () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
       const { orderId } = await makePaidOrder(tx, { mode: 'salur', vendorId: SEED.vendorA });
-      const [doc] = await tx<{ id: string }[]>`
-        insert into public.documentations (
-          order_id, stage, type, storage_path, uploaded_by, status, reviewed_by, reviewed_at
-        ) values (
-          ${orderId}, 'sembelih'::public.doc_stage, 'photo'::public.doc_type,
-          ${'2026/08/uji/tetap.jpg'}, ${SEED.vendorUserA},
-          'approved'::public.doc_status, ${SEED.admin}, now()
-        ) returning id
-      `;
+
+      // Tahapnya diterbitkan lebih dulu: sejak `20260908030000`, bukti wajib
+      // menempel pada satu laporan tahap (`stage_event_id` NOT NULL).
+      await assignVendor(tx, orderId);
+      const sembelih = (await stagesOf(tx, orderId)).find((s) => s.stage === 'sembelih');
+      const docId = await attachDoc(tx, {
+        orderId,
+        stageEventId: sembelih!.id,
+        status: 'approved',
+        uploadedBy: SEED.vendorUserA,
+        reviewedBy: SEED.admin,
+        storagePath: '2026/08/uji/tetap.jpg',
+      });
 
       // `status <> 'approved'` di policy: bukti yang sudah dipakai laporan
       // peserta tidak boleh lenyap, bahkan oleh superadmin.
       await actAs(tx, SEED.superadmin);
-      expect((await tx`delete from public.documentations where id = ${doc.id}`).count).toBe(0);
+      expect((await tx`delete from public.documentations where id = ${docId}`).count).toBe(0);
     });
   });
 

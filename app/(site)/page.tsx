@@ -12,6 +12,7 @@ import {
 import {
   getLandingCatalogue,
   type LandingBox,
+  type LandingCatering,
   type LandingProgram,
 } from '@/features/landing/catalogue';
 import { formatIDR } from '@/lib/format/currency';
@@ -28,18 +29,18 @@ export const metadata: Metadata = {
 const orderMessage = (paket?: string) =>
   `Halo Sukses Aqiqah, saya ingin memesan${paket ? ` paket ${paket}` : ' layanan'}.`;
 export default async function LandingPage() {
-  const { programs, boxes } = await getLandingCatalogue();
+  const { programs, boxes, catering } = await getLandingCatalogue();
 
   return (
     <>
       <JsonLd />
       <Hero />
       <ServicesSection />
-      <PackagesSection programs={programs} boxes={boxes} />
+      <PackagesSection programs={programs} boxes={boxes} catering={catering} />
       <ProcessSection />
       {/* Galeri tepat setelah Proses: bagian itu menjanjikan tiap tahap
           terdokumentasi, dan galerilah buktinya. */}
-      {/* <GallerySection /> */}
+      <GallerySection />
       <FeaturesSection />
       <FaqSection />
       <CtaSection />
@@ -229,14 +230,22 @@ function ServicesSection() {
 /* ------------------------------------------------------------------ */
 /* Paket & Harga                                                       */
 /* ------------------------------------------------------------------ */
-function PackagesSection({ programs, boxes }: { programs: LandingProgram[]; boxes: LandingBox[] }) {
+function PackagesSection({
+  programs,
+  boxes,
+  catering,
+}: {
+  programs: LandingProgram[];
+  boxes: LandingBox[];
+  catering: LandingCatering[];
+}) {
   // Katalog kosong berarti database tak terjangkau (query-nya mengembalikan
   // daftar kosong alih-alih melempar). Section-nya disembunyikan seluruhnya:
   // judul "Harga sudah termasuk seluruh prosesnya" di atas ruang kosong
   // terbaca sebagai halaman rusak, sementara tanpanya halaman tetap utuh —
   // hero, proses, galeri, dan jalan menghubungi lewat WhatsApp semuanya tetap
   // ada.
-  if (programs.length === 0 && boxes.length === 0) return null;
+  if (programs.length === 0 && boxes.length === 0 && catering.length === 0) return null;
 
   return (
     <Section bg="tinted" id="paket" index="02" eyebrow="Paket & Harga">
@@ -382,6 +391,67 @@ function PackagesSection({ programs, boxes }: { programs: LandingProgram[]; boxe
           ))}
         </ul>
       </Reveal>
+
+      {/* Katering — pesanan yang BERDIRI SENDIRI, berbeda dari nasi box di
+          atas yang menempel pada paket aqiqah. Itulah kenapa tombolnya menuju
+          form sendiri (`/checkout/katering`) alih-alih WhatsApp: RPC
+          `create_catering_order` memang melayaninya langsung.
+
+          Blok ini hilang seluruhnya bila belum ada paket katering yang
+          dipasarkan — bagian kosong bertajuk "Katering" terbaca sebagai
+          halaman rusak, sementara tanpanya halaman tetap utuh. */}
+      {catering.length > 0 && (
+        <Reveal
+          anim="scale"
+          className="mt-6 rounded-lg border border-neutral-200 bg-white p-5 sm:p-8"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-xl">
+              <h3 className="text-base font-semibold text-neutral-900">
+                Katering acara{' '}
+                <span className="font-normal text-neutral-500">— tanpa aqiqah</span>
+              </h3>
+              <p className="mt-1.5 text-sm leading-6 text-neutral-600">
+                Nasi kotak dan prasmanan untuk pengajian, rapat, dan syukuran. Dipesan sendiri,
+                tidak perlu memesan aqiqah lebih dulu.
+              </p>
+            </div>
+            <Link
+              href="/checkout/katering"
+              className="bg-primary hover:bg-primary-dark inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98]"
+            >
+              Pesan katering
+              <IconArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <ul className="mt-6 grid gap-3 border-t border-neutral-100 pt-6 sm:mt-7 sm:grid-cols-2 lg:grid-cols-3">
+            {catering.map((pkg) => (
+              <li
+                key={pkg.slug}
+                className={`rounded-lg border p-4 ${
+                  pkg.popular ? 'border-primary/30 bg-primary/3' : 'border-neutral-200'
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <h4 className="text-sm font-semibold text-neutral-900">
+                    {pkg.name}
+                    {pkg.popular && (
+                      <span className="bg-primary/10 text-primary ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                        Favorit
+                      </span>
+                    )}
+                  </h4>
+                  <p className="text-sm font-semibold text-neutral-900 tabular-nums">
+                    {formatIDR(pkg.price)}
+                  </p>
+                </div>
+                <p className="mt-1.5 text-xs leading-5 text-neutral-600">{pkg.items.join(', ')}</p>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+      )}
     </Section>
   );
 }
@@ -516,7 +586,7 @@ function GallerySection() {
 /* ------------------------------------------------------------------ */
 function FeaturesSection() {
   return (
-    <Section bg="tinted" id="keunggulan" index="04" eyebrow="Kenapa Kami">
+    <Section bg="tinted" id="keunggulan" index="05" eyebrow="Kenapa Kami">
       <SectionIntro
         title="Ibadah yang bisa Anda telusuri"
         lead="Bukan sekadar jasa potong hewan — setiap tahapnya tercatat, tervalidasi, dan bisa Anda periksa kembali."
@@ -547,7 +617,7 @@ function FeaturesSection() {
 /* ------------------------------------------------------------------ */
 function FaqSection() {
   return (
-    <Section bg="grid" id="faq" index="05" eyebrow="FAQ">
+    <Section bg="grid" id="faq" index="06" eyebrow="FAQ">
       <SectionIntro
         title="Pertanyaan yang sering diajukan"
         lead="Belum menemukan jawabannya? Hubungi kami langsung via WhatsApp."

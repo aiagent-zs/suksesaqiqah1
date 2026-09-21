@@ -14,6 +14,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { actAsOwner, inRollback, isReady } from './helpers/db';
 import {
   SEED,
+  attachDoc,
   makePaidOrder,
   assignVendor,
   stagesOf,
@@ -21,6 +22,21 @@ import {
   validateStage,
 } from './helpers/fixtures';
 import type postgres from 'postgres';
+
+/**
+ * Order yang tahapnya sudah terbit, beserta id tahap `persiapan`-nya.
+ *
+ * Dibutuhkan sejak `20260908030000` mewajibkan `documentations.stage_event_id`:
+ * bukti tidak bisa lagi disisipkan sebelum mitra ditugaskan, sebab baris tahap
+ * baru terbit di situ. Itu konsekuensi yang diterima dengan sadar oleh
+ * migration tersebut, bukan efek samping.
+ */
+async function orderWithStage(tx: postgres.TransactionSql) {
+  const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+  await assignVendor(tx, orderId);
+  const [persiapan] = await stagesOf(tx, orderId);
+  return { orderId, stageEventId: persiapan.id };
+}
 
 type Notif = {
   id: string;
@@ -51,12 +67,9 @@ describe('outbox — bukti dokumentasi', () => {
   it('unggahan bukti menerbitkan satu notifikasi untuk admin', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
-      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+      const { orderId, stageEventId } = await orderWithStage(tx);
 
-      await tx`
-        insert into public.documentations (order_id, stage, type, storage_path, status)
-        values (${orderId}, 'persiapan', 'photo', 'a/b.webp', 'pending')
-      `;
+      await attachDoc(tx, { orderId, stageEventId });
 
       const rows = await notifsOf(tx, orderId);
       const uploaded = rows.filter((r) => r.template === 'documentation_uploaded');
@@ -74,17 +87,13 @@ describe('outbox — bukti dokumentasi', () => {
     // ditolak menerbitkan pesan kedua ke vendor yang sama.
     await inRollback(async (tx) => {
       await actAsOwner(tx);
-      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+      const { orderId, stageEventId } = await orderWithStage(tx);
 
-      const [doc] = await tx<{ id: string }[]>`
-        insert into public.documentations (order_id, stage, type, storage_path, status)
-        values (${orderId}, 'persiapan', 'photo', 'a/b.webp', 'pending')
-        returning id
-      `;
+      const docId = await attachDoc(tx, { orderId, stageEventId });
 
-      await tx`update public.documentations set status='rejected', review_note='buram' where id=${doc.id}`;
-      await tx`update public.documentations set caption='koreksi' where id=${doc.id}`;
-      await tx`update public.documentations set status='rejected', review_note='masih buram' where id=${doc.id}`;
+      await tx`update public.documentations set status='rejected', review_note='buram' where id=${docId}`;
+      await tx`update public.documentations set caption='koreksi' where id=${docId}`;
+      await tx`update public.documentations set status='rejected', review_note='masih buram' where id=${docId}`;
 
       const rejected = (await notifsOf(tx, orderId)).filter(
         (r) => r.template === 'documentation_rejected',
@@ -99,14 +108,10 @@ describe('outbox — bukti dokumentasi', () => {
   it('bukti yang disetujui tidak menerbitkan notifikasi penolakan', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
-      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+      const { orderId, stageEventId } = await orderWithStage(tx);
 
-      const [doc] = await tx<{ id: string }[]>`
-        insert into public.documentations (order_id, stage, type, storage_path, status)
-        values (${orderId}, 'persiapan', 'photo', 'a/b.webp', 'pending')
-        returning id
-      `;
-      await tx`update public.documentations set status='approved' where id=${doc.id}`;
+      const docId = await attachDoc(tx, { orderId, stageEventId });
+      await tx`update public.documentations set status='approved' where id=${docId}`;
 
       const rows = await notifsOf(tx, orderId);
       expect(rows.some((r) => r.template === 'documentation_rejected')).toBe(false);
@@ -259,12 +264,9 @@ describe('outbox — penandaan sudah ditangani', () => {
   it('penandaan kedua tidak menggeser sent_at', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
-      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+      const { orderId, stageEventId } = await orderWithStage(tx);
 
-      await tx`
-        insert into public.documentations (order_id, stage, type, storage_path, status)
-        values (${orderId}, 'persiapan', 'photo', 'a/b.webp', 'pending')
-      `;
+      await attachDoc(tx, { orderId, stageEventId });
       const [notif] = await notifsOf(tx, orderId);
       expect(notif.status).toBe('queued');
 
@@ -302,12 +304,9 @@ describe('outbox — penandaan sudah ditangani', () => {
     // benar-benar memindahkan statusnya, panel tidak akan pernah menyusut.
     await inRollback(async (tx) => {
       await actAsOwner(tx);
-      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+      const { orderId, stageEventId } = await orderWithStage(tx);
 
-      await tx`
-        insert into public.documentations (order_id, stage, type, storage_path, status)
-        values (${orderId}, 'persiapan', 'photo', 'a/b.webp', 'pending')
-      `;
+      await attachDoc(tx, { orderId, stageEventId });
       const [notif] = await notifsOf(tx, orderId);
 
       await tx`

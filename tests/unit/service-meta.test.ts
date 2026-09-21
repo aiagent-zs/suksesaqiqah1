@@ -114,14 +114,15 @@ describe('perakitan meta menjaga kunci yang tidak dirender formulir', () => {
     expect(src).toMatch(/\.\.\.\(existing as \{ \[key: string\]: Json \}\)/);
   });
 
-  it('bentuk aqiqah & nasi box dipisah', async () => {
+  it('bentuk aqiqah & paket per-box dipisah', async () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const src = readFileSync(join(process.cwd(), 'server/actions/services.ts'), 'utf8');
 
     // Menulis keduanya sekaligus akan membuat kartu mencetak porsi untuk
-    // sebuah box nasi.
-    expect(src).toContain("v.type === 'nasi_box'");
+    // sebuah box nasi. Katering ikut sejak 21 September — bentuk `meta`-nya
+    // sama dengan nasi box (daftar lauk), berbeda dari aqiqah (porsi per ekor).
+    expect(src).toContain("v.type === 'nasi_box' || v.type === 'katering'");
   });
 });
 
@@ -184,8 +185,11 @@ describe('porsi adalah keterangan hasil, bukan batas pesanan', () => {
     );
 
     // Inilah yang salah sebelumnya: satu satuan dipakai untuk kedua jenis.
+    // Katering ikut dihitung per box sejak 21 September — dan justru inilah
+    // jenis ketiga yang dulu dikhawatirkan: label "maks 100 box" pada paket
+    // yang dipesan per ekor terbaca masuk akal, jadi kekeliruannya senyap.
     expect(panel).toContain('unitOf');
-    expect(panel).toMatch(/nasi_box' \? 'box' : 'ekor'/);
+    expect(panel).toMatch(/nasi_box' \|\| type === 'katering' \? 'box' : 'ekor'/);
   });
 
   it('checkout memesan nasi box terpisah dari ekor aqiqah', async () => {
@@ -228,7 +232,7 @@ describe('meta dibersihkan saat jenis paket diubah', () => {
     // `delete base.hasil` milik cabang **aqiqah** di bawahnya ikut tertangkap
     // — tesnya tetap hijau meski perbaikannya dicabut. Ketahuan saat bug-nya
     // sengaja dikembalikan untuk menguji tes ini.
-    const start = src.indexOf("if (v.type === 'nasi_box')");
+    const start = src.indexOf("if (v.type === 'nasi_box' || v.type === 'katering')");
     const box = src.slice(start, src.indexOf('return base;', start));
 
     expect(box).toContain('delete base.hasil');
@@ -239,7 +243,7 @@ describe('meta dibersihkan saat jenis paket diubah', () => {
     const src = await read();
     // Diperiksa sesudah `return base` milik cabang nasi_box, supaya yang
     // tertangkap benar-benar cabang aqiqah.
-    const afterBox = src.slice(src.indexOf("if (v.type === 'nasi_box')"));
+    const afterBox = src.slice(src.indexOf("if (v.type === 'nasi_box' || v.type === 'katering')"));
     const aqiqah = afterBox.slice(afterBox.indexOf('return base;'));
 
     expect(aqiqah).toContain('delete base.items');

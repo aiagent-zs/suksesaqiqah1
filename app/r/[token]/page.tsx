@@ -132,14 +132,22 @@ export default async function PublicReportPage({ params }: { params: Params }) {
         <h2 className="text-base font-semibold text-slate-900">Status Pelaksanaan</h2>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
-            {
-              label: 'Dipotong',
-              value: `${report.progress.animalsSlaughtered}/${report.progress.animalsTotal} ekor`,
-            },
-            {
-              label: 'Terdistribusi',
-              value: `${report.progress.animalsDistributed}/${report.progress.animalsTotal} ekor`,
-            },
+            // Kartu per-ekor hanya untuk pesanan yang memang punya hewan.
+            // Pesanan katering selalu bernilai 0/0, dan "Dipotong 0/0 ekor" di
+            // halaman yang dibaca pembeli terbaca seperti pekerjaan yang belum
+            // jalan — padahal memang tidak ada yang perlu dipotong.
+            ...(report.progress.animalsTotal > 0
+              ? [
+                  {
+                    label: 'Dipotong',
+                    value: `${report.progress.animalsSlaughtered}/${report.progress.animalsTotal} ekor`,
+                  },
+                  {
+                    label: 'Terdistribusi',
+                    value: `${report.progress.animalsDistributed}/${report.progress.animalsTotal} ekor`,
+                  },
+                ]
+              : []),
             {
               label: 'Tahap selesai',
               value: `${report.progress.stagesValidated}/${report.progress.stagesTotal} tahap`,

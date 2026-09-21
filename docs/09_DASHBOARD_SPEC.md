@@ -6,9 +6,16 @@
 | Field | Value |
 |-------|-------|
 | Dokumen | 09_DASHBOARD_SPEC |
-| Versi | 1.0 |
-| Tanggal | 2026-06-14 |
-| Status | Draft — menunggu approval |
+| Versi | 2.0 — disinkronkan ke `features/dashboard/*` |
+| Tanggal | 2026-09-21 |
+| Status | **Selaras dengan `features/dashboard/queries.ts` & `v_vendor_kpi`** |
+
+> **Kenapa ditulis ulang.** v1.0 (14 Juni) merancang tiga dashboard terpisah
+> (Executive / Cabang / Panel Validasi Pusat) yang berporos pada `branches` dan
+> lima role. Cabang dihapus 20 Agustus, role tinggal tiga, dan yang dibangun
+> adalah **satu** dashboard yang isinya menyesuaikan role lewat RLS. Pertanyaan
+> yang berguna ikut berubah: bukan lagi "cabang mana yang tertinggal", melainkan
+> **"mitra mana yang lambat, dan mana yang buktinya sering ditolak"**.
 
 ---
 
@@ -18,110 +25,70 @@ Dashboard adalah **jantung monitoring**. Tujuan tunggal: menjawab *"Berapa order
 
 **Prinsip:** muat cepat (< 3 dtk), real-time (Supabase Realtime), ter-scope RBAC, mobile-friendly.
 
-## 2. KPI Inti (berlaku semua dashboard)
+## 2. Satu dashboard, isinya menyesuaikan role
 
-| KPI | Definisi | Sumber |
-|-----|----------|--------|
-| **Total Order** | Jumlah order pada periode/scope | `orders` |
-| **Progress Potong** | % hewan `slaughtered`/`distributed` dari total | `animals`, `v_order_progress` |
-| **Progress Distribusi** | % order dengan distribusi selesai | `distributions`, `v_order_progress` |
-| **Progress Dokumentasi** | % order dengan dokumentasi `approved` | `documentations`, `v_order_progress` |
-| **Progress Laporan** | % order dengan `reports` terkirim | `reports`, `v_order_progress` |
-| **Order Tertunda** | Order `status ≠ completed/cancelled` | `v_open_orders` |
-| **Issue Terbuka** | `issues` status open/in_progress | `issues` |
+Tidak ada dashboard terpisah per role. Halaman `/dashboard` sama untuk semua,
+dan **RLS yang menentukan isinya** — seluruh view memakai `security_invoker = on`,
+jadi vendor yang membukanya hanya melihat order yang ditugaskan padanya **tanpa
+satu baris kode filter tambahan** (`features/dashboard/queries.ts`).
 
-KPI sekunder: rata-rata waktu per tahap, order `on_hold`, SLA terlewat, beban per petugas.
+> Konsekuensinya halus tapi nyata: bug visibilitas mitra tidak muncul sebagai
+> galat, melainkan sebagai **dashboard kosong** yang tampak seperti "belum ada
+> order". Persis itu yang terjadi sebelum `20260908010000` — lihat **07 §5.1**.
 
-## 3. Executive Dashboard (Direktur, Manager Program)
+## 3. KPI inti — berporos mitra & margin
 
-Scope: **semua cabang**.
+Dari `v_vendor_kpi`, diringkas `summarizeVendorKpi()`:
 
-```
-┌───────────────────────────────────────────────────────────┐
-│  Sukses Aqiqah · Executive            [Periode ▾] [Cabang ▾]│
-├──────────┬──────────┬──────────┬──────────┬───────────────┤
-│ Total    │ Potong   │ Distrib. │ Dokumen. │ Laporan       │
-│  1.240   │  82%     │  74%     │  68%     │  61%          │
-├──────────┴──────────┴──────────┴──────────┴───────────────┤
-│  Order Tertunda per Cabang (bar)   │  Issue Terbuka (list) │
-│  ▇▇▇▇ Bandung 32                    │  ⚠ High: 4            │
-│  ▇▇▇  Jakarta 21                    │  ⚠ Med: 11           │
-│  ▇▇   Bekasi  9                     │                       │
-├────────────────────────────────────┴───────────────────────┤
-│  ▶ Tabel "Order Belum Selesai": No · Cabang · Lokasi · PIC  │
-│    · Status · Issue · Umur   (klik → detail order)          │
-└─────────────────────────────────────────────────────────────┘
-```
+| KPI                     | Definisi                                                      |
+| ----------------------- | ------------------------------------------------------------- |
+| **Order** total/open/completed/on_hold | Cacah order per keadaan                        |
+| **Tagihan** (`revenue_total`) | Jumlah `orders.total_amount`                            |
+| **Modal** (`vendor_cost_total`) | Dari `order_items.vendor_unit_price` — **rekaman saat penugasan**, bukan daftar harga mitra hari ini |
+| **Margin** + `marginPct`| Selisih keduanya, dan rasionya terhadap tagihan                |
+| **Rata-rata siklus**    | Jam dari order dibuat sampai tahap terakhir tervalidasi        |
+| **Order dengan penolakan** | Order yang pernah punya laporan tahap ditolak — penanda mutu kerja mitra |
+| **Mitra aktif**         | Cacah mitra `is_active`                                        |
 
-Komponen: 5 KPI card, bar progres per cabang, panel issue, **tabel order tertunda (litmus test)**, tren waktu. Phase 2: AI Executive Summary & Risk (**19**).
+> **Rata-rata siklus ditimbang jumlah order**, bukan dirata-rata polos: mitra
+> dengan 2 order tidak boleh berbobot sama dengan yang mengerjakan 200. Mitra
+> tanpa order dikeluarkan dari pembagi.
 
-## 4. Cabang Dashboard (Admin Cabang)
+## 4. Tabel "Order Belum Selesai" — litmus test
 
-Scope: **1 cabang** (`branch_id`).
-- 5 KPI card untuk cabangnya.
-- Daftar order aktif per tahap (kanban ringkas: Paid → Scheduled → Slaughter → Distribution → Documentation → Reporting).
-- Jadwal hari ini & mendatang (per lokasi/PIC).
-- Antrian validasi dokumentasi tingkat-1.
-- Issue cabang.
+Dari `v_open_orders`. Inilah yang menjawab pertanyaan < 10 detik:
 
-## 4b. Panel Validasi Pusat (Admin Pusat)
+| Kolom                | Menjawab                                             |
+| -------------------- | ---------------------------------------------------- |
+| `order_number`       | Order mana                                           |
+| `vendor_name`/`phone`| Mitra mana, dan nomor yang bisa dihubungi            |
+| `location_name`      | Di mana                                              |
+| `current_stage`      | **Sampai mana** — dulu hanya bisa ditebak dari status |
+| `pct_stage`          | Berapa persen tahapnya rampung                       |
+| `stages_rejected`    | Ada tahap yang ditolak                               |
+| `missing_doc_stages` | Tahap yang buktinya belum lengkap, dihitung database dari `stage_requirements` |
+| `open_issues` + `max_open_severity` + `latest_issue_title` | Apa kendalanya |
+| `age_days`           | Sudah berapa lama menggantung                        |
 
-Scope: **semua cabang**, fokus mutu dokumentasi.
-- **Antrian validasi tingkat-akhir** (`approved_supervisor`) lintas cabang.
-- Aksi Approve (→ `approved`) / Reject (+alasan) massal & per item.
-- Sorotan dokumentasi tertunda melewati SLA.
-- Tautan ke generate laporan setelah dokumentasi final.
+Diurutkan **keparahan kendala lebih dulu**, baru umur order.
 
-## 5. Lokasi Dashboard
+> ⚠️ **Dua angka yang mudah tertukar.** `stages_total` menghitung **baris**,
+> `stages_in_sequence` menghitung **tahap dalam rangkaian mode**. Order 3 ekor
+> mode `kirim` punya 7 baris untuk 5 tahap.
 
-Scope: **per lokasi** (drill-down dari cabang).
-- Order terjadwal di lokasi + peta (Google Maps marker).
-- Progres potong/distribusi lokasi.
-- Petugas yang bertugas + status tugasnya.
+## 5. Panel pendamping
 
-## 6. Petugas Dashboard (Petugas Lapangan)
+- **Antrian validasi** — bukti `pending` menunggu keputusan admin (satu tingkat).
+- **Notifikasi dashboard** — dari outbox `notifications`, terisi trigger dan
+  **tertutup sendiri** oleh `close_*_notification` saat kendalanya ditangani.
+- **Panel kendala** — `issues` terbuka, diurutkan keparahan.
 
-Scope: **tugas yang ditugaskan (PIC)** — mobile-first.
-```
-┌─────────────────────────────┐
-│ Tugas Saya · Hari Ini       │
-├─────────────────────────────┤
-│ ● Order IA-202606-0012      │
-│   Lokasi: Masjid Al-Ikhlas  │
-│   2/3 hewan dipotong        │
-│   [Potong] [Distribusi]     │
-│   [📷 Upload Dokumentasi]   │
-├─────────────────────────────┤
-│ ○ Order IA-202606-0019  …   │
-└─────────────────────────────┘
-```
-- Daftar tugas + status ringkas.
-- Tombol aksi cepat: catat potong, catat distribusi, upload dokumentasi (kamera), lapor issue.
-- Indikator upload pending (offline queue).
+## 6. Real-time & performa
 
-## 7. Interaksi & Drill-down
-
-```mermaid
-flowchart LR
-    EX[Executive] --> CB[Cabang] --> LK[Lokasi] --> OR[Detail Order] --> AN[Hewan/Dokumentasi]
-```
-Setiap KPI card & baris tabel dapat diklik untuk turun satu level. Filter global: periode, cabang, lokasi, jenis layanan, status, PIC.
-
-## 8. Real-time & Performa
-
-- **Realtime:** perubahan status & dokumentasi mem-push update via Supabase Realtime.
-- **Agregasi:** KPI dari SQL/materialized views (`v_order_progress`, `v_branch_kpi`, `v_open_orders`) agar query cepat.
-- **Caching:** Server Components + revalidasi; data sensitif tetap ter-RLS.
+- **Agregasi di SQL**, bukan di aplikasi: `v_order_progress`, `v_vendor_kpi`,
+  `v_open_orders`.
+- **Caching:** Server Components + revalidasi; data tetap ter-RLS.
 - **Target:** initial paint < 3 dtk; jawaban litmus test < 10 dtk.
-
-## 9. Pemetaan KPI → Sumber (ringkas)
-
-| Dashboard | View utama |
-|-----------|-----------|
-| Executive | `v_branch_kpi`, `v_open_orders` |
-| Cabang | `v_branch_kpi` (filter branch), `v_order_progress` |
-| Lokasi | `v_order_progress` (filter location), `schedules` |
-| Petugas | `schedules` (pic), `v_order_progress` |
 
 ---
 

@@ -13,7 +13,7 @@ const uuid = z.string().uuid('Pilihan tidak valid');
  * berhenti di superadmin: harga keputusan pemilik usaha, bukan operasional.
  */
 export const serviceSchema = z.object({
-  type: z.enum(['aqiqah', 'qurban', 'sedekah_daging', 'nasi_box'], {
+  type: z.enum(['aqiqah', 'qurban', 'sedekah_daging', 'nasi_box', 'katering'], {
     message: 'Jenis paket tidak dikenali',
   }),
   name: z.string().trim().min(2, 'Nama paket wajib diisi').max(150, 'Nama terlalu panjang'),
@@ -108,11 +108,15 @@ export const serviceSchema = z.object({
   cocok_untuk: z.string().trim().max(150, 'Terlalu panjang').optional().or(z.literal('')),
 
   /**
-   * Nasi box: isi satu box.
+   * Nasi box & katering: isi satu box.
    *
    * **Ini yang tampil di halaman depan** — landing membacanya dari
    * `meta->items`, bukan dari `landing_features`. Jadi menyuntingnya di sini
    * langsung mengubah yang dibaca pengunjung.
+   *
+   * Dipakai kedua jenis karena keduanya menjawab pertanyaan yang sama ("sebuah
+   * box isinya apa"), meski perannya berbeda: nasi box tambahan atas pesanan
+   * aqiqah, katering pesanan yang berdiri sendiri.
    */
   items: z
     .array(z.string().trim().max(100, 'Nama lauk terlalu panjang'))

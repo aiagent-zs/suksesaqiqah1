@@ -22,6 +22,14 @@ export type OrderGuardContext = {
   hasVendor: boolean;
   hasSchedule: boolean;
   animalsTotal: number;
+  /**
+   * Order katering — dikenali dari jenis item yang dipesan.
+   *
+   * Dipakai membebaskan gerbang "belum ada data hewan": katering tidak
+   * menyembelih apa pun, jadi `animalsTotal` memang nol selamanya dan gerbang
+   * itu akan menahannya di `paid` tanpa jalan keluar.
+   */
+  isCateringOrder: boolean;
   /** Dari `v_order_stages`. */
   stagesTotal: number;
   /** Sudah dilaporkan mitra, menunggu keputusan admin. */
@@ -100,7 +108,12 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
       roles: OPERATOR,
       guard: (ctx) => {
         if (!ctx.hasVendor) return 'Mitra pelaksana belum ditetapkan.';
-        if (ctx.animalsTotal <= 0) return 'Order belum memiliki data hewan.';
+        // Katering dikecualikan: ia memang tidak punya hewan, dan
+        // `generate_stage_checklist` menerbitkan tahapnya dari mode penyaluran
+        // saja — cabang `sembelih` mengambil baris dari tabel hewan, jadi nol
+        // hewan menghasilkan nol baris sembelih dengan sendirinya.
+        if (!ctx.isCateringOrder && ctx.animalsTotal <= 0)
+          return 'Order belum memiliki data hewan.';
         if (!paymentGatePassed(ctx))
           return `Pembayaran belum memenuhi gate: butuh lunas atau DP minimal ${Math.round(ctx.minDpRatio * 100)}%.`;
         return null;

@@ -6,10 +6,10 @@
 | Field    | Value                                                          |
 | -------- | -------------------------------------------------------------- |
 | Dokumen  | 05_DATABASE_DESIGN                                             |
-| Versi    | 2.0 — ditulis ulang mengikuti desain ulang skema 20 Agustus     |
-| Tanggal  | 2026-09-03                                                     |
+| Versi    | 2.1 — disinkronkan ke migration 10 September                    |
+| Tanggal  | 2026-09-21                                                     |
 | DBMS     | PostgreSQL (Supabase) + Row Level Security                     |
-| Status   | **Selaras dengan migration** — 42 migration, 42/42 di cloud     |
+| Status   | **Selaras dengan migration** — 53 berkas (30 sejak reset 20 Agustus); **status push cloud belum dipastikan** untuk sembilan migration 7–10 September (lihat `TASKS.md`) |
 
 > **Cara membaca dokumen ini.** Urutan otoritas kebenaran di project ini adalah
 > **migrations → kode → `prd.md` → `docs/`**. Jadi kalau dokumen ini berselisih
@@ -229,6 +229,17 @@ kirim : persiapan → sembelih → masak → kirim → terkirim
 `features/stages/sequence.ts` adalah kembarannya di TypeScript, dijaga tes yang
 **membaca berkas migration langsung** dan menuntut keduanya identik.
 
+**Gerbang urutan dilonggarkan 8 September** (`20260908040000`). Tahap ke-N dulu
+tertutup sampai seluruh tahap sebelumnya **tervalidasi admin**; sekarang cukup
+**dilaporkan** (`reported`). Mitra tidak lagi berhenti di lapangan menunggu admin
+di tiap tahap. Yang tetap menahan: `pending` (belum disentuh) dan `rejected`
+(sudah dinilai kurang). Cerminannya di TypeScript adalah `UNBLOCKING_STATUSES`
+pada `features/stages/sequence.ts`.
+
+Yang **tidak** ikut longgar: gerbang kelengkapan bukti (`missing_doc_stages`)
+tetap menuntut bukti `approved` sebelum order naik ke Pelaporan. Melonggarkan
+urutan kerja bukan melonggarkan apa yang tercetak di laporan peserta.
+
 ### 5.1 Status order (administratif)
 
 ```
@@ -260,19 +271,21 @@ Keempatnya `security_invoker = on` — menghormati RLS pemanggilnya.
 
 ## 7. Fungsi & Trigger
 
-**35 fungsi, 41 trigger.** Yang menegakkan aturan yang tidak boleh dilewati
-jalur mana pun:
+**40 fungsi, 46 trigger** (dihitung dari migration sejak reset 20 Agustus). Yang
+menegakkan aturan yang tidak boleh dilewati jalur mana pun:
 
 | Fungsi                              | Menjaga                                                              |
 | ----------------------------------- | -------------------------------------------------------------------- |
 | `generate_stage_checklist`          | Tahap terbit otomatis saat mitra ditugaskan                          |
-| `enforce_stage_order`               | Lompat tahap ditolak; gerbangnya di `validated`                      |
+| `enforce_stage_order`               | Lompat tahap ditolak; gerbangnya di **`reported`** sejak 8 September  |
 | `enforce_stage_review`              | Pemisahan tugas — pelapor tidak boleh memvalidasi laporannya sendiri  |
-| `enforce_vendor_assignment`         | Vendor tidak bisa memindahkan penugasan ke dirinya sendiri           |
+| `enforce_vendor_assignment`         | Vendor tidak bisa memindahkan penugasan **atau nilai tagihan**       |
 | `enforce_documentation_stage_match` | Bukti yang dilampirkan ke tahap salah ditolak                        |
 | `enforce_animal_delete`             | Hewan tidak bisa dihapus setelah tahapnya berjalan                   |
 | `enforce_guest_order_verification`  | Order tamu wajib diverifikasi staf sebelum lanjut                    |
 | `sync_order_payment`                | `paid_amount` dihitung database, bukan dikirim klien                 |
+| `enqueue_notification` + `notify_*` | Outbox notifikasi terisi trigger, bukan kode aplikasi                |
+| `close_*_notification`              | Notifikasi dashboard tertutup sendiri saat kendalanya ditangani      |
 
 ### 7.1 RPC untuk pengunjung anonim
 
@@ -297,8 +310,8 @@ di luar `services` & `regions` — seluruh RLS lain ditujukan `to authenticated`
 | `stage_event_status`          | `pending`, `reported`, `validated`, `rejected`                                              |
 | `distribution_mode`           | `salur`, `kirim`                                                                            |
 | `service_type`                | `aqiqah`, `qurban`, `sedekah_daging`, `nasi_box`                                            |
-| `animal_species`              | `kambing`, `domba`, `sapi`                                                                  |
-| `doc_stage`                   | keenam `fulfilment_stage` + `umum`                                                          |
+| `animal_species`              | `kambing`, `domba`, `sapi` — checkout publik hanya menawarkan `kambing`/`sapi`               |
+| `doc_stage`                   | keenam `fulfilment_stage` — **`umum` dicabut** 8 September                                  |
 | `doc_status` / `doc_type`     | `pending`/`approved`/`rejected` · `photo`/`video`/`note`                                    |
 | `payment_status`              | `unpaid`, `partial`, `paid`                                                                 |
 | `payment_verification_status` | `pending`, `verified`, `rejected`                                                           |
@@ -307,7 +320,14 @@ di luar `services` & `regions` — seluruh RLS lain ditujukan `to authenticated`
 
 > `animals.status` **dihapus** 27 Agustus — kolom itu tidak tersambung ke apa
 > pun, tetapi angkanya dicetak ke pemesan. Progres hewan kini diturunkan dari
-> `order_stage_events` yang `validated`.
+> `order_stage_events` yang `validated`. Type `animal_status` ikut dibuang.
+
+> `umum` **dicabut dari `doc_stage`** 8 September. Sejak `stage_event_id` wajib
+> (`20260908030000`), tiap bukti menempel pada satu laporan tahap, dan
+> `enforce_documentation_stage_match` menuntut `documentations.stage` sama dengan
+> tahap yang dirujuknya — `umum` tidak punya padanan di `fulfilment_stage`, jadi
+> ia pasti ditolak. Konsekuensi yang diterima: bukti **tidak bisa** diunggah
+> sebelum mitra ditugaskan, sebab baris tahap baru terbit di situ.
 
 ---
 

@@ -24,6 +24,18 @@ export type LandingBox = {
 };
 
 /**
+ * Paket katering yang dipasarkan di halaman depan.
+ *
+ * Bentuknya sama dengan `LandingBox` — keduanya dijual per box dengan daftar
+ * lauk — tetapi **tujuan tombolnya berbeda**, dan itulah sebabnya dipisah:
+ * nasi box menuju `/checkout` sebagai tambahan atas pesanan aqiqah, katering
+ * menuju `/checkout/katering` sebagai pesanan yang berdiri sendiri. Menyatukan
+ * keduanya ke satu daftar berarti tombolnya harus menebak, dan tebakan yang
+ * salah mengirim pembeli ke form yang tidak ia cari.
+ */
+export type LandingCatering = LandingBox;
+
+/**
  * Katalog untuk halaman depan — **dibaca dari database**, bukan dari konstanta.
  *
  * ## Kenapa berubah
@@ -68,6 +80,7 @@ export type LandingBox = {
 export async function getLandingCatalogue(): Promise<{
   programs: LandingProgram[];
   boxes: LandingBox[];
+  catering: LandingCatering[];
 }> {
   // Tanpa persistensi sesi: tidak ada yang login di halaman depan, dan
   // menyalakannya membuat klien ini mencoba menyimpan token di penyimpanan
@@ -88,7 +101,7 @@ export async function getLandingCatalogue(): Promise<{
 
   if (error) {
     console.error('[landing] getLandingCatalogue:', error.code ?? '-', error.message);
-    return { programs: [], boxes: [] };
+    return { programs: [], boxes: [], catering: [] };
   }
 
   const rows = data ?? [];
@@ -110,15 +123,18 @@ export async function getLandingCatalogue(): Promise<{
         : null,
     }));
 
-  const boxes = rows
-    .filter((s) => s.type === 'nasi_box')
-    .map((s) => ({
-      slug: s.slug,
-      name: s.name,
-      price: Number(s.price),
-      popular: s.is_popular,
-      items: metaItems(s.meta),
-    }));
+  // Bentuknya sama untuk nasi box & katering; yang membedakan hanya jenisnya,
+  // dan itu menentukan ke form mana tombolnya mengarah.
+  const perBox = (type: string) =>
+    rows
+      .filter((s) => s.type === type)
+      .map((s) => ({
+        slug: s.slug,
+        name: s.name,
+        price: Number(s.price),
+        popular: s.is_popular,
+        items: metaItems(s.meta),
+      }));
 
-  return { programs, boxes };
+  return { programs, boxes: perBox('nasi_box'), catering: perBox('katering') };
 }

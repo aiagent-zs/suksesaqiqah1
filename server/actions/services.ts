@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import type { Json } from '@/types/database';
+import type { Database, Json } from '@/types/database';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import {
@@ -110,9 +110,11 @@ function metaFrom(
       ? { ...(existing as { [key: string]: Json }) }
       : {};
 
-  if (v.type === 'nasi_box') {
-    // Aqiqah dan nasi box memakai bentuk berbeda; menulis keduanya sekaligus
-    // membuat kartu mencetak porsi untuk sebuah box nasi.
+  // Nasi box & katering sama-sama berbentuk daftar lauk per box; aqiqah &
+  // qurban berbentuk porsi per ekor. Cerminan `isPerBoxType()` di form.
+  if (v.type === 'nasi_box' || v.type === 'katering') {
+    // Aqiqah dan paket per-box memakai bentuk berbeda; menulis keduanya
+    // sekaligus membuat kartu mencetak porsi untuk sebuah box nasi.
     //
     // Bentuk lawannya **dibuang**, bukan dibiarkan: mengubah jenis sebuah paket
     // dari aqiqah ke nasi box meninggalkan `hasil` & `cocok_untuk` di baris
@@ -147,7 +149,10 @@ function metaFrom(
 /** Kolom katalog dari input yang sudah tervalidasi. */
 function rowFrom(
   v: {
-    type: 'aqiqah' | 'qurban' | 'sedekah_daging' | 'nasi_box';
+    // Diambil dari enum database, bukan didaftar ulang: daftar yang disalin di
+    // sini sempat tertinggal saat `katering` ditambahkan, dan gejalanya galat
+    // typecheck yang menunjuk tempat yang benar dengan sebab yang salah.
+    type: Database['public']['Enums']['service_type'];
     name: string;
     slug: string;
     description?: string;

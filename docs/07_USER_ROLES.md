@@ -6,10 +6,10 @@
 | Field          | Value                                                                       |
 | -------------- | --------------------------------------------------------------------------- |
 | Dokumen        | 07_USER_ROLES                                                               |
-| Versi          | 2.0 — ditulis ulang mengikuti desain ulang skema 20 Agustus                  |
-| Tanggal        | 2026-09-03                                                                  |
-| Status         | **Selaras dengan `server/auth/capabilities.ts` & `20260820000800_rls.sql`**  |
-| Catatan revisi | v2.0: **5 role → 3 role**. Cabang dihapus; yang banyak adalah mitra          |
+| Versi          | 2.1 — perbaikan visibilitas mitra & pembukaan tulis lokasi                   |
+| Tanggal        | 2026-09-21                                                                  |
+| Status         | **Selaras dengan `server/auth/capabilities.ts`, `20260820000800_rls.sql`, `20260907020000`, `20260908010000`** |
+| Catatan revisi | v2.1: tiga kebocoran akun mitra ditutup; `locations` bisa ditulis staf. v2.0: **5 role → 3 role** |
 
 > **Kenapa berubah.** v1.1 menggambarkan lima role yang berporos pada `branches`
 > — tabel yang dihapus 20 Agustus. Tanpa cabang, `admin_pusat` dan
@@ -60,11 +60,15 @@ Penghubung antara pembeli dan mitra.
 - Catat & verifikasi pembayaran.
 - **Penugasan mitra** (`ASSIGN_VENDOR`) — sekaligus membuka akses vendor ke order.
 - Tetapkan jadwal & lokasi.
+- **Mendaftarkan & menyunting lokasi** (sejak 7 September) — lokasi salur
+  berganti hampir tiap order, dan yang tahu tempatnya adalah admin yang sedang
+  menjadwalkan. Selama pintunya tertutup, yang terjadi bukan "admin meminta
+  tolong superadmin" melainkan alamat ditulis di kolom catatan jadwal.
 - **Validasi laporan tahap & bukti** dari vendor.
 - Generate & kirim laporan.
 
-Yang **tidak** bisa: mengubah harga, modal, katalog, role pengguna, atau
-menghapus laporan tahap.
+Yang **tidak** bisa: mengubah harga, modal, katalog, role pengguna, **menghapus
+lokasi**, atau menghapus laporan tahap.
 
 ### 2.3 vendor
 
@@ -78,8 +82,15 @@ Yang **tidak** bisa:
 
 - Melihat order yang belum ditugaskan padanya, atau milik mitra lain.
 - Menyentuh urusan uang — `payments_select` menuntut `is_staff()`, jadi vendor
-  bahkan tidak bisa **membaca** pembayaran.
+  bahkan tidak bisa **membaca** pembayaran. `enforce_vendor_assignment` juga
+  menolak perubahan `total_amount`/`paid_amount`/`payment_status` dari vendor.
 - Melihat modalnya sendiri (`vendor_services`) — itu angka margin, bukan haknya.
+- Membaca **nama & telepon peserta** — `participants_select` menuntut
+  `is_staff()`. Ordernya sendiri tetap terbaca (lihat §5.1).
+- Membaca bukti lapangan **mitra lain** — kebijakan Storage mencocokkan
+  `order_number` pada segmen ketiga path.
+- Melihat lokasi milik mitra lain — yang terbuka hanya lokasi tanpa pemilik
+  (masjid, panti, tempat salur umum) dan miliknya sendiri.
 - **Memvalidasi laporannya sendiri** (lihat §4).
 
 ### 2.4 Pemesan (tanpa akun)
@@ -158,6 +169,40 @@ jalur mana pun.
 > ⚠️ **Satu jalur tanpa jaring pengaman kedua.** Pengelolaan pengguna memakai
 > service role yang melewati RLS sepenuhnya, jadi server action-nya memeriksa
 > rolenya sendiri lebih dulu. Tidak ada penjaga di database untuk jalur ini.
+
+### 5.1 Tiga kebocoran & satu kebutaan pada akun mitra (8 September)
+
+Ditemukan saat menelusuri apa yang **benar-benar** terbaca akun vendor, dan
+dibuktikan lewat impersonasi (`set_config('request.jwt.claims', …)`) di dalam
+transaksi yang di-rollback. Hasil sebelum perbaikan, untuk akun mitra pemilik
+dua order:
+
+| Yang dibaca      | Sebelum | Seharusnya                        |
+| ---------------- | :-----: | --------------------------------- |
+| `orders`         |    2    | 2 ✅                              |
+| `v_open_orders`  |  **0**  | 2 — dashboardnya kosong permanen  |
+| `locations`      |  **4**  | hanya miliknya + yang tak bermilik |
+| `participants`   |    0    | 0 ✅ (memang tertutup)            |
+
+1. **Dashboard mitra kosong permanen.** `v_open_orders` memakai `join
+   participants` (inner). Karena `participants_select` menuntut `is_staff()` dan
+   view-nya `security_invoker`, tabel itu kosong bagi mitra — dan inner join
+   menghapus **setiap** baris. Diperbaiki jadi `left join`: barisnya tetap ada,
+   kolom nama/telepon bernilai NULL bagi yang tidak berhak. Penyaringan PII tetap
+   dikerjakan RLS pada `participants`, bukan oleh view.
+2. **Bucket dokumentasi tidak ter-scope.** `storage_documentation_read` memberi
+   SELECT atas **seluruh** bucket kepada siapa pun yang login. Pembatasan folder
+   diserahkan ke `isDocPathForOrder` di server action — tetapi itu hanya menjaga
+   jalur tulis, dan klien Supabase di browser bisa memanggil
+   `storage.from('documentation').list()` langsung.
+3. **Seluruh lokasi terbaca setiap mitra.** `locations_select` memakai
+   `using (true)`, jadi tiap mitra membaca nama & alamat fasilitas pesaingnya.
+
+> **Pelajaran yang berlaku umum:** RLS pada tabel **tidak** otomatis menjaga view
+> yang membacanya. `security_invoker` menghormati RLS, tetapi bentuk **join**-nya
+> tetap menentukan baris mana yang selamat — inner join ke tabel yang tertutup
+> menghapus semuanya, dan itu terbaca seperti "tidak punya data", bukan seperti
+> kesalahan.
 
 ---
 

@@ -126,6 +126,29 @@ describe('generate_stage_checklist', () => {
     });
   });
 
+  /**
+   * Katering bersandar persis pada perilaku di atas.
+   *
+   * Rencana awalnya menyebut penggantian tanda tangan `fulfilment_sequence()`
+   * sebagai bagian termahal — supaya katering melewati penyembelihan. Ternyata
+   * tidak perlu: order tanpa hewan sudah menghasilkan nol baris sembelih dengan
+   * sendirinya. Tes ini menjaga sandaran itu tetap berlaku dari sisi mode
+   * `kirim`, yang dipakai seluruh order katering.
+   */
+  it('order kirim tanpa hewan mendapat empat tahap — jalur katering', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const { orderId } = await makePaidOrder(tx, { mode: 'kirim', animals: 0 });
+      await assignVendor(tx, orderId);
+
+      const stages = await stagesOf(tx, orderId);
+      expect(stages.map((s) => s.stage)).toEqual(['persiapan', 'masak', 'kirim', 'terkirim']);
+      // Urutannya rapat tanpa lompatan meski sembelih absen: `seq` dihitung
+      // dari rangkaian mode, bukan dari baris yang benar-benar terbit.
+      expect(stages.every((s) => s.seq > 0)).toBe(true);
+    });
+  });
+
   it('urutan di SQL sama dengan fulfilment_sequence() yang dipanggil langsung', async () => {
     await inRollback(async (tx) => {
       // Menutup celah yang sama seperti `stage-sequence.test.ts`, tapi dari

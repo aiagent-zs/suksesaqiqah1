@@ -1,176 +1,210 @@
 # 16 — API SPEC
 
-> **Sukses Aqiqah** — *"Tunaikan Ibadah, Tebarkan Manfaat"*
+> **Sukses Aqiqah** — _"Tunaikan Ibadah, Tebarkan Manfaat"_
 > Entity mengikuti **05_DATABASE_DESIGN**; akses mengikuti **07_USER_ROLES**.
 
-| Field | Value |
-|-------|-------|
-| Dokumen | 16_API_SPEC |
-| Versi | 1.0 |
-| Tanggal | 2026-06-14 |
-| Status | Draft — menunggu approval |
+| Field   | Value                                                                  |
+| ------- | ---------------------------------------------------------------------- |
+| Dokumen | 16_API_SPEC                                                            |
+| Versi   | 2.0 — ditulis ulang mengikuti yang benar-benar dibangun                 |
+| Tanggal | 2026-09-21                                                             |
+| Status  | **Selaras dengan `server/actions/*` & `20260820001100_public_rpc.sql`** |
+
+> **Kenapa ditulis ulang.** v1.0 (14 Juni) merancang REST API bergaya
+> `/api/orders/{id}/status` lengkap dengan `branch_id`, `pic_user_id`,
+> `slaughter_records`, dan validasi dokumentasi dua tingkat. **Tidak satu pun
+> dibangun.** Yang ada di `app/` hanya dua route handler; seluruh mutasi berjalan
+> lewat **Server Action**. Menyimpan spesifikasi REST yang tak pernah ada
+> membuat dokumen ini menggambarkan sistem yang berbeda dari yang berjalan.
 
 ---
 
-## 1. Pendekatan
+## 1. Bentuk kontrak
 
-- Mutasi utama lewat **Next.js Server Actions** & **Route Handlers** (`app/api/*`) di Vercel; data via Supabase client (server-side, RLS aktif).
-- Konvensi REST-like di bawah ini menjadi kontrak logis (baik diimplementasi sebagai Server Action maupun route handler).
-- **Auth:** Bearer JWT Supabase (kecuali endpoint publik bertoken).
-- **Format:** JSON. Waktu ISO-8601. ID = uuid.
-- **Error standar:**
-```json
-{ "error": { "code": "VALIDATION_ERROR", "message": "…", "fields": { "field": "pesan" } } }
-```
-Kode umum: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (422), `CONFLICT` (409), `RATE_LIMITED` (429).
+Mutasi adalah **Next.js Server Action**, dipanggil langsung dari komponen klien
+sebagai fungsi — bukan lewat URL. Tidak ada lapisan REST di antaranya, dan itu
+disengaja: satu lapisan lebih sedikit untuk dijaga sinkron, dan tipe argumennya
+diperiksa compiler alih-alih diuraikan dari JSON.
 
-- **Paginasi:** `?page=1&page_size=20` → respons `{ data: [...], page, page_size, total }`.
-- **Filter umum order:** `?status=&branch_id=&location_id=&pic_id=&service_type=&date_from=&date_to=&q=`.
+Setiap action menerima `unknown`, memvalidasinya dengan Zod, lalu mengembalikan
+bentuk yang seragam (`server/actions/result.ts`):
 
-## 2. Auth
-
-| Method | Path | Akses | Deskripsi |
-|--------|------|-------|-----------|
-| POST | `/api/auth/login` | publik | Login (delegasi Supabase Auth) |
-| POST | `/api/auth/logout` | login | Akhiri sesi |
-| GET | `/api/me` | login | Profil + role + branch_id |
-
-## 3. Orders
-
-| Method | Path | Akses | Deskripsi |
-|--------|------|-------|-----------|
-| GET | `/api/orders` | R sesuai scope | List + filter + paginate |
-| POST | `/api/orders` | Admin Cabang | Buat order |
-| GET | `/api/orders/{id}` | R sesuai scope | Detail order (+relasi) |
-| PATCH | `/api/orders/{id}` | Admin Cabang | Ubah data order |
-| POST | `/api/orders/{id}/status` | sesuai kapabilitas | Transisi status (validasi state machine **08**) |
-| GET | `/api/orders/{id}/timeline` | R | Riwayat audit order |
-
-**POST /api/orders — request:**
-```json
-{
-  "participant": { "name": "Ahmad", "phone": "62812...", "email": "a@x.id" },
-  "branch_id": "uuid",
-  "items": [{ "service_id": "uuid", "qty": 1, "unit_price": 1750000, "meta": { "on_behalf_of": "Ahmad" } }],
-  "animals": [{ "species": "kambing", "on_behalf_of": "Ahmad" }],
-  "notes": "..."
-}
-```
-**Validasi:** `branch_id` = branch user (admin); `items` ≥ 1; `service_id` aktif; `qty` ≥ 1.
-**Response 201:**
-```json
-{ "data": { "id": "uuid", "order_number": "IA-202606-0012", "status": "new", "payment_status": "unpaid" } }
+```ts
+type ActionResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: { code: ActionErrorCode; message: string; fields?: Record<string, string> } };
 ```
 
-**POST /api/orders/{id}/status — request:** `{ "to": "scheduled", "reason": "..." }`
-**Validasi:** transisi diizinkan untuk role & memenuhi precondition. `scheduled` butuh schedule lengkap + pembayaran memenuhi gate (`paid` **atau** `partial ≥ min_dp`); `completed` butuh **pelunasan penuh** + dokumentasi `approved`. Gagal → `CONFLICT`/`VALIDATION_ERROR`.
+| Kode              | Kapan                                                    |
+| ----------------- | -------------------------------------------------------- |
+| `UNAUTHENTICATED` | Sesi tidak ada                                           |
+| `FORBIDDEN`       | Kapabilitas tidak dimiliki role (`server/auth/capabilities.ts`) |
+| `NOT_FOUND`       | Baris tidak ada — **atau** tersaring RLS (lihat §6)      |
+| `VALIDATION_ERROR`| Zod menolak; `fields` memetakan `field → pesan` ke form  |
+| `CONFLICT`        | Precondition tidak terpenuhi (transisi status, rem laju) |
+| `INTERNAL`        | Kegagalan tak terduga; detailnya ke log, bukan ke layar  |
 
-## 4. Payments
+> **Pesan mentah Postgres tidak pernah sampai ke layar** — isinya membocorkan
+> nama tabel, kolom, dan kebijakan RLS. Pengecualiannya satu: penolakan yang
+> memang ditulis untuk dibaca pengunjung (`23514`, `P0002`, `P0003` dari
+> `create_guest_order`), yang pesannya sudah berbahasa Indonesia.
 
-| Method | Path | Akses | Deskripsi |
-|--------|------|-------|-----------|
-| GET | `/api/orders/{id}/payments` | Admin/Manager | Riwayat pembayaran |
-| POST | `/api/orders/{id}/payments` | Admin Cabang | Catat pembayaran (+upload bukti) |
-| POST | `/api/payments/{id}/verify` | Admin Cabang | Verifikasi → update `payment_status` |
+---
 
-**POST payments — request:** `{ "amount": 1750000, "method": "transfer", "proof_path": "storage/..." }` → set `orders.payment_status`.
+## 2. Route handler — hanya dua
 
-## 5. Schedules
+| Path                        | Akses  | Untuk                                                  |
+| --------------------------- | ------ | ------------------------------------------------------ |
+| `app/auth/callback/route.ts`| publik | Pertukaran kode OAuth/magic link Supabase              |
+| `app/api/session/heartbeat/route.ts` | login | Penanda aktivitas untuk logout otomatis saat idle |
 
-| Method | Path | Akses | Deskripsi |
-|--------|------|-------|-----------|
-| GET | `/api/schedules?date=&location_id=&pic_id=` | R scope | Jadwal |
-| PUT | `/api/orders/{id}/schedule` | Admin Cabang | Set tanggal/lokasi/PIC |
+Keduanya memang harus berupa URL: yang pertama tujuan redirect dari Supabase,
+yang kedua dipanggil `fetch` dari peramban.
 
-**PUT schedule — request:** `{ "location_id": "uuid", "pic_user_id": "uuid", "scheduled_date": "2026-06-12", "scheduled_time": "07:00" }` → order `scheduled`.
+---
 
-## 6. Animals, Slaughter, Distribution
+## 3. RPC untuk pengunjung anonim
 
-| Method | Path | Akses | Deskripsi |
-|--------|------|-------|-----------|
-| GET | `/api/orders/{id}/animals` | R scope | List hewan |
-| POST | `/api/orders/{id}/animals` | Admin Cabang | Tambah hewan |
-| PATCH | `/api/animals/{id}` | Admin/Petugas | Update status hewan |
-| POST | `/api/animals/{id}/slaughter` | Petugas (PIC) | Catat pemotongan |
-| GET | `/api/orders/{id}/distributions` | R scope | List distribusi |
-| POST | `/api/orders/{id}/distributions` | Petugas (PIC) | Catat distribusi |
+`anon` ditolak RLS di **setiap** tabel operasional, jadi seluruh penulisan dari
+halaman publik lewat fungsi `SECURITY DEFINER` yang mengunci bentuk dan batasnya
+di level database — bukan lewat service role yang pembatasannya bergantung pada
+kebenaran kode TypeScript.
 
-**POST slaughter — request:** `{ "performed_at": "2026-06-12T07:30:00Z", "notes": "..." }` → `slaughter_records`, `animals.status=slaughtered`.
-**POST distributions — request:** `{ "recipient_name": "...", "recipient_area": "Cibiru", "packages_count": 8, "lat": -6.9, "lng": 107.7 }`.
+| RPC                  | Dipanggil dari                    | Mengunci                                            |
+| -------------------- | --------------------------------- | --------------------------------------------------- |
+| `create_guest_order` | `createGuestOrderAction`          | Harga dibaca dari `services`; kiriman klien diabaikan |
+| `get_public_report`  | `server/services/public-report.ts`| Bentuk keluaran; tanpa kontak peserta                |
+| `confirm_delivery`   | Halaman `/r/{token}`              | Idempoten; hanya order mode `kirim`                  |
 
-## 7. Documentation
+**`create_guest_order` — yang tidak ada di payload:** harga, total, status, dan
+jumlah terbayar. Ketiganya ditentukan RPC dari tabel `services`. Menerimanya dari
+form berarti siapa pun bisa memesan seharga nol rupiah.
 
-| Method | Path | Akses | Deskripsi |
-|--------|------|-------|-----------|
-| POST | `/api/orders/{id}/documentation` | Petugas (PIC) | Upload metadata (file via Storage signed upload) |
-| GET | `/api/documentation?status=pending&branch_id=` | Supervisor/Pusat | Antrian validasi |
-| POST | `/api/documentation/{id}/review` | Supervisor/Pusat | Approve/Reject |
+**Yang dikirim hanya kode wilayah**, bukan namanya — nama diambil RPC dari
+`regions`, karena yang dibaca kurir adalah namanya dan nama kiriman klien bisa
+berbeda dari kodenya.
 
-**POST documentation — request:**
-```json
-{ "animal_id": "uuid|null", "type": "photo", "stage": "slaughter", "storage_path": "...", "caption": "..." }
-```
-→ `documentations.status=pending`.
-**POST review — request:** `{ "decision": "approve" | "reject", "note": "alasan jika reject" }`
-- `approve` oleh **Supervisor** (Admin Cabang/Manager ditunjuk) → `approved_supervisor`; oleh **Admin Pusat** (`admin_pusat`) → `approved`.
-- `reject` → `rejected` + `review_note` wajib.
-- Kapabilitas ditegakkan per role (lihat **07**): hanya `admin_pusat` yang dapat memberi `approved` final.
+---
 
-## 8. Reports (internal) & Public (token)
+## 4. Server Action per modul
 
-| Method | Path | Akses | Deskripsi |
-|--------|------|-------|-----------|
-| POST | `/api/orders/{id}/report` | Manager/Admin/n8n | Generate PDF + token + (opsi) kirim |
-| GET | `/api/orders/{id}/reports` | R scope | Daftar versi laporan |
-| GET | `/api/public/reports/{token}` | **publik** | Data laporan untuk halaman publik (read-only) |
-| GET | `/api/public/reports/{token}/pdf` | **publik** | Signed URL / stream PDF |
+### 4.1 Checkout & order
 
-**Publik:** validasi token server-side; hanya data order pemilik token; media via signed URL; rate-limited; token invalid → 404 generik.
+| Action                  | Kapabilitas         | Catatan                                       |
+| ----------------------- | ------------------- | --------------------------------------------- |
+| `createGuestOrderAction`| publik              | Rem laju per IP (10/10 menit) sebelum validasi |
+| `createOrder`           | `UPDATE_ORDER`      | Lewat RPC `create_order` (bukan SECURITY DEFINER) |
+| `updateOrder`           | `UPDATE_ORDER`      |                                               |
+| `verifyGuestOrder`      | `VERIFY_GUEST_ORDER`| Pintu pertama order tamu                      |
+| `changeOrderStatus`     | `UPDATE_ORDER_STATUS`| Divalidasi `features/orders/state-machine.ts` |
+| `addAnimal` / `deleteAnimal` | `MANAGE_ANIMALS`| Hapus ditolak trigger bila tahapnya berjalan  |
 
-## 9. Notifications
+### 4.2 Pembayaran
 
-| Method | Path | Akses | Deskripsi |
-|--------|------|-------|-----------|
-| GET | `/api/notifications` | login | Alert in-app (scope user) |
-| POST | `/api/notifications/{id}/read` | login | Tandai dibaca |
-| POST | `/api/internal/notifications/dispatch` | service (n8n) | Proses outbox → WA/email |
+`recordPayment`, `verifyPayment`, `deletePayment` — seluruhnya `is_staff()`.
+`paid_amount` dihitung trigger `sync_order_payment`, tidak pernah dikirim klien.
 
-## 10. Dashboard / KPI
+### 4.3 Tahapan lapangan
 
-| Method | Path | Akses | Deskripsi |
-|--------|------|-------|-----------|
-| GET | `/api/kpi/overview?branch_id=&period=` | login | KPI agregat (dari views **05 §7**) |
-| GET | `/api/kpi/open-orders?branch_id=&location_id=` | login | Order tertunda + lokasi + PIC + issue (litmus test) |
+| Action             | Aktor  | Dijaga                                          |
+| ------------------ | ------ | ----------------------------------------------- |
+| `reportStage`      | vendor | `enforce_stage_order` — gerbangnya `reported`   |
+| `reviewStage`      | admin  | `enforce_stage_review` — pelapor ≠ validator    |
+| `resetStageReport` | admin  | Mengembalikan tahap ke `pending`                |
 
-**GET open-orders — response (inti litmus test):**
-```json
-{ "data": [
-  { "order_number": "IA-202606-0012", "branch": "Bandung", "location": "Masjid Al-Ikhlas",
-    "pic": "Budi", "status": "documentation", "open_issues": 1, "age_hours": 30 }
-] }
-```
+### 4.4 Dokumentasi
 
-## 11. Master & Issues
+`uploadDocumentation`, `reviewDocumentation`, `deleteDocumentation`.
 
-| Method | Path | Akses |
-|--------|------|-------|
-| GET/POST/PATCH | `/api/services` | Manager(CRUD), lain(R) |
-| GET/POST/PATCH | `/api/locations` | Manager/Admin |
-| GET/POST/PATCH | `/api/users` | Manager/Admin(branch) |
-| GET/POST/PATCH | `/api/orders/{id}/issues` | Admin/Manager/Petugas |
+> **Bukti wajib menempel pada satu laporan tahap** sejak 8 September
+> (`20260908030000`): `stage_event_id` NOT NULL. `uploadDocumentation`
+> menurunkan tahap & order dari baris tahapnya — klien tidak mengirim
+> `stage` sendiri, dan `enforce_documentation_stage_match` menegakkannya.
 
-## 12. Aturan Validasi Lintas Endpoint
+Validasi **satu tingkat**: vendor unggah (`pending`) → staf memutuskan
+(`approved`/`rejected`). Dua tingkat pada v1.0 mengandaikan hierarki cabang yang
+sudah tidak ada.
 
-- Semua input divalidasi schema (mis. Zod) sebelum mutasi.
-- Scoping `branch_id` ditegakkan di server + RLS (defense in depth).
-- Transisi status hanya via `/status` (tidak boleh patch langsung kolom status sembarang).
-- Upload file lewat Storage signed upload; server hanya menyimpan `storage_path` tervalidasi.
-- Endpoint publik: tanpa data sensitif selain milik token; rate limiting wajib.
+### 4.5 Jadwal, lokasi, penugasan
+
+`saveSchedule`, `createLocation`, `updateLocation`, `deleteLocation`,
+`assignVendor`.
+
+> `assignVendor` bukan sekadar mengisi kolom: ia **pintu masuk data** (vendor
+> tidak melihat order apa pun sebelumnya) sekaligus **penerbit daftar tahap**
+> lewat `generate_stage_checklist`.
+
+> `vendor_id` pada lokasi tidak pernah datang dari klien — `createLocation`
+> mengisinya dari mitra order yang bersangkutan, dan `saveSchedule` memeriksa
+> kepemilikannya lagi saat lokasi itu dipasang ke order.
+
+### 4.6 Laporan
+
+`generateReport`, `generateCertificate`, `setChildPhoto`, `markReportSent`,
+`deleteReport`. PDF dirender React PDF di server, disimpan ke bucket `reports`
+(privat), diakses lewat signed URL.
+
+### 4.7 Master data
+
+| Modul   | Action                                                                    | Akses      |
+| ------- | ------------------------------------------------------------------------- | ---------- |
+| Katalog | `createService`, `updateService`, `setServiceActive`, `deleteService`, `setServicePhoto`, `clearServicePhoto` | superadmin |
+| Mitra   | `createVendor`, `updateVendor`, `setVendorActive`, `deleteVendor`, `saveVendorService`, `deleteVendorService`, `saveVendorCoverage` | superadmin |
+| Akun    | `createUser`, `updateUser`, `setUserActive`, `deleteUser`                 | superadmin |
+| Akun sendiri | `changeOwnPassword`, `changeOwnEmail`                                | semua role |
+
+> ⚠️ **Pengelolaan pengguna memakai service role** yang melewati RLS sepenuhnya,
+> jadi action-nya memeriksa role sendiri lebih dulu. Ini satu-satunya jalur tanpa
+> jaring pengaman kedua di database.
+
+### 4.8 Kendala & notifikasi
+
+`createIssueAction`, `updateIssueAction`, `updateIssueStatusAction` — vendor bisa
+melapor pada order yang ia kerjakan. `markNotificationSent` staf saja.
+
+> Outbox notifikasi **diisi trigger database** (`enqueue_notification` +
+> `notify_*`), bukan kode aplikasi, dan ditutup otomatis oleh `close_*_notification`
+> saat kendalanya ditangani.
+
+---
+
+## 5. Aturan lintas action
+
+- Seluruh input divalidasi **Zod** sebelum mutasi; `fields` dikembalikan supaya
+  penolakan menempel pada medan yang tepat di form.
+<!-- schema-history -->
+
+- Scoping ditegakkan **`vendor_id` + RLS** (defense in depth) — `branch_id`
+  sudah tidak ada sejak 20 Agustus.
+
+<!-- /schema-history -->
+- Transisi status hanya lewat `changeOrderStatus`; kolom `status` tidak pernah
+  di-patch langsung.
+- Unggah berkas lewat Storage; server menyimpan `storage_path` tervalidasi.
+  Path dokumentasi `{YYYY}/{MM}/{order_number}/{stage}/{uuid}.{ext}` — segmen
+  ketiganya dipakai kebijakan Storage untuk membatasi akses per mitra.
+- Jalur publik: tanpa data sensitif di luar milik token; rem laju wajib.
+
+---
+
+## 6. Satu jebakan yang berulang
+
+**RLS menyaring baris, ia tidak menolak permintaan.** SELECT atas baris terlarang
+mengembalikan array kosong — bukan error. UPDATE dan DELETE membalas sukses tanpa
+menyentuh apa pun. Karena itu:
+
+- Action yang tidak menemukan baris mengembalikan `NOT_FOUND`, dan itu **tidak
+  bisa dibedakan** dari "tersaring RLS". Memang disengaja: membedakannya berarti
+  memberi tahu penyerang bahwa barisnya ada.
+- Tes yang menganggap "tidak ada error = bocor" akan melaporkan kebocoran palsu.
+  Yang benar diperiksa: **jumlah baris = 0**, atau **nilainya tidak bergeser**.
+- `INSERT` berbeda — `with check` menolaknya dengan galat sungguhan (`42501`).
 
 ---
 
 ### Referensi silang
-- Entity & views → **05_DATABASE_DESIGN**
-- Workflow/status → **08_WORKFLOW_MAP**
-- Akses → **07_USER_ROLES**
-- Keamanan → **20_SECURITY_CHECKLIST**
+
+- Skema & fungsi → `05_DATABASE_DESIGN.md`
+- Role & kapabilitas → `07_USER_ROLES.md`
+- Alur & transisi → `08_WORKFLOW_MAP.md`
+- Status terkini & utang → `../TASKS.md`

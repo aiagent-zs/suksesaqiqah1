@@ -30,6 +30,7 @@ function ctx(over: Partial<OrderGuardContext> = {}): OrderGuardContext {
     hasVendor: false,
     hasSchedule: false,
     animalsTotal: 0,
+    isCateringOrder: false,
     stagesTotal: 0,
     stagesReported: 0,
     stagesValidated: 0,

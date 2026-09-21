@@ -140,34 +140,34 @@ export const landingPhotos = {
    */
   gallery: [
     {
-      src: 'images/landing/galeri-1-persiapan.webp',
+      src: 'images/landing/persiapan.webp',
       alt: 'Pemeriksaan kesehatan kambing sebelum disembelih',
       caption: 'Persiapan & pemeriksaan hewan',
     },
     {
-      src: 'images/landing/galeri-2-sembelih.webp',
+      src: 'images/landing/penyembelihan.webp',
       alt: 'Proses penyembelihan sesuai syariat',
       caption: 'Penyembelihan sesuai syariat',
     },
     {
-      src: 'images/landing/galeri-3-masakm.webp',
-      alt: 'Pengolahan daging aqiqah di dapur mitra',
-      caption: 'Pengolahan di dapur mitra',
+      src: 'images/landing/pembersihan2.webp',
+      alt: 'Proses pembersihan & pengolahan daging aqiqah',
+      caption: 'Proses pembersihan & pengolahan',
     },
     {
-      src: 'images/landing/galeri-4-siap.webp',
+      src: 'images/landing/masak.webp',
       alt: 'Masakan aqiqah dikemas rapi sebelum diantar',
-      caption: 'Pengemasan rapi & higienis',
+      caption: 'Proses memasak daging dengan higienis',
     },
     {
-      src: 'images/landing/galeri-5-kirim.webp',
+      src: 'images/landing/packing2.webp',
       alt: 'Pesanan aqiqah diantar ke alamat pemesan',
-      caption: 'Diantar ke alamat Anda',
+      caption: 'Pengemasan & pengiriman pesanan',
     },
     {
-      src: 'images/landing/galeri-6-salur.webp',
+      src: 'images/landing/dok_akhir.webp',
       alt: 'Penyaluran daging aqiqah kepada penerima manfaat',
-      caption: 'Disalurkan ke penerima manfaat',
+      caption: 'Proses penyaluran & Pengriman Sesuai Pesanan',
     },
   ],
 } as const;

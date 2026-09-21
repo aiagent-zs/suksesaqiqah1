@@ -6,9 +6,15 @@
 | Field | Value |
 |-------|-------|
 | Dokumen | 20_SECURITY_CHECKLIST |
-| Versi | 1.0 |
-| Tanggal | 2026-06-14 |
-| Status | Draft — menunggu approval |
+| Versi | 2.0 — disinkronkan ke 3 role & RLS `vendor_id` |
+| Tanggal | 2026-09-21 |
+| Status | **Selaras dengan `20260820000800_rls.sql`, `20260907020000`, `20260908010000`** |
+
+> **Kenapa berubah.** v1.0 (14 Juni) mencentang "6 role" dan scoping `branch_id`
+> — keduanya tidak ada lagi sejak 20 Agustus. Tiga kontrol baru ditambahkan
+> setelah audit 8 September menemukan kebocoran nyata pada akun mitra
+> (**07 §5.1**): view perlu diperiksa terpisah dari tabelnya, kebijakan Storage
+> harus ter-scope per order, dan pemisahan tugas ditegakkan trigger.
 
 ---
 
@@ -22,12 +28,14 @@
 
 ## 2. Authorization (RBAC + RLS)
 
-- [ ] 6 role ditegakkan (**07**); prinsip **least privilege**.
-- [ ] **PostgreSQL RLS** aktif di semua tabel operasional; kebijakan berbasis `auth.uid()`, `role`, `branch_id`.
-- [ ] Scoping cabang untuk Admin/Petugas; global read hanya pusat.
+- [ ] **3 role** ditegakkan (**07**): `superadmin`, `admin`, `vendor`; prinsip **least privilege**.
+- [ ] **PostgreSQL RLS** aktif di semua tabel operasional; kebijakan berbasis `auth.uid()`, `role`, **`vendor_id`**.
+- [ ] Scoping mitra lewat `can_read_order()` — vendor tidak melihat order apa pun sebelum ditugaskan.
+- [ ] **View ikut diperiksa, bukan hanya tabel.** `security_invoker` menghormati RLS, tetapi bentuk **join**-nya menentukan baris mana yang selamat: inner join ke tabel tertutup menghapus semuanya (lihat **07 §5.1**).
+- [ ] **Kebijakan Storage ter-scope per order**, bukan per bucket — pembatasan di server action saja tidak menjaga klien Supabase di browser.
 - [ ] **Defense in depth:** Server Action memvalidasi kapabilitas action-level + RLS (dua lapis).
-- [ ] Transisi status hanya via endpoint khusus (tidak patch kolom status langsung).
-- [ ] Pemisahan tugas: pengupload dokumentasi ≠ validator akhir.
+- [ ] Transisi status hanya via `changeOrderStatus` (tidak patch kolom status langsung).
+- [ ] Pemisahan tugas ditegakkan **trigger**, bukan aplikasi: pelapor tahap ≠ validator, pengunggah bukti ≠ validator, vendor tidak bisa menugaskan dirinya sendiri.
 
 ## 3. File / Storage Access
 
@@ -88,8 +96,11 @@
 | Risiko | Kontrol |
 |--------|---------|
 | Kebocoran data peserta | RLS + signed URL + token anti-enumerasi + data minimization |
-| Akses lintas cabang | RLS `branch_id` + validasi server |
-| Manipulasi status/laporan | Endpoint status khusus + audit trail + idempotensi |
+| **Akses lintas mitra** | RLS `vendor_id` (`can_read_order`) + kebijakan Storage per `order_number` + `locations_select` ter-scope |
+| **Mitra menugaskan dirinya sendiri** | Trigger `enforce_vendor_assignment` — RLS tidak bisa membandingkan nilai lama vs baru |
+| **Mitra mengubah nilai tagihan** | Trigger yang sama menolak `total_amount`/`paid_amount`/`payment_status` dari non-staf |
+| Manipulasi status/laporan | `changeOrderStatus` + state machine + audit trail + idempotensi |
+| **Pelapor memvalidasi pekerjaannya sendiri** | Trigger `enforce_stage_review` & `enforce_documentation_review` |
 | Penyalahgunaan link publik | Token kuat + rate limit + TTL media |
 | Kebocoran secret | Secret store + rotasi + key dibatasi |
 

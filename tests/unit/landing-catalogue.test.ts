@@ -156,3 +156,42 @@ describe('katalog di migration', () => {
     expect(landing).toContain('services_landing_requires_active');
   });
 });
+
+/**
+ * Katering di halaman depan.
+ *
+ * Yang dijaga: katering **tidak lenyap** dari katalog landing, dan tombolnya
+ * menuju form yang benar. Keduanya mudah putus tanpa galat apa pun —
+ * `getLandingCatalogue` menyaring per jenis, jadi jenis yang terlewat tidak
+ * menghasilkan error melainkan daftar kosong yang terbaca seperti "memang belum
+ * ada paketnya".
+ */
+describe('katering di landing', () => {
+  const catalogue = readFileSync(join(process.cwd(), 'features/landing/catalogue.ts'), 'utf8');
+  const page = readFileSync(join(process.cwd(), 'app/(site)/page.tsx'), 'utf8');
+
+  it('katalog landing menyaring jenis katering', () => {
+    expect(catalogue).toContain("perBox('katering')");
+  });
+
+  it('halaman depan menerima & merender daftarnya', () => {
+    expect(page).toContain('catering');
+    expect(page).toContain('catering.map');
+  });
+
+  it('tombolnya menuju /checkout/katering, bukan /checkout', () => {
+    // Inilah pembeda pokoknya dari nasi box: katering pesanan yang berdiri
+    // sendiri, jadi ia punya formnya sendiri. Mengarahkannya ke `/checkout`
+    // membawa pembeli ke form aqiqah yang tidak ia cari.
+    expect(page).toContain('href="/checkout/katering"');
+  });
+
+  it('paket katering ada di migration', () => {
+    const packages = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260921020000_catering_packages.sql'),
+      'utf8',
+    );
+    const slugs = [...packages.matchAll(/'(katering-[a-z0-9-]+)'/g)].map((m) => m[1]);
+    expect(new Set(slugs).size).toBeGreaterThanOrEqual(3);
+  });
+});

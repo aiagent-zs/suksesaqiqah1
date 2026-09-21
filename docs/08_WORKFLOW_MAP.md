@@ -6,9 +6,9 @@
 | Field   | Value                                                        |
 | ------- | ------------------------------------------------------------ |
 | Dokumen | 08_WORKFLOW_MAP                                              |
-| Versi   | 2.0 — ditulis ulang mengikuti desain ulang skema 20 Agustus   |
-| Tanggal | 2026-09-03                                                   |
-| Status  | **Selaras dengan `features/orders/state-machine.ts`**         |
+| Versi   | 2.1 — gerbang urutan tahap dilonggarkan ke `reported`         |
+| Tanggal | 2026-09-21                                                   |
+| Status  | **Selaras dengan `features/orders/state-machine.ts` & `features/stages/sequence.ts`** |
 
 > **Kenapa berubah.** v1.0 menjadikan tahapan lapangan sebagai **status order**
 > (`slaughtering → distribution`). Itu tidak bisa dipertahankan: sejak 20
@@ -59,7 +59,7 @@ stateDiagram-v2
 - `new → verified` — **order tamu wajib melewati ini**; `enforce_guest_order_verification` menahannya sampai staf memeriksa.
 - `verified → paid` butuh `paid_amount >= total_amount * min_dp_ratio()`. Angkanya di `app_settings`, dibaca RPC **dan** klien.
 - `paid → assigned` menetapkan `orders.vendor_id` — dan **inilah yang menerbitkan daftar tahap** (`generate_stage_checklist`).
-- `in_progress → validation` menuntut seluruh tahap dalam rangkaian mode sudah `validated` dan buktinya lengkap.
+- `in_progress → validation` menuntut seluruh tahap dalam rangkaian mode sudah `validated` dan buktinya lengkap. **Gerbang ini tidak ikut dilonggarkan 8 September** — yang longgar hanya urutan kerja antar tahap, bukan syarat naik ke Pelaporan.
 - `reporting → completed` butuh laporan ter-generate; untuk mode `kirim`, pembeli mengonfirmasi penerimaan lebih dulu.
 
 > **Penugasan mitra bukan sekadar transisi.** Ia pintu masuk data: sebelum
@@ -82,10 +82,19 @@ trigger penerbit tahap, penegak urutan, dan gerbang kelengkapan bukti.
 | `masak`     | vendor | bukti pengolahan                          |
 | `salur`     | vendor | bukti penyaluran ke penerima manfaat      |
 | `kirim`     | vendor | bukti pengantaran; **alamat ditampilkan** |
-| `terkirim`  | pembeli| `confirm_delivery()` dari halaman bertoken |
+| `terkirim`  | vendor | bukti serah terima                        |
+
+> **`terkirim` dilaporkan vendor, bukan pembeli.** Keduanya terpisah dan
+> keduanya dicatat: vendor melaporkan tahap `terkirim` seperti tahap lain,
+> sementara pembeli menekan `confirm_delivery()` di halaman bertoken yang
+> mengisi `orders.delivery_confirmed_at`. Laporan vendor adalah pernyataan
+> pihak yang mengantar — cadangan, bukan pengakuan pihak yang menerima.
 
 **Urutan ditegakkan database**, bukan UI: `enforce_stage_order` menolak lompat
-tahap, dan gerbangnya di `validated` — bukan `reported`.
+tahap. Gerbangnya **`reported`** sejak 8 September (`20260908040000`) — dulu
+`validated`, dan konsekuensinya persis seperti yang diperingatkan migration
+aslinya: admin jadi penghambat di tiap tahap. Yang tetap menahan: `pending` dan
+`rejected`.
 
 ## 4. Workflow per tahap
 

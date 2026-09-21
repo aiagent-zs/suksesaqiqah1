@@ -19,11 +19,28 @@ import type { ServiceRow } from '../queries';
 export const TYPE_LABEL: Record<string, string> = {
   aqiqah: 'Aqiqah',
   nasi_box: 'Nasi Box',
+  katering: 'Katering',
   qurban: 'Qurban',
   sedekah_daging: 'Sedekah Daging',
 };
 
-export const TYPE_ORDER = ['aqiqah', 'nasi_box', 'qurban', 'sedekah_daging'] as const;
+export const TYPE_ORDER = ['aqiqah', 'nasi_box', 'katering', 'qurban', 'sedekah_daging'] as const;
+
+/**
+ * Paket yang dihitung **per box**, bukan per ekor.
+ *
+ * Nasi box dan katering sama-sama begitu, tetapi berbeda perannya: nasi box
+ * tambahan atas pesanan aqiqah, katering pesanan yang berdiri sendiri. Yang
+ * disamakan di sini hanya satuannya dan bentuk isi paketnya (daftar lauk),
+ * sebab keduanya menjawab pertanyaan yang sama — "sebuah box isinya apa".
+ *
+ * Dipusatkan sebagai fungsi, bukan disalin sebagai `type === 'nasi_box' ||
+ * type === 'katering'` di empat tempat: jenis ketiga yang kelak dihitung per
+ * box hanya perlu menyentuh satu baris.
+ */
+export function isPerBoxType(type: string): boolean {
+  return type === 'nasi_box' || type === 'katering';
+}
 
 const EMPTY = {
   type: 'aqiqah',
@@ -198,14 +215,14 @@ export function ServiceForm({
 
         <Field
           // "Rp" dibuang dari label: satuannya kini melekat di dalam kotaknya.
-          label={`Harga jual per ${draft.type === 'nasi_box' ? 'box' : 'ekor'}`}
+          label={`Harga jual per ${isPerBoxType(draft.type) ? 'box' : 'ekor'}`}
           error={fieldErrors.price}
           hint="Order yang sudah berjalan tidak ikut berubah — harganya sudah tersalin saat order dibuat."
         >
           <CurrencyInput
             value={draft.price}
             onValueChange={(price) => setDraft({ ...draft, price })}
-            placeholder={draft.type === 'nasi_box' ? '21000' : '2300000'}
+            placeholder={isPerBoxType(draft.type) ? '21000' : '2300000'}
           />
         </Field>
 
@@ -246,14 +263,16 @@ export function ServiceForm({
       <div className="border-t pt-4">
         <h3 className="text-sm font-semibold">Isi paket</h3>
         <p className="text-muted-foreground mt-0.5 text-xs">
-          {draft.type === 'nasi_box'
-            ? 'Isi satu box. Nasi box dipesan terpisah dari paket aqiqah, dengan harganya sendiri.'
-            : 'Hasil dari satu ekor — lauk saja. Nasi box adalah paket tersendiri.'}
+          {draft.type === 'katering'
+            ? 'Isi satu box katering. Katering dipesan sendiri lewat /checkout/katering — bukan tambahan atas pesanan aqiqah.'
+            : draft.type === 'nasi_box'
+              ? 'Isi satu box. Nasi box dipesan terpisah dari paket aqiqah, dengan harganya sendiri.'
+              : 'Hasil dari satu ekor — lauk saja. Nasi box adalah paket tersendiri.'}
         </p>
 
         {/* Bentuknya beda per jenis, dan itu disengaja: "80 porsi, olahan gulai
             & sate" menjawab pertanyaan berbeda dari daftar lauk satu box. */}
-        {draft.type === 'nasi_box' ? (
+        {isPerBoxType(draft.type) ? (
           <div className="mt-3">
             <Field
               label="Isi per box"
