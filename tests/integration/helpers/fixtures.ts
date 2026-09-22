@@ -76,6 +76,16 @@ export async function makePaidOrder(
   // `order_items_qty_check` menuntut qty > 0, jadi kasus "order tanpa hewan"
   // tidak boleh menurunkan qty dari jumlah hewan. Keduanya memang bukan hal
   // yang sama: item adalah yang dibeli, `animals` adalah ekor yang teregistrasi.
+  //
+  // ⚠️ `vendor_unit_price` diisi di sini, dan itu **menyembunyikan satu bug
+  // selama sebulan**: sampai 22 September tidak ada satu pun kode aplikasi yang
+  // menulisinya, jadi order sungguhan selalu bernilai NULL dan `v_vendor_kpi`
+  // melaporkan margin 100%. Seluruh tes yang menyentuh view itu tetap hijau
+  // karena fixture ini mengisinya sendiri.
+  //
+  // Tetap diisi — banyak tes memang butuh order yang "sudah lengkap" — tetapi
+  // `vendor-margin.test.ts` sengaja **tidak** memakai fixture ini: ia menyusun
+  // ordernya sendiri tanpa kolom itu, persis seperti `create_guest_order`.
   await tx`
     insert into public.order_items (order_id, service_id, qty, unit_price, vendor_unit_price)
     values (${order.id}, ${SEED.serviceKambing}, ${Math.max(animals, 1)}, 2800000, 2325000)

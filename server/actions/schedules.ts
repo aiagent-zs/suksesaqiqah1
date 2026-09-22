@@ -399,7 +399,95 @@ export async function assignVendor(input: unknown): Promise<ActionResult<null>> 
     return conflict('Penugasan tidak tersimpan: mitra sudah diubah orang lain lebih dulu.');
   }
 
+  await snapshotVendorCost(supabase, order_id, vendor_id);
+
   revalidatePath(`/orders/${order_id}`);
   revalidatePath('/schedule');
+  revalidatePath('/dashboard');
   return { ok: true, data: null };
+}
+
+/**
+ * Salin modal mitra ke `order_items.vendor_unit_price`.
+ *
+ * ## Kenapa ini ada
+ *
+ * Kolomnya lahir bersama tabelnya (`20260820000300`) dengan komentar yang jelas:
+ * *"Modal yang disepakati saat mitra ditugaskan. Di sinilah prinsip rekaman
+ * sejarah benar-benar berlaku."* Tetapi **tidak ada satu pun kode yang pernah
+ * menulisinya** — hanya `v_vendor_kpi` yang membacanya.
+ *
+ * Akibatnya `vendor_cost` selalu nol, jadi `margin_total = revenue_total`:
+ * dashboard melaporkan margin **100%** untuk setiap mitra. Angka yang salah
+ * dengan cara yang tidak mencurigakan — ia terbaca seperti usaha tanpa modal,
+ * bukan seperti kolom yang kosong.
+ *
+ * Ditemukan 21 September saat menelusuri rantai mitra untuk katering. Berlaku
+ * untuk **seluruh order**, bukan hanya katering.
+ *
+ * ## Kenapa disalin, bukan dibaca lewat join
+ *
+ * `vendor_services.vendor_price` berubah ketika kesepakatan direvisi. Margin
+ * order yang sudah berjalan tidak boleh ikut bergeser — laporan bulan lalu harus
+ * tetap berbunyi sama bulan depan. Itu sebabnya nilainya dibekukan di
+ * `order_items` pada saat penugasan, persis seperti `unit_price` membekukan
+ * harga jual.
+ *
+ * ## Kegagalan tidak membatalkan penugasan
+ *
+ * Dipanggil **setelah** `vendor_id` tersimpan, dan galatnya hanya dicatat. Modal
+ * yang belum tercatat membuat margin terbaca terlalu besar — keliru, tetapi
+ * order tetap bisa dikerjakan. Membatalkan penugasan karenanya akan menghentikan
+ * pekerjaan lapangan demi satu angka di dashboard, dan itu pertukaran yang
+ * salah. Panel modal mitra sendiri sudah memperingatkan ketika paketnya belum
+ * punya modal.
+ */
+async function snapshotVendorCost(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orderId: string,
+  vendorId: string,
+): Promise<void> {
+  const { data: items, error: itemsError } = await supabase
+    .from('order_items')
+    .select('id, service_id')
+    .eq('order_id', orderId);
+
+  if (itemsError) {
+    console.error('[schedules] snapshotVendorCost items:', itemsError.code, itemsError.message);
+    return;
+  }
+  if (!items || items.length === 0) return;
+
+  const { data: offers, error: offersError } = await supabase
+    .from('vendor_services')
+    .select('service_id, vendor_price')
+    .eq('vendor_id', vendorId)
+    .in(
+      'service_id',
+      items.map((i) => i.service_id),
+    );
+
+  if (offersError) {
+    console.error('[schedules] snapshotVendorCost offers:', offersError.code, offersError.message);
+    return;
+  }
+
+  const priceOf = new Map((offers ?? []).map((o) => [o.service_id, Number(o.vendor_price)]));
+
+  for (const item of items) {
+    const price = priceOf.get(item.service_id);
+    // Paket yang belum punya modal untuk mitra ini dilewati, bukan ditulis 0:
+    // nol berarti "modalnya memang nol" dan margin terbaca penuh — persis
+    // kekeliruan yang sedang diperbaiki. NULL jujur mengatakan belum tercatat.
+    if (price === undefined) continue;
+
+    const { error } = await supabase
+      .from('order_items')
+      .update({ vendor_unit_price: price })
+      .eq('id', item.id);
+
+    if (error) {
+      console.error('[schedules] snapshotVendorCost update:', error.code, error.message);
+    }
+  }
 }

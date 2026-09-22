@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Check, FileText, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -180,10 +181,123 @@ export function PaymentManager({
 
       {canRecord && outstanding > 0 && (
         <div className="border-border flex justify-end border-b px-5 py-3">
-          <Button type="button" variant="outline" size="sm" onClick={() => setShowForm((v) => !v)}>
-            <Plus className="size-3.5" />
-            Catat pembayaran
-          </Button>
+          {/* Modal, bukan formulir yang mekar di dalam panel. Panel ini berada
+              di tengah halaman detail order bersama delapan panel lain, dan
+              formulirnya memuat unggahan berkas — cukup tinggi untuk mendorong
+              ringkasan gate DP di atasnya keluar dari pandangan, padahal itulah
+              angka yang sedang dibandingkan operator saat mencatat pembayaran. */}
+          <Modal
+            open={showForm}
+            onOpenChange={(next) => {
+              if (next) {
+                // Dikosongkan saat dibuka: nominal yang sempat diketik lalu
+                // diurungkan tidak boleh muncul lagi seolah tersimpan — dan
+                // pada pembayaran, angka yang salah terbaca berarti gate DP
+                // yang salah dinilai.
+                setDraft({ amount: '', method: 'transfer_bank', note: '' });
+                setFile(null);
+                setFileKey((k) => k + 1);
+                setError(null);
+              }
+              setShowForm(next);
+            }}
+            trigger={
+              <Button type="button" variant="outline" size="sm">
+                <Plus className="size-3.5" />
+                Catat pembayaran
+              </Button>
+            }
+            title="Catat pembayaran"
+            description={`Sisa tagihan ${formatCurrency(outstanding)}. Pembayaran masuk sebagai menunggu verifikasi.`}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="pay-amount">Nominal</Label>
+                {/* Pemisah ribuan sambil diketik: `5600000` dan `56000000`
+                    berbeda satu nol dan terlihat nyaris sama, sementara salah
+                    ketiknya ikut menentukan gate DP. */}
+                <CurrencyInput
+                  id="pay-amount"
+                  value={draft.amount}
+                  placeholder={String(outstanding)}
+                  onValueChange={(amount) => setDraft({ ...draft, amount })}
+                  className="mt-1.5"
+                />
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Sisa tagihan {formatCurrency(outstanding)}
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="pay-method">Metode</Label>
+                <Select
+                  id="pay-method"
+                  value={draft.method}
+                  onChange={(e) => setDraft({ ...draft, method: e.target.value as PaymentMethod })}
+                  className="mt-1.5"
+                >
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {PAYMENT_METHOD_LABEL[m]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="pay-proof">Bukti transfer</Label>
+                <Input
+                  key={fileKey}
+                  id="pay-proof"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  className="mt-1.5"
+                />
+                <p className="text-muted-foreground mt-1 text-xs">
+                  JPG, PNG, WebP, atau PDF · maksimal 5 MB · opsional
+                </p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="pay-note">Catatan</Label>
+                <Textarea
+                  id="pay-note"
+                  rows={2}
+                  value={draft.note}
+                  placeholder="Mis. nomor referensi transfer"
+                  onChange={(e) => setDraft({ ...draft, note: e.target.value })}
+                  className="mt-1.5"
+                />
+              </div>
+            </div>
+
+            {/* Galat menetap di dalam modal, bukan hanya lewat toast: modalnya
+                tetap terbuka saat gagal, jadi pesannya harus ada di tempat mata
+                operator sudah berada. */}
+            {error && (
+              <p className="border-destructive/20 bg-destructive/5 text-destructive mt-3 flex items-start gap-2 rounded-lg border px-3 py-2 text-sm">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {error}
+              </p>
+            )}
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" disabled={busy} onClick={resetForm}>
+                Batal
+              </Button>
+              <Button type="button" disabled={busy || !draft.amount} onClick={handleSubmit}>
+                {uploading ? (
+                  <>
+                    <Upload className="size-3.5 animate-pulse" />
+                    Mengunggah bukti…
+                  </>
+                ) : (
+                  'Simpan pembayaran'
+                )}
+              </Button>
+            </div>
+          </Modal>
         </div>
       )}
 
@@ -217,86 +331,6 @@ export function PaymentManager({
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           {error}
         </p>
-      )}
-
-      {showForm && canRecord && (
-        <div className="border-border bg-muted/30 grid gap-3 border-b p-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="pay-amount">Nominal</Label>
-            {/* Pemisah ribuan sambil diketik: `5600000` dan `56000000` berbeda
-                satu nol dan terlihat nyaris sama, sementara salah ketiknya
-                ikut menentukan gate DP. */}
-            <CurrencyInput
-              id="pay-amount"
-              value={draft.amount}
-              placeholder={String(outstanding)}
-              onValueChange={(amount) => setDraft({ ...draft, amount })}
-              className="mt-1.5"
-            />
-            <p className="text-muted-foreground mt-1 text-xs">
-              Sisa tagihan {formatCurrency(outstanding)}
-            </p>
-          </div>
-
-          <div>
-            <Label htmlFor="pay-method">Metode</Label>
-            <Select
-              id="pay-method"
-              value={draft.method}
-              onChange={(e) => setDraft({ ...draft, method: e.target.value as PaymentMethod })}
-              className="bg-card mt-1.5"
-            >
-              {PAYMENT_METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {PAYMENT_METHOD_LABEL[m]}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="sm:col-span-2">
-            <Label htmlFor="pay-proof">Bukti transfer</Label>
-            <Input
-              key={fileKey}
-              id="pay-proof"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="bg-card mt-1.5"
-            />
-            <p className="text-muted-foreground mt-1 text-xs">
-              JPG, PNG, WebP, atau PDF · maksimal 5 MB · opsional
-            </p>
-          </div>
-
-          <div className="sm:col-span-2">
-            <Label htmlFor="pay-note">Catatan</Label>
-            <Textarea
-              id="pay-note"
-              rows={2}
-              value={draft.note}
-              placeholder="Mis. nomor referensi transfer"
-              onChange={(e) => setDraft({ ...draft, note: e.target.value })}
-              className="bg-card mt-1.5"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 sm:col-span-2">
-            <Button type="button" disabled={busy || !draft.amount} onClick={handleSubmit}>
-              {uploading ? (
-                <>
-                  <Upload className="size-3.5 animate-pulse" />
-                  Mengunggah bukti…
-                </>
-              ) : (
-                'Simpan pembayaran'
-              )}
-            </Button>
-            <Button type="button" variant="outline" disabled={busy} onClick={resetForm}>
-              Batal
-            </Button>
-          </div>
-        </div>
       )}
 
       {summary.payments.length === 0 ? (

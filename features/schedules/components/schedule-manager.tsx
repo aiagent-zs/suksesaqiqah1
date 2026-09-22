@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Modal } from '@/components/ui/modal';
 import { formatDate, formatTime } from '@/lib/format';
 import { assignVendor, saveSchedule } from '@/server/actions/schedules';
 import { googleMapsUrl } from '../maps';
@@ -141,10 +142,129 @@ export function ScheduleManager({
     <div>
       {canEdit && (
         <div className="border-border flex justify-end border-b px-5 py-3">
-          <Button type="button" variant="outline" size="sm" onClick={() => setShowForm((v) => !v)}>
-            <Pencil className="size-3.5" />
-            {schedule ? 'Ubah jadwal' : 'Atur jadwal'}
-          </Button>
+          {/* Modal, bukan formulir di dalam panel: panel ini bersebelahan
+              dengan panel Hewan & Tahap di halaman detail order, dan formulir
+              yang terbuka di sini menggeser keduanya ke bawah — padahal
+              tanggal pelaksanaan justru ditetapkan sambil melihat tahap mana
+              yang sudah jalan. */}
+          <Modal
+            open={showForm}
+            onOpenChange={(next) => {
+              if (next) {
+                // Disegarkan dari data tersimpan saat dibuka: penyuntingan yang
+                // dibatalkan tidak boleh muncul lagi sebagai jadwal yang berlaku.
+                setDraft({
+                  location_id: schedule?.locationId ?? '',
+                  scheduled_date: schedule?.scheduledDate ?? '',
+                  scheduled_time: schedule?.scheduledTime?.slice(0, 5) ?? '',
+                  notes: schedule?.notes ?? '',
+                });
+                setError(null);
+              }
+              setShowForm(next);
+            }}
+            trigger={
+              <Button type="button" variant="outline" size="sm">
+                <Pencil className="size-3.5" />
+                {schedule ? 'Ubah jadwal' : 'Atur jadwal'}
+              </Button>
+            }
+            title={schedule ? 'Ubah jadwal pelaksanaan' : 'Atur jadwal pelaksanaan'}
+            description="Tanggal wajib; jam dan lokasi bisa ditetapkan menyusul."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="sch-date">Tanggal pelaksanaan</Label>
+                <Input
+                  id="sch-date"
+                  type="date"
+                  value={draft.scheduled_date}
+                  onChange={(e) => setDraft({ ...draft, scheduled_date: e.target.value })}
+                  className="mt-1.5"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="sch-time">Jam (opsional)</Label>
+                <Input
+                  id="sch-time"
+                  type="time"
+                  value={draft.scheduled_time}
+                  onChange={(e) => setDraft({ ...draft, scheduled_time: e.target.value })}
+                  className="mt-1.5"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="sch-location">Lokasi (opsional)</Label>
+                <Select
+                  id="sch-location"
+                  value={draft.location_id}
+                  disabled={noLocations}
+                  onChange={(e) => setDraft({ ...draft, location_id: e.target.value })}
+                  className="mt-1.5"
+                >
+                  <option value="">Belum ditentukan</option>
+                  {/* Daftar yang sama dengan pemilih di ringkasan — dua aturan
+                      berbeda untuk hal yang sama pasti menyimpang cepat atau
+                      lambat. */}
+                  {selectableLocations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </Select>
+                {noLocations && (
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Belum ada lokasi terdaftar. Tambahkan lewat tombol di ringkasan jadwal.
+                  </p>
+                )}
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="sch-notes">Catatan jadwal</Label>
+                <Textarea
+                  id="sch-notes"
+                  rows={2}
+                  value={draft.notes}
+                  placeholder="Mis. akses masuk lewat gerbang belakang"
+                  onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                  className="mt-1.5"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p className="border-destructive/20 bg-destructive/5 text-destructive mt-3 flex items-start gap-2 rounded-lg border px-3 py-2 text-sm">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {error}
+              </p>
+            )}
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setShowForm(false)}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                disabled={pending || !draft.scheduled_date}
+                onClick={() =>
+                  run(async () => {
+                    const result = await saveSchedule({ order_id: orderId, ...draft });
+                    if (result.ok) setShowForm(false);
+                    return result;
+                  })
+                }
+              >
+                {pending ? 'Menyimpan…' : 'Simpan jadwal'}
+              </Button>
+            </div>
+          </Modal>
         </div>
       )}
 
@@ -155,99 +275,12 @@ export function ScheduleManager({
         </p>
       )}
 
-      {error && (
+      {/* Galat di luar modal — mis. gagal menugaskan mitra dari ringkasan. */}
+      {error && !showForm && (
         <p className="border-destructive/20 bg-destructive/5 text-destructive flex items-start gap-2 border-b px-5 py-3 text-sm">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           {error}
         </p>
-      )}
-
-      {showForm && canEdit && (
-        <div className="border-border bg-muted/30 grid gap-3 border-b p-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="sch-date">Tanggal pelaksanaan</Label>
-            <Input
-              id="sch-date"
-              type="date"
-              value={draft.scheduled_date}
-              onChange={(e) => setDraft({ ...draft, scheduled_date: e.target.value })}
-              className="bg-card mt-1.5"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="sch-time">Jam (opsional)</Label>
-            <Input
-              id="sch-time"
-              type="time"
-              value={draft.scheduled_time}
-              onChange={(e) => setDraft({ ...draft, scheduled_time: e.target.value })}
-              className="bg-card mt-1.5"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="sch-location">Lokasi (opsional)</Label>
-            <Select
-              id="sch-location"
-              value={draft.location_id}
-              disabled={noLocations}
-              onChange={(e) => setDraft({ ...draft, location_id: e.target.value })}
-              className="bg-card mt-1.5"
-            >
-              <option value="">Belum ditentukan</option>
-              {/* Daftar yang sama dengan pemilih di ringkasan — dua aturan
-                  berbeda untuk hal yang sama pasti menyimpang cepat atau
-                  lambat. */}
-              {selectableLocations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </Select>
-            {noLocations && (
-              <p className="text-muted-foreground mt-1 text-xs">
-                Belum ada lokasi terdaftar. Superadmin dapat menambahkannya di master data.
-              </p>
-            )}
-          </div>
-
-          <div className="sm:col-span-2">
-            <Label htmlFor="sch-notes">Catatan jadwal</Label>
-            <Textarea
-              id="sch-notes"
-              rows={2}
-              value={draft.notes}
-              placeholder="Mis. akses masuk lewat gerbang belakang"
-              onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-              className="bg-card mt-1.5"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 sm:col-span-2">
-            <Button
-              type="button"
-              disabled={pending || !draft.scheduled_date}
-              onClick={() =>
-                run(async () => {
-                  const result = await saveSchedule({ order_id: orderId, ...draft });
-                  if (result.ok) setShowForm(false);
-                  return result;
-                })
-              }
-            >
-              Simpan jadwal
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pending}
-              onClick={() => setShowForm(false)}
-            >
-              Batal
-            </Button>
-          </div>
-        </div>
       )}
 
       <dl className="grid gap-4 px-5 py-4 sm:grid-cols-3">

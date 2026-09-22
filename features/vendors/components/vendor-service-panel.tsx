@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
@@ -149,28 +150,42 @@ export function VendorServicePanel({
             adalah margin order.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={available.length === 0}
-          title={available.length === 0 ? 'Seluruh paket sudah punya modal' : undefined}
-          onClick={() => setShowForm((v) => !v)}
+        {/* Modal, bukan formulir yang mekar di dalam panel: formulirnya memuat
+            tujuh medan beserta pratinjau isi paket & margin — cukup tinggi
+            untuk mendorong seluruh daftar modal keluar dari layar, padahal
+            daftar itulah yang dibandingkan operator saat menambah penawaran
+            baru. */}
+        <Modal
+          open={showForm}
+          onOpenChange={(next) => {
+            if (next) {
+              // Dikosongkan saat dibuka: angka modal yang sempat diketik lalu
+              // diurungkan tidak boleh muncul lagi seolah tersimpan — dan pada
+              // modal mitra, satu digit keliru menggeser seluruh margin.
+              setServiceId('');
+              setPrice('');
+              setOffer({ min_qty: '', max_qty: '', lead_time_hours: '', notes: '' });
+              setError(null);
+            }
+            setShowForm(next);
+          }}
+          trigger={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={available.length === 0}
+              title={available.length === 0 ? 'Seluruh paket sudah punya modal' : undefined}
+            >
+              <Plus className="size-3.5" />
+              Tambah paket
+            </Button>
+          }
+          width="lg"
+          title="Tambah penawaran paket"
+          description="Modal yang disepakati dengan mitra ini. Selisihnya terhadap harga jual adalah margin order."
         >
-          <Plus className="size-3.5" />
-          Tambah paket
-        </Button>
-      </div>
-
-      {error && (
-        <p className="border-destructive/20 bg-destructive/5 text-destructive mx-5 mt-4 flex items-start gap-2 rounded-lg border px-4 py-3 text-sm">
-          <AlertCircle className="mt-0.5 size-4 shrink-0" />
-          {error}
-        </p>
-      )}
-
-      {showForm && (
-        <div className="border-border bg-muted/30 grid gap-3 border-b p-5 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <Label htmlFor="vs-service">Paket</Label>
             <Select
@@ -288,10 +303,26 @@ export function VendorServicePanel({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 sm:col-span-2">
+          </div>
+
+          {error && (
+            <p className="border-destructive/20 bg-destructive/5 text-destructive mt-3 flex items-start gap-2 rounded-lg border px-3 py-2 text-sm">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              {error}
+            </p>
+          )}
+
+          <div className="mt-4 flex items-center justify-end gap-2">
             <Button
               type="button"
-              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => setShowForm(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
               disabled={pending || !serviceId || price === ''}
               onClick={() =>
                 run(
@@ -306,28 +337,22 @@ export function VendorServicePanel({
                       lead_time_hours: num(offer.lead_time_hours),
                       notes: offer.notes,
                     }),
-                  () => {
-                    setShowForm(false);
-                    setServiceId('');
-                    setPrice('');
-                    setOffer({ min_qty: '', max_qty: '', lead_time_hours: '', notes: '' });
-                  },
+                  () => setShowForm(false),
                 )
               }
             >
-              Simpan
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={pending}
-              onClick={() => setShowForm(false)}
-            >
-              Batal
+              {pending ? 'Menyimpan…' : 'Simpan'}
             </Button>
           </div>
-        </div>
+        </Modal>
+      </div>
+
+      {/* Galat di luar modal — mis. gagal menyunting atau menghapus baris. */}
+      {error && !showForm && (
+        <p className="border-destructive/20 bg-destructive/5 text-destructive mx-5 mt-4 flex items-start gap-2 rounded-lg border px-4 py-3 text-sm">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          {error}
+        </p>
       )}
 
       {rows.length === 0 ? (

@@ -50,6 +50,20 @@ Dari `v_vendor_kpi`, diringkas `summarizeVendorKpi()`:
 | **Order dengan penolakan** | Order yang pernah punya laporan tahap ditolak — penanda mutu kerja mitra |
 | **Mitra aktif**         | Cacah mitra `is_active`                                        |
 
+> ⚠️ **Order yang ditugaskan sebelum 22 September bermargin terlalu besar.**
+> `order_items.vendor_unit_price` tidak pernah diisi kode mana pun sampai
+> tanggal itu — `assignVendor` hanya menulis `vendor_id`. Jadi `vendor_cost`
+> bernilai nol dan margin terbaca **100%** untuk seluruh order lama.
+>
+> Sejak diperbaiki, penugasan baru menyalin modalnya dari `vendor_services`.
+> **Order lama tidak ikut terbetulkan sendiri**: nilainya tetap NULL sampai
+> mitranya ditugaskan ulang — menambalnya dengan daftar harga hari ini justru
+> melanggar prinsip rekaman sejarah yang membuat kolom itu ada.
+>
+> Paket yang belum punya modal untuk mitranya juga tetap NULL, bukan nol: nol
+> berarti "modalnya memang nol", dan marginnya terbaca penuh lagi. Daftar
+> katalog menandai paket tanpa modal mitra dengan peringatan kuning.
+
 > **Rata-rata siklus ditimbang jumlah order**, bukan dirata-rata polos: mitra
 > dengan 2 order tidak boleh berbobot sama dengan yang mengerjakan 200. Mitra
 > tanpa order dikeluarkan dari pembagi.

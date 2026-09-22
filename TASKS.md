@@ -7,12 +7,80 @@
 | Field                            | Value                                                                                                                                                                                                                                                                                                                                                          |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                                                                                                                                     |
-| Diperbarui                       | 2026-09-21                                                                                                                                                                                                                                                                                                                                                     |
+| Diperbarui                       | 2026-09-22                                                                                                                                                                                                                                                                                                                                                     |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                       |
 | Estimasi Phase 1                 | **± 90%** (dari 87% — pelaporan tahap, sertifikat, akun sendiri, & lupa sandi masuk; lihat _Perubahan 8–11 September_)                                                                                                                                                                                                                                         |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(bersih)** · `npm run build` ✅ **(24 rute, `/checkout/katering` terdaftar, landing tetap prerender statis)** · **798 unit test hijau (66 file)** · **183 tes integrasi hijau (12 file)** — dijalankan pertama kalinya sejak 3 September, dan membongkar 7 tes yang sudah patah sejak 8 September · **56 migration** dijalankan bersih lewat `db reset` · `types/database.ts` di-generate ulang dari database |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(bersih)** · `npm run build` ✅ **(24 rute, `/checkout/katering` terdaftar, landing tetap prerender statis)** · **800 unit test hijau (66 file)** · **189 tes integrasi hijau (13 file)** · **56 migration selaras lokal ↔ cloud** (`migration list` 22 Sept: 56/56, ketiga migration katering sudah di produksi & paketnya terbaca lewat jalur `anon`) |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
+
+---
+
+## Perubahan 22 September — UI CRUD & margin mitra
+
+### `vendor_unit_price` tidak pernah terisi — margin dashboard salah sebulan
+
+Kolomnya lahir bersama tabelnya (`20260820000300`) dengan komentar yang jelas:
+*"Modal yang disepakati saat mitra ditugaskan. Di sinilah prinsip rekaman sejarah
+benar-benar berlaku."* Tetapi **tidak ada satu pun kode yang pernah menulisinya**
+— hanya `v_vendor_kpi` yang membacanya.
+
+Akibatnya `vendor_cost_total` selalu nol, jadi `margin_total = revenue_total`:
+dashboard melaporkan margin **100%** untuk setiap mitra. Berlaku untuk seluruh
+order, bukan hanya katering.
+
+Diperbaiki: `assignVendor` kini menyalin `vendor_services.vendor_price` ke
+`order_items.vendor_unit_price` saat penugasan. Disalin, bukan dibaca lewat join
+— revisi kesepakatan bulan depan tidak boleh menggeser margin order yang sudah
+berjalan. Paket yang belum punya modal untuk mitra itu dibiarkan **NULL**, bukan
+ditulis nol: nol berarti "modalnya memang nol" dan margin terbaca penuh lagi.
+
+Penyalinannya dipanggil **sesudah** penugasan tersimpan, dan galatnya hanya
+dicatat: modal yang belum tercatat membuat margin keliru, tetapi order tetap
+bisa dikerjakan — membatalkan penugasan demi satu angka dashboard adalah
+pertukaran yang salah.
+
+> **Kenapa bertahan sebulan:** `makePaidOrder` di `helpers/fixtures.ts`
+> **mengisi kolomnya sendiri**. Jadi setiap tes yang menyentuh `v_vendor_kpi`
+> melihat angka yang benar, sementara order sungguhan — yang lahir dari checkout
+> lalu ditugaskan lewat `assignVendor` — tidak. Fixture yang terlalu membantu
+> menyembunyikan bug yang seharusnya dijaganya.
+>
+> `tests/integration/vendor-margin.test.ts` (6 tes) karena itu **sengaja tidak
+> memakai fixture itu**: ia menyusun ordernya sendiri tanpa kolomnya, persis
+> seperti `create_guest_order`. Salah satu tesnya merekam bug-nya secara
+> eksplisit, supaya kalau penyalinan itu dicabut lagi, yang merah adalah tes
+> yang menjelaskan sebabnya.
+
+### UI CRUD: enam layar berhenti mendorong halaman ke bawah
+
+Keluhan: form create/read/update/delete "muncul ke bawah" dan menggeser isi
+halaman. Enam layar memakai pola itu — bukan satu:
+
+| Layar | Yang berubah |
+| --- | --- |
+| Katalog paket | Tambah, Edit, Hapus → modal |
+| Hewan per order | Tambah → modal; **hapus kini bertanya dulu** |
+| Pembayaran | Catat → modal |
+| Mitra | Daftarkan → modal; hapus → dialog |
+| Jadwal | Atur/ubah → modal |
+| Modal mitra | Tambah penawaran → modal |
+
+Markup dialog ternyata tersalin **delapan kali** di `features/`, dan pekerjaan
+ini akan menambah enam lagi. Jadi dibuat primitif `components/ui/modal.tsx`
+(`Modal` + `ConfirmModal`) lebih dulu. Yang dihindari bukan pengulangan
+hurufnya, melainkan penyimpangannya: satu salinan yang lupa
+`max-h-[90dvh] overflow-y-auto` menghasilkan dialog terpotong di layar pendek,
+tanpa satu pun galat.
+
+Delapan dialog lama (akun, lokasi, kendala, laporan) **belum** dimigrasikan ke
+primitif itu — tidak ada yang rusak selama belum, tetapi itu utang yang layak
+diselesaikan sebelum salinan kesembilan lahir.
+
+**Dua temuan di jalan:** hapus hewan sebelumnya **tanpa penegasan sama sekali**
+— satu klik pada ikon kecil dan ekornya hilang beserta kode & beratnya. Dan
+dialog hapus mitra kini menyesuaikan diri: bila mitra sedang mengerjakan order,
+ia menyebutkan jumlahnya dan menjelaskan bahwa database akan menolak.
 
 ---
 

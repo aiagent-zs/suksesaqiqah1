@@ -76,14 +76,21 @@ function mount() {
   return container;
 }
 
-/** Buka form, isi nominal, lalu tekan Simpan. */
+/**
+ * Buka form, isi nominal, lalu tekan Simpan.
+ *
+ * Dicari dari `document.body`, bukan dari container-nya: sejak 22 September
+ * formulirnya tinggal di modal, dan base-ui merendernya lewat `Portal` — di
+ * luar pohon DOM komponennya. Pencarian yang terbatas pada container akan
+ * mengembalikan null dan tesnya gagal dengan sebab yang menyesatkan.
+ */
 async function submitAmount(el: HTMLElement, amount: string) {
-  const buttons = () => [...el.querySelectorAll('button')];
-  const byText = (t: string) => buttons().find((b) => b.textContent?.includes(t));
+  const byText = (t: string) =>
+    [...document.body.querySelectorAll('button')].find((b) => b.textContent?.includes(t));
 
   act(() => byText('Catat pembayaran')?.click());
 
-  const input = el.querySelector('#pay-amount') as HTMLInputElement;
+  const input = document.body.querySelector('#pay-amount') as HTMLInputElement;
   const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
   act(() => {
     setter?.call(input, amount);
@@ -93,6 +100,8 @@ async function submitAmount(el: HTMLElement, amount: string) {
   await act(async () => {
     byText('Simpan pembayaran')?.click();
   });
+
+  void el;
 }
 
 beforeEach(() => {
@@ -130,7 +139,8 @@ describe('pencatatan gagal', () => {
     const el = mount();
     await submitAmount(el, '9999999');
 
-    expect(el.textContent).toContain('Nominal melebihi sisa tagihan.');
+    // `document.body`, sebab modalnya dirender lewat Portal.
+    expect(document.body.textContent).toContain('Nominal melebihi sisa tagihan.');
     // Gagal tidak boleh memuat ulang: form-nya harus tetap terisi supaya
     // angkanya bisa dibetulkan, bukan diketik ulang dari nol.
     expect(refresh).not.toHaveBeenCalled();
@@ -148,7 +158,12 @@ describe('pencatatan gagal', () => {
     const el = mount();
     await submitAmount(el, '1400000');
 
-    const inPanel = el.querySelector('.text-destructive');
-    expect(inPanel?.textContent).toContain('Gagal mencatat pembayaran.');
+    // Galatnya kini menetap **di dalam modal**, bukan di panel di belakangnya —
+    // modalnya tetap terbuka saat gagal, jadi di situlah mata operator berada.
+    // Yang dijaga tetap sama: ada tempat selain toast yang tidak menghilang.
+    const inDialog = document.body.querySelector('[role="alertdialog"], [role="dialog"]');
+    expect(inDialog?.querySelector('.text-destructive')?.textContent).toContain(
+      'Gagal mencatat pembayaran.',
+    );
   });
 });

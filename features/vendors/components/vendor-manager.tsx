@@ -10,6 +10,7 @@ import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmModal, Modal } from '@/components/ui/modal';
 import { DISTRIBUTION_MODE_LABEL } from '@/features/stages/sequence';
 import { createVendor, deleteVendor } from '@/server/actions/vendors';
 import type { VendorRow } from '../queries';
@@ -74,21 +75,32 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
             Data kerja sama, kontak, dan cara penyaluran yang dilayani
           </p>
         </div>
-        <Button type="button" onClick={() => setShowForm((v) => !v)}>
-          <Plus className="size-4" />
-          Daftarkan mitra
-        </Button>
-      </div>
-
-      {error && (
-        <p className="border-destructive/20 bg-destructive/5 text-destructive flex items-start gap-2 rounded-xl border px-4 py-3 text-sm">
-          <AlertCircle className="mt-0.5 size-4 shrink-0" />
-          {error}
-        </p>
-      )}
-
-      {showForm && (
-        <div className="border-border bg-card grid gap-3 rounded-lg border p-4 shadow-sm sm:grid-cols-2">
+        {/* Modal, bukan formulir yang mekar di atas daftar: 13 medan dalam dua
+            kolom mendorong seluruh daftar mitra keluar dari layar, dan operator
+            kehilangan tempat ia tadi berada. */}
+        <Modal
+          open={showForm}
+          onOpenChange={(next) => {
+            if (next) {
+              // Dikosongkan saat dibuka: ketikan yang diurungkan tidak boleh
+              // muncul lagi seolah data tersimpan.
+              setDraft(EMPTY);
+              setModes(['salur', 'kirim']);
+              setError(null);
+            }
+            setShowForm(next);
+          }}
+          trigger={
+            <Button type="button">
+              <Plus className="size-4" />
+              Daftarkan mitra
+            </Button>
+          }
+          width="lg"
+          title="Daftarkan mitra"
+          description="Kode, nama, dan nomor telepon wajib. Sisanya bisa dilengkapi kemudian di halaman detail mitra."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <Label htmlFor="v-code">Kode mitra</Label>
             <Input
@@ -224,7 +236,26 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
             />
           </div>
 
-          <div className="flex items-center gap-2 sm:col-span-2">
+          </div>
+
+          {/* Galat menetap di dalam modal: modalnya tetap terbuka saat gagal,
+              jadi pesannya harus ada di tempat mata operator sudah berada. */}
+          {error && (
+            <p className="border-destructive/20 bg-destructive/5 text-destructive mt-3 flex items-start gap-2 rounded-lg border px-3 py-2 text-sm">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              {error}
+            </p>
+          )}
+
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => setShowForm(false)}
+            >
+              Batal
+            </Button>
             <Button
               type="button"
               disabled={pending || !draft.code || !draft.name || !draft.phone || modes.length === 0}
@@ -235,27 +266,23 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
                     daily_capacity: draft.daily_capacity ? Number(draft.daily_capacity) : undefined,
                     service_modes: modes,
                   });
-                  if (result.ok) {
-                    setShowForm(false);
-                    setDraft(EMPTY);
-                    setModes(['salur', 'kirim']);
-                  }
+                  if (result.ok) setShowForm(false);
                   return result;
                 })
               }
             >
-              Simpan mitra
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pending}
-              onClick={() => setShowForm(false)}
-            >
-              Batal
+              {pending ? 'Menyimpan…' : 'Simpan mitra'}
             </Button>
           </div>
-        </div>
+        </Modal>
+      </div>
+
+      {/* Galat di luar modal — mis. gagal menghapus dari daftar. */}
+      {error && !showForm && (
+        <p className="border-destructive/20 bg-destructive/5 text-destructive flex items-start gap-2 rounded-xl border px-4 py-3 text-sm">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          {error}
+        </p>
       )}
 
       <ul className="border-border bg-card divide-border divide-y rounded-lg border shadow-sm">
@@ -331,51 +358,51 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
                 Ubah
               </Link>
 
-              {/* Penegasan dua langkah, bukan `confirm()`: penghapusan mitra
-                  memutus satu-satunya baris yang menautkan order lama ke
-                  pelaksananya, dan dialog peramban tidak bisa menyebutkan
-                  syaratnya. Tekan sekali → tombolnya sendiri yang bertanya. */}
-              {confirmDelete === v.id ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={pending}
-                    onClick={() =>
-                      run(
-                        () => deleteVendor({ id: v.id }),
-                        () => setConfirmDelete(null),
-                      )
-                    }
-                  >
-                    Ya, hapus {v.code}
+              {/* Penegasan dalam dialog, bukan tombol yang bertukar teks di
+                  tempat yang sama. Dua sebab: tombol yang berubah di bawah
+                  kursor membuat klik kedua yang tidak disengaja langsung
+                  menghapus, dan tombol tidak punya ruang menyebutkan bahwa
+                  penghapusan mitra memutus satu-satunya baris yang menautkan
+                  order lama ke pelaksananya. */}
+              <ConfirmModal
+                open={confirmDelete === v.id}
+                onOpenChange={(next) => {
+                  setConfirmDelete(next ? v.id : null);
+                  if (next) setError(null);
+                }}
+                trigger={
+                  <Button type="button" variant="ghost" size="sm">
+                    <Trash2 className="size-3.5" />
+                    Hapus
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => setConfirmDelete(null)}
-                  >
-                    Batal
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  disabled={pending}
-                  onClick={() => {
-                    setError(null);
-                    setConfirmDelete(v.id);
-                  }}
-                >
-                  <Trash2 className="size-3.5" />
-                  Hapus
-                </Button>
-              )}
+                }
+                title={`Hapus mitra ${v.name}?`}
+                description={`${v.code} hilang dari daftar mitra, beserta wilayah layanan dan daftar modalnya.`}
+                hint={
+                  v.ordersOpen > 0 ? (
+                    <>
+                      Mitra ini sedang mengerjakan <strong>{v.ordersOpen} order</strong> — database
+                      akan menolak, sebab jejak order lama tidak boleh kehilangan pelaksananya.
+                      Pakai <strong>Nonaktifkan</strong> di halaman detail untuk berhenti
+                      menugaskannya.
+                    </>
+                  ) : (
+                    <>
+                      Kalau hanya perlu berhenti menugaskannya, pakai <strong>Nonaktifkan</strong>{' '}
+                      di halaman detail — datanya tetap tersimpan.
+                    </>
+                  )
+                }
+                error={error}
+                confirmLabel={`Ya, hapus ${v.code}`}
+                pending={pending}
+                onConfirm={() =>
+                  run(
+                    () => deleteVendor({ id: v.id }),
+                    () => setConfirmDelete(null),
+                  )
+                }
+              />
             </div>
           </li>
         ))}

@@ -127,7 +127,12 @@ describe('umpan balik terpasang di seluruh aksi katalog', () => {
     ['features/services/components/service-form.tsx', 'simpan & tambah paket'],
     ['features/services/components/service-detail-actions.tsx', 'aktif/non-aktif & hapus'],
     ['features/services/components/service-photo-field.tsx', 'unggah & hapus foto'],
-    ['features/services/components/service-manager.tsx', 'hapus dari daftar'],
+    // Pindah dari `service-manager.tsx` pada 22 September: tombol hapus yang
+    // dulu berubah teks jadi "Yakin hapus?" di tempat yang sama diganti
+    // `AlertDialog`, dan toast-nya ikut ke berkas dialognya. Daftar ini
+    // menunjuk tempat aksinya benar-benar dijalankan — bukan tempat tombolnya
+    // dirender.
+    ['features/services/components/service-delete-dialog.tsx', 'hapus dari daftar'],
     ['features/vendors/components/vendor-service-panel.tsx', 'modal mitra'],
   ] as const;
 

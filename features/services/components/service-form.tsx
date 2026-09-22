@@ -98,6 +98,12 @@ function draftFrom(s: ServiceRow): Draft {
  * jalan keluarnya bukan menggulir otomatis: halaman sendiri juga memberi URL
  * yang bisa dibagikan, tombol kembali yang bekerja, dan ruang untuk hal-hal
  * yang tidak muat di baris daftar (foto, kaitan ke order & mitra).
+ *
+ * **Menambah tetap di layar daftar, tetapi dalam dialog** (21 September). Paket
+ * baru belum punya id, jadi tidak ada URL yang bisa dituju — sementara formulir
+ * yang mekar di halaman mengulangi keluhan yang sama: 14 medan mendorong
+ * seluruh daftar ke bawah layar. Dialog menyelesaikan keduanya, dan mengikuti
+ * pola yang sudah dipakai akun & lokasi.
  */
 export function ServiceForm({
   service,
