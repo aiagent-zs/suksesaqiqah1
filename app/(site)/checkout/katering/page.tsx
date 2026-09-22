@@ -31,8 +31,19 @@ export const metadata = {
  */
 export const dynamic = 'force-dynamic';
 
-export default async function CateringCheckoutPage() {
+export default async function CateringCheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ paket?: string }>;
+}) {
+  const { paket } = await searchParams;
   const { packages, provinces } = await getCateringOptions();
+
+  // `?paket=` membawa slug dari kartu di halaman depan. Dicocokkan ke katalog
+  // di sini, bukan dipercaya sebagai id: slug tak dikenal cukup diabaikan dan
+  // form jatuh ke paket pertama, bukan gagal. Pola yang sama dengan checkout
+  // aqiqah.
+  const preselected = paket ? packages.find((p) => p.slug === paket) : undefined;
 
   // Setiap order butuh minimal satu paket; tanpa katalog, form tidak bisa
   // menghasilkan order yang sah.
@@ -83,6 +94,7 @@ export default async function CateringCheckoutPage() {
             provinces={provinces}
             minDate={minDate}
             maxDate={maxDate}
+            initialServiceId={preselected?.id}
           />
         )}
       </div>

@@ -55,15 +55,20 @@ export function CateringForm({
   provinces,
   minDate,
   maxDate,
+  initialServiceId,
 }: {
   packages: CateringPackage[];
   provinces: RegionOption[];
   minDate: string;
   maxDate: string;
+  /** Dari `?paket=` di halaman depan; jatuh ke paket pertama bila tak dikenal. */
+  initialServiceId?: string;
 }) {
   const stored = useSyncExternalStore(subscribeDraft, getDraftSnapshot, getDraftServerSnapshot);
 
-  const [draft, setDraft] = useState<CateringDraft>(() => emptyDraft(packages[0]?.id ?? ''));
+  const [draft, setDraft] = useState<CateringDraft>(() =>
+    emptyDraft(initialServiceId ?? packages[0]?.id ?? ''),
+  );
   const [step, setStep] = useState(1);
   const [recovered, setRecovered] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});

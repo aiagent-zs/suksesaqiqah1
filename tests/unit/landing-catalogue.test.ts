@@ -176,14 +176,86 @@ describe('katering di landing', () => {
 
   it('halaman depan menerima & merender daftarnya', () => {
     expect(page).toContain('catering');
+    // Katering dinormalkan jadi kartu, lalu masuk kisi yang sama dengan aqiqah.
+    expect(page).toContain('cateringCards');
     expect(page).toContain('catering.map');
+  });
+
+  it('seluruh layanan memakai SATU bentuk kartu dan SATU kisi', () => {
+    // Sampai 22 September halaman ini punya tiga bentuk: kartu penuh untuk
+    // aqiqah, lalu dua blok berjudul berisi baris ringkas untuk nasi box dan
+    // katering. Terbaca sebagai tiga kelas layanan yang berbeda derajat —
+    // padahal katering justru pesanan berdiri sendiri yang nilainya bisa jauh
+    // lebih besar daripada satu ekor aqiqah.
+    expect(page).toContain('function PackageCard');
+    expect(page).toContain('function PackageGrid');
+
+    // Bentuk & blok lama benar-benar hilang, bukan sekadar tidak dipakai.
+    expect(page).not.toContain('function AqiqahCard');
+    expect(page).not.toContain('function PerBoxCard');
+    expect(page).not.toContain('function CateringBlock');
+    expect(page).not.toContain('function NasiBoxBlock');
+
+    // Ketiga jenis dinormalkan ke tipe yang sama sebelum dirender — itulah
+    // yang membuat kartunya tidak perlu bercabang per jenis di dalam.
+    expect(page).toContain('PackageCardData');
+    for (const kind of ['aqiqahCards', 'cateringCards', 'boxCards']) {
+      expect(page).toContain(kind);
+    }
+  });
+
+  it('kartu per-box membawa foto & tagline dari katalog', () => {
+    // Keduanya sudah ada di `services` sejak 3 September tetapi tidak pernah
+    // diambil, sebab bentuk lamanya tidak punya tempat untuk itu.
+    const catalogue = readFileSync(join(process.cwd(), 'features/landing/catalogue.ts'), 'utf8');
+    const perBoxBlock = catalogue.slice(catalogue.indexOf('const perBox'));
+    expect(perBoxBlock).toContain('tagline');
+    expect(perBoxBlock).toContain('photo_path');
+  });
+
+  it('katering muncul di tab bawaan, bukan tersembunyi di balik klik', () => {
+    // Keputusan pemasaran: yang ditawarkan lebih dulu adalah katering dan
+    // aqiqah terpopuler. Tab `pilihan` karena itu harus jadi bawaannya — kalau
+    // bergeser ke `aqiqah`, katering turun satu klik tanpa ada yang menyadari.
+    expect(page).toContain('defaultTab="pilihan"');
+    expect(page).toContain("id: 'pilihan'");
+  });
+
+  it('penyaringnya menyembunyikan, bukan membongkar-pasang kartunya', () => {
+    // `SitePhoto` server-only (`node:fs`), jadi kartunya wajib dirakit di
+    // server dan dikirim sebagai blok jadi. Itu pula yang membuat halaman
+    // depan tetap prerender statis dan seluruh kartu ada di HTML awal —
+    // penting untuk mesin pencari.
+    const filter = readFileSync(join(process.cwd(), 'components/site/package-filter.tsx'), 'utf8');
+    expect(filter).toContain('hidden={');
+    expect(filter).toContain('ReactNode');
+    // Halaman depan tidak boleh jadi dinamis gara-gara penyaring ini.
+    expect(page).not.toContain("export const dynamic = 'force-dynamic'");
   });
 
   it('tombolnya menuju /checkout/katering, bukan /checkout', () => {
     // Inilah pembeda pokoknya dari nasi box: katering pesanan yang berdiri
     // sendiri, jadi ia punya formnya sendiri. Mengarahkannya ke `/checkout`
     // membawa pembeli ke form aqiqah yang tidak ia cari.
-    expect(page).toContain('href="/checkout/katering"');
+    // Sejak tiap paket katering punya kartunya sendiri (22 September),
+    // tautannya membawa slug — pembeli mendarat di form dengan paket yang ia
+    // klik sudah terpilih, bukan di paket pertama.
+    expect(page).toContain('/checkout/katering?paket=${c.slug}');
+    // Dan tidak tertukar: aqiqah ke `/checkout`, katering ke `/checkout/katering`.
+    expect(page).toContain('/checkout?paket=${p.slug}');
+  });
+
+  it('slug dari tautan itu benar-benar dibaca halaman checkout katering', () => {
+    // Tautan yang membawa `?paket=` ke halaman yang mengabaikannya adalah
+    // kekeliruan senyap: pembeli mengira memilih Prasmanan dan mendapat paket
+    // pertama. Persis kelas bug yang pernah terjadi pada `paket-c-favorit`.
+    const checkout = readFileSync(
+      join(process.cwd(), 'app/(site)/checkout/katering/page.tsx'),
+      'utf8',
+    );
+    expect(checkout).toContain('searchParams');
+    expect(checkout).toContain('packages.find((p) => p.slug === paket)');
+    expect(checkout).toContain('initialServiceId');
   });
 
   it('paket katering ada di migration', () => {

@@ -21,6 +21,16 @@ export type LandingBox = {
   price: number;
   popular: boolean;
   items: string[];
+  /**
+   * Foto & tagline ikut dibawa sejak 22 September, ketika nasi box dan katering
+   * naik jadi kartu sepenuhnya — sebelumnya keduanya hanya baris nama + harga,
+   * jadi kolomnya tidak pernah diambil meski sudah ada di `services`.
+   *
+   * Keduanya boleh kosong: paket yang belum punya foto merender kartunya tanpa
+   * blok gambar, bukan dengan kotak penanda.
+   */
+  tagline: string | null;
+  photo: { src: string; alt: string } | null;
 };
 
 /**
@@ -110,9 +120,10 @@ export async function getLandingCatalogue(): Promise<{
     .filter((s) => s.type === 'aqiqah')
     .map((s) => ({
       slug: s.slug,
-      // "Aqiqah Ekonomi" di katalog jadi "Ekonomi" di kartu, sebab kartunya
-      // sudah menuliskan "Aqiqah {name}" dan tombolnya "Pesan paket {name}".
-      // Tanpa ini keduanya berbunyi "Aqiqah Aqiqah Ekonomi".
+      // "Aqiqah Ekonomi" di katalog jadi "Ekonomi" di kartu. Dulu sebab
+      // kartunya menuliskan "Aqiqah {name}"; sejak 22 September awalan itu
+      // pindah ke **label jenis** di atas nama, dan alasannya tetap sama —
+      // tanpa pemangkasan ini label & nama berbunyi "Aqiqah / Aqiqah Ekonomi".
       name: s.name.replace(/^aqiqah\s+/i, ''),
       price: Number(s.price),
       popular: s.is_popular,
@@ -134,6 +145,10 @@ export async function getLandingCatalogue(): Promise<{
         price: Number(s.price),
         popular: s.is_popular,
         items: metaItems(s.meta),
+        tagline: s.tagline,
+        photo: s.photo_path
+          ? { src: s.photo_path, alt: s.photo_alt ?? `Sajian ${s.name}` }
+          : null,
       }));
 
   return { programs, boxes: perBox('nasi_box'), catering: perBox('katering') };
