@@ -91,7 +91,10 @@ export default async function VendorsPage({ searchParams }: { searchParams: Sear
       {active === 'mitra' ? (
         <VendorManager vendors={vendors} />
       ) : (
-        <ServiceManager services={services} />
+        <ServiceManager
+              services={services}
+              publicBase={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
+            />
       )}
     </div>
   );

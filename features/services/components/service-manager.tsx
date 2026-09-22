@@ -42,7 +42,14 @@ import type { ServiceRow } from '../queries';
  *    harga berdiri sebagai angka utama di kanan, dan keterangan pemakaian
  *    turun jadi baris tersendiri yang lebih redup.
  */
-export function ServiceManager({ services }: { services: ServiceRow[] }) {
+export function ServiceManager({
+  services,
+  publicBase,
+}: {
+  services: ServiceRow[];
+  /** `NEXT_PUBLIC_SUPABASE_URL` dari server; diteruskan ke unggahan foto. */
+  publicBase: string;
+}) {
   /**
    * Penyaring nama & slug.
    *
@@ -76,6 +83,7 @@ export function ServiceManager({ services }: { services: ServiceRow[] }) {
         </div>
 
         <ServiceDialog
+          publicBase={publicBase}
           trigger={
             <Button type="button">
               <Plus className="size-4" />
@@ -220,6 +228,7 @@ export function ServiceManager({ services }: { services: ServiceRow[] }) {
                       "Lihat" untuk yang butuh lebih dari itu. */}
                   <ServiceDialog
                     service={s}
+                    publicBase={publicBase}
                     trigger={
                       <Button type="button" variant="outline" size="sm">
                         <Pencil className="size-3.5" />

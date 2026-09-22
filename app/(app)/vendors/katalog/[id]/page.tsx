@@ -123,18 +123,31 @@ export default async function ServiceDetailPage({ params }: { params: Params }) 
           diunggah (berkasnya sudah masuk Storage), sementara medan lain baru
           tersimpan saat "Simpan perubahan" ditekan. Menaruhnya di dalam
           formulir membuat satu blok punya dua aturan penyimpanan yang berbeda
-          tanpa ada yang memberi tahu. */}
-      {service.showOnLanding && (
-        <div className="border-border bg-card rounded-lg border p-5 shadow-sm">
-          <ServicePhotoField
-            serviceId={service.id}
-            slug={service.slug}
-            photoPath={service.photoPath}
-            photoAlt={service.photoAlt}
-            publicBase={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
-          />
-        </div>
-      )}
+          tanpa ada yang memberi tahu.
+
+          **Tidak lagi bersyarat `showOnLanding`** (22 September). Syarat itu
+          masuk akal ketika foto hanya dipakai kartu landing, tetapi ia membuat
+          alurnya melingkar: panel unggah tersembunyi sampai paket dipasarkan,
+          jadi paketnya wajib tampil di beranda **tanpa foto** lebih dulu baru
+          fotonya bisa diunggah. Urutan yang wajar justru sebaliknya — siapkan
+          fotonya, baru putuskan memajangnya. */}
+      <div className="border-border bg-card rounded-lg border p-5 shadow-sm">
+        <ServicePhotoField
+          serviceId={service.id}
+          slug={service.slug}
+          photoPath={service.photoPath}
+          photoAlt={service.photoAlt}
+          publicBase={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
+        />
+
+        {!service.showOnLanding && (
+          <p className="text-muted-foreground mt-3 text-xs">
+            Paket ini belum dipasarkan di halaman depan, jadi fotonya belum terlihat pengunjung.
+            Centang <strong>&ldquo;Dipasarkan di halaman depan&rdquo;</strong> pada data paket di
+            bawah untuk menampilkannya.
+          </p>
+        )}
+      </div>
 
       <div id="data-paket" className="border-border bg-card rounded-lg border p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold">Data paket</h2>

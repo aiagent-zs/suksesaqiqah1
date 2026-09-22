@@ -3,6 +3,7 @@
 import { useState, type ReactElement } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { ServiceForm } from './service-form';
+import { ServicePhotoField } from './service-photo-field';
 import type { ServiceRow } from '../queries';
 
 /**
@@ -25,10 +26,19 @@ import type { ServiceRow } from '../queries';
  */
 export function ServiceDialog({
   service,
+  publicBase,
   trigger,
 }: {
   /** Diisi = mode sunting. Dikosongkan = mode tambah. */
   service?: ServiceRow;
+  /**
+   * `NEXT_PUBLIC_SUPABASE_URL`, diteruskan dari server.
+   *
+   * Dipakai `ServicePhotoField` merakit URL publik foto. Diterima sebagai prop
+   * alih-alih dibaca ulang di klien supaya satu sumbernya jelas — pola yang
+   * sama dengan halaman detail paket.
+   */
+  publicBase: string;
   /** Elemen pemicu; base-ui menyatukan propsnya lewat `render`. */
   trigger: ReactElement;
 }) {
@@ -50,6 +60,35 @@ export function ServiceDialog({
           : 'Paket langsung bisa dipesan begitu disimpan. Centang “dipasarkan di halaman depan” bila ingin ia tampil sebagai kartu di beranda.'
       }
     >
+      {/* Foto **di atas** formulir, dan terpisah darinya.
+
+          Dua aturan penyimpanan yang berbeda: foto tersimpan seketika saat
+          diunggah (berkasnya sudah masuk Storage dan `photo_path` ikut
+          ditulis), sementara medan lain baru tersimpan saat "Simpan perubahan"
+          ditekan. Menyatukannya dalam satu blok membuat satu formulir punya dua
+          perilaku tanpa ada yang memberi tahu — jadi jaraknya sengaja dijaga,
+          sama seperti di halaman detail paket.
+
+          Hanya pada mode sunting: `ServicePhotoField` butuh `serviceId`, dan
+          paket baru belum punya id sampai tersimpan. Pesan di bawah
+          mengatakannya alih-alih membiarkan bagiannya hilang tanpa penjelasan. */}
+      {service ? (
+        <div className="border-border mb-5 border-b pb-5">
+          <ServicePhotoField
+            serviceId={service.id}
+            slug={service.slug}
+            photoPath={service.photoPath}
+            photoAlt={service.photoAlt}
+            publicBase={publicBase}
+          />
+        </div>
+      ) : (
+        <p className="text-muted-foreground border-border mb-5 border-b pb-5 text-xs">
+          Foto paket bisa diunggah setelah paket ini tersimpan — buka kembali lewat tombol{' '}
+          <strong>Edit</strong> di daftar.
+        </p>
+      )}
+
       <ServiceForm
         service={service}
         onCancel={() => setOpen(false)}

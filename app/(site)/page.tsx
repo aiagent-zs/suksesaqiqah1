@@ -359,6 +359,76 @@ function PackageGrid({ cards }: { cards: PackageCardData[] }) {
   );
 }
 
+/**
+ * Nasi box — **keterangan, bukan pilihan.**
+ *
+ * Sempat dijadikan kartu sejajar aqiqah & katering (22 September), lalu
+ * dikembalikan: nasi box bukan pesanan yang berdiri sendiri melainkan tambahan
+ * opsional atas paket aqiqah, dan `create_guest_order` memang menolaknya
+ * sebagai paket utama. Kartu dengan tombol "Pesan" menawarkan sesuatu yang
+ * tidak bisa dipesan — persis jenis kekeliruan yang tidak menghasilkan galat
+ * apa pun, hanya pengunjung yang kecewa di ujung alur.
+ *
+ * Bentuk ringkasnya justru menyampaikan perannya: satu blok bersahaja di bawah
+ * deretan kartu, dengan satu tombol tanya ke WhatsApp untuk seluruh paket.
+ */
+function NasiBoxNote({ boxes }: { boxes: LandingBox[] }) {
+  return (
+    <Reveal anim="scale" className="mt-6 rounded-lg border border-neutral-200 bg-white p-5 sm:p-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-xl">
+          <h3 className="text-base font-semibold text-neutral-900">
+            Nasi box aqiqah{' '}
+            <span className="font-normal text-neutral-500">— tambahan opsional</span>
+          </h3>
+          <p className="mt-1.5 text-sm leading-6 text-neutral-600">
+            Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji. Harga per porsi, dipesan{' '}
+            <strong>bersama paket aqiqah</strong> lewat tim kami.
+          </p>
+        </div>
+        <a
+          href={siteConfig.whatsapp.href(orderMessage('Nasi Box Aqiqah'))}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98]"
+        >
+          <IconWhatsApp className="h-4 w-4" />
+          Tanya nasi box
+        </a>
+      </div>
+
+      {/* Lauknya dipisah koma, bukan daftar bertitik: pembeda antar paket
+          adalah panjang rangkaiannya, dan itu paling cepat terbaca kalau
+          kelimanya bisa dibandingkan sekilas. */}
+      <ul className="mt-6 grid gap-3 border-t border-neutral-100 pt-6 sm:mt-7 sm:grid-cols-2 lg:grid-cols-3">
+        {boxes.map((box) => (
+          <li
+            key={box.slug}
+            className={`rounded-lg border p-4 ${
+              box.popular ? 'border-primary/30 bg-primary/3' : 'border-neutral-200'
+            }`}
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <h4 className="text-sm font-semibold text-neutral-900">
+                {box.name}
+                {box.popular && (
+                  <span className="bg-primary/10 text-primary ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                    Favorit
+                  </span>
+                )}
+              </h4>
+              <p className="text-sm font-semibold text-neutral-900 tabular-nums">
+                {formatIDR(box.price)}
+              </p>
+            </div>
+            <p className="mt-1.5 text-xs leading-5 text-neutral-600">{box.items.join(', ')}</p>
+          </li>
+        ))}
+      </ul>
+    </Reveal>
+  );
+}
+
 function PackagesSection({
   programs,
   boxes,
@@ -434,36 +504,6 @@ function PackagesSection({
     ),
   }));
 
-  const boxCards: PackageCardData[] = boxes.map((b) => ({
-    slug: b.slug,
-    title: b.name,
-    kind: 'Nasi Box',
-    price: b.price,
-    unit: 'box',
-    popular: b.popular,
-    popularLabel: 'Favorit',
-    // Nasi box tidak punya tagline di katalog; kalimat ini menjelaskan
-    // perannya, yang dulu dikerjakan judul bloknya.
-    tagline: b.tagline ?? 'Tambahan opsional untuk pesanan aqiqah.',
-    features: b.items,
-    photo: b.photo,
-    action: (
-      // Tombolnya WhatsApp, bukan checkout — dan itu bukan kekurangan yang
-      // menunggu diperbaiki: `create_guest_order` memang menolak layanan
-      // bertipe `nasi_box` sebagai paket utama, sebab ia tambahan atas pesanan
-      // aqiqah. Pesannya menyebut nama paketnya supaya tim tidak bertanya balik.
-      <a
-        href={siteConfig.whatsapp.href(orderMessage(`Nasi Box ${b.name}`))}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-neutral-300 px-5 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98]"
-      >
-        <IconWhatsApp className="h-4 w-4" />
-        Tanya {b.name}
-      </a>
-    ),
-  }));
-
   /**
    * Tab "Pilihan": **katering dan aqiqah yang paling diminati.**
    *
@@ -481,17 +521,29 @@ function PackagesSection({
       id: 'pilihan',
       label: 'Pilihan',
       count: featuredAqiqah.length + cateringCards.length,
-      content: <PackageGrid cards={[...featuredAqiqah, ...cateringCards]} />,
+      content: (
+        <>
+          <PackageGrid cards={[...featuredAqiqah, ...cateringCards]} />
+          {/* Ikut di sini juga: tab ini memuat paket aqiqah, dan nasi box
+              adalah tambahan atasnya — menyebutkannya hanya di tab Aqiqah
+              berarti pengunjung yang berhenti di tab bawaan tidak pernah tahu
+              tambahan itu ada. */}
+          {boxes.length > 0 && <NasiBoxNote boxes={boxes} />}
+        </>
+      ),
     },
     {
       id: 'aqiqah',
       label: 'Aqiqah',
-      // Nasi box ikut di sini, bukan tab sendiri: ia tambahan atas pesanan
-      // aqiqah, jadi menaruhnya sebagai pilihan sejajar akan menawarkannya
-      // sebagai sesuatu yang bisa dipesan terpisah — dan `create_guest_order`
-      // justru menolak itu.
-      count: aqiqahCards.length + boxCards.length,
-      content: <PackageGrid cards={[...aqiqahCards, ...boxCards]} />,
+      // Hitungannya paket aqiqah saja. Nasi box tidak ikut dihitung karena ia
+      // bukan pilihan sejajar — lihat `NasiBoxNote`.
+      count: aqiqahCards.length,
+      content: (
+        <>
+          <PackageGrid cards={aqiqahCards} />
+          {boxes.length > 0 && <NasiBoxNote boxes={boxes} />}
+        </>
+      ),
     },
     {
       id: 'katering',

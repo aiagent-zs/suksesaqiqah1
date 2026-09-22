@@ -22,12 +22,18 @@ export type LandingBox = {
   popular: boolean;
   items: string[];
   /**
-   * Foto & tagline ikut dibawa sejak 22 September, ketika nasi box dan katering
-   * naik jadi kartu sepenuhnya — sebelumnya keduanya hanya baris nama + harga,
-   * jadi kolomnya tidak pernah diambil meski sudah ada di `services`.
+   * Foto & tagline ikut dibawa sejak 22 September.
    *
-   * Keduanya boleh kosong: paket yang belum punya foto merender kartunya tanpa
-   * blok gambar, bukan dengan kotak penanda.
+   * Dipakai **katering**, yang dirender sebagai kartu penuh sejajar aqiqah.
+   * Nasi box memakai tipe yang sama tetapi keduanya tidak terpakai di sana: ia
+   * tambahan opsional atas paket aqiqah, bukan pesanan berdiri sendiri, jadi
+   * bentuknya sengaja tetap ringkas (`NasiBoxNote`).
+   *
+   * Tetap diambil untuk keduanya — satu query, satu bentuk. Menyaringnya per
+   * jenis di sini hanya menambah cabang tanpa menghemat apa pun.
+   *
+   * Boleh kosong: paket yang belum punya foto merender kartunya tanpa blok
+   * gambar, bukan dengan kotak penanda.
    */
   tagline: string | null;
   photo: { src: string; alt: string } | null;

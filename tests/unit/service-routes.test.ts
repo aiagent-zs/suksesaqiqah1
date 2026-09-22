@@ -116,10 +116,74 @@ describe('tombol per baris katalog', () => {
     // di sini justru sifatnya: `fixed` + `translate` membuatnya melayang di
     // atas halaman, jadi tidak ada isi yang bergeser.
     const modal = readFileSync(join(process.cwd(), 'components/ui/modal.tsx'), 'utf8');
-    expect(modal).toContain('fixed top-1/2 left-1/2');
-    // Tanpa keduanya, dialog panjang terpotong di layar pendek tanpa galat.
-    expect(modal).toContain('max-h-[90dvh]');
+    // Melayang di atas halaman, tidak ikut aliran isi. Di layar lebar ia di
+    // tengah; di ponsel menempel ke dasar sebagai lembar-bawah — keduanya sama
+    // saja bagi halaman di belakangnya: tidak ada yang bergeser.
+    expect(modal).toContain('fixed');
+    expect(modal).toContain('sm:-translate-x-1/2 sm:-translate-y-1/2');
+
+    // `dvh`, bukan `vh`: `vh` menghitung bilah alamat ponsel sebagai ruang yang
+    // ada, sehingga tombol simpan mendarat di bawahnya dan tidak bisa ditekan.
+    expect(modal).toMatch(/max-h-\[\d+dvh\]/);
     expect(modal).toContain('overflow-y-auto');
+  });
+
+  it('modal berstruktur tiga bagian — judul & tombol tidak ikut tergulir', () => {
+    // Versi pertama menggulirkan seluruh isi popup. Pada formulir paket (14
+    // medan) akibatnya dua hal: judulnya hilang begitu digulir, jadi tidak ada
+    // penanda sedang menyunting apa; dan tombol simpan harus dicari di dasar
+    // gulungan, padahal ia aksi yang paling sering dituju.
+    const modal = readFileSync(join(process.cwd(), 'components/ui/modal.tsx'), 'utf8');
+
+    expect(modal).toContain('const HEADER');
+    expect(modal).toContain('const BODY');
+    expect(modal).toContain('const FOOTER');
+
+    // `min-h-0` yang membuatnya bekerja: tanpa itu anak flex menolak menyusut
+    // lebih kecil dari isinya, dan gulirannya pindah ke popup lagi — persis
+    // perilaku yang sedang diperbaiki.
+    expect(modal).toContain('min-h-0 flex-1 overflow-y-auto');
+    expect(modal).toContain('shrink-0');
+  });
+
+  it('modal Edit memuat unggahan foto, bukan hanya medan teks', () => {
+    // Celah yang lahir saat Edit dipindahkan ke modal: fotonya tertinggal di
+    // halaman detail, jadi satu-satunya jalan mengunggahnya adalah menempuh
+    // perpindahan halaman yang justru dihindari modal itu.
+    const dialog = readFileSync(
+      join(process.cwd(), 'features/services/components/service-dialog.tsx'),
+      'utf8',
+    );
+    expect(dialog).toContain('<ServicePhotoField');
+    // Butuh `serviceId`, jadi hanya bisa pada paket yang sudah tersimpan —
+    // dan pemanggilnya wajib meneruskan basis URL publiknya.
+    expect(dialog).toContain('publicBase');
+
+    const manager = readFileSync(
+      join(process.cwd(), 'features/services/components/service-manager.tsx'),
+      'utf8',
+    );
+    expect(manager).toContain('publicBase={publicBase}');
+  });
+
+  it('panel foto tidak lagi bersyarat "dipasarkan di halaman depan"', () => {
+    // Syarat itu membuat alurnya melingkar: panel unggah tersembunyi sampai
+    // paket dipasarkan, jadi paketnya wajib tampil di beranda TANPA foto lebih
+    // dulu baru fotonya bisa diunggah. Urutan yang wajar justru sebaliknya.
+    const detail = readFileSync(
+      join(process.cwd(), 'app/(app)/vendors/katalog/[id]/page.tsx'),
+      'utf8',
+    );
+    expect(detail).toContain('<ServicePhotoField');
+
+    // Diperiksa pada potongan tepat sebelum panelnya, bukan seluruh berkas:
+    // `showOnLanding` sah muncul di tempat lain (badge "Di halaman depan"),
+    // dan `not.toContain` polos akan menangkap badge itu — tes yang merah
+    // karena sebab yang keliru sama tidak berguna dengan tes yang hijau
+    // tanpa memeriksa apa pun.
+    const before = detail.slice(0, detail.indexOf('<ServicePhotoField'));
+    const lastBlock = before.slice(before.lastIndexOf('}'));
+    expect(lastBlock).not.toContain('showOnLanding &&');
   });
 
   it('halaman detail tetap punya jangkar data paket', () => {

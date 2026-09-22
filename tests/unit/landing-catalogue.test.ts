@@ -181,27 +181,46 @@ describe('katering di landing', () => {
     expect(page).toContain('catering.map');
   });
 
-  it('seluruh layanan memakai SATU bentuk kartu dan SATU kisi', () => {
-    // Sampai 22 September halaman ini punya tiga bentuk: kartu penuh untuk
-    // aqiqah, lalu dua blok berjudul berisi baris ringkas untuk nasi box dan
-    // katering. Terbaca sebagai tiga kelas layanan yang berbeda derajat —
-    // padahal katering justru pesanan berdiri sendiri yang nilainya bisa jauh
-    // lebih besar daripada satu ekor aqiqah.
+  it('aqiqah & katering memakai SATU bentuk kartu dan SATU kisi', () => {
+    // Sampai 22 September aqiqah punya kartu penuh sementara katering hanya
+    // baris ringkas di dalam blok berjudul — terbaca sebagai kelas layanan
+    // yang lebih rendah, padahal katering justru pesanan berdiri sendiri yang
+    // nilainya bisa jauh lebih besar daripada satu ekor aqiqah.
     expect(page).toContain('function PackageCard');
     expect(page).toContain('function PackageGrid');
 
-    // Bentuk & blok lama benar-benar hilang, bukan sekadar tidak dipakai.
+    // Keduanya dinormalkan ke tipe yang sama sebelum dirender — itulah yang
+    // membuat kartunya tidak perlu bercabang per jenis di dalam.
+    expect(page).toContain('PackageCardData');
+    expect(page).toContain('aqiqahCards');
+    expect(page).toContain('cateringCards');
+
+    // Bentuk lama benar-benar hilang, bukan sekadar tidak dipakai.
     expect(page).not.toContain('function AqiqahCard');
     expect(page).not.toContain('function PerBoxCard');
     expect(page).not.toContain('function CateringBlock');
-    expect(page).not.toContain('function NasiBoxBlock');
+  });
 
-    // Ketiga jenis dinormalkan ke tipe yang sama sebelum dirender — itulah
-    // yang membuat kartunya tidak perlu bercabang per jenis di dalam.
-    expect(page).toContain('PackageCardData');
-    for (const kind of ['aqiqahCards', 'cateringCards', 'boxCards']) {
-      expect(page).toContain(kind);
-    }
+  it('nasi box TETAP ringkas — ia tambahan, bukan pilihan sejajar', () => {
+    // Sempat dijadikan kartu sejajar (22 September), lalu dikembalikan.
+    // Alasannya bukan selera: `create_guest_order` menolak layanan bertipe
+    // `nasi_box` sebagai paket utama, jadi kartu bertombol "Pesan" menawarkan
+    // sesuatu yang tidak bisa dipesan — kekeliruan yang tidak menghasilkan
+    // galat apa pun, hanya pengunjung yang kecewa di ujung alur.
+    expect(page).toContain('function NasiBoxNote');
+    expect(page).not.toContain('boxCards');
+
+    // Jalurnya WhatsApp, satu tombol untuk seluruh paket — bukan tombol pesan
+    // per paket seperti pada kartu.
+    const note = page.slice(page.indexOf('function NasiBoxNote'));
+    const body = note.slice(0, note.indexOf('\nfunction '));
+    expect(body).toContain('whatsapp.href');
+    expect(body).not.toContain('/checkout');
+
+    // Dan ia muncul di kedua tab yang memuat aqiqah: pengunjung yang berhenti
+    // di tab bawaan harus tetap tahu tambahan ini ada.
+    const noteUses = page.match(/<NasiBoxNote boxes=\{boxes\} \/>/g) ?? [];
+    expect(noteUses.length).toBe(2);
   });
 
   it('kartu per-box membawa foto & tagline dari katalog', () => {
