@@ -13,7 +13,7 @@ const uuid = z.string().uuid('Pilihan tidak valid');
  * berhenti di superadmin: harga keputusan pemilik usaha, bukan operasional.
  */
 export const serviceSchema = z.object({
-  type: z.enum(['aqiqah', 'qurban', 'sedekah_daging', 'nasi_box', 'katering'], {
+  type: z.enum(['aqiqah', 'qurban', 'sedekah_daging', 'nasi_box', 'katering', 'katering_ayam', 'katering_daging', 'katering_kebuli'], {
     message: 'Jenis paket tidak dikenali',
   }),
   name: z.string().trim().min(2, 'Nama paket wajib diisi').max(150, 'Nama terlalu panjang'),

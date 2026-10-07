@@ -47,6 +47,18 @@ export const createOrderSchema = z.object({
    * checkout publik selalu mendarat di cabang yang sama.
    */
   participant: participantInputSchema,
+  /**
+   * Cara penyaluran wajib diisi staf saat membuat order.
+   *
+   * RPC `create_order` membacanya untuk mengisi `orders.distribution_mode`.
+   * Tanpa nilai ini, `assignVendor` menolak penugasan karena trigger
+   * `generate_stage_checklist` tidak tahu daftar tahap yang harus dibuat.
+   * Order dari checkout publik (`create_guest_order`) menentukan ini dari
+   * pilihan pemesan; order dari katering selalu `kirim` dan diisi RPC-nya.
+   */
+  distribution_mode: z.enum(['salur', 'kirim'], {
+    message: 'Cara penyaluran wajib dipilih (salur atau kirim)',
+  }),
   items: z.array(orderItemInputSchema).min(1, 'Order harus punya minimal 1 item layanan'),
   animals: z.array(animalInputSchema).default([]),
   notes: z.string().trim().max(2000).optional().or(z.literal('')),

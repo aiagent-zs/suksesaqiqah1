@@ -8,19 +8,6 @@ import { endOfDayExclusiveWib, startOfDayWib } from '@/lib/format/date-range';
 
 type Tables = Database['public']['Tables'];
 
-/** Rasio DP minimum dari app_settings; 0.5 bila baris setting belum ada. */
-export async function getMinDpRatio(): Promise<number> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'min_dp_ratio')
-    .maybeSingle();
-
-  const raw = (data?.value as { ratio?: number } | null)?.ratio;
-  return typeof raw === 'number' && raw > 0 && raw <= 1 ? raw : 0.5;
-}
-
 /**
  * Bungkus nilai dalam tanda kutip untuk filter PostgREST.
  * Tanpa ini, koma dan kurung pada input pengguna dibaca sebagai sintaks
@@ -259,7 +246,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
   // mengembalikan `missing_doc_stages` yang diturunkan dari `stage_requirements`
   // menurut cara penyaluran order. Satu sumber kebenaran, dan menambah tahap
   // baru tidak menyentuh satu baris TypeScript pun.
-  const [{ data: row, error }, { data: progress }, minDpRatio] = await Promise.all([
+  const [{ data: row, error }, { data: progress }] = await Promise.all([
     supabase
       .from('orders')
       .select(
@@ -280,7 +267,6 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       .eq('id', orderId)
       .maybeSingle(),
     supabase.from('v_order_progress').select('*').eq('order_id', orderId).maybeSingle(),
-    getMinDpRatio(),
   ]);
 
   if (error) throw new Error(`Gagal memuat detail order: ${error.message}`);
@@ -341,7 +327,6 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       paymentStatus: r.payment_status,
       totalAmount: Number(r.total_amount),
       paidAmount: Number(r.paid_amount),
-      minDpRatio,
       isGuestOrder: r.created_by === null,
       guestVerified: r.guest_verified_at !== null,
       hasVendor: r.vendor_id !== null,
@@ -349,7 +334,13 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       animalsTotal: Number(progress?.animals_total ?? 0),
       // Diturunkan dari item yang sudah dimuat query di atas, bukan query
       // tambahan — cermin `public.is_catering_order()` di database.
-      isCateringOrder: (r.items ?? []).some((i) => i.service?.type === 'katering'),
+      isCateringOrder: (r.items ?? []).some(
+        (i) =>
+          i.service?.type === 'katering' ||
+          i.service?.type === 'katering_ayam' ||
+          i.service?.type === 'katering_daging' ||
+          i.service?.type === 'katering_kebuli',
+      ),
       stagesTotal: Number(progress?.stages_total ?? 0),
       stagesReported: Number(progress?.stages_reported ?? 0),
       stagesValidated: Number(progress?.stages_validated ?? 0),

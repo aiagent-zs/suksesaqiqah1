@@ -6,6 +6,7 @@ import type { RegionOption } from '@/features/checkout/queries';
 
 export type CateringPackage = {
   id: string;
+  type: Database['public']['Enums']['service_type'];
   name: string;
   slug: string;
   description: string | null;
@@ -41,8 +42,8 @@ export async function getCateringOptions(): Promise<CateringOptions> {
   const [servicesResult, provincesResult] = await Promise.all([
     supabase
       .from('services')
-      .select('id, name, slug, description, price, meta')
-      .eq('type', 'katering')
+      .select('id, type, name, slug, description, price, meta')
+      .in('type', ['katering', 'katering_ayam', 'katering_daging', 'katering_kebuli'])
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('sort_order', { ascending: true }),
@@ -51,6 +52,7 @@ export async function getCateringOptions(): Promise<CateringOptions> {
 
   const packages = (servicesResult.data ?? []).map((s) => ({
     id: s.id,
+    type: s.type,
     name: s.name,
     slug: s.slug,
     description: s.description,

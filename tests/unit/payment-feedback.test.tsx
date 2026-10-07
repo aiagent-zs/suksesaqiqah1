@@ -16,7 +16,7 @@ import type { PaymentSummary } from '@/features/payments/queries';
  *
  * Itu keliru justru karena senyap, dan `recordPayment` **tidak idempoten**: yang
  * ragu akan menyimpan ulang, dan hasilnya dua baris pembayaran untuk satu
- * transfer yang sama. Angka itu ikut menentukan gate DP.
+ * transfer yang sama. Angka itu ikut menentukan lunas-tidaknya order.
  *
  * Galat tetap ditulis di panel, bukan hanya di toast: toast hilang sendiri
  * setelah 5 detik, jadi ia tidak boleh jadi satu-satunya tempat alasan
@@ -67,7 +67,6 @@ function mount() {
         summary={summary()}
         totalAmount={2_800_000}
         paidAmount={0}
-        minDpRatio={0.5}
         canRecord
         canVerify
       />,

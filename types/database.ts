@@ -1794,6 +1794,9 @@ export type Database = {
         | "sedekah_daging"
         | "nasi_box"
         | "katering"
+        | "katering_ayam"
+        | "katering_daging"
+        | "katering_kebuli"
       stage_event_status: "pending" | "reported" | "validated" | "rejected"
       user_role: "superadmin" | "admin" | "vendor"
     }
@@ -1970,6 +1973,9 @@ export const Constants = {
         "sedekah_daging",
         "nasi_box",
         "katering",
+        "katering_ayam",
+        "katering_daging",
+        "katering_kebuli",
       ],
       stage_event_status: ["pending", "reported", "validated", "rejected"],
       user_role: ["superadmin", "admin", "vendor"],

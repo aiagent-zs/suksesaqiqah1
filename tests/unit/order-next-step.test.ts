@@ -26,7 +26,6 @@ function ctx(over: Partial<OrderGuardContext> = {}): OrderGuardContext {
     paymentStatus: 'unpaid',
     totalAmount: 2_800_000,
     paidAmount: 0,
-    minDpRatio: 0.5,
     isGuestOrder: false,
     guestVerified: false,
     hasVendor: false,
@@ -90,14 +89,21 @@ describe('penghalang datang dari state machine, bukan disalin', () => {
     expect(step.readyFor).toBe('verified');
   });
 
-  it('gate DP menahan verified → paid sampai separuh terbayar', () => {
-    const belum = deriveNextStep('verified', 'admin', ctx({ paidAmount: 1_000_000 }));
+  it('verified → paid tertahan sampai lunas', () => {
+    const belum = deriveNextStep(
+      'verified',
+      'admin',
+      ctx({ paidAmount: 1_400_000, paymentStatus: 'partial' }),
+    );
     expect(belum.readyFor).toBeNull();
-    expect(belum.blockers.join(' ')).toMatch(/DP minimal 50%/);
+    expect(belum.blockers.join(' ')).toMatch(/lunas/i);
 
-    // Tepat di ambang: 50% dari 2.800.000.
-    const cukup = deriveNextStep('verified', 'admin', ctx({ paidAmount: 1_400_000 }));
-    expect(cukup.readyFor).toBe('paid');
+    const lunas = deriveNextStep(
+      'verified',
+      'admin',
+      ctx({ paidAmount: 2_800_000, paymentStatus: 'paid' }),
+    );
+    expect(lunas.readyFor).toBe('paid');
   });
 
   it('menyebut kedua syarat yang kurang di fase terbayar', () => {

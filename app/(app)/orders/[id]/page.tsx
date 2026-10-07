@@ -251,14 +251,14 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           </section>
 
           {/* --- Pembayaran ---
-              Naik ke atas Jadwal: gate DP menahan `verified → paid`, jadi
+              Naik ke atas Jadwal: pelunasan menahan `verified → paid`, jadi
               inilah yang lebih dulu dikerjakan dalam urutan sungguhannya. */}
           {showPayments && (
             <PhaseSection
               id="pembayaran"
               title="Pembayaran"
               active={relevant('pembayaran')}
-              complete={guard.paidAmount >= guard.totalAmount * guard.minDpRatio}
+              complete={guard.paymentStatus === 'paid'}
               summary={
                 payments.pendingCount > 0
                   ? `${payments.payments.length} catatan · ${payments.pendingCount} menunggu verifikasi`
@@ -271,7 +271,6 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                 summary={payments}
                 totalAmount={Number(order.total_amount)}
                 paidAmount={Number(order.paid_amount)}
-                minDpRatio={guard.minDpRatio}
                 canRecord={canRecordPayment}
                 canVerify={canVerifyPayment}
               />

@@ -13,7 +13,7 @@ import { CurrencyInput, groupThousands } from '@/components/ui/currency-input';
  * pemisah ribuan** — nilainya wajib angka yang sah, jadi yang terbaca operator
  * hanya `5600000` polos. Pada nominal jutaan itu sulit dibaca: `5600000` dan
  * `56000000` berbeda satu nol dan terlihat nyaris sama, sementara salah ketiknya
- * berakibat langsung — nominal ikut menentukan gate DP.
+ * berakibat langsung: `recordPayment` menuntut nominalnya persis sisa tagihan.
  *
  * Dua hal dijaga di sini, dan keduanya perlu:
  *

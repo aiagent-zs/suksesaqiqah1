@@ -30,7 +30,7 @@ describe('canDo', () => {
 
 describe('UPDATE_ORDER_AMOUNT', () => {
   // total_amount adalah pembanding payment gate
-  // (paid_amount >= total_amount * min_dp_ratio). Kalau role lain bisa
+  // (order ditandai lunas saat pembayaran terverifikasi mencapainya). Kalau role lain bisa
   // menurunkannya, order bisa lolos ke `paid` tanpa uang masuk — jadi harga
   // berhenti di superadmin, bukan di admin yang mengurus operasional harian.
   it('hanya superadmin yang boleh mengubah nilai order', () => {

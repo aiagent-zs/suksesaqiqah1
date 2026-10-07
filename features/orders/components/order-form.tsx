@@ -47,6 +47,7 @@ export function OrderForm({
   const [participantMode, setParticipantMode] = useState<'new' | 'existing'>('new');
   const [participantId, setParticipantId] = useState('');
   const [participant, setParticipant] = useState({ name: '', phone: '', email: '', address: '' });
+  const [distributionMode, setDistributionMode] = useState<'salur' | 'kirim' | ''>('');
   const [notes, setNotes] = useState('');
 
   const [items, setItems] = useState<ItemRow[]>([
@@ -85,6 +86,7 @@ export function OrderForm({
         participantMode === 'existing'
           ? { mode: 'existing' as const, participant_id: participantId }
           : { mode: 'new' as const, ...participant },
+      distribution_mode: distributionMode,
       items: items.map((i) => ({
         service_id: i.service_id,
         qty: Number(i.qty),
@@ -154,6 +156,22 @@ export function OrderForm({
               <option value="new">Peserta baru</option>
               <option value="existing">Peserta yang sudah ada</option>
             </Select>
+          </div>
+          <div>
+            <Label htmlFor="distribution-mode">Cara penyaluran</Label>
+            <Select
+              id="distribution-mode"
+              value={distributionMode}
+              onChange={(e) => setDistributionMode(e.target.value as 'salur' | 'kirim')}
+              className="mt-1.5"
+            >
+              <option value="">— pilih cara penyaluran —</option>
+              <option value="salur">Aqiqah Salur</option>
+              <option value="kirim">Aqiqah Kirim</option>
+            </Select>
+            {fieldErrors['distribution_mode'] && (
+              <p className="text-destructive mt-1 text-xs">{fieldErrors['distribution_mode']}</p>
+            )}
           </div>
         </div>
 

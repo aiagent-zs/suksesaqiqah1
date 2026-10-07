@@ -45,7 +45,7 @@ Jantung sistem: dari order masuk sampai dokumentasi tervalidasi.
 | **Database & migrations** (schema, enum, index, views KPI, RLS, RPC, storage) | `docs/05`, `docs/17` |
 | **Auth & RBAC/RLS** (Supabase Auth, guard route, scope per cabang) | `docs/07` |
 | **Order Management** (CRUD, nomor unik, state machine, 1 order banyak hewan, filter/search) | `docs/08`, `docs/16` |
-| **Payment tracking** (Unpaid/Partial/Paid, gate DP & pelunasan) | `prd.md §7.4` |
+| **Payment tracking** (Unpaid/Partial/Paid, gerbang pelunasan penuh) | `prd.md §7.4` |
 | **Scheduling & Assignment** (tanggal, lokasi/koordinat, PIC) | `prd.md §7.5` |
 | **Slaughter & Distribution** (catat pemotongan, distribusi, penanda kendala) | `prd.md §7.6` |
 | **Documentation flow** (upload, validasi 2 tingkat Supervisor → Admin Pusat) | `docs/10` |

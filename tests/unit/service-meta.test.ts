@@ -232,7 +232,7 @@ describe('meta dibersihkan saat jenis paket diubah', () => {
     // `delete base.hasil` milik cabang **aqiqah** di bawahnya ikut tertangkap
     // — tesnya tetap hijau meski perbaikannya dicabut. Ketahuan saat bug-nya
     // sengaja dikembalikan untuk menguji tes ini.
-    const start = src.indexOf("if (v.type === 'nasi_box' || v.type === 'katering')");
+    const start = src.indexOf("if (v.type === 'nasi_box' || v.type === 'katering'");
     const box = src.slice(start, src.indexOf('return base;', start));
 
     expect(box).toContain('delete base.hasil');
@@ -243,7 +243,7 @@ describe('meta dibersihkan saat jenis paket diubah', () => {
     const src = await read();
     // Diperiksa sesudah `return base` milik cabang nasi_box, supaya yang
     // tertangkap benar-benar cabang aqiqah.
-    const afterBox = src.slice(src.indexOf("if (v.type === 'nasi_box' || v.type === 'katering')"));
+    const afterBox = src.slice(src.indexOf("if (v.type === 'nasi_box' || v.type === 'katering'"));
     const aqiqah = afterBox.slice(afterBox.indexOf('return base;'));
 
     expect(aqiqah).toContain('delete base.items');

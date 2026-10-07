@@ -13,7 +13,6 @@ function ctx(overrides: Partial<OrderGuardContext> = {}): OrderGuardContext {
     paymentStatus: 'paid',
     totalAmount: 2_800_000,
     paidAmount: 2_800_000,
-    minDpRatio: 0.5,
     isGuestOrder: false,
     guestVerified: false,
     hasVendor: true,
@@ -35,21 +34,21 @@ describe('gate pembayaran', () => {
     expect(paymentGatePassed(ctx({ paymentStatus: 'paid' }))).toBe(true);
   });
 
-  it('lolos bila DP mencapai rasio minimum', () => {
-    expect(
-      paymentGatePassed(ctx({ paymentStatus: 'partial', paidAmount: 1_400_000, minDpRatio: 0.5 })),
-    ).toBe(true);
+  it('separuh terbayar tetap tertahan', () => {
+    // Inti keputusan 29 September 2026: yang dulu lolos pada 50% kini tidak.
+    expect(paymentGatePassed(ctx({ paymentStatus: 'partial', paidAmount: 1_400_000 }))).toBe(false);
   });
 
-  it('tertahan bila DP kurang dari rasio minimum', () => {
-    expect(
-      paymentGatePassed(ctx({ paymentStatus: 'partial', paidAmount: 1_000_000, minDpRatio: 0.5 })),
-    ).toBe(false);
+  it('kurang serupiah pun tertahan', () => {
+    // `payment_status` yang menentukan, bukan selisih angka — dan
+    // `sync_order_payment` baru menuliskan `paid` saat terbayar >= total.
+    expect(paymentGatePassed(ctx({ paymentStatus: 'partial', paidAmount: 2_799_999 }))).toBe(false);
   });
 
   it('order bernilai nol tidak dianggap lolos', () => {
-    // Tanpa ini, order yang total_amount-nya belum diisi akan lolos gate
-    // pembayaran hanya karena 0 >= 0.
+    // Order yang total_amount-nya belum diisi tidak boleh lolos hanya karena
+    // 0 >= 0. Yang menjaganya kini `sync_order_payment`: tanpa pembayaran
+    // terverifikasi, statusnya `unpaid`.
     expect(paymentGatePassed(ctx({ paymentStatus: 'unpaid', totalAmount: 0, paidAmount: 0 }))).toBe(
       false,
     );
@@ -166,7 +165,7 @@ describe('kelengkapan bukti', () => {
 });
 
 describe('penyelesaian order', () => {
-  it('menuntut pelunasan penuh, bukan sekadar DP', () => {
+  it('menuntut pelunasan penuh', () => {
     const result = checkTransition(
       'reporting',
       'completed',

@@ -38,7 +38,7 @@ flowchart LR
 stateDiagram-v2
     [*] --> new
     new --> verified: admin memverifikasi (order tamu)
-    verified --> paid: pembayaran memenuhi gate DP
+    verified --> paid: tagihan lunas
     paid --> assigned: mitra ditugaskan
     assigned --> in_progress: tahap pertama dilaporkan
     in_progress --> validation: seluruh tahap selesai & berbukti
@@ -57,7 +57,7 @@ stateDiagram-v2
 **Aturan transisi kunci:**
 
 - `new → verified` — **order tamu wajib melewati ini**; `enforce_guest_order_verification` menahannya sampai staf memeriksa.
-- `verified → paid` butuh `paid_amount >= total_amount * min_dp_ratio()`. Angkanya di `app_settings`, dibaca RPC **dan** klien.
+- `verified → paid` butuh `orders.payment_status = 'paid'`, yaitu seluruh tagihan terbayar. DP parsial dicabut 29 September 2026 bersama `min_dp_ratio()`; `recordPayment` pun menolak nominal yang bukan pelunasan penuh.
 - `paid → assigned` menetapkan `orders.vendor_id` — dan **inilah yang menerbitkan daftar tahap** (`generate_stage_checklist`).
 - `in_progress → validation` menuntut seluruh tahap dalam rangkaian mode sudah `validated` dan buktinya lengkap. **Gerbang ini tidak ikut dilonggarkan 8 September** — yang longgar hanya urutan kerja antar tahap, bukan syarat naik ke Pelaporan.
 - `reporting → completed` butuh laporan ter-generate; untuk mode `kirim`, pembeli mengonfirmasi penerimaan lebih dulu.

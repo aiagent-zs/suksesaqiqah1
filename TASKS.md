@@ -10,9 +10,53 @@
 | Diperbarui                       | 2026-09-22                                                                                                                                                                                                                                                                                                                                                     |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                       |
 | Estimasi Phase 1                 | **± 90%** (dari 87% — pelaporan tahap, sertifikat, akun sendiri, & lupa sandi masuk; lihat _Perubahan 8–11 September_)                                                                                                                                                                                                                                         |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(bersih)** · `npm run build` ✅ **(24 rute, `/checkout/katering` terdaftar, landing tetap prerender statis)** · **800 unit test hijau (66 file)** · **189 tes integrasi hijau (13 file)** · **56 migration selaras lokal ↔ cloud** (`migration list` 22 Sept: 56/56, ketiga migration katering sudah di produksi & paketnya terbaca lewat jalur `anon`) |
+| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(bersih)** · `npm run build` ✅ **(24 rute, `/checkout/katering` terdaftar, landing tetap prerender statis `○ /`)** · **813 unit test hijau (66 file)** · **189 tes integrasi hijau (13 file)** · **56 migration selaras lokal ↔ cloud** (`migration list` 22 Sept: 56/56, ketiga migration katering sudah di produksi & paketnya terbaca lewat jalur `anon`) |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
+
+---
+
+## Perubahan 22 September — UI CRUD, margin mitra, halaman depan, dokumentasi
+
+### Halaman depan: paket bertab & kartu seragam
+
+Bagian Paket & Harga dulu menuang seluruh katalog sekaligus — tiga kartu aqiqah,
+lima nasi box, lalu katering — dan pengunjung yang datang untuk satu hal harus
+melewati semuanya. Sekarang **tiga tab** dengan **Pilihan** sebagai bawaan
+(aqiqah terpopuler + katering), lalu Aqiqah dan Katering.
+
+Aqiqah & katering kini memakai **satu bentuk kartu** dalam satu kisi: foto,
+label jenis, nama, harga, tagline, daftar isi, tombol. Yang membedakan tinggal
+satuan harga dan ke mana tombolnya mengarah.
+
+**Nasi box sempat ikut jadi kartu, lalu dikembalikan ke blok ringkas.** Alasannya
+bukan selera: `create_guest_order` menolak layanan bertipe `nasi_box` sebagai
+paket utama, jadi kartu bertombol "Pesan" menjanjikan sesuatu yang pasti ditolak
+di ujung alur — kekeliruan yang tidak menghasilkan galat apa pun, hanya
+pengunjung yang kecewa. Bentuk ringkasnya justru menyampaikan perannya: tambahan
+atas pesanan aqiqah, jalurnya WhatsApp.
+
+Penyaringnya komponen klien, **kartunya tetap dirakit di server** (`SitePhoto`
+memakai `node:fs`). Halaman depan karena itu tetap prerender statis dan seluruh
+kartu ada di HTML awal — mesin pencari membaca semuanya, bukan hanya tab terbuka.
+
+Tautan kartu membawa `?paket={slug}`, dan checkout katering kini membacanya.
+Tanpa itu, `?paket=prasmanan` akan mendarat di paket pertama tanpa galat —
+persis kelas bug yang pernah terjadi pada `paket-c-favorit`.
+
+### Dokumentasi disinkronkan
+
+| Dokumen | Yang berubah |
+| --- | --- |
+| `05` v2.2 | `katering` di enum & RPC, `is_catering_order`, §5.1 rangkaian tahap katering, 56 migration |
+| `06` v2.1 | Modul **Pemesanan Katering**, §1.1 lima jenis & tiga peran, modal mitra dibekukan saat penugasan |
+| `15` v2.0 | **Ditulis ulang** — v1.0 memetakan delapan rute yang tidak pernah dibangun |
+| `09` | Peringatan margin order lama |
+| `29` v2.0 | Status: selesai & sudah di produksi |
+
+`docs-schema-sync.test.ts` diperluas ke `15_PAGE_MAP` dan mendapat tiga
+pemeriksaan baru: katering tercatat di 05 & 06, alasan nasi box bukan pesanan
+sendiri tertulis, dan tiap rute yang dipetakan 15 benar-benar punya berkasnya.
 
 ---
 
@@ -1550,7 +1594,8 @@ Tiga role tetap: **superadmin · admin · vendor**.
 - [x] Path bukti diverifikasi ulang terhadap **nomor order** (`isProofPathForOrder`) — sebelumnya terhadap cabang + nomor order. Pemeriksaannya justru **menguat**: bersandar pada nomor order yang unik global dan beku, bukan kode cabang yang tidak pernah unik. Ada tesnya untuk penolakan awalan nomor order yang mirip
 - [x] Verifikasi / tolak dengan alasan wajib; penguncian optimistik; tolak kelebihan bayar
 - [x] Hapus catatan yang masih `pending`; riwayat + signed URL (TTL 10 menit)
-- [x] Indikator gate DP di panel pembayaran
+- [x] Indikator pelunasan di panel pembayaran
+- [x] **DP parsial dicabut (29 September 2026)** — `paymentGatePassed` kini hanya lolos pada `payment_status = 'paid'`, dan `recordPayment` menolak nominal yang bukan pelunasan penuh. `min_dp_ratio()` beserta barisnya di `app_settings` ikut dihapus; fungsi itu ternyata sudah lama yatim — tidak satu pun SQL memanggilnya, gerbangnya selalu hidup di TypeScript
 - [ ] Integrasi payment gateway → Tahap 10
 
 #### Scheduling & Assignment

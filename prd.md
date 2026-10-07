@@ -98,7 +98,7 @@ Prinsip: **least privilege**, **scope by branch** untuk operasional, **pemisahan
 - **Landing & Konten** — landing page, halaman program, halaman proses/alur, halaman CMS (footer menu, FAQ) yang **editable** dan **SEO-friendly** (sitemap, robots, indeksable).
 - **Katalog Program & Harga** — Aqiqah (Ekonomi/Favorit/Premium), paket Nasi Box, Qurban, Sedekah Daging; harga terkelola per program (slug + pricing).
 - **Checkout / Pemesanan** — pemesanan mandiri termasuk **guest checkout**, ringkasan pesanan, dan pembuatan order.
-- **Pembayaran** — integrasi **payment gateway** + pencatatan/verifikasi; gate DP/pelunasan.
+- **Pembayaran** — integrasi **payment gateway** + pencatatan/verifikasi; pelunasan penuh (DP parsial dicabut 29 September 2026).
 - **Affiliate / Referral** — pendaftaran affiliate, kode referral, **tier** komisi, atribusi order.
 - **Chatbot AI** — floating assistant (product/business/support knowledge) dengan **human handoff**.
 - **Halaman Laporan Publik** — akses read-only via link unik bertoken, unduh PDF.
@@ -106,7 +106,7 @@ Prinsip: **least privilege**, **scope by branch** untuk operasional, **pemisahan
 ### 6.2 Sisi Internal (Operations Command Center)
 - **Auth & RBAC** — Supabase Auth, sesi, guard route, RLS per cabang.
 - **Order Management** — CRUD, nomor unik, **state machine**, filter/pencarian, satu order banyak hewan.
-- **Payment Tracking** — status Unpaid/Partial/Paid, gate DP (`min_dp`) & pelunasan.
+- **Payment Tracking** — status Unpaid/Partial/Paid; order baru bergerak saat **lunas**. `partial` tetap ada sebagai keadaan uang warisan, bukan izin jalan.
 - **Scheduling & Assignment** — tanggal, lokasi (koordinat Google Maps), PIC.
 - **Slaughter & Distribution** — catat pemotongan per hewan, distribusi/penerima, penanda kendala (`issues`).
 - **Documentation Management** — upload foto/video/catatan (kamera PWA, offline queue), **validasi 2 tingkat** (Supervisor → Admin Pusat).

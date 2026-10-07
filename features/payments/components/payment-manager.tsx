@@ -37,7 +37,6 @@ export function PaymentManager({
   summary,
   totalAmount,
   paidAmount,
-  minDpRatio,
   canRecord,
   canVerify,
 }: {
@@ -46,7 +45,6 @@ export function PaymentManager({
   summary: PaymentSummary;
   totalAmount: number;
   paidAmount: number;
-  minDpRatio: number;
   canRecord: boolean;
   canVerify: boolean;
 }) {
@@ -69,8 +67,7 @@ export function PaymentManager({
   });
 
   const outstanding = Math.max(0, totalAmount - paidAmount);
-  const dpTarget = totalAmount * minDpRatio;
-  const dpMet = paidAmount >= dpTarget && totalAmount > 0;
+  const lunas = outstanding <= 0 && totalAmount > 0;
   const busy = pending || uploading;
 
   /**
@@ -184,16 +181,14 @@ export function PaymentManager({
           {/* Modal, bukan formulir yang mekar di dalam panel. Panel ini berada
               di tengah halaman detail order bersama delapan panel lain, dan
               formulirnya memuat unggahan berkas — cukup tinggi untuk mendorong
-              ringkasan gate DP di atasnya keluar dari pandangan, padahal itulah
+              ringkasan sisa tagihan di atasnya keluar dari pandangan, padahal itulah
               angka yang sedang dibandingkan operator saat mencatat pembayaran. */}
           <Modal
             open={showForm}
             onOpenChange={(next) => {
               if (next) {
                 // Dikosongkan saat dibuka: nominal yang sempat diketik lalu
-                // diurungkan tidak boleh muncul lagi seolah tersimpan — dan
-                // pada pembayaran, angka yang salah terbaca berarti gate DP
-                // yang salah dinilai.
+                // diurungkan tidak boleh muncul lagi seolah tersimpan.
                 setDraft({ amount: '', method: 'transfer_bank', note: '' });
                 setFile(null);
                 setFileKey((k) => k + 1);
@@ -208,14 +203,13 @@ export function PaymentManager({
               </Button>
             }
             title="Catat pembayaran"
-            description={`Sisa tagihan ${formatCurrency(outstanding)}. Pembayaran masuk sebagai menunggu verifikasi.`}
+            description={`Pelunasan penuh ${formatCurrency(outstanding)}. Pembayaran masuk sebagai menunggu verifikasi.`}
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="pay-amount">Nominal</Label>
                 {/* Pemisah ribuan sambil diketik: `5600000` dan `56000000`
-                    berbeda satu nol dan terlihat nyaris sama, sementara salah
-                    ketiknya ikut menentukan gate DP. */}
+                    berbeda satu nol dan terlihat nyaris sama. */}
                 <CurrencyInput
                   id="pay-amount"
                   value={draft.amount}
@@ -224,7 +218,7 @@ export function PaymentManager({
                   className="mt-1.5"
                 />
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Sisa tagihan {formatCurrency(outstanding)}
+                  Harus pas {formatCurrency(outstanding)}. Cicilan tidak diterima.
                 </p>
               </div>
 
@@ -301,7 +295,7 @@ export function PaymentManager({
         </div>
       )}
 
-      {/* Ringkasan angka: dasar gate DP pada state machine (docs/08). */}
+      {/* Ringkasan angka: dasar gerbang pelunasan pada state machine (docs/08). */}
       <dl className="border-border bg-border grid grid-cols-2 gap-px border-b sm:grid-cols-4">
         {[
           { label: 'Nilai Order', value: formatCurrency(totalAmount) },
@@ -318,12 +312,12 @@ export function PaymentManager({
 
       <p
         className={`border-border border-b px-5 py-2.5 text-xs ${
-          dpMet ? 'bg-emerald-50 text-emerald-800' : 'bg-muted/40 text-muted-foreground'
+          lunas ? 'bg-emerald-50 text-emerald-800' : 'bg-muted/40 text-muted-foreground'
         }`}
       >
-        {dpMet
-          ? `Gate DP terpenuhi — order dapat dijadwalkan (minimal ${Math.round(minDpRatio * 100)}% dari nilai order).`
-          : `Gate DP: butuh minimal ${formatCurrency(dpTarget)} terverifikasi (${Math.round(minDpRatio * 100)}%) agar order dapat dijadwalkan.`}
+        {lunas
+          ? 'Tagihan lunas. Order dapat dijadwalkan.'
+          : `Order dapat dijadwalkan setelah lunas. Sisa ${formatCurrency(outstanding)} belum terverifikasi.`}
       </p>
 
       {error && (

@@ -29,8 +29,8 @@ export function groupThousands(digits: string): string {
  * wajib berupa angka yang sah, jadi "5.600.000" ditolak dan yang tersisa hanya
  * `5600000` polos. Pada nominal jutaan itu benar-benar sulit dibaca: `5600000`
  * dan `56000000` berbeda satu nol dan terlihat nyaris sama, sementara salah
- * ketiknya berakibat langsung — nominal ikut menentukan gate DP, dan
- * `recordPayment` menolak angka yang melebihi sisa tagihan.
+ * ketiknya berakibat langsung: `recordPayment` menuntut nominalnya persis
+ * sisa tagihan, jadi satu nol yang keliru ditolak mentah-mentah.
  *
  * Karena itu di sini `inputMode="numeric"` pada input teks: papan ketik ponsel
  * tetap muncul sebagai angka, tapi tampilannya bebas kita atur.

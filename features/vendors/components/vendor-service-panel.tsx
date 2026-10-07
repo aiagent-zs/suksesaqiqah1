@@ -119,7 +119,8 @@ export function VendorServicePanel({
    * memakai satu satuan untuk semuanya (seperti "maks 100 box" pada paket
    * aqiqah) menyesatkan justru karena terbaca masuk akal.
    */
-  const unitOf = (type: string) => (type === 'nasi_box' || type === 'katering' ? 'box' : 'ekor');
+  const unitOf = (type: string) =>
+    type === 'katering_ayam' || type === 'katering_daging' || type === 'katering_kebuli' || type === 'nasi_box' || type === 'katering' ? 'box' : 'ekor';
 
   /**
    * Angka opsional dari medan teks.

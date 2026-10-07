@@ -282,11 +282,24 @@ export function CateringForm({
                       className="mt-2"
                     >
                       <option value="">Pilih paket…</option>
-                      {packages.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} — {formatCurrency(p.price)}/box
-                        </option>
-                      ))}
+                      {Array.from(new Set(packages.map((p) => p.type))).map((typeKey) => {
+                        const typeLabels: Record<string, string> = {
+                          katering_ayam: 'Katering Ayam',
+                          katering_daging: 'Katering Daging',
+                          katering_kebuli: 'Katering Kebuli',
+                          katering: 'Katering Reguler',
+                        };
+                        const inGroup = packages.filter((p) => p.type === typeKey);
+                        return (
+                          <optgroup key={typeKey} label={typeLabels[typeKey] ?? 'Katering'}>
+                            {inGroup.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} — {formatCurrency(p.price)}/box
+                              </option>
+                            ))}
+                          </optgroup>
+                        );
+                      })}
                     </Select>
                     {pkg && pkg.items.length > 0 && (
                       <p className="mt-1.5 text-xs text-neutral-500">{pkg.items.join(' · ')}</p>

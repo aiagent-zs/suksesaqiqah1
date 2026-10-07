@@ -13,8 +13,6 @@ export type OrderGuardContext = {
   paymentStatus: PaymentStatus;
   totalAmount: number;
   paidAmount: number;
-  /** Rasio DP minimum dari `app_settings.min_dp_ratio`. */
-  minDpRatio: number;
   /** Order dari checkout publik yang belum diverifikasi admin. */
   isGuestOrder: boolean;
   guestVerified: boolean;
@@ -52,11 +50,22 @@ export type TransitionRule = {
   guard?: (ctx: OrderGuardContext) => string | null;
 };
 
-/** Terpenuhi bila lunas, atau DP >= min_dp_ratio. */
+/**
+ * Terpenuhi hanya bila lunas.
+ *
+ * DP parsial dicabut 29 September 2026 atas permintaan pemilik: order tidak
+ * bergerak sampai seluruh tagihan terbayar. Sebelumnya gerbang ini terbuka
+ * pada `app_settings.min_dp_ratio` (50%), dan pekerjaan mitra bisa dimulai
+ * di atas uang yang belum utuh.
+ *
+ * `paymentStatus` yang dipercaya, bukan perbandingan angka sendiri: nilainya
+ * ditulis trigger `sync_order_payment` dari jumlah pembayaran **terverifikasi**
+ * saja, jadi ia satu-satunya tempat yang tahu mana uang yang sudah diakui.
+ * Order bernilai nol tidak pernah lolos — `sync_order_payment` menuliskan
+ * `unpaid` selama belum ada pembayaran terverifikasi.
+ */
 export function paymentGatePassed(ctx: OrderGuardContext): boolean {
-  if (ctx.paymentStatus === 'paid') return true;
-  if (ctx.totalAmount <= 0) return false;
-  return ctx.paidAmount >= ctx.totalAmount * ctx.minDpRatio;
+  return ctx.paymentStatus === 'paid';
 }
 
 /** Yang mengurus order dari sisi kami: verifikasi, pembayaran, penugasan. */
@@ -93,10 +102,7 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
     {
       to: 'paid',
       roles: OPERATOR,
-      guard: (ctx) =>
-        paymentGatePassed(ctx)
-          ? null
-          : `Pembayaran belum memenuhi gate: butuh lunas atau DP minimal ${Math.round(ctx.minDpRatio * 100)}%.`,
+      guard: (ctx) => (paymentGatePassed(ctx) ? null : 'Tagihan belum lunas.'),
     },
     { to: 'on_hold', roles: OPERATOR },
     { to: 'cancelled', roles: OPERATOR },
@@ -114,8 +120,7 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
         // hewan menghasilkan nol baris sembelih dengan sendirinya.
         if (!ctx.isCateringOrder && ctx.animalsTotal <= 0)
           return 'Order belum memiliki data hewan.';
-        if (!paymentGatePassed(ctx))
-          return `Pembayaran belum memenuhi gate: butuh lunas atau DP minimal ${Math.round(ctx.minDpRatio * 100)}%.`;
+        if (!paymentGatePassed(ctx)) return 'Tagihan belum lunas.';
         return null;
       },
     },
@@ -197,8 +202,7 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
     {
       to: 'paid',
       roles: OPERATOR,
-      guard: (ctx) =>
-        paymentGatePassed(ctx) ? null : 'Pembayaran belum memenuhi gate untuk melanjutkan.',
+      guard: (ctx) => (paymentGatePassed(ctx) ? null : 'Tagihan belum lunas.'),
     },
     {
       to: 'assigned',

@@ -27,10 +27,11 @@ export const CAPABILITIES = {
   /**
    * Ubah nilai `total_amount` sebuah order.
    *
-   * Dipisah dari UPDATE_ORDER karena total_amount adalah pembanding payment gate
-   * (`paid_amount >= total_amount * min_dp_ratio`). Siapa pun yang bisa
-   * menurunkannya bisa meloloskan order tanpa uang masuk, jadi haknya berhenti
-   * di superadmin — harga adalah keputusan pemilik usaha, bukan operasional.
+   * Dipisah dari UPDATE_ORDER karena `total_amount` adalah pembanding gerbang
+   * pelunasan: `sync_order_payment` menandai order `paid` begitu pembayaran
+   * terverifikasi mencapai nilai itu. Siapa pun yang bisa menurunkannya bisa
+   * meloloskan order tanpa uang masuk penuh, jadi haknya berhenti di
+   * superadmin — harga adalah keputusan pemilik usaha, bukan operasional.
    */
   UPDATE_ORDER_AMOUNT: ['superadmin'] as UserRole[],
 

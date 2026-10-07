@@ -20,11 +20,14 @@ export const TYPE_LABEL: Record<string, string> = {
   aqiqah: 'Aqiqah',
   nasi_box: 'Nasi Box',
   katering: 'Katering',
+  katering_ayam: 'Katering Ayam',
+  katering_daging: 'Katering Daging',
+  katering_kebuli: 'Katering Kebuli',
   qurban: 'Qurban',
   sedekah_daging: 'Sedekah Daging',
 };
 
-export const TYPE_ORDER = ['aqiqah', 'nasi_box', 'katering', 'qurban', 'sedekah_daging'] as const;
+export const TYPE_ORDER = ['aqiqah', 'nasi_box', 'katering', 'katering_ayam', 'katering_daging', 'katering_kebuli', 'qurban', 'sedekah_daging'] as const;
 
 /**
  * Paket yang dihitung **per box**, bukan per ekor.
@@ -39,7 +42,13 @@ export const TYPE_ORDER = ['aqiqah', 'nasi_box', 'katering', 'qurban', 'sedekah_
  * box hanya perlu menyentuh satu baris.
  */
 export function isPerBoxType(type: string): boolean {
-  return type === 'nasi_box' || type === 'katering';
+  return (
+    type === 'nasi_box' ||
+    type === 'katering' ||
+    type === 'katering_ayam' ||
+    type === 'katering_daging' ||
+    type === 'katering_kebuli'
+  );
 }
 
 const EMPTY = {

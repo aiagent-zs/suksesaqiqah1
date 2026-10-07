@@ -95,17 +95,29 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ id: 
     };
   }
 
-  // Nominal melebihi sisa tagihan hampir selalu salah ketik. Ditolak di sini
-  // supaya angka tidak terlanjur masuk riwayat & audit trail; kalau nilai order
-  // yang keliru, Manager Program dapat memperbaikinya lewat `updateOrder`.
+  // Pelunasan penuh, bukan cicilan (keputusan pemilik, 29 September 2026).
+  // Sebelumnya nominal apa pun di bawah sisa tagihan diterima dan order
+  // berjalan begitu DP 50% terverifikasi; sekarang gerbangnya menuntut lunas,
+  // jadi catatan parsial hanya akan menumpuk sebagai uang yang tidak pernah
+  // menggerakkan apa pun.
+  //
+  // Sisa tagihan dihitung dari `paid_amount` — jumlah pembayaran yang sudah
+  // **terverifikasi**. Catatan yang masih `pending` sengaja tidak ikut
+  // dikurangkan: ia belum tentu jadi uang, dan mengurangkannya berarti nominal
+  // yang benar ditolak hanya karena ada catatan yang belum diputuskan.
   const outstanding = order.total_amount - order.paid_amount;
-  if (order.total_amount > 0 && amount > outstanding) {
+  if (order.total_amount > 0 && amount !== outstanding) {
+    const kurang = amount < outstanding;
     return {
       ok: false,
       error: {
         code: 'VALIDATION_ERROR',
-        message: `Nominal melebihi sisa tagihan (${outstanding.toLocaleString('id-ID')}).`,
-        fields: { amount: 'Melebihi sisa tagihan.' },
+        message: kurang
+          ? `Pembayaran harus lunas. Nominalnya ${outstanding.toLocaleString('id-ID')}, bukan sebagian.`
+          : `Nominal melebihi sisa tagihan (${outstanding.toLocaleString('id-ID')}).`,
+        fields: {
+          amount: kurang ? 'Harus pas dengan sisa tagihan.' : 'Melebihi sisa tagihan.',
+        },
       },
     };
   }
@@ -141,7 +153,7 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ id: 
 // =============================================================================
 
 /**
- * Naikkan `verified → paid` bila gate DP-nya sudah terbuka.
+ * Naikkan `verified → paid` bila tagihannya sudah lunas.
  *
  * Dipanggil sesudah verifikasi pembayaran berhasil. Alasannya: syarat transisi
  * itu **persis** hal yang barusan dikerjakan — `paymentGatePassed`, tidak ada
@@ -170,9 +182,9 @@ async function advanceToPaidIfReady(
   orderId: string,
   role: Parameters<typeof checkTransition>[2],
 ): Promise<boolean> {
-  // Dibaca ulang, bukan dihitung sendiri: `paid_amount` baru terisi oleh
+  // Dibaca ulang, bukan dihitung sendiri: `payment_status` baru ditulis oleh
   // trigger `sync_order_payment` sesudah UPDATE pembayaran di atas, dan
-  // menyalin rumusnya ke sini berarti dua sumber kebenaran untuk gate yang
+  // menyalin rumusnya ke sini berarti dua sumber kebenaran untuk gerbang yang
   // sama.
   const detail = await getOrderDetail(orderId);
   if (!detail) return false;
@@ -197,7 +209,7 @@ async function advanceToPaidIfReady(
  *
  * Inilah titik uang diakui: begitu status menjadi `verified`, trigger
  * `sync_order_payment` memperbarui `orders.paid_amount` & `payment_status`,
- * dan gate DP pada state machine ikut terbuka.
+ * dan gerbang pelunasan pada state machine ikut terbuka.
  */
 export async function verifyPayment(
   input: unknown,
@@ -247,9 +259,9 @@ export async function verifyPayment(
       return { ok: false, error: { code: 'NOT_FOUND', message: 'Order induk tidak ditemukan.' } };
     }
 
-    // Dicek ulang di sini, bukan hanya saat pencatatan: beberapa pembayaran
-    // pending bisa masing-masing wajar tapi menjadi kelebihan bayar begitu
-    // diverifikasi berurutan.
+    // Dicek ulang di sini, bukan hanya saat pencatatan: dua catatan pending
+    // bisa masing-masing pas dengan sisa tagihan saat dicatat, lalu menjadi
+    // kelebihan bayar begitu diverifikasi berurutan.
     const afterVerify = order.paid_amount + Number(payment.amount);
     if (order.total_amount > 0 && afterVerify > order.total_amount) {
       return {
@@ -293,8 +305,8 @@ export async function verifyPayment(
     };
   }
 
-  // Gate DP baru saja terbuka — naikkan statusnya sekalian, kalau memang sudah
-  // boleh. Tidak menggagalkan apa pun bila tertahan; lihat fungsinya.
+  // Tagihan mungkin baru saja lunas — naikkan statusnya sekalian, kalau memang
+  // sudah boleh. Tidak menggagalkan apa pun bila tertahan; lihat fungsinya.
   const advanced =
     decision === 'verified'
       ? await advanceToPaidIfReady(supabase, data.order_id, session.profile?.role)

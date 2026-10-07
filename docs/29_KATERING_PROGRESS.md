@@ -3,9 +3,9 @@
 | Field | Value |
 |-------|-------|
 | Dokumen | `docs/29_KATERING_PROGRESS.md` |
-| Versi | 1.1 — Tahap 1–5 selesai & terverifikasi |
-| Tanggal | 2026-09-21 |
-| Status | **Selesai di lokal** — 19/19 tes integrasi hijau. Belum di-push ke cloud |
+| Versi | 2.0 — selesai & sudah di produksi |
+| Tanggal | 2026-09-22 |
+| Status | **Selesai.** 56/56 migration selaras lokal ↔ cloud; paket katering terbaca lewat jalur `anon` di produksi |
 | Rencana lengkap | `~/.claude/plans/coba-cek-dan-analisis-golden-sonnet.md` |
 
 ---
@@ -217,6 +217,34 @@ Tiga helper `ctx()` di tes state machine ikut mendapat medan `isCateringOrder`
 `tests/unit/stage-sequence.test.ts` **tetap hijau** — itulah gunanya tidak
 menyentuh tanda tangan fungsi (§3).
 
+### Sudah di produksi — 22 September
+
+`supabase migration list` melaporkan **56/56 selaras**, dan ketiga paket katering
+terbaca lewat jalur `anon` di `uerdxyurhgoywewbineg` (project yang dipakai
+aplikasi). RPC `create_catering_order` terdaftar dan menolak payload kosong
+dengan pesan validasinya sendiri.
+
+> **Jalan ke sana sempat tersesat, dan itu layak dicatat.** `supabase link`
+> semula menunjuk `zvqlxntmrwcfwnemtioc` — project milik akun CLI yang berbeda
+> dari pemilik produksi. Push 21 September mendarat di sana, bukan di produksi.
+> Yang menyelamatkan: project itu baru berumur 5 hari dan kosong.
+>
+> Gejalanya membingungkan justru karena tampak masuk akal: pembukuan migration
+> "kosong" padahal skemanya maju — dua fakta yang berasal dari **dua project
+> berbeda**. Pelajarannya sudah ditulis di `TASKS.md §11`: jalankan
+> `supabase projects list` dan pastikan link-nya benar sebelum `db push`, dan
+> jangan jawab "Yes" bila daftarnya lebih panjang dari yang diharapkan.
+
+### Yang menyusul sesudah katering jalan
+
+| Tanggal | Perubahan |
+| --- | --- |
+| 22 Sept | Halaman depan: tab penyaring jenis (Pilihan/Aqiqah/Katering), kartu seragam untuk aqiqah & katering |
+| 22 Sept | Nasi box **dikembalikan** ke blok ringkas — ia tambahan atas aqiqah, dan `create_guest_order` menolaknya sebagai paket utama |
+| 22 Sept | Tautan kartu membawa `?paket={slug}`; checkout katering membacanya |
+| 22 Sept | Enam layar CRUD dipindah ke modal; primitif `components/ui/modal.tsx` lahir |
+| 22 Sept | `vendor_unit_price` akhirnya terisi saat penugasan — margin dashboard tidak lagi terbaca 100% |
+
 ### Satu hal yang ditemukan saat menempuh tesnya
 
 **Order katering tetap menunggu verifikasi admin.** `create_catering_order`
@@ -229,15 +257,20 @@ pesanan dari orang yang belum pernah dihubungi harus dilihat manusia sebelum
 mitra ditugaskan. Tes yang semula melompatinya justru yang keliru, dan sekarang
 menempuh `verified → assigned` sebagaimana admin sungguhan.
 
-### Yang tersisa — push ke cloud
+### Yang tersisa — bukan kode
 
-Satu-satunya yang belum: `supabase db push`. Ingat catatan push 21 September di
-`TASKS.md §11` — **jalankan `supabase migration list` lebih dulu**, dan jangan
-jawab "Yes" bila daftarnya lebih panjang dari tiga berkas katering.
+Dua hal, keduanya keputusan & pekerjaan pemilik usaha:
 
-Dan sebelum itu, satu hal yang masih menggantung sejak pagi: `supabase link`
-menunjuk `zvqlxntmrwcfwnemtioc`, sementara `.env.local` memakai
-`uerdxyurhgoywewbineg`. **Pastikan dulu mana yang produksi.**
+| Butir | Cara |
+| --- | --- |
+| **`show_on_landing` ketiga paket katering masih `false`** — tab Katering di halaman depan kosong sampai dinyalakan | Vendors → Katalog → **Edit** → centang "Dipasarkan di halaman depan" |
+| **Belum ada foto** untuk paket katering | Modal Edit yang sama, bagian foto di atas formulir. JPG/PNG/WebP, maks 5 MB |
+
+Kartu tanpa foto tetap rapi (blok gambarnya hilang, bukan kotak kosong), jadi
+ini bisa menunggu sampai fotonya siap.
+
+Harga & menu ketiga paket bawaan juga **contoh awal** — memang untuk disunting
+pemilik lewat halaman katalog, bukan angka yang mengikat.
 
 ---
 

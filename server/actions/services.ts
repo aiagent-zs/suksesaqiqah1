@@ -112,7 +112,7 @@ function metaFrom(
 
   // Nasi box & katering sama-sama berbentuk daftar lauk per box; aqiqah &
   // qurban berbentuk porsi per ekor. Cerminan `isPerBoxType()` di form.
-  if (v.type === 'nasi_box' || v.type === 'katering') {
+  if (v.type === 'nasi_box' || v.type === 'katering' || v.type === 'katering_ayam' || v.type === 'katering_daging' || v.type === 'katering_kebuli') {
     // Aqiqah dan paket per-box memakai bentuk berbeda; menulis keduanya
     // sekaligus membuat kartu mencetak porsi untuk sebuah box nasi.
     //

@@ -43,8 +43,17 @@ describe('createServiceSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('menerima kelima jenis yang ada di enum', () => {
-    for (const type of ['aqiqah', 'qurban', 'sedekah_daging', 'nasi_box', 'katering']) {
+  it('menerima seluruh jenis yang ada di enum', () => {
+    for (const type of [
+      'aqiqah',
+      'qurban',
+      'sedekah_daging',
+      'nasi_box',
+      'katering',
+      'katering_ayam',
+      'katering_daging',
+      'katering_kebuli',
+    ]) {
       expect(createServiceSchema.safeParse({ ...VALID, type }).success).toBe(true);
     }
   });

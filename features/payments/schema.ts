@@ -8,7 +8,7 @@ const uuid = z.string().uuid('ID tidak valid');
  *
  * Dibatasi dua desimal supaya cocok dengan `numeric(14,2)` di DB — tanpa ini
  * Postgres membulatkan diam-diam dan angka di layar berbeda dari yang tersimpan,
- * padahal selisihnya ikut menentukan lolos-tidaknya gate DP.
+ * padahal selisihnya ikut menentukan lunas-tidaknya order.
  */
 const amount = z.coerce
   .number()

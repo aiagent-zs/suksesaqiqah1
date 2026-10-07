@@ -7,8 +7,8 @@ import { checkTransition, type OrderGuardContext } from '@/features/orders/state
  * ## Kenapa berkas ini ada
  *
  * Memverifikasi pembayaran dan menekan "Terbayar" adalah dua penegasan untuk
- * satu keputusan yang sama: syarat transisi itu **persis** `paymentGatePassed`,
- * tidak ada yang lain. Admin yang baru saja membuktikan uangnya masuk disuruh
+ * satu keputusan yang sama: syarat transisi itu **persis** `paymentGatePassed`
+ * — sejak 29 September 2026 berarti lunas, tidak ada yang lain. Admin yang baru saja membuktikan uangnya masuk disuruh
  * menegaskannya lagi di panel sebelah, satu detik kemudian.
  *
  * Yang dijaga di sini bukan otomatisasinya — melainkan bahwa otomatisasi itu
@@ -24,7 +24,6 @@ function ctx(over: Partial<OrderGuardContext> = {}): OrderGuardContext {
     paymentStatus: 'unpaid',
     totalAmount: 5_600_000,
     paidAmount: 0,
-    minDpRatio: 0.5,
     isGuestOrder: false,
     guestVerified: false,
     hasVendor: false,
@@ -45,26 +44,26 @@ function ctx(over: Partial<OrderGuardContext> = {}): OrderGuardContext {
 const canAdvance = (over: Partial<OrderGuardContext>) =>
   checkTransition('verified', 'paid', 'admin', ctx(over)).ok;
 
-describe('naik sendiri begitu gate DP terbuka', () => {
-  it('DP tepat di ambang 50% sudah cukup', () => {
-    expect(canAdvance({ paidAmount: 2_800_000, paymentStatus: 'partial' })).toBe(true);
-  });
-
-  it('pelunasan penuh tentu saja cukup', () => {
+describe('naik sendiri begitu tagihannya lunas', () => {
+  it('pelunasan penuh menaikkan statusnya', () => {
     expect(canAdvance({ paidAmount: 5_600_000, paymentStatus: 'paid' })).toBe(true);
   });
 });
 
-describe('tidak naik saat gate-nya belum terbuka', () => {
-  it('DP kurang sedikit pun tetap tertahan', () => {
-    // Rp1 di bawah ambang. Kalau otomatisasinya memakai pembulatan sendiri,
-    // di sinilah ia akan menyimpang dari tombol manual.
-    expect(canAdvance({ paidAmount: 2_799_999, paymentStatus: 'partial' })).toBe(false);
+describe('tidak naik selama belum lunas', () => {
+  it('separuh terbayar tertahan', () => {
+    // Dulu justru inilah yang lolos: ambang DP 50% dari 5.600.000. Dicabut
+    // 29 September 2026, dan tesnya dibalik supaya pencabutan itu ikut terkunci.
+    expect(canAdvance({ paidAmount: 2_800_000, paymentStatus: 'partial' })).toBe(false);
+  });
+
+  it('kurang serupiah pun tertahan', () => {
+    expect(canAdvance({ paidAmount: 5_599_999, paymentStatus: 'partial' })).toBe(false);
   });
 
   it('order tanpa nilai tidak pernah lolos', () => {
-    // `paymentGatePassed` menolak `totalAmount <= 0` — verifikasi pembayaran
-    // pada order yang nilainya nol tidak boleh menggerakkan apa pun.
+    // Tanpa pembayaran terverifikasi, `sync_order_payment` menuliskan `unpaid`
+    // — jadi order yang nilainya nol tidak menggerakkan apa pun.
     expect(canAdvance({ totalAmount: 0, paidAmount: 0 })).toBe(false);
   });
 });
@@ -73,7 +72,12 @@ describe('yang tetap milik admin', () => {
   it('vendor tidak bisa memicu kenaikan ini', () => {
     // `verified → paid` hanya untuk staf. Vendor tidak berhak memverifikasi
     // pembayaran sama sekali, tapi penjagaannya harus ada di dua tempat.
-    const asVendor = checkTransition('verified', 'paid', 'vendor', ctx({ paidAmount: 5_600_000 }));
+    const asVendor = checkTransition(
+      'verified',
+      'paid',
+      'vendor',
+      ctx({ paidAmount: 5_600_000, paymentStatus: 'paid' }),
+    );
     expect(asVendor.ok).toBe(false);
   });
 
@@ -92,7 +96,7 @@ describe('yang tetap milik admin', () => {
   });
 
   it('order tamu yang belum diverifikasi tidak ikut terbawa', () => {
-    // Gate DP bisa saja terbuka pada order tamu, tapi penahannya ada di
+    // Tagihan bisa saja sudah lunas pada order tamu, tapi penahannya ada di
     // transisi sebelumnya (`new → verified`). Order seperti ini tidak akan
     // pernah berstatus `verified`, jadi `advanceToPaidIfReady` tidak
     // menyentuhnya — dijaga di sini supaya asumsi itu tetap benar.
@@ -100,7 +104,12 @@ describe('yang tetap milik admin', () => {
       'new',
       'verified',
       'admin',
-      ctx({ isGuestOrder: true, guestVerified: false, paidAmount: 5_600_000 }),
+      ctx({
+        isGuestOrder: true,
+        guestVerified: false,
+        paidAmount: 5_600_000,
+        paymentStatus: 'paid',
+      }),
     );
     expect(guest.ok).toBe(false);
   });

@@ -6,10 +6,10 @@
 | Field    | Value                                                          |
 | -------- | -------------------------------------------------------------- |
 | Dokumen  | 05_DATABASE_DESIGN                                             |
-| Versi    | 2.1 — disinkronkan ke migration 10 September                    |
-| Tanggal  | 2026-09-21                                                     |
+| Versi    | 2.2 — katering & modal mitra                                    |
+| Tanggal  | 2026-09-22                                                     |
 | DBMS     | PostgreSQL (Supabase) + Row Level Security                     |
-| Status   | **Selaras dengan migration** — 53 berkas (30 sejak reset 20 Agustus); **status push cloud belum dipastikan** untuk sembilan migration 7–10 September (lihat `TASKS.md`) |
+| Status   | **Selaras dengan migration** — 56 berkas (33 sejak reset 20 Agustus), **56/56 selaras lokal ↔ cloud** per `migration list` 22 September |
 
 > **Cara membaca dokumen ini.** Urutan otoritas kebenaran di project ini adalah
 > **migrations → kode → `prd.md` → `docs/`**. Jadi kalau dokumen ini berselisih
@@ -170,8 +170,8 @@ Unik pada `(vendor_id, service_id)`; `max_qty >= min_qty` dijaga constraint.
 
 | Kolom                     | Tipe                | Ket.                                              |
 | ------------------------- | ------------------- | ------------------------------------------------- |
-| type                      | enum `service_type` | `aqiqah`, `qurban`, `sedekah_daging`, `nasi_box`   |
-| name / slug / description | text                | `slug` dipakai tautan `/checkout?paket={slug}`     |
+| type                      | enum `service_type` | `aqiqah`, `qurban`, `sedekah_daging`, `nasi_box`, `katering`, `katering_ayam`, `katering_daging`, `katering_kebuli` |
+| name / slug / description | text                | `slug` dipakai tautan `?paket={slug}` di kedua checkout |
 | price                     | numeric(14,2)       | **harga jual**; modal per mitra di `vendor_services` |
 | meta                      | jsonb               | aqiqah `{hasil:{porsi,jenis},cocok_untuk}`; nasi box `{items[]}` |
 | tagline, landing_features | text, text[]        | konten kartu halaman depan                        |
@@ -240,6 +240,39 @@ Yang **tidak** ikut longgar: gerbang kelengkapan bukti (`missing_doc_stages`)
 tetap menuntut bukti `approved` sebelum order naik ke Pelaporan. Melonggarkan
 urutan kerja bukan melonggarkan apa yang tercetak di laporan peserta.
 
+### 5.1 Katering memakai rangkaian yang sama, tanpa satu baris pun diubah
+
+Order katering tidak punya hewan, dan cabang `sembelih` di
+`generate_stage_checklist` mengambil barisnya **dari tabel hewan** — jadi order
+tanpa hewan menghasilkan nol baris sembelih dengan sendirinya:
+
+```
+katering : persiapan → masak → kirim → terkirim
+```
+
+Tanda tangan `fulfilment_sequence()` tidak disentuh, keempat view tidak
+dibongkar, dan kembarannya di TypeScript tetap sama. Rencana awal menyebut
+penggantian fungsi itu sebagai bagian termahal; ternyata tidak perlu sama sekali.
+
+**Bukti masak tidak wajib untuk katering** (keputusan pemilik usaha, 21 Sept).
+Ditegakkan lewat satu syarat tambahan pada `missing_doc_stages`:
+
+```sql
+and not (r.stage = 'masak' and public.is_catering_order(o.id))
+```
+
+Bukan dengan menurunkan `stage_requirements.min_docs` — tabel itu berlaku
+**global per tahap**, jadi menurunkannya akan ikut melepas gerbang bukti masak
+untuk seluruh order aqiqah yang sudah berjalan, tanpa satu pun galat.
+
+> **Ongkos yang diterima:** aturan "tahap mana butuh bukti" kini tinggal di dua
+> tempat — tabel dan satu pengecualian di dalam view. Itu nyata. Yang membuatnya
+> tetap lebih murah daripada menambah kolom `service_type` ke
+> `stage_requirements`: pengecualian ini satu baris yang terbaca apa adanya,
+> sedangkan kolom baru menuntut tiap pembaca tabel itu tahu jenis ordernya — dan
+> pembacanya bukan hanya view ini. Kalau pengecualiannya bertambah, itulah
+> saatnya berpindah ke tabel per-jenis.
+
 ### 5.1 Status order (administratif)
 
 ```
@@ -286,14 +319,16 @@ menegakkan aturan yang tidak boleh dilewati jalur mana pun:
 | `sync_order_payment`                | `paid_amount` dihitung database, bukan dikirim klien                 |
 | `enqueue_notification` + `notify_*` | Outbox notifikasi terisi trigger, bukan kode aplikasi                |
 | `close_*_notification`              | Notifikasi dashboard tertutup sendiri saat kendalanya ditangani      |
+| `is_catering_order`                 | Mengenali order katering dari jenis itemnya — dipakai `missing_doc_stages` |
 
 ### 7.1 RPC untuk pengunjung anonim
 
-| RPC                  | Untuk                                                              |
-| -------------------- | ------------------------------------------------------------------ |
-| `create_guest_order` | Checkout publik — **harga dibaca dari `services`**, kiriman klien diabaikan |
-| `get_public_report`  | Laporan bertoken — mengunci bentuk keluaran di level database       |
-| `confirm_delivery`   | Pembeli mengonfirmasi penerimaan sendiri; idempoten                 |
+| RPC                     | Untuk                                                              |
+| ----------------------- | ------------------------------------------------------------------ |
+| `create_guest_order`    | Checkout aqiqah — **harga dibaca dari `services`**, kiriman klien diabaikan |
+| `create_catering_order` | Checkout katering (21 Sept) — selalu `kirim`, **nol baris `animals`** |
+| `get_public_report`     | Laporan bertoken — mengunci bentuk keluaran di level database       |
+| `confirm_delivery`      | Pembeli mengonfirmasi penerimaan sendiri; idempoten                 |
 
 Ketiganya `SECURITY DEFINER`. Pengunjung anonim tidak punya akses tabel apa pun
 di luar `services` & `regions` — seluruh RLS lain ditujukan `to authenticated`.
@@ -309,7 +344,7 @@ di luar `services` & `regions` — seluruh RLS lain ditujukan `to authenticated`
 | `fulfilment_stage`            | `persiapan`, `sembelih`, `masak`, `salur`, `kirim`, `terkirim`                              |
 | `stage_event_status`          | `pending`, `reported`, `validated`, `rejected`                                              |
 | `distribution_mode`           | `salur`, `kirim`                                                                            |
-| `service_type`                | `aqiqah`, `qurban`, `sedekah_daging`, `nasi_box`                                            |
+| `service_type`                | `aqiqah`, `qurban`, `sedekah_daging`, `nasi_box`, **`katering`**, `katering_ayam`, `katering_daging`, `katering_kebuli` (Oktober 2026) |
 | `animal_species`              | `kambing`, `domba`, `sapi` — checkout publik hanya menawarkan `kambing`/`sapi`               |
 | `doc_stage`                   | keenam `fulfilment_stage` — **`umum` dicabut** 8 September                                  |
 | `doc_status` / `doc_type`     | `pending`/`approved`/`rejected` · `photo`/`video`/`note`                                    |

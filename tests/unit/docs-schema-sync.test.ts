@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -34,6 +34,10 @@ describe('docs selaras dengan skema', () => {
     '07_USER_ROLES.md',
     '08_WORKFLOW_MAP.md',
     '09_DASHBOARD_SPEC.md',
+    // Menyusul 22 September: v1.0-nya memetakan delapan rute yang tidak satu
+    // pun dibangun (`/programs`, `/petugas`, `/payments`, …), seluruhnya
+    // berporos pada lima role & hierarki cabang yang dihapus 20 Agustus.
+    '15_PAGE_MAP.md',
     '16_API_SPEC.md',
     '20_SECURITY_CHECKLIST.md',
   ];
@@ -163,6 +167,61 @@ describe('docs selaras dengan skema', () => {
     ] as const) {
       expect(sql).toContain(`when '${mode}' then array[${stages.map((s) => `'${s}'`).join(',')}]`);
       expect(ts).toContain(`${mode}: [${stages.map((s) => `'${s}'`).join(', ')}]`);
+    }
+  });
+
+  it('katering tercatat sebagai jenis layanan di 05 & 06', () => {
+    // Jenis kelima (`katering`) lahir 21 September. Dokumen yang tidak
+    // menyebutnya membuat pembacanya mengira checkout hanya melayani aqiqah —
+    // dan itu keliru sejak rute `/checkout/katering` ada.
+    const enums = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260921010000_service_type_katering.sql'),
+      'utf8',
+    );
+    expect(enums).toContain("add value if not exists 'katering'");
+
+    for (const file of ['05_DATABASE_DESIGN.md', '06_MODULE_BREAKDOWN.md']) {
+      const src = readFileSync(join(process.cwd(), 'docs', file), 'utf8');
+      expect(src.toLowerCase()).toContain('katering');
+    }
+  });
+
+  it('06 menjelaskan kenapa nasi box bukan pesanan yang berdiri sendiri', () => {
+    // Pernah dijadikan kartu bertombol "Pesan" (22 September) lalu
+    // dikembalikan: `create_guest_order` menolak layanan bertipe `nasi_box`
+    // sebagai paket utama, jadi tombol itu menjanjikan sesuatu yang pasti
+    // gagal di ujung alur. Alasannya perlu tertulis supaya keputusannya tidak
+    // berbalik lagi hanya karena bentuk kartunya terlihat lebih rapi.
+    const src = readFileSync(join(process.cwd(), 'docs/06_MODULE_BREAKDOWN.md'), 'utf8');
+    expect(src).toContain('nasi_box');
+    expect(src).toMatch(/tambahan/i);
+
+    const rpc = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260820001100_public_rpc.sql'),
+      'utf8',
+    );
+    // Yang mengikat tetap RPC-nya: ia hanya menerima aqiqah & qurban.
+    expect(rpc).toContain("v_service.type not in ('aqiqah', 'qurban')");
+  });
+
+  it('15 memetakan rute yang benar-benar ada', () => {
+    // v1.0 memetakan delapan rute yang tidak pernah dibangun. Yang dijaga di
+    // sini: tiap rute yang disebut punya berkasnya, dan rute yang ada tidak
+    // hilang dari peta.
+    const src = readFileSync(join(process.cwd(), 'docs/15_PAGE_MAP.md'), 'utf8');
+
+    for (const route of [
+      'app/(site)/checkout/katering/page.tsx',
+      'app/(app)/orders/[id]/page.tsx',
+      'app/(app)/vendors/katalog/[id]/page.tsx',
+      'app/(app)/validation/page.tsx',
+    ]) {
+      expect(existsSync(join(process.cwd(), route)), `${route} tidak ada`).toBe(true);
+    }
+
+    // Rute karangan v1.0 tidak boleh kembali.
+    for (const ghost of ['/programs', '/petugas', '/documentation', '/settings']) {
+      expect(barisAktif(src).filter(({ line }) => line.includes(`\`${ghost}\``))).toEqual([]);
     }
   });
 

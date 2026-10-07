@@ -56,9 +56,9 @@ export async function createOrder(
   // Harga satuan tidak dipercaya dari klien. Katalog `services` adalah satu-
   // satunya sumber harga: layanan wajib aktif, dan `unit_price` yang dikirim
   // form ditimpa harga katalog sebelum masuk RPC. Tanpa ini, siapapun yang bisa
-  // membuat order dapat menetapkan harga sendiri — dan karena payment gate
-  // membandingkan paid_amount terhadap total_amount, harga palsu ikut
-  // melumpuhkan gate DP.
+  // membuat order dapat menetapkan harga sendiri — dan karena gerbang
+  // pelunasan membandingkan paid_amount terhadap total_amount, harga palsu
+  // ikut melumpuhkan syarat lunasnya.
   const serviceIds = [...new Set(payload.items.map((i) => i.service_id))];
   const { data: services, error: servicesError } = await supabase
     .from('services')
