@@ -17,11 +17,14 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { actAsOwner, expectFailureInSavepoint, inRollback, isReady } from './helpers/db';
 import type postgres from 'postgres';
 
-/** Dari `20260921020000_catering_packages.sql`. */
+/**
+ * Dari `20261007020000_catering_variants_packages.sql`. Paket `katering` lama
+ * (…031–033) dinonaktifkan `20261007030000`, jadi RPC menolaknya.
+ */
 const CATERING = {
-  sederhana: 'a2000000-0000-4000-8000-000000000031',
-  sederhanaPrice: 25_000,
-  lengkap: 'a2000000-0000-4000-8000-000000000032',
+  sederhana: 'a2000000-0000-4000-8000-000000000041',
+  sederhanaPrice: 28_000,
+  lengkap: 'a2000000-0000-4000-8000-000000000042',
   lengkapPrice: 38_000,
 } as const;
 
