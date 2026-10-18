@@ -287,7 +287,6 @@ export function CateringForm({
                           katering_ayam: 'Katering Ayam',
                           katering_daging: 'Katering Daging',
                           katering_kebuli: 'Katering Kebuli',
-                          katering: 'Katering Reguler',
                         };
                         const inGroup = packages.filter((p) => p.type === typeKey);
                         return (

@@ -171,7 +171,7 @@ describe('katering di landing', () => {
   const page = readFileSync(join(process.cwd(), 'app/(site)/page.tsx'), 'utf8');
 
   it('katalog landing menyaring jenis katering', () => {
-    expect(catalogue).toContain("perBox('katering')");
+    expect(catalogue).toContain("perBox('katering_ayam')");
   });
 
   it('halaman depan menerima & merender daftarnya', () => {

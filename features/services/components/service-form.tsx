@@ -19,15 +19,23 @@ import type { ServiceRow } from '../queries';
 export const TYPE_LABEL: Record<string, string> = {
   aqiqah: 'Aqiqah',
   nasi_box: 'Nasi Box',
-  katering: 'Katering',
   katering_ayam: 'Katering Ayam',
   katering_daging: 'Katering Daging',
   katering_kebuli: 'Katering Kebuli',
+  katering: 'Katering (Lama)',
   qurban: 'Qurban',
   sedekah_daging: 'Sedekah Daging',
 };
 
-export const TYPE_ORDER = ['aqiqah', 'nasi_box', 'katering', 'katering_ayam', 'katering_daging', 'katering_kebuli', 'qurban', 'sedekah_daging'] as const;
+export const TYPE_ORDER = [
+  'aqiqah',
+  'nasi_box',
+  'katering_ayam',
+  'katering_daging',
+  'katering_kebuli',
+  'qurban',
+  'sedekah_daging',
+] as const;
 
 /**
  * Paket yang dihitung **per box**, bukan per ekor.
@@ -278,7 +286,7 @@ export function ServiceForm({
       <div className="border-t pt-4">
         <h3 className="text-sm font-semibold">Isi paket</h3>
         <p className="text-muted-foreground mt-0.5 text-xs">
-          {draft.type === 'katering'
+          {draft.type.startsWith('katering')
             ? 'Isi satu box katering. Katering dipesan sendiri lewat /checkout/katering — bukan tambahan atas pesanan aqiqah.'
             : draft.type === 'nasi_box'
               ? 'Isi satu box. Nasi box dipesan terpisah dari paket aqiqah, dengan harganya sendiri.'

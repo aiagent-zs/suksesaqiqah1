@@ -43,7 +43,7 @@ export async function getCateringOptions(): Promise<CateringOptions> {
     supabase
       .from('services')
       .select('id, type, name, slug, description, price, meta')
-      .in('type', ['katering', 'katering_ayam', 'katering_daging', 'katering_kebuli'])
+      .in('type', ['katering_ayam', 'katering_daging', 'katering_kebuli'])
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('sort_order', { ascending: true }),

@@ -158,7 +158,6 @@ export async function getLandingCatalogue(): Promise<{
       }));
 
   const catering = [
-    ...perBox('katering'),
     ...perBox('katering_ayam'),
     ...perBox('katering_daging'),
     ...perBox('katering_kebuli'),
