@@ -7,12 +7,70 @@
 | Field                            | Value                                                                                                                                                                                                                                                                                                                                                          |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dokumen                          | `TASKS.md`                                                                                                                                                                                                                                                                                                                                                     |
-| Diperbarui                       | 2026-09-22                                                                                                                                                                                                                                                                                                                                                     |
+| Diperbarui                       | 2026-10-18 |
 | Fase aktif                       | **Phase 1 — Operational MVP** (`docs/23_MVP_ROADMAP.md`)                                                                                                                                                                                                                                                                                                       |
-| Estimasi Phase 1                 | **± 90%** (dari 87% — pelaporan tahap, sertifikat, akun sendiri, & lupa sandi masuk; lihat _Perubahan 8–11 September_)                                                                                                                                                                                                                                         |
-| Terverifikasi pada pembaruan ini | `npm run typecheck` ✅ · `npm run lint` ✅ **(bersih)** · `npm run build` ✅ **(24 rute, `/checkout/katering` terdaftar, landing tetap prerender statis `○ /`)** · **813 unit test hijau (66 file)** · **189 tes integrasi hijau (13 file)** · **56 migration selaras lokal ↔ cloud** (`migration list` 22 Sept: 56/56, ketiga migration katering sudah di produksi & paketnya terbaca lewat jalur `anon`) |
+| Estimasi Phase 1                 | **± 90%** (tetap — Sept–Okt mengubah aturan bayar & katalog katering, bukan menutup butir Definition of Done; lihat _Perubahan 29 September – 18 Oktober_) |
+| Terverifikasi pada pembaruan ini | `tsc --noEmit` ✅ · `eslint` ✅ **(bersih)** · `npm run build` ✅ **(24 rute)** · **821 unit test hijau (67 file)** · **189 tes integrasi hijau (13 file)** · **60 migration selaras lokal ↔ cloud** (`migration list` 18 Okt: 60/60) |
 
 **Aturan pemeliharaan:** centang item hanya kalau kodenya ada **dan** `npm run typecheck` + `npm run build` hijau (Definition of Stable, `TEAM_PLAN §1.5`). Item yang belum diverifikasi dengan data sungguhan ditandai ⚠️, bukan dicentang.
+
+---
+
+## Perubahan 29 September – 18 Oktober — lunas dulu, katering jadi tiga varian
+
+### DP parsial dicabut (`20260929010000`)
+
+Keputusan pemilik 29 September: **order tidak bergerak sampai tagihannya lunas.**
+Sebelumnya `verified → paid` terbuka begitu pembayaran terverifikasi mencapai 50%
+(`min_dp_ratio`), jadi mitra bisa mulai bekerja di atas uang yang belum utuh.
+
+`paymentGatePassed` kini hanya lolos pada `payment_status = 'paid'`, dan
+`recordPayment` menolak nominal yang bukan pelunasan. `min_dp_ratio()` beserta
+barisnya di `app_settings` dihapus. `sync_order_payment` sengaja tidak disentuh:
+`partial` tetap ditulis karena menggambarkan keadaan uang, bukan izin jalan.
+Dijaga `tests/unit/payment-must-be-full.test.ts`.
+
+### Katering: satu jenis jadi tiga (`20261007010000`–`20261007030000`)
+
+`katering` diganti **`katering_ayam`**, **`katering_daging`**, **`katering_kebuli`**,
+masing-masing dua paket (ID `…041`–`…062`, Rp28.000–Rp75.000 per box).
+`is_catering_order` dan `create_catering_order` mengenali keempat jenis, jadi
+keistimewaan katering (tanpa `animals`, tanpa gerbang bukti masak) ikut berlaku.
+
+Penambahan enum dipisah ke berkas sendiri: Postgres menolak nilai enum baru
+dipakai dalam transaksi yang sama, dan `db push` membungkus tiap berkas sebagai
+satu transaksi — pola yang sama dengan `20260921010000`.
+
+Tiga paket `katering` lama (`…031`–`…033`) **dinonaktifkan & di-soft-delete**,
+bukan dihapus: order lama yang memuatnya tetap utuh. Checkout, halaman depan,
+dan form katalog berhenti menawarkan jenis lama; form katalog masih bisa
+menampilkannya sebagai "Katering (Lama)".
+
+### Tes integrasi katering sempat merah — dan memang harus
+
+Menjalankan `test:integration` 18 Oktober menghasilkan **10 gagal** di
+`catering-rpc.test.ts`: tesnya masih memesan paket `…031`/`…032` yang baru saja
+dinonaktifkan, dan RPC dengan benar menjawab _"Paket katering tidak ditemukan"_.
+Bukan bug aplikasi. Tesnya dipindah ke Katering Ayam Sederhana/Spesial; 189/189
+hijau lagi.
+
+> Andai tes integrasi tidak dijalankan sebelum merge, penjaga katering akan
+> merah diam-diam di `main` — pelajaran yang sama dengan 21 September.
+
+### Cloud & lingkungan lokal
+
+- **Cloud 60/60 selaras** (`migration list` 18 Okt), keempat migration baru sudah
+  di produksi.
+- **Windows memesan port 54217–54916** (Hyper-V/WSL), termasuk 54322 milik
+  database lokal. Gejalanya `supabase start` gagal dengan _"bind: An attempt was
+  made to access a socket in a way forbidden"_. Obatnya, di PowerShell
+  Administrator: `net stop winnat` lalu `net start winnat`.
+
+### Belum disinkronkan
+
+- `docs/29_KATERING_PROGRESS.md` belum mencatat tiga varian; `docs/05` sudah.
+- `checkout-form-draft.test.tsx` paling lambat (±10–15 dtk), hampir seluruhnya
+  waktu memuat jsdom & `CheckoutForm` — bukan tesnya. Belum perlu diubah.
 
 ---
 

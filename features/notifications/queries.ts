@@ -45,6 +45,8 @@ const TEMPLATE_LABEL: Record<string, string> = {
   issue_high: 'Kendala berat dilaporkan',
   guest_order_new: 'Order tamu baru menunggu verifikasi',
   delivery_pending: 'Pemesan perlu mengonfirmasi penerimaan',
+  order_verified: 'Email konfirmasi pesanan ke pemesan',
+  order_completed: 'Email pesanan selesai ke pemesan',
 };
 
 /** Pesan WhatsApp per template. Dirakit di server supaya isinya satu sumber. */

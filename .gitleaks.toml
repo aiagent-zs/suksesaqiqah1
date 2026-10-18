@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+# `graphify-out/` adalah cache indeks graphify (hash berkas, bukan kunci) yang
+# sempat ter-commit di af09bb5 sebelum masuk .gitignore. Hash hex panjangnya
+# memicu aturan generic-api-key.
+[allowlist]
+description = "Cache graphify"
+paths = ['''^graphify-out/''']

@@ -1,0 +1,82 @@
+# Gerbang setiap push & pull request ke main/dev.
+#
+# Urutannya: rahasia dulu (paling murah, paling fatal), lalu kualitas kode,
+# lalu dependensi, terakhir database. Repo ini publik, jadi kunci yang lolos
+# ke riwayat git sudah terbaca orang sebelum sempat dihapus.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Pindai rahasia (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  quality:
+    name: Typecheck, lint, unit test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      # Nilai palsu cukup untuk build: kunci Supabase hanya dibaca saat
+      # permintaan masuk, dan landing menelan galat katalog lalu tetap
+      # prerender. Kunci sungguhan tidak pernah perlu ada di CI.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+  dependencies:
+    name: Audit dependensi produksi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Hanya `critical` yang menahan merge. `high` di bawahnya hampir
+      # seluruhnya datang lewat CLI shadcn (alat generator, bukan kode yang
+      # jalan di server) dan tercatat di TASKS.md, bukan didiamkan.
+      - run: npm audit --omit=dev --audit-level=critical
+
+  integration:
+    name: Tes integrasi (Supabase lokal)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Migration + seed dijalankan dari nol di setiap run: migration yang
+      # tidak bisa jalan bersih di database kosong ketahuan di sini, bukan
+      # saat `db push` ke produksi.
+      - run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,mailpit
+      - run: npm run test:integration

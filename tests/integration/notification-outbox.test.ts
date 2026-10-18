@@ -163,7 +163,7 @@ describe('outbox — order tamu', () => {
   });
 });
 describe('outbox — laporan & konfirmasi terkirim', () => {
-  it('laporan terbit menerbitkan WA dan email sekaligus', async () => {
+  it('laporan terbit hanya menerbitkan WA; email dibawa email selesai', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
       const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
@@ -175,9 +175,10 @@ describe('outbox — laporan & konfirmasi terkirim', () => {
 
       const rows = await notifsOf(tx, orderId);
       const ready = rows.filter((r) => r.template === 'report_ready');
-      // Peserta seed punya email, jadi kedua kanal terbit. Worker nanti yang
-      // memilih mana yang benar-benar dikirim.
-      expect(ready.map((r) => r.channel).sort()).toEqual(['email', 'whatsapp']);
+      // Email `report_ready` dicabut `20261018010000`: order baru boleh
+      // `completed` sesudah laporannya terkirim, jadi email selesai selalu
+      // menyusul dengan tautan yang sama.
+      expect(ready.map((r) => r.channel)).toEqual(['whatsapp']);
       // Token ikut di payload supaya pesan WA bisa dirakit tanpa membaca ulang
       // tabel orders — dan tanpa membocorkan kolom lain dari sana.
       expect(String(ready[0].payload.public_token)).toHaveLength(32);
@@ -424,6 +425,64 @@ describe('outbox — penandaan sudah ditangani', () => {
           expect(sisa, keputusan).toHaveLength(0);
         });
       }
+    });
+  });
+});
+
+describe('outbox — email ke pemesan', () => {
+  /** Order seed-participant berstatus `new`, siap diverifikasi. */
+  async function newOrder(tx: postgres.TransactionSql) {
+    const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+    await tx`update public.orders set status = 'new'::public.order_status where id = ${orderId}`;
+    return orderId;
+  }
+
+  const emails = async (tx: postgres.TransactionSql, orderId: string) =>
+    (await notifsOf(tx, orderId)).filter((r) => r.channel === 'email');
+
+  it('diverifikasi -> satu email konfirmasi berisi paket & total', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const orderId = await newOrder(tx);
+      await tx`update public.orders set status = 'verified'::public.order_status where id = ${orderId}`;
+
+      const [mail, ...rest] = await emails(tx, orderId);
+      expect(rest).toHaveLength(0);
+      expect(mail.template).toBe('order_verified');
+      expect(mail.recipient).toContain('@');
+      expect(Number(mail.payload.total_amount)).toBe(2800000);
+      expect(mail.payload.items).toEqual([{ name: expect.any(String), qty: 1 }]);
+      expect(String(mail.payload.public_token)).toHaveLength(32);
+    });
+  });
+
+  it('ditahan lalu diverifikasi ulang tidak mengirim konfirmasi kedua', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const orderId = await newOrder(tx);
+      for (const status of ['verified', 'on_hold', 'new', 'verified']) {
+        await tx`update public.orders set status = ${status}::public.order_status where id = ${orderId}`;
+      }
+      expect((await emails(tx, orderId)).map((r) => r.template)).toEqual(['order_verified']);
+    });
+  });
+
+  it('selesai -> email order_completed', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+      await tx`update public.orders set status = 'completed'::public.order_status where id = ${orderId}`;
+      expect((await emails(tx, orderId)).map((r) => r.template)).toEqual(['order_completed']);
+    });
+  });
+
+  it('pemesan tanpa email tidak diantrekan apa pun', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const orderId = await newOrder(tx);
+      await tx`update public.participants set email = null where id = ${SEED.participant}`;
+      await tx`update public.orders set status = 'verified'::public.order_status where id = ${orderId}`;
+      expect(await emails(tx, orderId)).toHaveLength(0);
     });
   });
 });
