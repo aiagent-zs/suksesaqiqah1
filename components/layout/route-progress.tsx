@@ -33,7 +33,7 @@ export function RouteProgress() {
       // `aria-hidden`: pembaca layar sudah mengumumkan perpindahan halaman
       // sendiri. Menambah pengumuman kedua membuat keduanya saling menyela.
       aria-hidden
-      className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-0.5"
+      className="pointer-events-none fixed inset-x-0 top-0 z-60 h-0.5"
     >
       <span className="bg-primary animate-route-progress block h-full w-full" />
     </span>
