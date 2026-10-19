@@ -99,4 +99,6 @@ export type GuestOrderResult = {
   total_amount: number;
   status: Database['public']['Enums']['order_status'];
   payment_status: Database['public']['Enums']['payment_status'];
+  /** Halaman bayar Durianpay; `null` bila belum dikonfigurasi atau gagal dibuat. */
+  payment_url?: string | null;
 };

@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { guestCheckoutSchema } from '@/features/checkout/schema';
 import type { GuestOrderResult } from '@/features/checkout/queries';
+import { createPaymentLink } from '@/features/payments/durianpay';
 import { RateLimiter, clientIpFrom } from '@/lib/security/rate-limit';
 import { scopedInternalError, validationError, type ActionResult } from './result';
 
@@ -122,5 +123,15 @@ export async function createGuestOrderAction(
   if (!result)
     return internalError('Pesanan tidak terbentuk', { message: 'RPC mengembalikan null' });
 
-  return { ok: true, data: result as unknown as GuestOrderResult };
+  const order = result as unknown as GuestOrderResult;
+  // Gagal membuat link tidak menggagalkan pesanan — order sudah tersimpan, dan
+  // layar sukses jatuh kembali ke WhatsApp admin.
+  const payment_url = await createPaymentLink({
+    order_number: order.order_number,
+    total_amount: Number(order.total_amount),
+    name: data.name,
+    phone: data.phone,
+    email: data.email,
+  });
+  return { ok: true, data: { ...order, payment_url } };
 }
