@@ -197,6 +197,7 @@ function rowFrom(
  */
 function revalidateCatalogue() {
   revalidatePath('/');
+  revalidatePath('/paket');
   revalidatePath('/vendors');
   revalidatePath('/checkout');
   revalidatePath('/orders/new');
