@@ -168,6 +168,7 @@ describe('katalog di migration', () => {
  */
 describe('katering di landing', () => {
   const catalogue = readFileSync(join(process.cwd(), 'features/landing/catalogue.ts'), 'utf8');
+  const cards = readFileSync(join(process.cwd(), 'features/landing/package-cards.tsx'), 'utf8');
   const page = readFileSync(join(process.cwd(), 'app/(site)/page.tsx'), 'utf8');
 
   it('katalog landing menyaring jenis katering', () => {
@@ -175,10 +176,13 @@ describe('katering di landing', () => {
   });
 
   it('halaman depan menerima & merender daftarnya', () => {
-    expect(page).toContain('catering');
+    // Halaman depan memuat katalog lalu menyerahkan normalisasi + render kartu
+    // ke helper bersama.
+    expect(page).toContain('buildPackageTabs(catalogue, 3)');
+    expect(page).toContain('<PackageFilter tabs={buildPackageTabs(catalogue, 3)}');
     // Katering dinormalkan jadi kartu, lalu masuk kisi yang sama dengan aqiqah.
-    expect(page).toContain('cateringCards');
-    expect(page).toContain('catering.map');
+    expect(cards).toContain('cateringCards');
+    expect(cards).toContain('catering.map');
   });
 
   it('aqiqah & katering memakai SATU bentuk kartu dan SATU kisi', () => {
@@ -186,19 +190,19 @@ describe('katering di landing', () => {
     // baris ringkas di dalam blok berjudul — terbaca sebagai kelas layanan
     // yang lebih rendah, padahal katering justru pesanan berdiri sendiri yang
     // nilainya bisa jauh lebih besar daripada satu ekor aqiqah.
-    expect(page).toContain('function PackageCard');
-    expect(page).toContain('function PackageGrid');
+    expect(cards).toContain('function PackageCard');
+    expect(cards).toContain('function PackageGrid');
 
     // Keduanya dinormalkan ke tipe yang sama sebelum dirender — itulah yang
     // membuat kartunya tidak perlu bercabang per jenis di dalam.
-    expect(page).toContain('PackageCardData');
-    expect(page).toContain('aqiqahCards');
-    expect(page).toContain('cateringCards');
+    expect(cards).toContain('PackageCardData');
+    expect(cards).toContain('aqiqahCards');
+    expect(cards).toContain('cateringCards');
 
     // Bentuk lama benar-benar hilang, bukan sekadar tidak dipakai.
-    expect(page).not.toContain('function AqiqahCard');
-    expect(page).not.toContain('function PerBoxCard');
-    expect(page).not.toContain('function CateringBlock');
+    expect(cards).not.toContain('function AqiqahCard');
+    expect(cards).not.toContain('function PerBoxCard');
+    expect(cards).not.toContain('function CateringBlock');
   });
 
   it('nasi box TETAP ringkas — ia tambahan, bukan pilihan sejajar', () => {
@@ -207,19 +211,20 @@ describe('katering di landing', () => {
     // `nasi_box` sebagai paket utama, jadi kartu bertombol "Pesan" menawarkan
     // sesuatu yang tidak bisa dipesan — kekeliruan yang tidak menghasilkan
     // galat apa pun, hanya pengunjung yang kecewa di ujung alur.
-    expect(page).toContain('function NasiBoxNote');
-    expect(page).not.toContain('boxCards');
+    expect(cards).toContain('function NasiBoxNote');
+    expect(cards).not.toContain('boxCards');
 
     // Jalurnya WhatsApp, satu tombol untuk seluruh paket — bukan tombol pesan
     // per paket seperti pada kartu.
-    const note = page.slice(page.indexOf('function NasiBoxNote'));
-    const body = note.slice(0, note.indexOf('\nfunction '));
+    const note = cards.slice(cards.indexOf('function NasiBoxNote'));
+    const nextSection = note.indexOf('\n/**\n * Tab paket');
+    const body = nextSection === -1 ? note : note.slice(0, nextSection);
     expect(body).toContain('whatsapp.href');
     expect(body).not.toContain('/checkout');
 
     // Dan ia muncul di kedua tab yang memuat aqiqah: pengunjung yang berhenti
     // di tab bawaan harus tetap tahu tambahan ini ada.
-    const noteUses = page.match(/<NasiBoxNote boxes=\{boxes\} \/>/g) ?? [];
+    const noteUses = cards.match(/<NasiBoxNote boxes=\{boxes\} \/>/g) ?? [];
     expect(noteUses.length).toBe(2);
   });
 
@@ -237,7 +242,7 @@ describe('katering di landing', () => {
     // aqiqah terpopuler. Tab `pilihan` karena itu harus jadi bawaannya — kalau
     // bergeser ke `aqiqah`, katering turun satu klik tanpa ada yang menyadari.
     expect(page).toContain('defaultTab="pilihan"');
-    expect(page).toContain("id: 'pilihan'");
+    expect(cards).toContain("id: 'pilihan'");
   });
 
   it('penyaringnya menyembunyikan, bukan membongkar-pasang kartunya', () => {
@@ -259,9 +264,9 @@ describe('katering di landing', () => {
     // Sejak tiap paket katering punya kartunya sendiri (22 September),
     // tautannya membawa slug — pembeli mendarat di form dengan paket yang ia
     // klik sudah terpilih, bukan di paket pertama.
-    expect(page).toContain('/checkout/katering?paket=${c.slug}');
+    expect(cards).toContain('/checkout/katering?paket=${c.slug}');
     // Dan tidak tertukar: aqiqah ke `/checkout`, katering ke `/checkout/katering`.
-    expect(page).toContain('/checkout?paket=${p.slug}');
+    expect(cards).toContain('/checkout?paket=${p.slug}');
   });
 
   it('slug dari tautan itu benar-benar dibaca halaman checkout katering', () => {
