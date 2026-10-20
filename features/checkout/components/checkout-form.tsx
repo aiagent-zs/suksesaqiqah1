@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
+  CreditCard,
   Loader2,
   MessageCircle,
   Package,
@@ -1035,8 +1036,9 @@ function SuccessPanel({ result, summary }: { result: GuestOrderResult; summary: 
           Pesanan Berhasil Terkirim!
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-xs leading-6 text-neutral-600">
-          Pesanan Anda telah tercatat di sistem. Lanjutkan ke WhatsApp untuk mendapatkan informasi
-          pembayaran dari admin kami.
+          {result.payment_url
+            ? 'Pesanan Anda telah tercatat. Selesaikan pembayaran di halaman Durianpay, metode bayarnya dipilih di sana.'
+            : 'Pesanan Anda telah tercatat di sistem. Lanjutkan ke WhatsApp untuk mendapatkan informasi pembayaran dari admin kami.'}
         </p>
       </div>
 
@@ -1060,11 +1062,25 @@ function SuccessPanel({ result, summary }: { result: GuestOrderResult; summary: 
           yang pasti sampai ke admin. Ringkasan pesanannya sudah terisi, jadi
           admin tidak perlu bertanya balik nomor pesanannya berapa. */}
       <div className="space-y-2.5 border-t border-neutral-100 px-6 py-6 sm:px-8">
+        {result.payment_url && (
+          <a
+            href={result.payment_url}
+            className="bg-primary text-primary-foreground inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-sm font-semibold transition-opacity hover:opacity-90"
+          >
+            <CreditCard className="size-4 shrink-0" />
+            Bayar Sekarang
+          </a>
+        )}
         <a
           href={waHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+          className={cn(
+            'inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-sm font-semibold transition-colors',
+            result.payment_url
+              ? 'border border-emerald-600 text-emerald-700 hover:bg-emerald-50'
+              : 'bg-emerald-600 text-white hover:bg-emerald-700',
+          )}
         >
           <MessageCircle className="size-4 shrink-0" />
           Lanjutkan ke WhatsApp Admin

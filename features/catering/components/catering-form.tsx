@@ -73,7 +73,11 @@ export function CateringForm({
   const [recovered, setRecovered] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ orderNumber: string; total: number } | null>(null);
+  const [done, setDone] = useState<{
+    orderNumber: string;
+    total: number;
+    paymentUrl: string | null;
+  } | null>(null);
   const [pending, startTransition] = useTransition();
 
   function set<K extends keyof CateringDraft>(key: K, value: CateringDraft[K]) {
@@ -157,7 +161,11 @@ export function CateringForm({
 
       if (result.ok) {
         clearDraft();
-        setDone({ orderNumber: result.data.order_number, total: Number(result.data.total_amount) });
+        setDone({
+          orderNumber: result.data.order_number,
+          total: Number(result.data.total_amount),
+          paymentUrl: result.data.payment_url ?? null,
+        });
         return;
       }
 
@@ -183,12 +191,22 @@ export function CateringForm({
           <CheckCircle2 className="size-8" />
           <h2 className="mt-4 text-xl font-bold">Pesanan katering diterima</h2>
           <p className="mt-2 text-sm leading-6">
-            Nomor pesanan Anda <strong className="tabular-nums">{done.orderNumber}</strong>. Tim kami
-            menghubungi Anda lewat WhatsApp untuk konfirmasi dan pembayaran.
+            Nomor pesanan Anda <strong className="tabular-nums">{done.orderNumber}</strong>.{' '}
+            {done.paymentUrl
+              ? 'Selesaikan pembayaran di halaman Durianpay, metode bayarnya dipilih di sana.'
+              : 'Tim kami menghubungi Anda lewat WhatsApp untuk konfirmasi dan pembayaran.'}
           </p>
           <p className="mt-3 text-sm">
             Total tagihan <strong>{formatCurrency(done.total)}</strong>
           </p>
+          {done.paymentUrl && (
+            <a
+              href={done.paymentUrl}
+              className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 sm:w-auto"
+            >
+              Bayar Sekarang
+            </a>
+          )}
         </div>
       </div>
     );
@@ -325,7 +343,7 @@ export function CateringForm({
                   </div>
 
                   <div className="mt-3 flex items-center justify-between gap-3 sm:mt-0 sm:w-40 sm:justify-end">
-                    <span className="text-sm font-semibold tabular-nums text-neutral-900">
+                    <span className="text-sm font-semibold text-neutral-900 tabular-nums">
                       {subtotal > 0 ? formatCurrency(subtotal) : '—'}
                     </span>
                     <Button
@@ -363,9 +381,7 @@ export function CateringForm({
                   aria-invalid={Boolean(fieldErrors.requested_date)}
                   className="mt-2"
                 />
-                {fieldErrors.requested_date && (
-                  <FieldError message={fieldErrors.requested_date} />
-                )}
+                {fieldErrors.requested_date && <FieldError message={fieldErrors.requested_date} />}
               </div>
 
               <div>
@@ -383,9 +399,7 @@ export function CateringForm({
                     </option>
                   ))}
                 </Select>
-                {fieldErrors.requested_time && (
-                  <FieldError message={fieldErrors.requested_time} />
-                )}
+                {fieldErrors.requested_time && <FieldError message={fieldErrors.requested_time} />}
               </div>
             </div>
 
@@ -394,7 +408,7 @@ export function CateringForm({
                 <span className="text-sm text-neutral-600">
                   {totalBoxes.toLocaleString('id-ID')} box
                 </span>
-                <span className="text-lg font-bold tabular-nums text-neutral-900">
+                <span className="text-lg font-bold text-neutral-900 tabular-nums">
                   {formatCurrency(total)}
                 </span>
               </div>
@@ -506,7 +520,7 @@ export function CateringForm({
                       <dt className="text-neutral-600">
                         {pkg?.name} × {qty.toLocaleString('id-ID')} box
                       </dt>
-                      <dd className="font-medium tabular-nums text-neutral-900">
+                      <dd className="font-medium text-neutral-900 tabular-nums">
                         {formatCurrency(subtotal)}
                       </dd>
                     </div>
@@ -520,7 +534,7 @@ export function CateringForm({
                 </div>
                 <div className="flex justify-between gap-4 bg-neutral-50/60 px-5 py-4">
                   <dt className="font-bold text-neutral-900">Total</dt>
-                  <dd className="text-lg font-bold tabular-nums text-neutral-900">
+                  <dd className="text-lg font-bold text-neutral-900 tabular-nums">
                     {formatCurrency(total)}
                   </dd>
                 </div>

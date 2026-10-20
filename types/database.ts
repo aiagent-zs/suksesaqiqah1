@@ -919,6 +919,7 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          gateway_ref: string | null
           id: string
           method: string
           note: string | null
@@ -933,6 +934,7 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
+          gateway_ref?: string | null
           id?: string
           method: string
           note?: string | null
@@ -947,6 +949,7 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          gateway_ref?: string | null
           id?: string
           method?: string
           note?: string | null
