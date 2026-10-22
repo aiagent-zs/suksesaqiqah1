@@ -3,7 +3,6 @@
 import { useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react';
 import {
   AlertCircle,
-  Check,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -133,6 +132,9 @@ export function CateringForm({
     emptyDraft(initialServiceId ?? packages[0]?.id ?? ''),
   );
   const [step, setStep] = useState(1);
+  const [activeType, setActiveType] = useState(
+    () => packages.find((p) => p.id === initialServiceId)?.type ?? packages[0]?.type ?? '',
+  );
   const [recovered, setRecovered] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -175,15 +177,18 @@ export function CateringForm({
   const total = lines.reduce((sum, l) => sum + l.subtotal, 0);
   const totalBoxes = lines.reduce((sum, l) => sum + l.qty, 0);
 
-  const groups = useMemo(
-    () =>
-      Array.from(new Set(packages.map((p) => p.type))).map((type) => ({
-        type,
-        label: TYPE_LABEL[type] ?? 'Katering',
-        items: packages.filter((p) => p.type === type),
-      })),
-    [packages],
-  );
+  // Paket yang dipilih dari halaman depan naik ke urutan pertama, berikut
+  // kelompoknya: pemesan tidak perlu mencarinya lagi di antara paket lain.
+  const groups = useMemo(() => {
+    const first = (a: CateringPackage, b: CateringPackage) =>
+      Number(b.id === initialServiceId) - Number(a.id === initialServiceId);
+    const sorted = [...packages].sort(first);
+    return Array.from(new Set(sorted.map((p) => p.type))).map((type) => ({
+      type,
+      label: TYPE_LABEL[type] ?? 'Katering',
+      items: sorted.filter((p) => p.type === type),
+    }));
+  }, [packages, initialServiceId]);
 
   function validateStep(n: number): boolean {
     const errors: Record<string, string> = {};
@@ -380,48 +385,84 @@ export function CateringForm({
               menambah 10 box sekaligus, angkanya juga bisa diketik langsung.
             </StepIntro>
 
-            <div id="kt-packages" tabIndex={-1} className="space-y-8 outline-none">
-              {groups.map((group) => (
-                <div key={group.type}>
-                  <SectionLabel title={group.label} />
-                  <div className="grid gap-3 sm:grid-cols-2">
+            <div id="kt-packages" tabIndex={-1} className="outline-none">
+              {/* Satu jenis per tampilan: tiga kelompok yang ditumpuk memaksa
+                  pemesan menggulir jauh hanya untuk membandingkan jenis. */}
+              {groups.length > 1 && (
+                <div
+                  role="tablist"
+                  aria-label="Jenis katering"
+                  className="flex gap-6 border-b border-neutral-200"
+                >
+                  {groups.map((group) => {
+                    const on = group.type === activeType;
+                    const picked = lines.filter((l) => l.pkg.type === group.type).length;
+                    return (
+                      <button
+                        key={group.type}
+                        type="button"
+                        role="tab"
+                        aria-selected={on}
+                        onClick={() => setActiveType(group.type)}
+                        className={cn(
+                          '-mb-px flex min-h-11 items-center gap-1.5 border-b-2 text-sm font-semibold transition-colors',
+                          on
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-neutral-500 hover:text-neutral-800',
+                        )}
+                      >
+                        {group.label.replace('Katering ', '')}
+                        {picked > 0 && (
+                          <span className="text-xs font-medium text-neutral-500 tabular-nums">
+                            ({picked})<span className="sr-only"> paket dipilih</span>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {groups
+                .filter((group) => groups.length === 1 || group.type === activeType)
+                .map((group) => (
+                  <ul
+                    key={group.type}
+                    role={groups.length > 1 ? 'tabpanel' : undefined}
+                    className="divide-y divide-neutral-200"
+                  >
                     {group.items.map((pkg) => {
                       const raw = qtyOf(pkg.id);
                       const qty = Number(raw) || 0;
-                      const active = qty > 0;
                       return (
-                        <div
+                        <li
                           key={pkg.id}
-                          className={cn(
-                            'relative flex flex-col rounded-lg border p-4 transition-colors',
-                            active
-                              ? 'border-primary bg-primary/5 ring-primary ring-1'
-                              : 'border-neutral-200 bg-white',
-                          )}
+                          className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
                         >
-                          {active && (
-                            <span className="bg-primary absolute top-3 right-3 flex size-5 items-center justify-center rounded-full text-white">
-                              <Check className="size-3 stroke-[3]" />
-                            </span>
-                          )}
-                          <p className="pr-7 font-bold text-neutral-900">{pkg.name}</p>
-                          <p className="text-primary mt-1 text-base font-extrabold tabular-nums">
-                            {formatCurrency(pkg.price)}
-                            <span className="ml-1 text-xs font-medium text-neutral-500">/ box</span>
-                          </p>
-                          {pkg.items.length > 0 && (
-                            <p className="mt-2 text-sm leading-6 text-neutral-600">
-                              {pkg.items.join(' · ')}
-                            </p>
-                          )}
-
-                          <div className="mt-4 flex items-center justify-between gap-3 border-t border-neutral-200 pt-3">
+                          <div className="min-w-0">
                             <Label
                               htmlFor={`kt-qty-${pkg.id}`}
-                              className="text-sm text-neutral-700"
+                              className="font-semibold text-neutral-900"
                             >
-                              Jumlah box
+                              {pkg.name}
                             </Label>
+                            {pkg.items.length > 0 && (
+                              <p className="mt-0.5 text-sm leading-6 text-neutral-600">
+                                {pkg.items.join(' · ')}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
+                            <p className="text-right text-sm tabular-nums">
+                              <span className="font-bold text-neutral-900">
+                                {formatCurrency(pkg.price)}
+                              </span>
+                              <span className="text-neutral-500"> / box</span>
+                              {qty > 0 && (
+                                <span className="text-primary block text-xs font-medium">
+                                  {formatCurrency(pkg.price * qty)}
+                                </span>
+                              )}
+                            </p>
                             <div className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white p-0.5">
                               <StepperButton
                                 label={`Kurangi ${QTY_STEP} box ${pkg.name}`}
@@ -453,17 +494,11 @@ export function CateringForm({
                               </StepperButton>
                             </div>
                           </div>
-                          {active && (
-                            <p className="mt-2 text-right text-xs text-neutral-600 tabular-nums">
-                              Subtotal {formatCurrency(pkg.price * qty)}
-                            </p>
-                          )}
-                        </div>
+                        </li>
                       );
                     })}
-                  </div>
-                </div>
-              ))}
+                  </ul>
+                ))}
             </div>
             {fieldErrors.items && <FieldError message={fieldErrors.items} />}
           </div>
@@ -714,7 +749,10 @@ export function CateringForm({
           </div>
         )}
 
-        <div className="mt-8 flex items-center justify-between gap-2 border-t border-neutral-100 pt-6">
+        {/* Menempel di bawah layar: daftar paket bisa panjang, dan tombol yang
+            baru terlihat setelah menggulir habis membuat pemesan bingung
+            harus ke mana sesudah mengisi jumlah. */}
+        <div className="sticky bottom-0 z-20 -mx-2 mt-8 flex items-center justify-between gap-2 border-t border-neutral-200 bg-white/95 px-2 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:-mx-4 sm:px-4">
           {step > 1 ? (
             <button
               type="button"
@@ -725,7 +763,18 @@ export function CateringForm({
               <ChevronLeft className="size-4" /> Kembali
             </button>
           ) : (
-            <div />
+            <p aria-live="polite" className="min-w-0 text-sm text-neutral-600">
+              {totalBoxes > 0 ? (
+                <>
+                  <span className="font-semibold text-neutral-900 tabular-nums">
+                    {totalBoxes.toLocaleString('id-ID')} box
+                  </span>{' '}
+                  dari {lines.length} paket
+                </>
+              ) : (
+                'Belum ada paket dipilih'
+              )}
+            </p>
           )}
 
           {/* `key` berbeda wajib: tanpanya React memakai ulang elemen tombol
@@ -737,7 +786,9 @@ export function CateringForm({
               onClick={() => validateStep(step) && goToStep(step + 1)}
               className="bg-primary hover:bg-primary-dark inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-5 text-sm font-semibold text-white shadow-sm transition-colors sm:px-6"
             >
-              Lanjut ke {STEPS[step].title} <ChevronRight className="size-4 shrink-0" />
+              Lanjut ke <span className="sm:hidden">{STEPS[step].shortTitle}</span>
+              <span className="hidden sm:inline">{STEPS[step].title}</span>
+              <ChevronRight className="size-4 shrink-0" />
             </button>
           ) : (
             <button
