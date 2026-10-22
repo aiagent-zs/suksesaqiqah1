@@ -10,6 +10,7 @@ import type { Draft } from '../../draft';
 import type { RegionOption } from '../../queries';
 import { AddressPicker } from '../address-picker';
 import { FieldError } from './field-error';
+import { SectionLabel, StepIntro } from './step-header';
 import { DISTRIBUTION_OPTIONS } from './constants';
 
 /** Langkah 2 — kapan dan bagaimana pesanan disalurkan. */
@@ -29,16 +30,16 @@ export function StepJadwal({
   maxDate: string;
 }) {
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 duration-[420ms] ease-out">
-      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3.5 sm:p-5">
-        <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
-          <Label htmlFor="co-date" className="text-base font-bold text-neutral-900">
-            Kapan dilaksanakan? <span className="text-red-500">*</span>
-          </Label>
-          <span className="text-xs text-neutral-500">
-            Paling cepat {formatDate(minDate)} · maksimal {BOOKING_MAX_DAYS} hari ke depan
-          </span>
-        </div>
+    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+      <StepIntro title="Kapan aqiqahnya, dan dagingnya ke mana?">
+        Jadwal ini masih permintaan. Tim kami mengonfirmasinya lewat WhatsApp.
+      </StepIntro>
+
+      <div>
+        <SectionLabel
+          title="Kapan dilaksanakan?"
+          hint={`Paling cepat ${formatDate(minDate)}, paling lambat ${BOOKING_MAX_DAYS} hari ke depan.`}
+        />
 
         <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
           <div>
@@ -98,18 +99,16 @@ export function StepJadwal({
         </div>
 
         <p className="mt-3 text-xs leading-5 text-neutral-500">
-          Jadwal ini permintaan Anda. Tim kami mengonfirmasinya lewat WhatsApp sebelum ditetapkan —
-          bisa bergeser bila petugas atau lokasi pada jam itu sudah penuh.
+          Jadwal bisa bergeser bila petugas atau lokasi pada jam itu sudah penuh.
         </p>
       </div>
 
       <div>
-        <Label
+        <SectionLabel
           id="co-distribution-label"
-          className="mb-2.5 block text-base font-bold text-neutral-900"
-        >
-          Cara Penyaluran
-        </Label>
+          title="Cara Penyaluran"
+          hint="Mau dagingnya kami salurkan, atau diantar ke alamat Anda?"
+        />
         <div
           id="co-distribution"
           role="radiogroup"

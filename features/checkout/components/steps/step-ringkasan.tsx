@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import type { Draft } from '../../draft';
 import type { CheckoutPackage, NasiBoxPackage } from '../../queries';
 import { FieldError } from './field-error';
+import { StepIntro } from './step-header';
 import { SummaryRow } from './summary-row';
 
 /** Langkah 4 — ringkasan sebelum pesanan dikirim. */
@@ -35,7 +36,11 @@ export function StepRingkasan({
   error: string | null;
 }) {
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
+    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+      <StepIntro title="Periksa sekali lagi sebelum dikirim">
+        Ada yang keliru? Ketuk nama langkahnya di atas untuk mengubah.
+      </StepIntro>
+
       <div className="overflow-hidden rounded-lg border border-neutral-200">
         <div className="border-b border-neutral-100 bg-neutral-50/80 px-5 py-3">
           <p className="text-sm font-bold text-neutral-900">Rincian Pesanan</p>
