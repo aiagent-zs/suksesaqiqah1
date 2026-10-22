@@ -1,25 +1,18 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react';
-import Link from 'next/link';
 import {
-  AlertCircle,
   CalendarClock,
-  CheckCircle2,
-  Check,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
-  CreditCard,
   Loader2,
-  MessageCircle,
   Package,
   RotateCcw,
   User,
 } from 'lucide-react';
 import { Toast, type ToastState } from '@/components/ui/toast';
-import { formatCurrency, formatDate } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/format';
 import { siteConfig } from '@/lib/constants/site';
 import { createGuestOrderAction } from '@/server/actions/checkout';
 import { orderWhatsAppMessage } from '../order-message';
@@ -43,6 +36,9 @@ import { StepPesanan } from './steps/step-pesanan';
 import { StepJadwal } from './steps/step-jadwal';
 import { StepDataPemesan } from './steps/step-data-pemesan';
 import { StepRingkasan } from './steps/step-ringkasan';
+import { StepHeader } from './steps/step-header';
+import { SuccessPanel } from './steps/success-panel';
+import { ErrorSummary } from './steps/error-summary';
 
 /**
  * Jeda sebelum tombol kirim mau menerima klik, dihitung sejak tiba di langkah
@@ -737,108 +733,36 @@ export function CheckoutForm({
   if (done)
     return (
       <SuccessPanel
-        result={done}
-        summary={{
-          packageName: selected?.name ?? null,
-          qty: draft.qty,
-          boxName: selectedBox?.name ?? null,
-          boxQty: draft.nasi_box_qty,
-          requestedDate: draft.requested_date,
-          requestedTime: draft.requested_time,
-          distributionMode: draft.distribution_mode,
-          customerName: draft.name,
-        }}
+        orderNumber={done.order_number}
+        total={done.total_amount}
+        paymentUrl={done.payment_url ?? null}
+        waHref={siteConfig.whatsapp.href(
+          orderWhatsAppMessage({
+            orderNumber: done.order_number,
+            totalAmount: done.total_amount,
+            packageName: selected?.name ?? null,
+            qty: draft.qty,
+            boxName: selectedBox?.name ?? null,
+            boxQty: draft.nasi_box_qty,
+            requestedDate: draft.requested_date,
+            requestedTime: draft.requested_time,
+            distributionMode: draft.distribution_mode,
+            customerName: draft.name,
+          }),
+        )}
       />
     );
 
-  const progressPct = (currentStep / STEPS.length) * 100;
-
   return (
     <div className="mx-auto max-w-3xl">
-      {/*
-        Kepala wizard.
-
-        Dulu dibingkai sebagai "modal": kartu melayang dengan `shadow-xl`,
-        sudut `rounded-3xl`, latar gradasi, dan lencana ✨ "Modal Pemesanan".
-        Padahal ini halaman penuh, bukan modal — dan pemesan yang sedang
-        mengisi data pembayaran tidak butuh dihibur, ia butuh tahu posisinya.
-
-        Sekarang: garis rambut sebagai pemisah, satu baris status, dan total
-        yang selalu terbaca. Sejalan dengan `design.md §1` — clarity over
-        decoration.
-      */}
-      <div className="sticky top-16 z-30 -mx-4 border-b border-neutral-200 bg-white/95 px-4 py-3.5 backdrop-blur-sm sm:-mx-6 sm:px-6">
-        <div className="flex items-baseline justify-between gap-4">
-          <p className="text-sm font-medium text-neutral-500">
-            Langkah <span className="font-semibold text-neutral-900">{currentStep}</span> dari{' '}
-            {STEPS.length}
-            <span className="ml-2 hidden text-neutral-500 sm:inline">
-              · {STEPS[currentStep - 1]?.title}
-            </span>
-          </p>
-          {/* Total ikut di kepala wizard, bukan hanya di langkah terakhir:
-              pemesan mengubah paket & jumlah di langkah 1, jadi di situlah
-              angkanya paling dibutuhkan. */}
-          <p aria-live="polite" className="text-right text-sm">
-            <span className="text-neutral-500">Total </span>
-            <span className="font-bold text-neutral-900 tabular-nums">{formatCurrency(total)}</span>
-          </p>
-        </div>
-
-        {/* Bilah kemajuan setipis garis — penanda, bukan hiasan. Persentasenya
-            sengaja tidak ditulis: "25% Selesai" pada langkah 1 keliru, karena
-            beban tiap langkah tidak sama. */}
-        <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-neutral-200">
-          <div
-            className="from-primary to-primary/70 h-full rounded-full bg-gradient-to-r transition-[width] duration-500 ease-out"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-
-        {/* Nama langkah, bukan kartu bertumpuk. Di ponsel hanya nomor +
-            label pendek; deskripsi panjang di dalam kotak kecil dulu terpotong
-            jadi elipsis dan tidak menolong siapa pun. */}
-        <nav aria-label="Langkah pemesanan" className="mt-3 flex gap-1">
-          {STEPS.map((step) => {
-            const isCurrent = step.id === currentStep;
-            const isPassed = step.id < currentStep;
-            return (
-              <button
-                key={step.id}
-                type="button"
-                aria-current={isCurrent ? 'step' : undefined}
-                // Nama yang utuh untuk pembaca layar. Yang terlihat cuma "1."
-                // atau ikon centang bagi langkah yang sudah dilewati — keduanya
-                // tidak memberi tahu langkah ini tentang apa.
-                aria-label={`Langkah ${step.id}: ${step.title}`}
-                onClick={() => {
-                  if (step.id < currentStep || validateStep(currentStep)) {
-                    goToStep(step.id);
-                  }
-                }}
-                className={cn(
-                  'flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-1.5 text-xs transition-colors sm:justify-start sm:px-2.5',
-                  isCurrent
-                    ? 'text-primary bg-primary/8 font-semibold'
-                    : isPassed
-                      ? 'font-medium text-neutral-700 hover:bg-neutral-100'
-                      : 'text-neutral-500',
-                )}
-              >
-                {isPassed ? (
-                  <Check className="size-3.5 shrink-0 stroke-[2.5]" />
-                ) : (
-                  <span className="shrink-0 tabular-nums">{step.id}.</span>
-                )}
-                <span className="truncate">
-                  <span className="sm:hidden">{step.shortTitle}</span>
-                  <span className="hidden sm:inline">{step.title}</span>
-                </span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      <StepHeader
+        steps={STEPS}
+        current={currentStep}
+        total={total}
+        onJump={(id) => {
+          if (id < currentStep || validateStep(currentStep)) goToStep(id);
+        }}
+      />
 
       {/* Ringkasan galat: menetap di atas form, tiap baris melompat ke medannya.
           Ditaruh sebelum tawaran pemulihan karena galat lebih mendesak — yang
@@ -1000,163 +924,6 @@ export function CheckoutForm({
           sebagai kontrol form, dan `fixed`-nya tidak terpengaruh transform
           milik pembungkus mana pun. */}
       <Toast state={toast} onDismiss={() => setToast(null)} />
-    </div>
-  );
-}
-
-type OrderSummary = {
-  packageName: string | null;
-  qty: number;
-  boxName: string | null;
-  boxQty: number;
-  requestedDate: string;
-  requestedTime: string;
-  distributionMode: string;
-  customerName: string;
-};
-
-function SuccessPanel({ result, summary }: { result: GuestOrderResult; summary: OrderSummary }) {
-  // Dirakit sekali di sini, bukan di dalam JSX: `encodeURIComponent` atas teks
-  // sepanjang ini tidak perlu diulang tiap render.
-  const waHref = siteConfig.whatsapp.href(
-    orderWhatsAppMessage({
-      orderNumber: result.order_number,
-      totalAmount: result.total_amount,
-      ...summary,
-    }),
-  );
-
-  return (
-    <div className="mx-auto max-w-xl overflow-hidden rounded-lg border border-neutral-200 bg-white">
-      <div className="border-b border-neutral-200 px-6 py-8 text-center sm:px-8">
-        <span className="inline-flex size-16 items-center justify-center rounded-full bg-emerald-100/80 ring-8 ring-emerald-50">
-          <CheckCircle2 className="size-9 text-emerald-600" />
-        </span>
-        <h2 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900">
-          Pesanan Berhasil Terkirim!
-        </h2>
-        <p className="mx-auto mt-2 max-w-sm text-xs leading-6 text-neutral-600">
-          {result.payment_url
-            ? 'Pesanan Anda telah tercatat. Selesaikan pembayaran di halaman Durianpay, metode bayarnya dipilih di sana.'
-            : 'Pesanan Anda telah tercatat di sistem. Lanjutkan ke WhatsApp untuk mendapatkan informasi pembayaran dari admin kami.'}
-        </p>
-      </div>
-
-      <dl className="grid gap-4 px-6 py-6 sm:grid-cols-2 sm:px-8">
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3.5">
-          <dt className="text-[11px] font-medium text-neutral-500 uppercase">Nomor Pesanan</dt>
-          <dd className="mt-1 text-lg font-extrabold tracking-tight text-neutral-900 tabular-nums">
-            {result.order_number}
-          </dd>
-        </div>
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3.5">
-          <dt className="text-[11px] font-medium text-neutral-500 uppercase">Total Tagihan</dt>
-          <dd className="text-primary mt-1 text-lg font-extrabold tracking-tight tabular-nums">
-            {formatCurrency(result.total_amount)}
-          </dd>
-        </div>
-      </dl>
-
-      {/* Tombol utama, bukan sekadar tautan pendamping: sampai worker pengirim
-          ada, percakapan yang dibuka pemesan sendiri adalah satu-satunya jalur
-          yang pasti sampai ke admin. Ringkasan pesanannya sudah terisi, jadi
-          admin tidak perlu bertanya balik nomor pesanannya berapa. */}
-      <div className="space-y-2.5 border-t border-neutral-100 px-6 py-6 sm:px-8">
-        {result.payment_url && (
-          <a
-            href={result.payment_url}
-            className="bg-primary text-primary-foreground inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-sm font-semibold transition-opacity hover:opacity-90"
-          >
-            <CreditCard className="size-4 shrink-0" />
-            Bayar Sekarang
-          </a>
-        )}
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(
-            'inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-sm font-semibold transition-colors',
-            result.payment_url
-              ? 'border border-emerald-600 text-emerald-700 hover:bg-emerald-50'
-              : 'bg-emerald-600 text-white hover:bg-emerald-700',
-          )}
-        >
-          <MessageCircle className="size-4 shrink-0" />
-          Lanjutkan ke WhatsApp Admin
-        </a>
-
-        <Link
-          href="/"
-          className="inline-flex w-full items-center justify-center rounded-lg border border-neutral-200 px-5 py-3.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-        >
-          Kembali ke Beranda
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Ringkasan seluruh medan yang ditolak, menetap di atas form.
- *
- * **Kenapa ada, padahal tiap medan sudah punya pesannya sendiri.** Pesan per
- * medan hanya menolong kalau medannya kebetulan terlihat. Form ini panjang:
- * menekan "Lanjut" di bawah layar bisa menolak sesuatu yang berada jauh di
- * atas, dan yang tertangkap pemesan cuma "tombolnya tidak berfungsi". Ringkasan
- * ini menjawab dua hal sekaligus — **berapa** yang bermasalah dan **di mana**.
- *
- * **Tiap baris bisa diklik dan membawa ke medannya.** Daftar galat yang tidak
- * bisa diklik hanya memindahkan pekerjaan mencari ke pemesan.
- *
- * **Menetap, tidak seperti toast.** Keduanya dipakai bersama justru karena
- * kelemahannya berlawanan: toast terasa tapi menghilang, ringkasan bertahan
- * tapi bisa terlewat kalau perhatian sedang di bawah layar.
- */
-function ErrorSummary({
-  errors,
-  labels,
-  onJump,
-}: {
-  errors: Record<string, string>;
-  labels: Record<string, string>;
-  onJump: (field: string) => void;
-}) {
-  const entries = Object.entries(errors).filter(([, message]) => Boolean(message));
-  if (entries.length === 0) return null;
-
-  return (
-    <div
-      role="alert"
-      className="animate-in fade-in slide-in-from-top-2 mt-4 rounded-lg border border-red-200 bg-red-50 p-4 duration-300"
-    >
-      <div className="flex items-start gap-2.5">
-        <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-red-900">
-            {entries.length === 1
-              ? '1 isian perlu diperbaiki'
-              : `${entries.length} isian perlu diperbaiki`}
-          </p>
-          <ul className="mt-2 space-y-1">
-            {entries.map(([field, message]) => (
-              <li key={field}>
-                <button
-                  type="button"
-                  onClick={() => onJump(field)}
-                  className="flex min-h-11 w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs leading-5 text-red-800 transition-colors hover:bg-red-100 sm:min-h-0"
-                >
-                  <span aria-hidden className="mt-1.5 size-1 shrink-0 rounded-full bg-red-400" />
-                  <span className="min-w-0 flex-1">
-                    <span className="font-semibold">{labels[field] ?? field}</span>
-                    <span className="text-red-700"> — {message}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
     </div>
   );
 }

@@ -73,8 +73,8 @@ export default async function CateringCheckoutPage({
             Pesan katering
           </h1>
           <p className="mt-3.5 max-w-xl text-base leading-7 text-neutral-600">
-            Nasi kotak dan prasmanan untuk acara Anda. Tiga langkah singkat, tanpa perlu membuat
-            akun — tim kami menghubungi Anda lewat WhatsApp untuk konfirmasi dan pembayaran.
+            Nasi kotak dan prasmanan untuk acara Anda. Empat langkah singkat, tanpa perlu membuat
+            akun. Tim kami menghubungi Anda lewat WhatsApp untuk konfirmasi dan pembayaran.
           </p>
         </header>
 

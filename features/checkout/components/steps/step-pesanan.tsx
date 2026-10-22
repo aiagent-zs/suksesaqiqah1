@@ -1,6 +1,6 @@
 'use client';
 
-import { Baby, Check, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { Baby, Check, Minus, Plus } from 'lucide-react';
 import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { ANIMAL_SPECIES_LABEL } from '@/lib/constants/order';
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import type { CheckoutPackage, NasiBoxPackage } from '../../queries';
 import type { Draft } from '../../draft';
 import { FieldError } from './field-error';
+import { SectionLabel, StepIntro } from './step-header';
 import { StepperButton } from './stepper-button';
 import { AQIQAH_FOR_OPTIONS, MAX_QTY, RECOMMENDED_QTY, SERVICE_TYPE_LABEL } from './constants';
 
@@ -37,14 +38,17 @@ export function StepPesanan({
   pickAqiqahFor: (value: string) => void;
 }) {
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
+    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+      <StepIntro title="Aqiqah apa yang ingin Anda pesan?">
+        Pilih untuk siapa aqiqahnya dan paket yang diinginkan. Total di atas ikut berubah.
+      </StepIntro>
+
       <div>
-        <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
-          <Label id="co-aqiqahfor-label" className="text-base font-bold text-neutral-900">
-            Aqiqah untuk siapa?
-          </Label>
-          <span className="text-xs text-neutral-500">Menentukan anjuran jumlah ekor</span>
-        </div>
+        <SectionLabel
+          id="co-aqiqahfor-label"
+          title="Aqiqah untuk siapa?"
+          hint="Menentukan anjuran jumlah ekor."
+        />
         <div
           id="co-aqiqahfor"
           role="radiogroup"
@@ -96,14 +100,12 @@ export function StepPesanan({
         {fieldErrors.aqiqah_for && <FieldError message={fieldErrors.aqiqah_for} />}
       </div>
 
-      {/* PAKET */}
-      <div className="border-t border-neutral-100 pt-5 sm:pt-6">
-        <div className="mb-2.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
-          <Label id="co-service-label" className="text-base font-bold text-neutral-900">
-            Pilih Paket
-          </Label>
-          <span className="text-xs text-neutral-500">Harga net termasuk olahan &amp; laporan</span>
-        </div>
+      <div>
+        <SectionLabel
+          id="co-service-label"
+          title="Pilih Paket"
+          hint="Harga per ekor, sudah termasuk olahan dan laporan."
+        />
         <div
           id="co-service"
           role="radiogroup"
@@ -162,7 +164,7 @@ export function StepPesanan({
         {fieldErrors.service_id && <FieldError message={fieldErrors.service_id} />}
       </div>
 
-      <div className="grid gap-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3.5 sm:grid-cols-2 sm:gap-6 sm:p-5">
+      <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
         <div>
           <Label className="text-sm font-semibold text-neutral-800">Jenis Hewan</Label>
           <div className="mt-2 inline-flex rounded-xl bg-neutral-200/60 p-1">
@@ -227,16 +229,15 @@ export function StepPesanan({
         </div>
       </div>
 
-      <div className="border-t border-neutral-100 pt-6">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <Label className="text-base font-bold text-neutral-900">
-            Nasi Box <span className="font-normal text-neutral-500">(opsional)</span>
-          </Label>
-          <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
-            <ShoppingBag className="size-3.5 text-blue-600" />
-            Dibagikan bersama aqiqah Anda
-          </span>
-        </div>
+      <div className="border-t border-neutral-200 pt-8">
+        <SectionLabel
+          title={
+            <>
+              Nasi Box <span className="font-normal text-neutral-500">(opsional)</span>
+            </>
+          }
+          hint="Dibagikan bersama aqiqah Anda. Pilih Tidak pakai bila tidak perlu."
+        />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <button
             type="button"

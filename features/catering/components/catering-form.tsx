@@ -1,20 +1,38 @@
 'use client';
 
-import { useMemo, useState, useSyncExternalStore, useTransition } from 'react';
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Plus, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react';
+import {
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Minus,
+  Plus,
+  RotateCcw,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
-import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import { siteConfig } from '@/lib/constants/site';
+import { orderWhatsAppMessage } from '@/features/checkout/order-message';
 import { AddressPicker } from '@/features/checkout/components/address-picker';
 import { FieldError } from '@/features/checkout/components/steps/field-error';
+import { StepperButton } from '@/features/checkout/components/steps/stepper-button';
+import { ErrorSummary } from '@/features/checkout/components/steps/error-summary';
+import { SuccessPanel } from '@/features/checkout/components/steps/success-panel';
+import { SummaryRow } from '@/features/checkout/components/steps/summary-row';
+import {
+  SectionLabel,
+  StepHeader,
+  StepIntro,
+} from '@/features/checkout/components/steps/step-header';
 import { createCateringOrderAction } from '@/server/actions/catering';
 import type { RegionOption } from '@/features/checkout/queries';
 import type { CateringPackage } from '../queries';
-import { BOOKING_TIME_SLOTS, MAX_ITEM_LINES } from '../schema';
+import { BOOKING_MAX_DAYS, BOOKING_TIME_SLOTS, MAX_QTY_PER_LINE } from '../schema';
 import {
   clearDraft,
   emptyDraft,
@@ -23,22 +41,36 @@ import {
   saveDraft,
   subscribeDraft,
   type CateringDraft,
-  type DraftItem,
 } from '../draft';
 
-const STEPS = ['Pesanan', 'Pengiriman', 'Konfirmasi'] as const;
+/** Urutan dan nama langkah sengaja sejajar dengan checkout aqiqah. */
+const STEPS = [
+  { id: 1, title: 'Pesanan', shortTitle: 'Pesanan' },
+  { id: 2, title: 'Jadwal & Alamat', shortTitle: 'Jadwal' },
+  { id: 3, title: 'Data Pemesan', shortTitle: 'Data' },
+  { id: 4, title: 'Ringkasan', shortTitle: 'Ringkasan' },
+];
+
+/** Tombol +/- melompat 10 box: pesanan katering jarang di bawah puluhan. */
+const QTY_STEP = 10;
+
+/** Jeda sebelum tombol kirim menerima klik; alasannya sama dengan checkout aqiqah. */
+const SUBMIT_ARM_DELAY_MS = 700;
+
+const TYPE_LABEL: Record<string, string> = {
+  katering_ayam: 'Katering Ayam',
+  katering_daging: 'Katering Daging',
+  katering_kebuli: 'Katering Kebuli',
+};
 
 /**
- * Medan → langkah tempatnya berada.
- *
- * Dipakai ketika server menolak sesuatu yang tidak terlihat di langkah yang
- * sedang terbuka: tanpa ini pemesan melihat "gagal" tanpa satu pun medan merah,
- * sebab yang ditolak ada di langkah lain.
+ * Medan → langkah dan id elemennya. Dipakai saat validasi atau server menolak
+ * sesuatu yang tidak terlihat di langkah yang sedang terbuka.
  */
 const FIELD_STEP: Record<string, number> = {
   items: 1,
-  requested_date: 1,
-  requested_time: 1,
+  requested_date: 2,
+  requested_time: 2,
   delivery_province_code: 2,
   delivery_city_code: 2,
   delivery_district_code: 2,
@@ -48,6 +80,36 @@ const FIELD_STEP: Record<string, number> = {
   name: 3,
   phone: 3,
   email: 3,
+};
+
+const FIELD_ANCHOR: Record<string, string> = {
+  items: 'kt-packages',
+  requested_date: 'kt-date',
+  requested_time: 'kt-time',
+  delivery_province_code: 'co-prov',
+  delivery_city_code: 'co-city',
+  delivery_district_code: 'co-dist',
+  delivery_village_code: 'co-vill',
+  delivery_postal_code: 'co-postal',
+  delivery_detail: 'co-detail',
+  name: 'kt-name',
+  phone: 'kt-phone',
+  email: 'kt-email',
+};
+
+const FIELD_LABEL: Record<string, string> = {
+  items: 'Paket',
+  requested_date: 'Tanggal pengiriman',
+  requested_time: 'Jam pengiriman',
+  delivery_province_code: 'Provinsi tujuan',
+  delivery_city_code: 'Kabupaten/kota tujuan',
+  delivery_district_code: 'Kecamatan tujuan',
+  delivery_village_code: 'Kelurahan/desa tujuan',
+  delivery_postal_code: 'Kode pos',
+  delivery_detail: 'Alamat lengkap',
+  name: 'Nama pemesan',
+  phone: 'Nomor WhatsApp',
+  email: 'Email',
 };
 
 export function CateringForm({
@@ -70,6 +132,9 @@ export function CateringForm({
     emptyDraft(initialServiceId ?? packages[0]?.id ?? ''),
   );
   const [step, setStep] = useState(1);
+  const [activeType, setActiveType] = useState(
+    () => packages.find((p) => p.id === initialServiceId)?.type ?? packages[0]?.type ?? '',
+  );
   const [recovered, setRecovered] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +144,8 @@ export function CateringForm({
     paymentUrl: string | null;
   } | null>(null);
   const [pending, startTransition] = useTransition();
+  const submitArmedRef = useRef(false);
+  const armTimerRef = useRef<number | undefined>(undefined);
 
   function set<K extends keyof CateringDraft>(key: K, value: CateringDraft[K]) {
     const next = { ...draft, [key]: value };
@@ -86,63 +153,124 @@ export function CateringForm({
     saveDraft(next, step);
   }
 
-  function setItem(index: number, patch: Partial<DraftItem>) {
-    const items = draft.items.map((it, i) => (i === index ? { ...it, ...patch } : it));
-    set('items', items);
-  }
+  /** Jumlah box per paket. Tiap paket paling banyak satu baris di `items`. */
+  const qtyOf = (id: string) => draft.items.find((i) => i.service_id === id)?.qty ?? '';
 
-  function addItem() {
-    if (draft.items.length >= MAX_ITEM_LINES) return;
-    // Paket yang belum dipilih di baris mana pun, supaya baris baru tidak lahir
-    // sebagai duplikat yang langsung ditolak.
-    const taken = new Set(draft.items.map((i) => i.service_id));
-    const next = packages.find((p) => !taken.has(p.id));
-    set('items', [...draft.items, { service_id: next?.id ?? '', qty: '' }]);
-  }
-
-  function removeItem(index: number) {
-    // Baris terakhir tidak dihapus melainkan dikosongkan: daftar tanpa baris
-    // sama sekali tidak menunjukkan bentuk isiannya.
-    if (draft.items.length === 1) {
-      set('items', [{ service_id: packages[0]?.id ?? '', qty: '' }]);
-      return;
-    }
-    set(
-      'items',
-      draft.items.filter((_, i) => i !== index),
-    );
+  function setQty(id: string, qty: string) {
+    const rest = draft.items.filter((i) => i.service_id !== id && i.service_id);
+    // Paket berjumlah kosong tetap disimpan sebagai baris supaya paket yang
+    // datang dari `?paket=` tetap terlihat terpilih sebelum jumlahnya diisi.
+    set('items', [...rest, { service_id: id, qty }]);
   }
 
   const lines = useMemo(
     () =>
-      draft.items.map((item) => {
-        const pkg = packages.find((p) => p.id === item.service_id);
-        const qty = Number(item.qty) || 0;
-        return { item, pkg, qty, subtotal: (pkg?.price ?? 0) * qty };
-      }),
+      packages
+        .map((pkg) => {
+          const qty = Number(draft.items.find((i) => i.service_id === pkg.id)?.qty) || 0;
+          return { pkg, qty, subtotal: pkg.price * qty };
+        })
+        .filter((l) => l.qty > 0),
     [draft.items, packages],
   );
 
   const total = lines.reduce((sum, l) => sum + l.subtotal, 0);
   const totalBoxes = lines.reduce((sum, l) => sum + l.qty, 0);
 
+  // Paket yang dipilih dari halaman depan naik ke urutan pertama, berikut
+  // kelompoknya: pemesan tidak perlu mencarinya lagi di antara paket lain.
+  const groups = useMemo(() => {
+    const first = (a: CateringPackage, b: CateringPackage) =>
+      Number(b.id === initialServiceId) - Number(a.id === initialServiceId);
+    const sorted = [...packages].sort(first);
+    return Array.from(new Set(sorted.map((p) => p.type))).map((type) => ({
+      type,
+      label: TYPE_LABEL[type] ?? 'Katering',
+      items: sorted.filter((p) => p.type === type),
+    }));
+  }, [packages, initialServiceId]);
+
+  function validateStep(n: number): boolean {
+    const errors: Record<string, string> = {};
+    if (n === 1) {
+      if (lines.length === 0) errors.items = 'Isi jumlah box untuk minimal satu paket';
+      else if (lines.some((l) => l.qty > MAX_QTY_PER_LINE)) {
+        errors.items = `Untuk pesanan di atas ${MAX_QTY_PER_LINE} box per paket, hubungi admin`;
+      }
+    } else if (n === 2) {
+      if (!draft.requested_date) errors.requested_date = 'Pilih tanggal pengiriman';
+      else if (draft.requested_date < minDate) {
+        errors.requested_date = `Paling cepat ${formatDate(minDate)}`;
+      } else if (draft.requested_date > maxDate) {
+        errors.requested_date = `Maksimal ${BOOKING_MAX_DAYS} hari ke depan`;
+      }
+      if (!draft.requested_time) errors.requested_time = 'Pilih jam pengiriman';
+
+      const a = draft.delivery;
+      if (!a.province_code) errors.delivery_province_code = 'Pilih provinsi tujuan';
+      if (!a.city_code) errors.delivery_city_code = 'Pilih kabupaten/kota tujuan';
+      if (!a.district_code) errors.delivery_district_code = 'Pilih kecamatan tujuan';
+      if (!a.village_code) errors.delivery_village_code = 'Pilih kelurahan/desa tujuan';
+      if (!/^[0-9]{5}$/.test(a.postal_code)) {
+        errors.delivery_postal_code = a.postal_code
+          ? 'Kode pos harus 5 digit angka'
+          : 'Kode pos wajib diisi';
+      }
+      if (!a.detail.trim()) errors.delivery_detail = 'Isi nama jalan dan nomor bangunan';
+    } else if (n === 3) {
+      if (draft.name.trim().length < 2) errors.name = 'Nama pemesan wajib diisi';
+      const phone = draft.phone.trim();
+      if (!phone) errors.phone = 'Nomor WhatsApp wajib diisi';
+      else if (phone.length < 8) errors.phone = 'Nomor telepon terlalu pendek';
+      else if (!/^[0-9+()\- ]+$/.test(phone)) errors.phone = 'Hanya boleh angka dan tanda + ( ) -';
+      const email = draft.email.trim();
+      if (!email) errors.email = 'Email wajib diisi';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Format email tidak valid';
+    }
+
+    setFieldErrors(errors);
+    const first = Object.keys(errors)[0];
+    if (first) jumpToField(first);
+    return !first;
+  }
+
+  function jumpToField(field: string) {
+    const root = field.split('.')[0];
+    const target = FIELD_STEP[root];
+    if (target && target !== step) setStep(target);
+    const anchor = FIELD_ANCHOR[root];
+    if (!anchor) return;
+    window.setTimeout(() => {
+      const el = document.getElementById(anchor);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus({ preventScroll: true });
+    }, 80);
+  }
+
   function goToStep(next: number) {
+    setError(null);
+    setFieldErrors({});
+    window.clearTimeout(armTimerRef.current);
+    submitArmedRef.current = false;
+    if (next === STEPS.length) {
+      armTimerRef.current = window.setTimeout(() => {
+        submitArmedRef.current = true;
+      }, SUBMIT_ARM_DELAY_MS);
+    }
     setStep(next);
     saveDraft(draft, next);
-    setFieldErrors({});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function submit() {
+    if (!submitArmedRef.current) return;
+    for (const n of [1, 2, 3]) if (!validateStep(n)) return;
+
     setError(null);
     setFieldErrors({});
-
     startTransition(async () => {
       const result = await createCateringOrderAction({
-        items: draft.items
-          // Baris yang belum diisi diabaikan, bukan ditolak: menambah baris lalu
-          // berubah pikiran adalah cara orang mengisi form, bukan kekeliruan.
-          .filter((i) => i.service_id && Number(i.qty) > 0)
-          .map((i) => ({ service_id: i.service_id, qty: Number(i.qty) })),
+        items: lines.map((l) => ({ service_id: l.pkg.id, qty: l.qty })),
         requested_date: draft.requested_date,
         requested_time: draft.requested_time,
         name: draft.name,
@@ -172,257 +300,272 @@ export function CateringForm({
       const fields = result.error.fields ?? {};
       setFieldErrors(fields);
       setError(result.error.message);
-
-      // Lompat ke langkah tempat medan pertama yang ditolak berada — tanpa ini
-      // pesan galat menunjuk sesuatu yang tidak terlihat di layar.
-      const firstKey = Object.keys(fields)[0];
-      if (firstKey) {
-        const root = firstKey.split('.')[0];
-        const target = FIELD_STEP[root];
-        if (target && target !== step) setStep(target);
-      }
+      const first = Object.keys(fields)[0];
+      if (first) jumpToField(first);
     });
   }
 
   if (done) {
     return (
-      <div className="animate-in fade-in slide-in-from-bottom-2 mt-8 duration-500">
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-emerald-900">
-          <CheckCircle2 className="size-8" />
-          <h2 className="mt-4 text-xl font-bold">Pesanan katering diterima</h2>
-          <p className="mt-2 text-sm leading-6">
-            Nomor pesanan Anda <strong className="tabular-nums">{done.orderNumber}</strong>.{' '}
-            {done.paymentUrl
-              ? 'Selesaikan pembayaran di halaman Durianpay, metode bayarnya dipilih di sana.'
-              : 'Tim kami menghubungi Anda lewat WhatsApp untuk konfirmasi dan pembayaran.'}
-          </p>
-          <p className="mt-3 text-sm">
-            Total tagihan <strong>{formatCurrency(done.total)}</strong>
-          </p>
-          {done.paymentUrl && (
-            <a
-              href={done.paymentUrl}
-              className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 sm:w-auto"
-            >
-              Bayar Sekarang
-            </a>
-          )}
-        </div>
-      </div>
+      <SuccessPanel
+        orderNumber={done.orderNumber}
+        total={done.total}
+        paymentUrl={done.paymentUrl}
+        waHref={siteConfig.whatsapp.href(
+          orderWhatsAppMessage({
+            orderNumber: done.orderNumber,
+            totalAmount: done.total,
+            packageName: lines.map((l) => `${l.pkg.name} (${l.qty} box)`).join(', '),
+            requestedDate: draft.requested_date,
+            requestedTime: draft.requested_time,
+            customerName: draft.name,
+          }),
+        )}
+      />
     );
   }
 
   return (
-    <div className="mt-8">
-      {/* Tawaran memulihkan isian yang tertinggal. Ditawarkan, bukan dipulihkan
-          diam-diam: isian lama yang muncul tanpa diminta membingungkan justru
-          karena terbaca seperti isian sendiri. */}
+    <div className="mx-auto max-w-3xl">
+      <StepHeader
+        steps={STEPS}
+        current={step}
+        total={total}
+        onJump={(id) => {
+          if (id < step || validateStep(step)) goToStep(id);
+        }}
+      />
+
+      <ErrorSummary errors={fieldErrors} labels={FIELD_LABEL} onJump={jumpToField} />
+
+      {/* Ditawarkan, bukan dipulihkan diam-diam: isian lama yang muncul tanpa
+          diminta terbaca seperti isian sendiri. */}
       {stored && !recovered && (
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <span className="flex-1">Ada isian yang belum selesai dari sesi ini.</span>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              setDraft(stored.draft);
-              setStep(Math.min(stored.step, STEPS.length));
-              setRecovered(true);
-            }}
-          >
-            Lanjutkan
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              clearDraft();
-              setRecovered(true);
-            }}
-          >
-            Mulai baru
-          </Button>
+        <div className="animate-in fade-in mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 duration-300">
+          <div className="flex items-start gap-2.5">
+            <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-700" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-amber-900">Lanjutkan isian sebelumnya?</p>
+              <p className="mt-1 text-xs leading-5 text-amber-800">
+                Ada pesanan katering yang belum selesai dari tab ini.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(stored.draft);
+                    goToStep(Math.min(stored.step, STEPS.length));
+                    setRecovered(true);
+                  }}
+                  className="inline-flex min-h-11 items-center rounded-lg bg-amber-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-amber-800"
+                >
+                  Lanjutkan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearDraft();
+                    setRecovered(true);
+                  }}
+                  className="inline-flex min-h-11 items-center rounded-lg border border-amber-300 bg-white px-4 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+                >
+                  Mulai baru
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      <ol className="flex items-center gap-2" aria-label="Langkah pemesanan">
-        {STEPS.map((label, i) => {
-          const n = i + 1;
-          return (
-            <li key={label} className="flex flex-1 items-center gap-2">
-              <span
-                aria-current={n === step ? 'step' : undefined}
-                className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                  n === step
-                    ? 'bg-primary text-white'
-                    : n < step
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-neutral-100 text-neutral-500'
-                }`}
-              >
-                {n}
-              </span>
-              <span
-                className={`hidden text-xs font-medium sm:block ${
-                  n === step ? 'text-neutral-900' : 'text-neutral-500'
-                }`}
-              >
-                {label}
-              </span>
-              {n < STEPS.length && <span className="h-px flex-1 bg-neutral-200" />}
-            </li>
-          );
-        })}
-      </ol>
-
-      <div className="mt-8">
+      <div className="p-2 pt-8 sm:p-4 sm:pt-10">
         {step === 1 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
-            <div>
-              <h2 className="text-lg font-bold text-neutral-900">Paket & jumlah</h2>
-              <p className="mt-1 text-sm text-neutral-600">
-                Boleh memesan lebih dari satu jenis paket dalam satu pesanan.
-              </p>
-            </div>
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+            <StepIntro title="Paket apa, dan berapa box?">
+              Isi jumlah box di paket yang Anda mau, boleh lebih dari satu paket. Tombol + dan −
+              menambah 10 box sekaligus, angkanya juga bisa diketik langsung.
+            </StepIntro>
 
-            <div className="space-y-3">
-              {lines.map(({ item, pkg, subtotal }, i) => (
+            <div id="kt-packages" tabIndex={-1} className="outline-none">
+              {/* Satu jenis per tampilan: tiga kelompok yang ditumpuk memaksa
+                  pemesan menggulir jauh hanya untuk membandingkan jenis. */}
+              {groups.length > 1 && (
                 <div
-                  key={i}
-                  className="rounded-lg border border-neutral-200 p-4 sm:flex sm:items-end sm:gap-4"
+                  role="tablist"
+                  aria-label="Jenis katering"
+                  className="flex gap-6 border-b border-neutral-200"
                 >
-                  <div className="flex-1">
-                    <Label htmlFor={`kt-pkg-${i}`}>Paket</Label>
-                    <Select
-                      id={`kt-pkg-${i}`}
-                      value={item.service_id}
-                      onChange={(e) => setItem(i, { service_id: e.target.value })}
-                      className="mt-2"
-                    >
-                      <option value="">Pilih paket…</option>
-                      {Array.from(new Set(packages.map((p) => p.type))).map((typeKey) => {
-                        const typeLabels: Record<string, string> = {
-                          katering_ayam: 'Katering Ayam',
-                          katering_daging: 'Katering Daging',
-                          katering_kebuli: 'Katering Kebuli',
-                        };
-                        const inGroup = packages.filter((p) => p.type === typeKey);
-                        return (
-                          <optgroup key={typeKey} label={typeLabels[typeKey] ?? 'Katering'}>
-                            {inGroup.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name} — {formatCurrency(p.price)}/box
-                              </option>
-                            ))}
-                          </optgroup>
-                        );
-                      })}
-                    </Select>
-                    {pkg && pkg.items.length > 0 && (
-                      <p className="mt-1.5 text-xs text-neutral-500">{pkg.items.join(' · ')}</p>
-                    )}
-                    {fieldErrors[`items.${i}.service_id`] && (
-                      <FieldError message={fieldErrors[`items.${i}.service_id`]} />
-                    )}
-                  </div>
-
-                  <div className="mt-3 sm:mt-0 sm:w-32">
-                    <Label htmlFor={`kt-qty-${i}`}>Jumlah box</Label>
-                    <NumberInput
-                      id={`kt-qty-${i}`}
-                      min={1}
-                      inputMode="numeric"
-                      value={item.qty}
-                      onChange={(e) => setItem(i, { qty: e.target.value })}
-                      placeholder="50"
-                      className="mt-2"
-                    />
-                    {fieldErrors[`items.${i}.qty`] && (
-                      <FieldError message={fieldErrors[`items.${i}.qty`]} />
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between gap-3 sm:mt-0 sm:w-40 sm:justify-end">
-                    <span className="text-sm font-semibold text-neutral-900 tabular-nums">
-                      {subtotal > 0 ? formatCurrency(subtotal) : '—'}
-                    </span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      aria-label={`Hapus baris ${i + 1}`}
-                      onClick={() => removeItem(i)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
+                  {groups.map((group) => {
+                    const on = group.type === activeType;
+                    const picked = lines.filter((l) => l.pkg.type === group.type).length;
+                    return (
+                      <button
+                        key={group.type}
+                        type="button"
+                        role="tab"
+                        aria-selected={on}
+                        onClick={() => setActiveType(group.type)}
+                        className={cn(
+                          '-mb-px flex min-h-11 items-center gap-1.5 border-b-2 text-sm font-semibold transition-colors',
+                          on
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-neutral-500 hover:text-neutral-800',
+                        )}
+                      >
+                        {group.label.replace('Katering ', '')}
+                        {picked > 0 && (
+                          <span className="text-xs font-medium text-neutral-500 tabular-nums">
+                            ({picked})<span className="sr-only"> paket dipilih</span>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
+              {groups
+                .filter((group) => groups.length === 1 || group.type === activeType)
+                .map((group) => (
+                  <ul
+                    key={group.type}
+                    role={groups.length > 1 ? 'tabpanel' : undefined}
+                    className="divide-y divide-neutral-200"
+                  >
+                    {group.items.map((pkg) => {
+                      const raw = qtyOf(pkg.id);
+                      const qty = Number(raw) || 0;
+                      return (
+                        <li
+                          key={pkg.id}
+                          className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
+                        >
+                          <div className="min-w-0">
+                            <Label
+                              htmlFor={`kt-qty-${pkg.id}`}
+                              className="font-semibold text-neutral-900"
+                            >
+                              {pkg.name}
+                            </Label>
+                            {pkg.items.length > 0 && (
+                              <p className="mt-0.5 text-sm leading-6 text-neutral-600">
+                                {pkg.items.join(' · ')}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
+                            <p className="text-right text-sm tabular-nums">
+                              <span className="font-bold text-neutral-900">
+                                {formatCurrency(pkg.price)}
+                              </span>
+                              <span className="text-neutral-500"> / box</span>
+                              {qty > 0 && (
+                                <span className="text-primary block text-xs font-medium">
+                                  {formatCurrency(pkg.price * qty)}
+                                </span>
+                              )}
+                            </p>
+                            <div className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white p-0.5">
+                              <StepperButton
+                                label={`Kurangi ${QTY_STEP} box ${pkg.name}`}
+                                disabled={qty <= 0}
+                                onClick={() =>
+                                  setQty(pkg.id, String(Math.max(0, qty - QTY_STEP) || ''))
+                                }
+                              >
+                                <Minus className="size-4" />
+                              </StepperButton>
+                              <NumberInput
+                                id={`kt-qty-${pkg.id}`}
+                                min={0}
+                                max={MAX_QTY_PER_LINE}
+                                inputMode="numeric"
+                                value={raw}
+                                placeholder="0"
+                                onChange={(e) => setQty(pkg.id, e.target.value)}
+                                className="h-11 w-16 border-0 text-center text-base font-bold tabular-nums shadow-none"
+                              />
+                              <StepperButton
+                                label={`Tambah ${QTY_STEP} box ${pkg.name}`}
+                                disabled={qty >= MAX_QTY_PER_LINE}
+                                onClick={() =>
+                                  setQty(pkg.id, String(Math.min(MAX_QTY_PER_LINE, qty + QTY_STEP)))
+                                }
+                              >
+                                <Plus className="size-4" />
+                              </StepperButton>
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ))}
             </div>
-
             {fieldErrors.items && <FieldError message={fieldErrors.items} />}
-
-            {draft.items.length < MAX_ITEM_LINES && (
-              <Button type="button" variant="ghost" size="sm" onClick={addItem}>
-                <Plus className="size-4" /> Tambah paket
-              </Button>
-            )}
-
-            <div className="grid gap-4 border-t border-neutral-200 pt-6 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="kt-date">Tanggal pengiriman</Label>
-                <Input
-                  id="kt-date"
-                  type="date"
-                  min={minDate}
-                  max={maxDate}
-                  value={draft.requested_date}
-                  onChange={(e) => set('requested_date', e.target.value)}
-                  aria-invalid={Boolean(fieldErrors.requested_date)}
-                  className="mt-2"
-                />
-                {fieldErrors.requested_date && <FieldError message={fieldErrors.requested_date} />}
-              </div>
-
-              <div>
-                <Label htmlFor="kt-time">Jam pengiriman</Label>
-                <Select
-                  id="kt-time"
-                  value={draft.requested_time}
-                  onChange={(e) => set('requested_time', e.target.value)}
-                  className="mt-2"
-                >
-                  <option value="">Pilih jam…</option>
-                  {BOOKING_TIME_SLOTS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </Select>
-                {fieldErrors.requested_time && <FieldError message={fieldErrors.requested_time} />}
-              </div>
-            </div>
-
-            {total > 0 && (
-              <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-5 py-4">
-                <span className="text-sm text-neutral-600">
-                  {totalBoxes.toLocaleString('id-ID')} box
-                </span>
-                <span className="text-lg font-bold text-neutral-900 tabular-nums">
-                  {formatCurrency(total)}
-                </span>
-              </div>
-            )}
           </div>
         )}
 
         {step === 2 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+            <StepIntro title="Kapan dan ke mana kami antar?">
+              Jadwal ini masih permintaan. Tim kami mengonfirmasinya lewat WhatsApp.
+            </StepIntro>
+
             <div>
-              <h2 className="text-lg font-bold text-neutral-900">Alamat pengiriman</h2>
-              <p className="mt-1 text-sm text-neutral-600">
-                Katering selalu kami antar ke alamat tujuan.
-              </p>
+              <SectionLabel
+                title="Waktu pengiriman"
+                hint={`Paling cepat ${formatDate(minDate)}, paling lambat ${BOOKING_MAX_DAYS} hari ke depan.`}
+              />
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="kt-date" className="text-sm font-semibold text-neutral-800">
+                    Tanggal
+                  </Label>
+                  <Input
+                    id="kt-date"
+                    type="date"
+                    min={minDate}
+                    max={maxDate}
+                    value={draft.requested_date}
+                    onChange={(e) => set('requested_date', e.target.value)}
+                    aria-invalid={Boolean(fieldErrors.requested_date)}
+                    className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
+                  />
+                  {fieldErrors.requested_date && (
+                    <FieldError message={fieldErrors.requested_date} />
+                  )}
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold text-neutral-800">Jam</Label>
+                  <div
+                    id="kt-time"
+                    tabIndex={-1}
+                    className="mt-2 grid grid-cols-3 gap-1.5 outline-none sm:flex sm:flex-wrap sm:gap-2"
+                  >
+                    {BOOKING_TIME_SLOTS.map((slot) => {
+                      const active = draft.requested_time === slot;
+                      return (
+                        <button
+                          key={slot}
+                          type="button"
+                          onClick={() => set('requested_time', slot)}
+                          aria-pressed={active}
+                          className={cn(
+                            'flex min-h-11 items-center justify-center rounded-lg border px-1 text-xs font-semibold tabular-nums transition-colors sm:px-3.5',
+                            active
+                              ? 'border-primary bg-primary text-white'
+                              : 'hover:border-primary/40 border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50',
+                          )}
+                        >
+                          {slot}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {fieldErrors.requested_time && (
+                    <FieldError message={fieldErrors.requested_time} />
+                  )}
+                </div>
+              </div>
             </div>
 
             <AddressPicker
@@ -433,146 +576,233 @@ export function CateringForm({
             />
 
             <div>
-              <Label htmlFor="kt-inst">Nama acara / instansi (opsional)</Label>
+              <Label htmlFor="kt-inst" className="text-sm font-semibold text-neutral-800">
+                Nama acara atau instansi{' '}
+                <span className="font-normal text-neutral-500">(opsional)</span>
+              </Label>
               <Input
                 id="kt-inst"
                 value={draft.recipient_institution}
                 onChange={(e) => set('recipient_institution', e.target.value)}
-                placeholder="Pengajian RT 05 / PT Sejahtera"
-                className="mt-2"
+                placeholder="Mis. Pengajian RT 05, PT Sejahtera"
+                className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
               />
+              <p className="mt-1.5 text-xs text-neutral-500">
+                Membantu kurir menemukan lokasi acara.
+              </p>
             </div>
           </div>
         )}
 
         {step === 3 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-[420ms] ease-out">
-            <div>
-              <h2 className="text-lg font-bold text-neutral-900">Data pemesan</h2>
-              <p className="mt-1 text-sm text-neutral-600">
-                Kami menghubungi nomor ini untuk konfirmasi dan pembayaran.
-              </p>
-            </div>
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+            <StepIntro title="Siapa yang bisa kami hubungi?">
+              Kami mengirim konfirmasi dan rincian pembayaran ke nomor WhatsApp ini.
+            </StepIntro>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <Label htmlFor="kt-name">Nama pemesan</Label>
+                <Label htmlFor="kt-name" className="text-sm font-semibold text-neutral-800">
+                  Nama pemesan
+                </Label>
                 <Input
                   id="kt-name"
+                  autoComplete="name"
                   value={draft.name}
                   onChange={(e) => set('name', e.target.value)}
                   aria-invalid={Boolean(fieldErrors.name)}
-                  className="mt-2"
+                  placeholder="Nama Anda"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
                 {fieldErrors.name && <FieldError message={fieldErrors.name} />}
               </div>
 
               <div>
-                <Label htmlFor="kt-phone">Nomor WhatsApp</Label>
+                <Label htmlFor="kt-phone" className="text-sm font-semibold text-neutral-800">
+                  Nomor WhatsApp
+                </Label>
                 <Input
                   id="kt-phone"
                   inputMode="tel"
+                  autoComplete="tel"
                   value={draft.phone}
                   onChange={(e) => set('phone', e.target.value)}
-                  placeholder="08123456789"
+                  placeholder="0812xxxxxxxx"
                   aria-invalid={Boolean(fieldErrors.phone)}
-                  className="mt-2"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
                 {fieldErrors.phone && <FieldError message={fieldErrors.phone} />}
               </div>
 
               <div className="sm:col-span-2">
-                <Label htmlFor="kt-email">Email</Label>
+                <Label htmlFor="kt-email" className="text-sm font-semibold text-neutral-800">
+                  Email
+                </Label>
                 <Input
                   id="kt-email"
                   type="email"
+                  autoComplete="email"
                   value={draft.email}
                   onChange={(e) => set('email', e.target.value)}
+                  placeholder="email@domain.com"
                   aria-invalid={Boolean(fieldErrors.email)}
-                  className="mt-2"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
                 />
+                <p className="mt-1.5 text-xs text-neutral-500">Untuk salinan pesanan.</p>
                 {fieldErrors.email && <FieldError message={fieldErrors.email} />}
               </div>
-
-              <div className="sm:col-span-2">
-                <Label htmlFor="kt-notes">Catatan (opsional)</Label>
-                <Textarea
-                  id="kt-notes"
-                  rows={3}
-                  value={draft.notes}
-                  onChange={(e) => set('notes', e.target.value)}
-                  placeholder="Mohon tanpa sambal untuk 10 box."
-                  className="mt-2"
-                />
-              </div>
             </div>
+          </div>
+        )}
 
-            {/* Ringkasan sebelum kirim. */}
+        {step === 4 && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+            <StepIntro title="Periksa sekali lagi sebelum dikirim">
+              Ada yang keliru? Ketuk nama langkahnya di atas untuk mengubah.
+            </StepIntro>
+
             <div className="overflow-hidden rounded-lg border border-neutral-200">
               <div className="border-b border-neutral-100 bg-neutral-50/80 px-5 py-3">
                 <p className="text-sm font-bold text-neutral-900">Rincian Pesanan</p>
               </div>
               <dl className="divide-y divide-neutral-100">
-                {lines
-                  .filter((l) => l.pkg && l.qty > 0)
-                  .map(({ pkg, qty, subtotal }, i) => (
-                    <div key={i} className="flex justify-between gap-4 px-5 py-3 text-sm">
-                      <dt className="text-neutral-600">
-                        {pkg?.name} × {qty.toLocaleString('id-ID')} box
-                      </dt>
-                      <dd className="font-medium text-neutral-900 tabular-nums">
-                        {formatCurrency(subtotal)}
-                      </dd>
-                    </div>
-                  ))}
-                <div className="flex justify-between gap-4 px-5 py-3 text-sm">
-                  <dt className="text-neutral-600">Dikirim</dt>
-                  <dd className="text-right font-medium text-neutral-900">
-                    {draft.requested_date ? formatDate(draft.requested_date) : '-'}
-                    {draft.requested_time ? `, ${draft.requested_time}` : ''}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4 bg-neutral-50/60 px-5 py-4">
-                  <dt className="font-bold text-neutral-900">Total</dt>
-                  <dd className="text-lg font-bold text-neutral-900 tabular-nums">
-                    {formatCurrency(total)}
-                  </dd>
-                </div>
+                {lines.map(({ pkg, qty, subtotal }) => (
+                  <SummaryRow key={pkg.id} label={pkg.name}>
+                    {qty.toLocaleString('id-ID')} box
+                    <span className="block text-xs text-neutral-500 tabular-nums">
+                      {formatCurrency(subtotal)}
+                    </span>
+                  </SummaryRow>
+                ))}
+                <SummaryRow label="Dikirim">
+                  {draft.requested_date ? formatDate(draft.requested_date) : '-'}
+                  {draft.requested_time && ` · ${draft.requested_time} WIB`}
+                  <span className="mt-1 block text-xs leading-5 text-neutral-500">
+                    {draft.delivery.detail}
+                    <br />
+                    Kel. {draft.delivery.village_name}, Kec. {draft.delivery.district_name}
+                    <br />
+                    {draft.delivery.city_name}, {draft.delivery.province_name}{' '}
+                    {draft.delivery.postal_code}
+                  </span>
+                </SummaryRow>
+                <SummaryRow label="Pemesan">
+                  {draft.name}
+                  <span className="block text-xs text-neutral-500">
+                    {draft.phone} · {draft.email}
+                  </span>
+                </SummaryRow>
               </dl>
+              <div className="bg-primary/5 flex items-center justify-between px-5 py-3.5">
+                <span className="text-sm font-bold text-neutral-900">
+                  Total Tagihan ({totalBoxes.toLocaleString('id-ID')} box)
+                </span>
+                <span className="text-primary text-xl font-extrabold tabular-nums">
+                  {formatCurrency(total)}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="kt-referral" className="text-sm font-semibold text-neutral-800">
+                  Kode referral <span className="font-normal text-neutral-500">(opsional)</span>
+                </Label>
+                <Input
+                  id="kt-referral"
+                  value={draft.referral_code}
+                  onChange={(e) => set('referral_code', e.target.value)}
+                  placeholder="Mis. SA-BUDI"
+                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm uppercase shadow-sm"
+                />
+                {fieldErrors.referral_code && <FieldError message={fieldErrors.referral_code} />}
+              </div>
+              <div>
+                <Label htmlFor="kt-notes" className="text-sm font-semibold text-neutral-800">
+                  Catatan <span className="font-normal text-neutral-500">(opsional)</span>
+                </Label>
+                <Textarea
+                  id="kt-notes"
+                  rows={3}
+                  value={draft.notes}
+                  onChange={(e) => set('notes', e.target.value)}
+                  placeholder="Mis. 10 box tanpa sambal"
+                  className="mt-2 rounded-lg border-neutral-200 text-sm shadow-sm"
+                />
+              </div>
             </div>
 
             {error && (
-              <div
+              <p
                 role="alert"
-                className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+                className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
               >
                 <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                <span>{error}</span>
-              </div>
+                {error}
+              </p>
             )}
+
+            <p className="text-center text-xs leading-5 text-neutral-500">
+              Tidak ada pembayaran di halaman ini. Tim kami menghubungi Anda lebih dulu untuk
+              konfirmasi.
+            </p>
           </div>
         )}
-      </div>
 
-      <div className="mt-8 flex items-center justify-between gap-3 border-t border-neutral-200 pt-6">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => goToStep(step - 1)}
-          disabled={step === 1 || pending}
-        >
-          <ArrowLeft className="size-4" /> Kembali
-        </Button>
+        {/* Menempel di bawah layar: daftar paket bisa panjang, dan tombol yang
+            baru terlihat setelah menggulir habis membuat pemesan bingung
+            harus ke mana sesudah mengisi jumlah. */}
+        <div className="sticky bottom-0 z-20 -mx-2 mt-8 flex items-center justify-between gap-2 border-t border-neutral-200 bg-white/95 px-2 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:-mx-4 sm:px-4">
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={() => goToStep(step - 1)}
+              disabled={pending}
+              className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-neutral-300 bg-white px-3.5 text-xs font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 sm:gap-1.5 sm:px-5"
+            >
+              <ChevronLeft className="size-4" /> Kembali
+            </button>
+          ) : (
+            <p aria-live="polite" className="min-w-0 text-sm text-neutral-600">
+              {totalBoxes > 0 ? (
+                <>
+                  <span className="font-semibold text-neutral-900 tabular-nums">
+                    {totalBoxes.toLocaleString('id-ID')} box
+                  </span>{' '}
+                  dari {lines.length} paket
+                </>
+              ) : (
+                'Belum ada paket dipilih'
+              )}
+            </p>
+          )}
 
-        {step < STEPS.length ? (
-          <Button type="button" onClick={() => goToStep(step + 1)}>
-            Lanjut <ArrowRight className="size-4" />
-          </Button>
-        ) : (
-          <Button type="button" onClick={submit} disabled={pending}>
-            {pending ? 'Mengirim…' : 'Kirim pesanan'}
-          </Button>
-        )}
+          {/* `key` berbeda wajib: tanpanya React memakai ulang elemen tombol
+              Lanjut sebagai tombol kirim, lengkap dengan fokusnya. */}
+          {step < STEPS.length ? (
+            <button
+              key="nav-next"
+              type="button"
+              onClick={() => validateStep(step) && goToStep(step + 1)}
+              className="bg-primary hover:bg-primary-dark inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-5 text-sm font-semibold text-white shadow-sm transition-colors sm:px-6"
+            >
+              Lanjut ke <span className="sm:hidden">{STEPS[step].shortTitle}</span>
+              <span className="hidden sm:inline">{STEPS[step].title}</span>
+              <ChevronRight className="size-4 shrink-0" />
+            </button>
+          ) : (
+            <button
+              key="nav-submit"
+              type="button"
+              onClick={submit}
+              disabled={pending}
+              className="bg-primary hover:bg-primary-dark inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:px-7"
+            >
+              {pending && <Loader2 className="size-4 animate-spin" />}
+              {pending ? 'Mengirim pesanan…' : 'Konfirmasi & Kirim Pesanan'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
