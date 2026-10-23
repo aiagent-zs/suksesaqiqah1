@@ -218,7 +218,7 @@ export function AddressPicker({
           className="mt-2 rounded-xl border-neutral-200 bg-white text-sm shadow-sm"
         />
         <p className="mt-1.5 text-xs text-neutral-500">
-          Sertakan patokan yang mudah dikenali — ini yang dipakai kurir mencari lokasi.
+          Sertakan patokan yang mudah dikenali. Patokan ini yang dipakai kurir mencari lokasi.
         </p>
         {errors.delivery_detail && <FieldError message={errors.delivery_detail} />}
       </div>

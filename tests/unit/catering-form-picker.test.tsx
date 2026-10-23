@@ -86,10 +86,19 @@ describe('pemilih paket katering', { timeout: 30_000 }, () => {
     expect(rows()).toEqual(['Rendang']);
   });
 
-  it('paket tidak lagi dibungkus kartu', async () => {
+  it('kartu paket hanya disorot setelah diberi jumlah', async () => {
+    // Sorotan menandai keadaan nyata (paket ini ikut dipesan), bukan hiasan:
+    // paket yang belum diberi jumlah tetap netral.
     await mount();
-    const row = container!.querySelector('[role="tabpanel"] li')!;
-    expect(row.className).not.toMatch(/rounded|border-primary|ring/);
+    const row = () => container!.querySelector('[role="tabpanel"] li')!;
+    expect(row().className).not.toMatch(/border-primary/);
+
+    act(() =>
+      container!
+        .querySelector<HTMLButtonElement>('[aria-label="Tambah 10 box Ayam Bakar"]')!
+        .click(),
+    );
+    expect(row().className).toMatch(/border-primary/);
   });
 
   it('paket dari halaman depan membuka tab jenisnya', async () => {
@@ -110,7 +119,7 @@ describe('pemilih paket katering', { timeout: 30_000 }, () => {
     expect(container!.querySelector<HTMLInputElement>(`#kt-qty-${PACKAGES[0].id}`)!.value).toBe(
       '10',
     );
-    expect(tab('Ayam').textContent).toContain('(1)');
+    expect(tab('Ayam').textContent).toContain('1 paket dipilih');
     expect(container!.textContent).toContain('10 box dari 1 paket');
   });
 

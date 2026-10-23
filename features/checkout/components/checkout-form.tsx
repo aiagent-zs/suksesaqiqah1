@@ -867,16 +867,17 @@ export function CheckoutForm({
             boxSubtotal={boxSubtotal}
             total={total}
             error={error}
+            onEdit={goToStep}
           />
         )}
 
         {/* Modal Controls / Navigation Bar */}
-        <div className="mt-6 flex items-center justify-between gap-2 border-t border-neutral-100 pt-4 sm:mt-8 sm:pt-6">
+        <div className="border-line mt-6 flex items-center justify-between gap-2 border-t pt-4 sm:mt-8 sm:pt-6">
           {currentStep > 1 ? (
             <button
               type="button"
               onClick={prevStep}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-neutral-300 bg-white px-3.5 text-xs font-semibold text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 active:scale-[0.98] sm:gap-1.5 sm:px-5"
+              className="btn btn-outline shrink-0 px-3.5 sm:px-5"
             >
               <ChevronLeft className="size-4" /> Kembali
             </button>
@@ -898,9 +899,10 @@ export function CheckoutForm({
               key="nav-next"
               type="button"
               onClick={nextStep}
-              className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98] sm:px-6"
+              className="btn btn-primary min-w-0 flex-1 sm:flex-none sm:px-6"
             >
-              Lanjut ke {STEPS[currentStep].title} <ChevronRight className="size-4 shrink-0" />
+              <span className="truncate">Lanjut ke {STEPS[currentStep].title}</span>{' '}
+              <ChevronRight className="size-4 shrink-0" />
             </button>
           ) : (
             /* `type="button"` + onClick, bukan `type="submit"`: pesanan tercatat
@@ -911,7 +913,8 @@ export function CheckoutForm({
               type="button"
               onClick={submit}
               disabled={pending || !selected}
-              className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 sm:min-h-12 sm:px-7"
+              aria-busy={pending}
+              className="btn btn-primary btn-lg min-w-0 flex-1 sm:flex-none sm:px-7"
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
               {pending ? 'Mengirim pesanan…' : 'Konfirmasi & Kirim Pesanan'}

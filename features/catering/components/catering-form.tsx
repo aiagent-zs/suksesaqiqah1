@@ -3,12 +3,29 @@
 import { useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react';
 import {
   AlertCircle,
+  Beef,
+  Building2,
+  CalendarClock,
+  CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
+  Clock,
+  Drumstick,
   Loader2,
+  Mail,
   Minus,
+  Package,
+  Phone,
   Plus,
   RotateCcw,
+  ShieldCheck,
+  Soup,
+  Tag,
+  Truck,
+  User,
+  type LucideIcon,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,10 +62,10 @@ import {
 
 /** Urutan dan nama langkah sengaja sejajar dengan checkout aqiqah. */
 const STEPS = [
-  { id: 1, title: 'Pesanan', shortTitle: 'Pesanan' },
-  { id: 2, title: 'Jadwal & Alamat', shortTitle: 'Jadwal' },
-  { id: 3, title: 'Data Pemesan', shortTitle: 'Data' },
-  { id: 4, title: 'Ringkasan', shortTitle: 'Ringkasan' },
+  { id: 1, title: 'Pesanan', shortTitle: 'Pesanan', icon: Package },
+  { id: 2, title: 'Jadwal & Alamat', shortTitle: 'Jadwal', icon: CalendarClock },
+  { id: 3, title: 'Data Pemesan', shortTitle: 'Data', icon: User },
+  { id: 4, title: 'Ringkasan', shortTitle: 'Ringkasan', icon: ClipboardCheck },
 ];
 
 /** Tombol +/- melompat 10 box: pesanan katering jarang di bawah puluhan. */
@@ -61,6 +78,13 @@ const TYPE_LABEL: Record<string, string> = {
   katering_ayam: 'Katering Ayam',
   katering_daging: 'Katering Daging',
   katering_kebuli: 'Katering Kebuli',
+};
+
+/** Ikon tab & kartu per jenis: membedakan jenis sekilas, tanpa membaca label. */
+const TYPE_ICON: Record<string, LucideIcon> = {
+  katering_ayam: Drumstick,
+  katering_daging: Beef,
+  katering_kebuli: Soup,
 };
 
 /**
@@ -379,7 +403,7 @@ export function CateringForm({
 
       <div className="p-2 pt-8 sm:p-4 sm:pt-10">
         {step === 1 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
             <StepIntro title="Paket apa, dan berapa box?">
               Isi jumlah box di paket yang Anda mau, boleh lebih dari satu paket. Tombol + dan −
               menambah 10 box sekaligus, angkanya juga bisa diketik langsung.
@@ -389,11 +413,7 @@ export function CateringForm({
               {/* Satu jenis per tampilan: tiga kelompok yang ditumpuk memaksa
                   pemesan menggulir jauh hanya untuk membandingkan jenis. */}
               {groups.length > 1 && (
-                <div
-                  role="tablist"
-                  aria-label="Jenis katering"
-                  className="flex gap-6 border-b border-neutral-200"
-                >
+                <div role="tablist" aria-label="Jenis katering" className="flex flex-wrap gap-2">
                   {groups.map((group) => {
                     const on = group.type === activeType;
                     const picked = lines.filter((l) => l.pkg.type === group.type).length;
@@ -405,16 +425,23 @@ export function CateringForm({
                         aria-selected={on}
                         onClick={() => setActiveType(group.type)}
                         className={cn(
-                          '-mb-px flex min-h-11 items-center gap-1.5 border-b-2 text-sm font-semibold transition-colors',
+                          'flex min-h-11 items-center gap-2 rounded-lg border-2 px-4 text-sm font-semibold transition-colors duration-150',
                           on
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-neutral-500 hover:text-neutral-800',
+                            ? 'border-primary bg-primary text-white'
+                            : 'border-line text-ink hover:border-primary/50 bg-white',
                         )}
                       >
+                        <TypeIcon type={group.type} className="size-4" />
                         {group.label.replace('Katering ', '')}
                         {picked > 0 && (
-                          <span className="text-xs font-medium text-neutral-500 tabular-nums">
-                            ({picked})<span className="sr-only"> paket dipilih</span>
+                          <span
+                            className={cn(
+                              'flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs tabular-nums',
+                              on ? 'text-primary bg-white' : 'bg-primary text-white',
+                            )}
+                          >
+                            {picked}
+                            <span className="sr-only"> paket dipilih</span>
                           </span>
                         )}
                       </button>
@@ -428,7 +455,7 @@ export function CateringForm({
                   <ul
                     key={group.type}
                     role={groups.length > 1 ? 'tabpanel' : undefined}
-                    className="divide-y divide-neutral-200"
+                    className="mt-4 space-y-3"
                   >
                     {group.items.map((pkg) => {
                       const raw = qtyOf(pkg.id);
@@ -436,34 +463,76 @@ export function CateringForm({
                       return (
                         <li
                           key={pkg.id}
-                          className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
+                          className={cn(
+                            'flex flex-col gap-4 rounded-lg border-2 p-4 transition-colors duration-150 sm:flex-row sm:items-center sm:justify-between sm:gap-6',
+                            qty > 0 ? 'border-primary bg-primary-light' : 'border-line bg-white',
+                          )}
                         >
-                          <div className="min-w-0">
-                            <Label
-                              htmlFor={`kt-qty-${pkg.id}`}
-                              className="font-semibold text-neutral-900"
+                          <div className="flex min-w-0 items-start gap-3">
+                            {/* Ikon jenis berganti centang begitu paket diberi
+                                jumlah: tanda yang terlihat tanpa membaca angka. */}
+                            <span
+                              aria-hidden
+                              className={cn(
+                                'flex size-10 shrink-0 items-center justify-center rounded-lg transition-colors duration-150',
+                                qty > 0 ? 'bg-primary text-white' : 'bg-surface-muted text-primary',
+                              )}
                             >
-                              {pkg.name}
-                            </Label>
-                            {pkg.items.length > 0 && (
-                              <p className="mt-0.5 text-sm leading-6 text-neutral-600">
-                                {pkg.items.join(' · ')}
-                              </p>
-                            )}
+                              {qty > 0 ? (
+                                <Check className="size-5 stroke-[3]" />
+                              ) : (
+                                <TypeIcon type={pkg.type} className="size-5" />
+                              )}
+                            </span>
+                            <div className="min-w-0">
+                              <Label
+                                htmlFor={`kt-qty-${pkg.id}`}
+                                className="text-ink text-base font-semibold"
+                              >
+                                {pkg.name}
+                              </Label>
+                              {pkg.description && (
+                                <p className="text-ink-muted mt-0.5 text-sm leading-6">
+                                  {pkg.description}
+                                </p>
+                              )}
+                              {/* Daftar bercentang, bukan satu baris dipisah titik:
+                                  lauknya yang membedakan paket satu dengan lainnya,
+                                  jadi harus bisa dipindai butir per butir. */}
+                              {pkg.items.length > 0 && (
+                                <ul
+                                  aria-label={`Isi ${pkg.name}`}
+                                  className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2"
+                                >
+                                  {pkg.items.map((item) => (
+                                    <li
+                                      key={item}
+                                      className="text-ink flex items-start gap-2 text-sm leading-5"
+                                    >
+                                      <Check
+                                        aria-hidden
+                                        className="text-primary mt-0.5 size-3.5 shrink-0 stroke-[3]"
+                                      />
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
                           </div>
                           <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
                             <p className="text-right text-sm tabular-nums">
-                              <span className="font-bold text-neutral-900">
+                              <span className="text-ink font-bold">
                                 {formatCurrency(pkg.price)}
                               </span>
-                              <span className="text-neutral-500"> / box</span>
+                              <span className="text-ink-muted"> /box</span>
                               {qty > 0 && (
-                                <span className="text-primary block text-xs font-medium">
+                                <span className="text-primary block text-sm font-semibold">
                                   {formatCurrency(pkg.price * qty)}
                                 </span>
                               )}
                             </p>
-                            <div className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white p-0.5">
+                            <div className="border-line inline-flex items-center gap-1 rounded-lg border-2 bg-white p-0.5">
                               <StepperButton
                                 label={`Kurangi ${QTY_STEP} box ${pkg.name}`}
                                 disabled={qty <= 0}
@@ -471,7 +540,7 @@ export function CateringForm({
                                   setQty(pkg.id, String(Math.max(0, qty - QTY_STEP) || ''))
                                 }
                               >
-                                <Minus className="size-4" />
+                                <Minus className="size-5" />
                               </StepperButton>
                               <NumberInput
                                 id={`kt-qty-${pkg.id}`}
@@ -490,7 +559,7 @@ export function CateringForm({
                                   setQty(pkg.id, String(Math.min(MAX_QTY_PER_LINE, qty + QTY_STEP)))
                                 }
                               >
-                                <Plus className="size-4" />
+                                <Plus className="size-5" />
                               </StepperButton>
                             </div>
                           </div>
@@ -505,19 +574,25 @@ export function CateringForm({
         )}
 
         {step === 2 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
             <StepIntro title="Kapan dan ke mana kami antar?">
               Jadwal ini masih permintaan. Tim kami mengonfirmasinya lewat WhatsApp.
             </StepIntro>
 
             <div>
               <SectionLabel
+                index={1}
+                done={Boolean(draft.requested_date && draft.requested_time)}
                 title="Waktu pengiriman"
                 hint={`Paling cepat ${formatDate(minDate)}, paling lambat ${BOOKING_MAX_DAYS} hari ke depan.`}
               />
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor="kt-date" className="text-sm font-semibold text-neutral-800">
+                  <Label
+                    htmlFor="kt-date"
+                    className="text-ink flex items-center gap-1.5 text-sm font-semibold"
+                  >
+                    <CalendarDays aria-hidden className="text-primary size-4" />
                     Tanggal
                   </Label>
                   <Input
@@ -528,18 +603,26 @@ export function CateringForm({
                     value={draft.requested_date}
                     onChange={(e) => set('requested_date', e.target.value)}
                     aria-invalid={Boolean(fieldErrors.requested_date)}
-                    className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
+                    className="field mt-2 h-12"
                   />
                   {fieldErrors.requested_date && (
                     <FieldError message={fieldErrors.requested_date} />
                   )}
                 </div>
                 <div>
-                  <Label className="text-sm font-semibold text-neutral-800">Jam</Label>
+                  <Label
+                    id="kt-time-label"
+                    className="text-ink flex items-center gap-1.5 text-sm font-semibold"
+                  >
+                    <Clock aria-hidden className="text-primary size-4" />
+                    Jam
+                  </Label>
                   <div
                     id="kt-time"
                     tabIndex={-1}
-                    className="mt-2 grid grid-cols-3 gap-1.5 outline-none sm:flex sm:flex-wrap sm:gap-2"
+                    role="radiogroup"
+                    aria-labelledby="kt-time-label"
+                    className="mt-2 grid grid-cols-3 gap-2 outline-none sm:flex sm:flex-wrap"
                   >
                     {BOOKING_TIME_SLOTS.map((slot) => {
                       const active = draft.requested_time === slot;
@@ -548,12 +631,13 @@ export function CateringForm({
                           key={slot}
                           type="button"
                           onClick={() => set('requested_time', slot)}
-                          aria-pressed={active}
+                          role="radio"
+                          aria-checked={active}
                           className={cn(
-                            'flex min-h-11 items-center justify-center rounded-lg border px-1 text-xs font-semibold tabular-nums transition-colors sm:px-3.5',
+                            'flex min-h-11 items-center justify-center rounded-lg border-2 px-1 text-sm font-semibold tabular-nums transition-colors duration-150 sm:px-4',
                             active
                               ? 'border-primary bg-primary text-white'
-                              : 'hover:border-primary/40 border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50',
+                              : 'border-line text-ink hover:border-primary/50 bg-white',
                           )}
                         >
                           {slot}
@@ -576,18 +660,24 @@ export function CateringForm({
             />
 
             <div>
-              <Label htmlFor="kt-inst" className="text-sm font-semibold text-neutral-800">
+              <Label htmlFor="kt-inst" className="text-ink text-sm font-semibold">
                 Nama acara atau instansi{' '}
-                <span className="font-normal text-neutral-500">(opsional)</span>
+                <span className="text-ink-muted font-normal">(opsional)</span>
               </Label>
-              <Input
-                id="kt-inst"
-                value={draft.recipient_institution}
-                onChange={(e) => set('recipient_institution', e.target.value)}
-                placeholder="Mis. Pengajian RT 05, PT Sejahtera"
-                className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
-              />
-              <p className="mt-1.5 text-xs text-neutral-500">
+              <div className="relative mt-2">
+                <Building2
+                  aria-hidden
+                  className="text-ink-muted pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2"
+                />
+                <Input
+                  id="kt-inst"
+                  value={draft.recipient_institution}
+                  onChange={(e) => set('recipient_institution', e.target.value)}
+                  placeholder="Mis. Pengajian RT 05, PT Sejahtera"
+                  className="field h-12 pl-10"
+                />
+              </div>
+              <p className="text-ink-muted mt-1.5 text-sm">
                 Membantu kurir menemukan lokasi acara.
               </p>
             </div>
@@ -595,60 +685,78 @@ export function CateringForm({
         )}
 
         {step === 3 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
             <StepIntro title="Siapa yang bisa kami hubungi?">
               Kami mengirim konfirmasi dan rincian pembayaran ke nomor WhatsApp ini.
             </StepIntro>
 
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <Label htmlFor="kt-name" className="text-sm font-semibold text-neutral-800">
+                <Label htmlFor="kt-name" className="text-ink text-sm font-semibold">
                   Nama pemesan
                 </Label>
-                <Input
-                  id="kt-name"
-                  autoComplete="name"
-                  value={draft.name}
-                  onChange={(e) => set('name', e.target.value)}
-                  aria-invalid={Boolean(fieldErrors.name)}
-                  placeholder="Nama Anda"
-                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
-                />
+                <div className="relative mt-2">
+                  <User
+                    aria-hidden
+                    className="text-ink-muted pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2"
+                  />
+                  <Input
+                    id="kt-name"
+                    autoComplete="name"
+                    value={draft.name}
+                    onChange={(e) => set('name', e.target.value)}
+                    aria-invalid={Boolean(fieldErrors.name)}
+                    placeholder="Nama Anda"
+                    className="field h-12 pl-10"
+                  />
+                </div>
                 {fieldErrors.name && <FieldError message={fieldErrors.name} />}
               </div>
 
               <div>
-                <Label htmlFor="kt-phone" className="text-sm font-semibold text-neutral-800">
+                <Label htmlFor="kt-phone" className="text-ink text-sm font-semibold">
                   Nomor WhatsApp
                 </Label>
-                <Input
-                  id="kt-phone"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  value={draft.phone}
-                  onChange={(e) => set('phone', e.target.value)}
-                  placeholder="0812xxxxxxxx"
-                  aria-invalid={Boolean(fieldErrors.phone)}
-                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
-                />
+                <div className="relative mt-2">
+                  <Phone
+                    aria-hidden
+                    className="text-ink-muted pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2"
+                  />
+                  <Input
+                    id="kt-phone"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={draft.phone}
+                    onChange={(e) => set('phone', e.target.value)}
+                    placeholder="0812xxxxxxxx"
+                    aria-invalid={Boolean(fieldErrors.phone)}
+                    className="field h-12 pl-10"
+                  />
+                </div>
                 {fieldErrors.phone && <FieldError message={fieldErrors.phone} />}
               </div>
 
               <div className="sm:col-span-2">
-                <Label htmlFor="kt-email" className="text-sm font-semibold text-neutral-800">
+                <Label htmlFor="kt-email" className="text-ink text-sm font-semibold">
                   Email
                 </Label>
-                <Input
-                  id="kt-email"
-                  type="email"
-                  autoComplete="email"
-                  value={draft.email}
-                  onChange={(e) => set('email', e.target.value)}
-                  placeholder="email@domain.com"
-                  aria-invalid={Boolean(fieldErrors.email)}
-                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm shadow-sm"
-                />
-                <p className="mt-1.5 text-xs text-neutral-500">Untuk salinan pesanan.</p>
+                <div className="relative mt-2">
+                  <Mail
+                    aria-hidden
+                    className="text-ink-muted pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2"
+                  />
+                  <Input
+                    id="kt-email"
+                    type="email"
+                    autoComplete="email"
+                    value={draft.email}
+                    onChange={(e) => set('email', e.target.value)}
+                    placeholder="email@domain.com"
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    className="field h-12 pl-10"
+                  />
+                </div>
+                <p className="text-ink-muted mt-1.5 text-sm">Untuk salinan pesanan.</p>
                 {fieldErrors.email && <FieldError message={fieldErrors.email} />}
               </div>
             </div>
@@ -656,28 +764,33 @@ export function CateringForm({
         )}
 
         {step === 4 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-[420ms] ease-out">
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
             <StepIntro title="Periksa sekali lagi sebelum dikirim">
-              Ada yang keliru? Ketuk nama langkahnya di atas untuk mengubah.
+              Ada yang keliru? Ketuk Ubah di baris yang ingin diganti.
             </StepIntro>
 
-            <div className="overflow-hidden rounded-lg border border-neutral-200">
-              <div className="border-b border-neutral-100 bg-neutral-50/80 px-5 py-3">
-                <p className="text-sm font-bold text-neutral-900">Rincian Pesanan</p>
+            <div className="border-line overflow-hidden rounded-lg border bg-white">
+              <div className="border-line bg-surface-muted border-b px-5 py-3">
+                <p className="text-ink text-base font-semibold">Rincian pesanan</p>
               </div>
-              <dl className="divide-y divide-neutral-100">
+              <dl className="divide-line divide-y">
                 {lines.map(({ pkg, qty, subtotal }) => (
-                  <SummaryRow key={pkg.id} label={pkg.name}>
+                  <SummaryRow
+                    key={pkg.id}
+                    label={pkg.name}
+                    icon={TYPE_ICON[pkg.type] ?? Package}
+                    onEdit={() => goToStep(1)}
+                  >
                     {qty.toLocaleString('id-ID')} box
-                    <span className="block text-xs text-neutral-500 tabular-nums">
+                    <span className="text-ink-muted block text-xs tabular-nums">
                       {formatCurrency(subtotal)}
                     </span>
                   </SummaryRow>
                 ))}
-                <SummaryRow label="Dikirim">
+                <SummaryRow label="Dikirim" icon={Truck} onEdit={() => goToStep(2)}>
                   {draft.requested_date ? formatDate(draft.requested_date) : '-'}
                   {draft.requested_time && ` · ${draft.requested_time} WIB`}
-                  <span className="mt-1 block text-xs leading-5 text-neutral-500">
+                  <span className="text-ink-muted mt-1 block text-xs leading-5">
                     {draft.delivery.detail}
                     <br />
                     Kel. {draft.delivery.village_name}, Kec. {draft.delivery.district_name}
@@ -686,40 +799,42 @@ export function CateringForm({
                     {draft.delivery.postal_code}
                   </span>
                 </SummaryRow>
-                <SummaryRow label="Pemesan">
+                <SummaryRow label="Pemesan" icon={User} onEdit={() => goToStep(3)}>
                   {draft.name}
-                  <span className="block text-xs text-neutral-500">
+                  <span className="text-ink-muted block text-xs">
                     {draft.phone} · {draft.email}
                   </span>
                 </SummaryRow>
               </dl>
-              <div className="bg-primary/5 flex items-center justify-between px-5 py-3.5">
-                <span className="text-sm font-bold text-neutral-900">
-                  Total Tagihan ({totalBoxes.toLocaleString('id-ID')} box)
+              <div className="bg-primary flex items-center justify-between gap-4 px-5 py-4 text-white">
+                <span className="text-base font-semibold">
+                  Total tagihan ({totalBoxes.toLocaleString('id-ID')} box)
                 </span>
-                <span className="text-primary text-xl font-extrabold tabular-nums">
-                  {formatCurrency(total)}
-                </span>
+                <span className="text-2xl font-bold tabular-nums">{formatCurrency(total)}</span>
               </div>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <Label htmlFor="kt-referral" className="text-sm font-semibold text-neutral-800">
-                  Kode referral <span className="font-normal text-neutral-500">(opsional)</span>
+                <Label
+                  htmlFor="kt-referral"
+                  className="text-ink flex items-center gap-1.5 text-sm font-semibold"
+                >
+                  <Tag aria-hidden className="text-primary size-4" />
+                  Kode referral <span className="text-ink-muted font-normal">(opsional)</span>
                 </Label>
                 <Input
                   id="kt-referral"
                   value={draft.referral_code}
                   onChange={(e) => set('referral_code', e.target.value)}
                   placeholder="Mis. SA-BUDI"
-                  className="mt-2 h-12 rounded-lg border-neutral-200 text-sm uppercase shadow-sm"
+                  className="field mt-2 h-12 uppercase"
                 />
                 {fieldErrors.referral_code && <FieldError message={fieldErrors.referral_code} />}
               </div>
               <div>
-                <Label htmlFor="kt-notes" className="text-sm font-semibold text-neutral-800">
-                  Catatan <span className="font-normal text-neutral-500">(opsional)</span>
+                <Label htmlFor="kt-notes" className="text-ink text-sm font-semibold">
+                  Catatan <span className="text-ink-muted font-normal">(opsional)</span>
                 </Label>
                 <Textarea
                   id="kt-notes"
@@ -727,7 +842,7 @@ export function CateringForm({
                   value={draft.notes}
                   onChange={(e) => set('notes', e.target.value)}
                   placeholder="Mis. 10 box tanpa sambal"
-                  className="mt-2 rounded-lg border-neutral-200 text-sm shadow-sm"
+                  className="border-line mt-2 rounded-lg text-base"
                 />
               </div>
             </div>
@@ -735,16 +850,17 @@ export function CateringForm({
             {error && (
               <p
                 role="alert"
-                className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                className="border-danger/30 text-danger flex items-start gap-2 rounded-lg border bg-red-50 px-4 py-3 text-sm"
               >
                 <AlertCircle className="mt-0.5 size-4 shrink-0" />
                 {error}
               </p>
             )}
 
-            <p className="text-center text-xs leading-5 text-neutral-500">
-              Tidak ada pembayaran di halaman ini. Tim kami menghubungi Anda lebih dulu untuk
-              konfirmasi.
+            <p className="bg-surface-muted text-ink flex items-start gap-2.5 rounded-lg p-4 text-sm leading-6">
+              <ShieldCheck aria-hidden className="text-primary mt-0.5 size-5 shrink-0" />
+              Setelah Anda menekan Konfirmasi, kami menampilkan nomor pesanan dan cara
+              pembayarannya. Simpan nomor itu untuk melacak pesanan.
             </p>
           </div>
         )}
@@ -752,21 +868,21 @@ export function CateringForm({
         {/* Menempel di bawah layar: daftar paket bisa panjang, dan tombol yang
             baru terlihat setelah menggulir habis membuat pemesan bingung
             harus ke mana sesudah mengisi jumlah. */}
-        <div className="sticky bottom-0 z-20 -mx-2 mt-8 flex items-center justify-between gap-2 border-t border-neutral-200 bg-white/95 px-2 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:-mx-4 sm:px-4">
+        <div className="border-line sticky bottom-0 z-20 -mx-2 mt-8 flex items-center justify-between gap-2 border-t bg-white px-2 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-4 sm:px-4">
           {step > 1 ? (
             <button
               type="button"
               onClick={() => goToStep(step - 1)}
               disabled={pending}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-neutral-300 bg-white px-3.5 text-xs font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 sm:gap-1.5 sm:px-5"
+              className="btn btn-outline shrink-0 px-3.5 sm:px-5"
             >
               <ChevronLeft className="size-4" /> Kembali
             </button>
           ) : (
-            <p aria-live="polite" className="min-w-0 text-sm text-neutral-600">
+            <p aria-live="polite" className="text-ink-muted min-w-0 text-sm">
               {totalBoxes > 0 ? (
                 <>
-                  <span className="font-semibold text-neutral-900 tabular-nums">
+                  <span className="text-ink font-semibold tabular-nums">
                     {totalBoxes.toLocaleString('id-ID')} box
                   </span>{' '}
                   dari {lines.length} paket
@@ -784,7 +900,7 @@ export function CateringForm({
               key="nav-next"
               type="button"
               onClick={() => validateStep(step) && goToStep(step + 1)}
-              className="bg-primary hover:bg-primary-dark inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-5 text-sm font-semibold text-white shadow-sm transition-colors sm:px-6"
+              className="btn btn-primary shrink-0 whitespace-nowrap sm:px-6"
             >
               Lanjut ke <span className="sm:hidden">{STEPS[step].shortTitle}</span>
               <span className="hidden sm:inline">{STEPS[step].title}</span>
@@ -796,7 +912,8 @@ export function CateringForm({
               type="button"
               onClick={submit}
               disabled={pending}
-              className="bg-primary hover:bg-primary-dark inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:px-7"
+              aria-busy={pending}
+              className="btn btn-primary btn-lg sm:px-7"
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
               {pending ? 'Mengirim pesanan…' : 'Konfirmasi & Kirim Pesanan'}
@@ -806,4 +923,9 @@ export function CateringForm({
       </div>
     </div>
   );
+}
+
+function TypeIcon({ type, className }: { type: string; className?: string }) {
+  const Icon = TYPE_ICON[type] ?? Package;
+  return <Icon aria-hidden className={className} />;
 }

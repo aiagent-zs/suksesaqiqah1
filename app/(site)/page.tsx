@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import type { Metadata } from 'next';
 import {
   faqs,
@@ -8,20 +7,31 @@ import {
   processSteps,
   services,
   siteConfig,
+  testimonials,
 } from '@/lib/constants/site';
 import { getLandingCatalogue } from '@/features/landing/catalogue';
 import { buildPackageTabs, orderMessage } from '@/features/landing/package-cards';
-import { Icon, IconArrowRight, IconWhatsApp } from '@/components/site/icons';
+import { Icon, IconCheck, IconWhatsApp } from '@/components/site/icons';
 import { SitePhoto } from '@/components/site/site-photo';
 import { Reveal } from '@/components/site/reveal';
 import { PackageFilter } from '@/components/site/package-filter';
 
 export const metadata: Metadata = {
-  title: `${siteConfig.name} — ${siteConfig.tagline}`,
+  // `absolute`: judul ini sudah memuat nama situs, jadi `title.template` di
+  // root layout tidak boleh menempelkannya sekali lagi.
+  title: { absolute: `${siteConfig.name}: ${siteConfig.tagline}` },
   description: siteConfig.description,
   alternates: { canonical: '/' },
 };
 
+const WA_CONSULT = 'Halo Sukses Aqiqah, saya ingin konsultasi soal paket aqiqah.';
+
+/**
+ * Urutan section mengikuti pertanyaan pemesan: apa layanannya, berapa
+ * harganya, bagaimana prosesnya, apa buktinya, lalu keraguan yang tersisa.
+ * Komposisinya berganti tiap section (design.md §7: dua section berurutan
+ * tidak boleh sama di lebih dari dua sumbu).
+ */
 export default async function LandingPage() {
   const catalogue = await getLandingCatalogue();
 
@@ -32,198 +42,130 @@ export default async function LandingPage() {
       <ServicesSection />
       <PackagesSection catalogue={catalogue} />
       <ProcessSection />
-      {/* Galeri tepat setelah Proses: bagian itu menjanjikan tiap tahap
-          terdokumentasi, dan galerilah buktinya. */}
       <GallerySection />
       <FeaturesSection />
+      {testimonials.length > 0 && <TestimonialsSection />}
       <FaqSection />
       <CtaSection />
     </>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Hero                                                                */
-/* ------------------------------------------------------------------ */
+/* Hero: teks kiri, foto kanan. Satu motif saja (kisi garis di pojok), tanpa
+   watermark logo dan gradasi yang dulu menumpuk lima lapis. */
 function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-neutral-200">
-      {/* Latar bertekstur */}
+    <section className="border-line relative overflow-hidden border-b bg-white">
       <div
         aria-hidden
-        className="bg-grid pointer-events-none absolute inset-0 z-0 [mask-image:radial-gradient(120%_90%_at_15%_0%,black,transparent_70%)]"
+        className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(70%_80%_at_0%_0%,black,transparent_70%)]"
       />
-      <div
-        aria-hidden
-        className="bg-grid-fine pointer-events-none absolute inset-0 z-0 [mask-image:radial-gradient(45%_55%_at_8%_5%,black,transparent)]"
-      />
-      <div
-        aria-hidden
-        className="from-primary/6 pointer-events-none absolute inset-0 z-0 bg-gradient-to-br via-transparent to-transparent"
-      />
-      {/* Watermark Logo Transparan di Latar Belakang */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-16 top-1/2 z-0 -translate-y-1/2 opacity-[0.08] select-none lg:-right-4"
-      >
-        <Image
-          src="/images/logo_new.webp"
-          alt=""
-          width={520}
-          height={520}
-          className="rotate-12 object-contain"
-        />
-      </div>
-
-      <div className="relative z-10 mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-14 sm:gap-12 sm:px-6 sm:pt-12 sm:pb-20 lg:grid-cols-[1fr_0.85fr] lg:items-end lg:gap-16 lg:pt-14 lg:pb-24">
-        <div>
+      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
+        <div className="min-w-0">
           <Reveal>
-            <p className="text-[#5eb349] text-xs font-semibold tracking-[0.14em] uppercase">
-              Layanan Aqiqah · Zakat Sukses
-            </p>
+            <p className="text-primary text-sm font-semibold">Layanan aqiqah dari Zakat Sukses</p>
           </Reveal>
-
           <Reveal delay={90}>
-            <h1 className="mt-3.5 text-[2rem] leading-[1.1] font-bold tracking-tight text-neutral-900 sm:mt-4 sm:text-5xl lg:text-6xl">
-              Tunaikan ibadah,
-              <br />
-              <span className="text-[#5eb349]">tebarkan manfaat.</span>
+            <h1 className="text-display text-ink mt-3 font-bold tracking-tight text-balance">
+              Aqiqah lebih mudah, tenang, dan <span className="text-primary">terpercaya</span>
             </h1>
           </Reveal>
-
           <Reveal delay={180}>
-            <p className="mt-5 max-w-xl text-base leading-7 text-neutral-600 sm:mt-6 sm:text-lg sm:leading-8">
-              Aqiqah yang dikerjakan sesuai syariat dan dicatat di setiap tahapnya. Anda memantau
-              prosesnya, lalu menerima laporan pelaksanaan berisi bukti — tanpa perlu bertanya.
+            <p className="text-ink-muted mt-5 max-w-xl text-base leading-7 sm:text-lg sm:leading-8">
+              Penyembelihan sesuai syariat, dimasak, lalu diantar ke rumah atau disalurkan ke
+              penerima manfaat. Setiap tahap dicatat dan bisa Anda lacak sendiri.
             </p>
           </Reveal>
-
           <Reveal delay={270}>
-            <div className="mt-6 flex flex-col gap-2 sm:mt-9 sm:flex-row sm:gap-3">
-              <Link
-                href="/checkout"
-                className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98] sm:gap-2 sm:px-6 sm:py-3.5 sm:text-sm"
-              >
-                Pesan online sekarang
-                <IconArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/paket" className="btn btn-primary btn-lg">
+                Lihat paket aqiqah
               </Link>
               <a
-                href={siteConfig.whatsapp.href(orderMessage())}
+                href={siteConfig.whatsapp.href(WA_CONSULT)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-neutral-300 px-4 py-2.5 text-xs font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98] active:bg-neutral-100 sm:gap-2 sm:px-6 sm:py-3.5 sm:text-sm"
+                className="btn btn-outline btn-lg"
               >
-                <IconWhatsApp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                Tanya via WhatsApp
+                <IconWhatsApp className="size-5" />
+                Konsultasi WhatsApp
               </a>
             </div>
           </Reveal>
-
           <Reveal delay={360}>
-            <dl className="mt-6 grid grid-cols-3 gap-1 text-[10px] sm:mt-9 sm:gap-4 sm:text-sm">
-              {[
-                { value: 'Tanpa akun', label: 'Pesan langsung di web' },
-                { value: 'Tiap tahap', label: 'Divalidasi sebelum lanjut' },
-                { value: 'Link laporan', label: 'Dibuka tanpa login' },
-              ].map((s) => (
-                // Garis aksen kiri + latar tipis: cukup untuk memisahkan ketiga
-                // fakta ini dari paragraf di atasnya, tanpa jadi tiga kartu
-                // melayang yang menuntut perhatian sebesar CTA di sebelahnya.
-                <div
-                  key={s.value}
-                  className="border-primary/40 min-w-0 border-l-2 py-0.5 pl-1.5 sm:pl-3"
-                >
-                  <dt className="font-semibold text-neutral-900">{s.value}</dt>
-                  <dd className="mt-0.5 text-[9px] leading-3 text-neutral-500 sm:text-xs sm:leading-5">
-                    {s.label}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+            <ul className="text-ink mt-8 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+              {['Pesan tanpa membuat akun', 'Tiap tahap divalidasi tim', 'Laporan berisi foto'].map(
+                (t) => (
+                  <li key={t} className="flex items-start gap-2">
+                    <IconCheck className="text-primary mt-0.5 size-4 shrink-0" />
+                    {t}
+                  </li>
+                ),
+              )}
+            </ul>
           </Reveal>
         </div>
 
-        {/* Foto dalam bingkai datar bergaris rambut — tanpa bayangan tebal,
-            tanpa sudut membulat besar. */}
         <Reveal
           as="figure"
           delay={180}
           anim="scale"
-          className="group/hero relative mx-auto w-[62%] sm:w-[72%] lg:mx-0 lg:ml-30 lg:w-[60%] lg:pb-1"
+          className="relative mx-auto w-full max-w-md lg:max-w-none"
         >
+          {/* Bidang hijau yang digeser: kedalaman lewat bentuk, bukan bayangan (design.md §4).
+              Di ponsel ia hanya turun ke bawah, tidak menjorok ke kanan: gutter
+              16px tidak cukup menampungnya, dan tepi layar memotongnya. */}
           <div
             aria-hidden
-            className="bg-primary/[0.07] pointer-events-none absolute inset-x-[8%] top-[12%] bottom-0 -z-10 rounded-[48%_48%_8%_8%]"
+            className="bg-primary-light absolute top-4 right-0 -bottom-3 left-4 rounded-lg sm:top-6 sm:-right-3 sm:left-6"
           />
-          <div className="overflow-hidden">
+          <div className="border-line relative aspect-[3/2] overflow-hidden rounded-lg border bg-white">
             <SitePhoto
               src={landingPhotos.hero.src}
               alt={landingPhotos.hero.alt}
               width={landingPhotos.hero.width}
               height={landingPhotos.hero.height}
               priority
-              sizes="(min-width: 1024px) 42vw, 100vw"
-              className="h-full w-full object-cover transition-transform duration-700 group-hover/hero:scale-[1.02]"
+              sizes="(min-width: 1024px) 45vw, (min-width: 640px) 28rem, 100vw"
+              className="h-full w-full object-cover"
             />
           </div>
-          <figcaption className="mt-3 flex items-start gap-2 text-xs leading-5 text-neutral-500">
-            {/* <IconCheck className="text-primary mt-0.5 h-3.5 w-3.5 shrink-0" /> */}
-            {/* <span>
-              Setiap foto pada laporan Anda melewati validasi tim sebelum tahap berikutnya dibuka.
-            </span> */}
-          </figcaption>
         </Reveal>
       </div>
     </section>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Layanan                                                             */
-/* ------------------------------------------------------------------ */
+/* Layanan: judul berdampingan dengan daftar, bukan judul + kisi kartu.
+   Daftar karena ketiganya pilihan setara yang dibaca berurutan. */
 function ServicesSection() {
   return (
-    <Section bg="grid" id="layanan" index="01" eyebrow="Layanan">
-      {/* Watermark Logo Motif Transparan */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-12 top-1/2 z-0 -translate-y-1/2 opacity-[0.06] select-none"
-      >
-        <Image
-          src="/images/logo_new.webp"
-          alt=""
-          width={380}
-          height={380}
-          className="-rotate-12 object-contain"
-        />
+    <section id="layanan" className="border-line border-b bg-white">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+        <Reveal className="lg:sticky lg:top-24 lg:self-start">
+          <SectionLabel index="01">Layanan</SectionLabel>
+          <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
+            Pilih cara aqiqah Anda ditunaikan
+          </h2>
+          <p className="text-ink-muted mt-4 text-base leading-7">
+            Prosesnya sama sampai daging siap. Yang berbeda hanya ke mana ia berakhir.
+          </p>
+        </Reveal>
+        <ul className="divide-line border-line divide-y border-y">
+          {services.map((s, i) => (
+            <Reveal key={s.title} as="li" delay={i * 90} className="flex gap-5 py-6 sm:py-7">
+              <Icon name={s.icon} className="text-primary size-8 shrink-0" />
+              <div className="min-w-0">
+                <h3 className="text-h3 text-ink font-semibold">{s.title}</h3>
+                <p className="text-ink-muted mt-2 text-base leading-7">{s.description}</p>
+              </div>
+            </Reveal>
+          ))}
+        </ul>
       </div>
-
-      <SectionIntro
-        title="Pilih cara aqiqah Anda ditunaikan"
-        lead="Keduanya menempuh proses yang sama sampai daging siap; yang berbeda hanya ke mana ia berakhir."
-      />
-
-      <div className="mt-10 grid gap-4 sm:mt-12 md:grid-cols-3">
-        {services.map((s, i) => (
-          <Reveal
-            key={s.title}
-            delay={i * 110}
-            anim="scale"
-            className="rounded-lg border border-neutral-200 bg-white p-6 transition-colors hover:border-neutral-300 sm:p-7"
-          >
-            <Icon name={s.icon} className="text-primary h-7 w-7" />
-            <h3 className="mt-5 text-lg font-semibold text-neutral-900">{s.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-neutral-600">{s.description}</p>
-          </Reveal>
-        ))}
-      </div>
-    </Section>
+    </section>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Paket & Harga                                                       */
-/* ------------------------------------------------------------------ */
 
 function PackagesSection({
   catalogue,
@@ -231,370 +173,287 @@ function PackagesSection({
   catalogue: Awaited<ReturnType<typeof getLandingCatalogue>>;
 }) {
   const { programs, boxes, catering } = catalogue;
-  // Katalog kosong berarti database tak terjangkau (query-nya mengembalikan
-  // daftar kosong alih-alih melempar). Section-nya disembunyikan seluruhnya:
-  // judul "Harga sudah termasuk seluruh prosesnya" di atas ruang kosong
-  // terbaca sebagai halaman rusak, sementara tanpanya halaman tetap utuh —
-  // hero, proses, galeri, dan jalan menghubungi lewat WhatsApp semuanya tetap
-  // ada.
+  // Katalog kosong berarti database tak terjangkau. Section disembunyikan:
+  // judul harga di atas ruang kosong terbaca sebagai halaman rusak.
   if (programs.length === 0 && boxes.length === 0 && catering.length === 0) return null;
 
   return (
-    <Section bg="tinted" id="paket" index="02" eyebrow="Paket & Harga">
-      <SectionIntro
-        title="Harga sudah termasuk seluruh prosesnya"
-        lead="Pemotongan syar’i, pemasakan, dokumentasi, dan laporan pelaksanaan — tidak ada biaya yang menyusul di belakang."
-      />
-
-      {/* Penyaringnya komponen klien, tetapi kartunya tetap dirakit di server:
-          `SitePhoto` memeriksa berkas lewat `node:fs`, jadi ia tidak bisa hidup
-          di klien. Yang dikirim ke bawah adalah blok yang sudah jadi — dan itu
-          yang membuat halaman ini **tetap prerender statis**.
-
-          Tiga kartu per tab; sisanya di `/paket`. Halaman depan tetap
-          ringkas meski katalog bertambah. */}
-      <PackageFilter tabs={buildPackageTabs(catalogue, 3)} defaultTab="pilihan" />
-    </Section>
+    <section id="paket" className="bg-surface-muted border-line border-b">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+        <Reveal className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <SectionLabel index="02">Paket & harga</SectionLabel>
+            <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
+              Harga sudah termasuk seluruh prosesnya
+            </h2>
+            <p className="text-ink-muted mt-4 text-base leading-7">
+              Penyembelihan, pemasakan, dokumentasi, dan laporan pelaksanaan. Tidak ada biaya yang
+              menyusul.
+            </p>
+          </div>
+          <Link href="/paket" className="btn btn-outline shrink-0">
+            Bandingkan semua paket
+          </Link>
+        </Reveal>
+        <PackageFilter tabs={buildPackageTabs(catalogue, 3)} defaultTab="pilihan" />
+      </div>
+    </section>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Proses                                                              */
-/* ------------------------------------------------------------------ */
+/* Proses: satu-satunya section gelap, karena ia inti janji halaman ini.
+   Horizontal di desktop, vertikal bergaris di ponsel. */
 function ProcessSection() {
   return (
-    <section id="proses" className="bg-primary-dark relative overflow-hidden text-white">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-0 [background-image:radial-gradient(circle,white_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.07]"
-      />
-      {/* Watermark Logo Transparan */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-16 top-1/2 z-0 -translate-y-1/2 opacity-[0.12] select-none"
-      >
-        <Image
-          src="/images/logo_new.webp"
-          alt=""
-          width={500}
-          height={500}
-          className="rotate-45 object-contain filter invert"
-        />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <Reveal>
-          <p className="text-xs font-semibold tracking-[0.14em] text-white/50 uppercase">
-            03 — Alur Layanan
-          </p>
-          <h2 className="mt-4 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
-            Lima langkah, semuanya tercatat
-          </h2>
-          <p className="mt-4 max-w-xl text-base leading-7 text-white/70">
-            Setiap langkah punya penanggung jawab dan bukti. Tahap berikutnya baru terbuka setelah
-            yang sebelumnya divalidasi.
+    <section id="proses" className="bg-primary-dark text-white">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+        <Reveal className="max-w-2xl">
+          <p className="text-accent text-sm font-semibold tabular-nums">03 · Alur layanan</p>
+          <h2 className="text-h2 mt-3 font-bold tracking-tight">Lima langkah, semuanya tercatat</h2>
+          <p className="mt-4 text-base leading-7 text-white/85">
+            Setiap langkah punya penanggung jawab dan bukti. Tahap berikutnya baru dibuka setelah
+            tahap sebelumnya divalidasi.
           </p>
         </Reveal>
-
-        <ol className="mt-10 grid gap-px bg-white/15 sm:mt-14 sm:grid-cols-2 lg:grid-cols-5">
+        <ol className="mt-12 grid lg:grid-cols-5 lg:gap-6">
           {processSteps.map((step, i) => (
             <Reveal
               key={step.step}
               as="li"
-              delay={(i % 3) * 110}
-              className="bg-primary-dark relative p-5 sm:p-6"
+              delay={i * 80}
+              className="relative flex gap-4 pb-8 last:pb-0 lg:block lg:pb-0"
             >
-              <span className="text-accent block text-3xl font-bold tabular-nums">{step.step}</span>
-              <h3 className="mt-3 text-base font-semibold text-white">{step.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-white/70">{step.description}</p>
+              {/* Garis penghubung: vertikal di ponsel, horizontal di desktop. */}
+              {i < processSteps.length - 1 && (
+                <span
+                  aria-hidden
+                  className="absolute top-10 bottom-0 left-5 w-px bg-white/25 lg:top-5 lg:right-[-1.5rem] lg:bottom-auto lg:left-12 lg:h-px lg:w-auto"
+                />
+              )}
+              <span className="bg-accent text-ink relative flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums">
+                {step.step}
+              </span>
+              <div className="min-w-0 lg:mt-5">
+                <h3 className="text-lg font-semibold">{step.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-white/85">{step.description}</p>
+              </div>
             </Reveal>
           ))}
         </ol>
+        <Reveal className="mt-12">
+          <Link href="/lacak" className="btn btn-secondary">
+            Lacak pesanan Anda
+          </Link>
+        </Reveal>
       </div>
     </section>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Galeri Dokumentasi                                                  */
-/* ------------------------------------------------------------------ */
-/**
- * Enam foto berurutan mengikuti tahapan sungguhan di sistem — bukti dari klaim
- * "terdokumentasi" yang diulang di beberapa bagian halaman ini. Urutannya sama
- * dengan `fulfilment_sequence()` di database, jadi yang dilihat pengunjung di
- * sini persis bentuk laporan yang nanti ia terima.
- *
- * ## Kalimat pengantarnya menyesuaikan isi fotonya
- *
- * Sampai foto pelaksanaan sungguhan tersedia, keenam slot ini diisi foto stok
- * sebagai penahan sementara. Karena itu kalimat "bukan foto ilustrasi" yang
- * dulu berdiri di sini **dicabut**: ia janji yang bisa diperiksa pengunjung,
- * dan yang menyalahi janji semacam itu bukan hanya keliru — ia merusak persis
- * kepercayaan yang hendak dibangun halaman ini.
- *
- * Yang tersisa tetap benar apa adanya: urutan tahapnya memang yang dipakai
- * sistem, dan pemesan memang menerima foto pelaksanaannya sendiri di laporan.
- * **Kembalikan kalimat aslinya begitu keenam foto asli masuk** —
- * `public/images/landing/README.md` memuat daftarnya.
- */
+/* Galeri: kisi foto bernomor, keterangan di bawah foto (bukan di atasnya,
+   karena teks di atas foto bergantung pada seterang apa fotonya). */
 function GallerySection() {
   return (
-    <Section id="galeri" index="04" eyebrow="Dokumentasi">
-      <SectionIntro
-        title="Lihat sendiri setiap tahapnya"
-        lead="Inilah urutan tahap yang ditempuh setiap pesanan. Anda menerima foto pelaksanaan pesanan Anda sendiri di laporan akhir."
-      />
-
-      <div className="mt-10 grid gap-x-5 gap-y-7 sm:mt-12 sm:grid-cols-2 sm:gap-y-8 lg:grid-cols-3">
-        {landingPhotos.gallery.map((photo, i) => (
-          // Jeda dihitung per baris, bukan per foto: dengan enam foto, `i * 70`
-          // membuat yang terakhir menunggu 350ms — sudah terlewat saat digulir.
-          // `i % 3` menahan jeda maksimum di 140ms untuk semua ukuran layar.
-          <Reveal
-            key={photo.src}
-            as="figure"
-            delay={(i % 3) * 110}
-            anim="scale"
-            className="group/photo"
-          >
-            <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 transition-shadow group-hover/photo:shadow-sm">
-              <SitePhoto
-                src={photo.src}
-                alt={photo.alt}
-                width={800}
-                height={600}
-                sizes="(min-width: 1024px) 31vw, (min-width: 640px) 47vw, 100vw"
-                className="h-full w-full object-cover transition-transform duration-700 group-hover/photo:scale-[1.04]"
-              />
-            </div>
-            {/* Keterangan di bawah foto, bukan ditumpuk di atasnya lewat
-                gradasi gelap — teks di atas foto selalu bergantung pada
-                seterang apa foto yang nanti diunggah. */}
-            <figcaption className="mt-3 flex items-start gap-3">
-              <span className="text-primary text-xs font-bold tabular-nums">
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <span className="text-sm font-medium text-neutral-800">{photo.caption}</span>
-            </figcaption>
-          </Reveal>
-        ))}
+    <section id="galeri" className="border-line border-b bg-white">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+        <Reveal className="max-w-2xl">
+          <SectionLabel index="04">Dokumentasi</SectionLabel>
+          <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
+            Urutan tahap yang ditempuh setiap pesanan
+          </h2>
+          <p className="text-ink-muted mt-4 text-base leading-7">
+            Foto pelaksanaan pesanan Anda sendiri dikirim di laporan akhir.
+          </p>
+        </Reveal>
+        <div className="mt-10 grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+          {landingPhotos.gallery.map((photo, i) => (
+            <Reveal key={photo.src} as="figure" delay={(i % 3) * 90} anim="scale">
+              <div className="border-line bg-surface-muted aspect-[4/3] overflow-hidden rounded-lg border">
+                <SitePhoto
+                  src={photo.src}
+                  alt={photo.alt}
+                  width={800}
+                  height={600}
+                  sizes="(min-width: 1024px) 31vw, (min-width: 640px) 47vw, 100vw"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <figcaption className="mt-3 flex items-baseline gap-3">
+                <span className="text-primary text-sm font-bold tabular-nums">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="text-ink text-sm font-medium">{photo.caption}</span>
+              </figcaption>
+            </Reveal>
+          ))}
+        </div>
       </div>
-    </Section>
+    </section>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Keunggulan                                                          */
-/* ------------------------------------------------------------------ */
+/* Keunggulan: kolom teks bergaris atas, tanpa kartu. Isinya klaim pendek, dan
+   kartu berikon seragam hanya menambah bingkai tanpa menambah isi. */
 function FeaturesSection() {
   return (
-    <Section bg="tinted" id="keunggulan" index="05" eyebrow="Kenapa Kami">
-      <SectionIntro
-        title="Ibadah yang bisa Anda telusuri"
-        lead="Bukan sekadar jasa potong hewan — setiap tahapnya tercatat, tervalidasi, dan bisa Anda periksa kembali."
-      />
-
-      <div className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
-        {features.map((f, i) => (
-          <Reveal
-            key={f.title}
-            delay={(i % 3) * 110}
-            anim="scale"
-            className="rounded-lg border border-neutral-200 bg-white p-5 transition-colors hover:border-neutral-300 sm:p-6"
-          >
-            <div className="flex items-center gap-2.5">
-              <Icon name={f.icon} className="text-primary h-5 w-5 shrink-0" />
-              <h3 className="text-base font-semibold text-neutral-900">{f.title}</h3>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-neutral-600">{f.description}</p>
-          </Reveal>
-        ))}
+    <section id="keunggulan" className="bg-surface-muted border-line border-b">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+        <Reveal className="max-w-2xl">
+          <SectionLabel index="05">Kenapa kami</SectionLabel>
+          <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
+            Ibadah yang bisa Anda telusuri
+          </h2>
+        </Reveal>
+        <dl className="mt-10 grid gap-x-12 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((f, i) => (
+            <Reveal
+              key={f.title}
+              delay={(i % 3) * 80}
+              className="border-primary/30 border-t-2 pt-5"
+            >
+              <dt className="text-ink flex items-center gap-2.5 text-base font-semibold">
+                <Icon name={f.icon} className="text-primary size-5 shrink-0" />
+                {f.title}
+              </dt>
+              <dd className="text-ink-muted mt-2 text-sm leading-6">{f.description}</dd>
+            </Reveal>
+          ))}
+        </dl>
       </div>
-    </Section>
+    </section>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* FAQ                                                                 */
-/* ------------------------------------------------------------------ */
+/**
+ * Testimoni. Hanya dirender bila `testimonials` di `lib/constants/site.ts`
+ * berisi ulasan asli. Kisi statis, bukan carousel otomatis: semua ulasan
+ * terbaca tanpa menunggu, dan tidak ada kontrol yang harus dikejar.
+ */
+function TestimonialsSection() {
+  return (
+    <section id="testimoni" className="border-line border-b bg-white">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+        <Reveal className="max-w-2xl">
+          <SectionLabel index="06">Kata pemesan</SectionLabel>
+          <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
+            Dari keluarga yang sudah memesan
+          </h2>
+        </Reveal>
+        <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {testimonials.map((t, i) => (
+            <Reveal
+              key={`${t.name}-${i}`}
+              as="li"
+              delay={(i % 3) * 80}
+              className="border-line bg-surface flex flex-col rounded-lg border p-6"
+            >
+              <blockquote className="text-ink flex-1 text-base leading-7">“{t.quote}”</blockquote>
+              <p className="border-line mt-5 border-t pt-4 text-sm">
+                <span className="text-ink font-semibold">{t.name}</span>
+                {t.city && <span className="text-ink-muted">, {t.city}</span>}
+                {t.service && <span className="text-ink-muted block">{t.service}</span>}
+              </p>
+            </Reveal>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+/* FAQ: judul di kiri, akordeon di kanan. `<details>` bawaan: dibuka dengan
+   Enter/Spasi, terbaca screen reader, dan jalan tanpa JavaScript. */
 function FaqSection() {
   return (
-    <Section bg="grid" id="faq" index="06" eyebrow="FAQ">
-      <SectionIntro
-        title="Pertanyaan yang sering diajukan"
-        lead="Belum menemukan jawabannya? Hubungi kami langsung via WhatsApp."
-      />
-
-      <Reveal className="mt-10 max-w-3xl divide-y divide-neutral-200 border-y border-neutral-200">
-        {faqs.map((faq) => (
-          <details
-            key={faq.question}
-            className="group open:bg-primary/3 -mx-3 rounded-lg px-3 py-4 transition-colors hover:bg-neutral-50 sm:py-5 [&_summary]:list-none"
-          >
-            <summary className="flex cursor-pointer items-start justify-between gap-4 text-left sm:gap-6">
-              <span className="group-hover:text-primary group-open:text-primary text-[15px] font-medium text-neutral-900 transition-colors sm:text-base">
-                {faq.question}
-              </span>
-              <span className="text-primary mt-0.5 flex size-7 shrink-0 items-center justify-center transition-transform duration-300 group-open:rotate-45">
+    <section id="faq" className="border-line border-b bg-white">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+        <Reveal>
+          <SectionLabel index={testimonials.length > 0 ? '07' : '06'}>Pertanyaan umum</SectionLabel>
+          <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">Yang sering ditanyakan</h2>
+          <p className="text-ink-muted mt-4 text-base leading-7">
+            Belum menemukan jawabannya?{' '}
+            <a
+              href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin bertanya.')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary font-semibold underline underline-offset-2"
+            >
+              Tanya lewat WhatsApp
+            </a>
+            .
+          </p>
+        </Reveal>
+        <Reveal className="divide-line border-line divide-y border-y">
+          {faqs.map((faq) => (
+            <details key={faq.question} className="group [&_summary]:list-none">
+              <summary className="flex min-h-14 cursor-pointer items-center justify-between gap-4 py-4 text-left">
+                <span className="text-ink group-open:text-primary text-base font-semibold">
+                  {faq.question}
+                </span>
                 <svg
                   viewBox="0 0 24 24"
-                  className="h-4 w-4"
+                  className="text-primary size-5 shrink-0 transition-transform duration-300 group-open:rotate-45"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth={2}
-                  strokeLinecap="round"
                   aria-hidden
                 >
                   <path d="M12 5v14M5 12h14" />
                 </svg>
-              </span>
-            </summary>
-            {/* Jawaban ikut memudar masuk saat dibuka — memberi tahu bahwa isi
-                baru muncul, bukan halaman yang meloncat. */}
-            <p className="animate-in fade-in slide-in-from-top-1 mt-3 max-w-2xl text-sm leading-7 text-neutral-600 duration-[380ms] ease-out">
-              {faq.answer}
-            </p>
-          </details>
-        ))}
-      </Reveal>
-    </Section>
+              </summary>
+              <p className="text-ink-muted max-w-2xl pb-5 text-base leading-7">{faq.answer}</p>
+            </details>
+          ))}
+        </Reveal>
+      </div>
+    </section>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* CTA akhir                                                           */
-/* ------------------------------------------------------------------ */
 function CtaSection() {
   return (
-    <section className="relative overflow-hidden border-t border-neutral-200 bg-neutral-50">
-      <div
-        aria-hidden
-        className="bg-grid pointer-events-none absolute inset-0 z-0 [mask-image:radial-gradient(110%_90%_at_85%_100%,black,transparent_70%)]"
-      />
-      {/* Watermark Logo Transparan */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-12 -bottom-10 z-0 opacity-[0.08] select-none"
-      >
-        <Image
-          src="/images/logo_new.webp"
-          alt=""
-          width={440}
-          height={440}
-          className="rotate-12 object-contain"
-        />
-      </div>
-
-      <Reveal className="relative z-10 mx-auto flex max-w-6xl flex-col gap-7 px-4 py-14 sm:gap-8 sm:px-6 sm:py-20 lg:flex-row lg:items-center lg:justify-between">
-        <div className="max-w-xl">
-          <h2 className="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
-            Siap menunaikan ibadah Anda?
-          </h2>
-          <p className="mt-3 text-base leading-7 text-neutral-600">
-            Tim kami membantu dari pemilihan paket sampai laporan pelaksanaan. Konsultasi gratis.
-          </p>
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
-          <Link
-            href="/checkout"
-            className="bg-primary hover:bg-primary-dark active:bg-primary-dark inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98]"
-          >
-            Pesan online sekarang
-            <IconArrowRight className="h-4 w-4" />
-          </Link>
-          <a
-            href={siteConfig.whatsapp.href(orderMessage())}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white px-6 py-3.5 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 active:scale-[0.98] active:bg-neutral-100"
-          >
-            <IconWhatsApp className="h-4 w-4" />
-            Konsultasi via WhatsApp
-          </a>
-        </div>
-      </Reveal>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Helpers                                                             */
-/* ------------------------------------------------------------------ */
-/**
- * Pembungkus section dengan penanda urutan bernomor.
- *
- * Nomornya bukan hiasan: halaman ini panjang, dan penanda urutan memberi
- * pembaca rasa posisi tanpa perlu menambahkan garis pemisah tebal atau
- * berganti-ganti warna latar antar-section.
- */
-function Section({
-  id,
-  index,
-  eyebrow,
-  bg = 'plain',
-  children,
-}: {
-  id: string;
-  index: string;
-  eyebrow: string;
-  /**
-   * Perlakuan latar.
-   *
-   * Halaman ini panjang, dan tujuh section putih berturut-turut terbaca sebagai
-   * satu bentangan tanpa ujung. Tapi selang-seling putih/abu saja juga monoton —
-   * ia jadi pola yang bisa ditebak setelah dua pergantian. Jadi ada tiga:
-   *
-   * `plain` — putih polos.
-   * `tinted` — abu sangat tipis.
-   * `grid` — putih dengan kisi yang menempati satu sudut saja, jadi batas
-   *   sectionnya terasa tanpa pergantian warna sama sekali.
-   */
-  bg?: 'plain' | 'tinted' | 'grid';
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      id={id}
-      className={`relative overflow-hidden border-b border-neutral-200 ${
-        bg === 'tinted' ? 'bg-neutral-50/70' : 'bg-white'
-      }`}
-    >
-      {bg === 'grid' && (
-        <div
-          aria-hidden
-          className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(80%_70%_at_100%_0%,black,transparent_65%)]"
-        />
-      )}
-      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <Reveal>
-          <p className="flex items-center gap-3 text-xs font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-            <span className="tabular-nums">{index}</span>
-            {/* Garis penghubung antara nomor dan nama bagian. Menggantikan tanda
-                hubung "—": bentuknya menuntun mata ke kanan, ke arah baca. */}
-            <span aria-hidden className="bg-primary/30 h-px w-6 sm:w-10" />
-            <span className="text-primary">{eyebrow}</span>
-          </p>
+    <section className="bg-white">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16">
+        <Reveal className="bg-primary flex flex-col gap-6 rounded-lg px-6 py-10 text-white sm:px-10 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-xl">
+            <h2 className="text-h3 font-bold">Siap menunaikan aqiqah?</h2>
+            <p className="mt-2 text-base leading-7 text-white/85">
+              Tim kami membantu dari memilih paket sampai laporan pelaksanaan. Konsultasi gratis.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+            <Link href="/paket" className="btn btn-secondary btn-lg">
+              Lihat paket aqiqah
+            </Link>
+            <a
+              href={siteConfig.whatsapp.href(orderMessage())}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-lg border border-white/70 text-white hover:bg-white/10"
+            >
+              <IconWhatsApp className="size-5" />
+              Konsultasi WhatsApp
+            </a>
+          </div>
         </Reveal>
-        {children}
       </div>
     </section>
   );
 }
 
-function SectionIntro({ title, lead }: { title: string; lead: string }) {
+/** Nomor urut section: rujukan ke halaman buku catatan (motif design.md §0). */
+function SectionLabel({ index, children }: { index: string; children: React.ReactNode }) {
   return (
-    <Reveal delay={90} className="mt-4 max-w-2xl">
-      <h2 className="text-[1.75rem] leading-tight font-bold tracking-tight text-neutral-900 sm:text-4xl">
-        {title}
-      </h2>
-      <p className="mt-4 text-base leading-7 text-neutral-600">{lead}</p>
-    </Reveal>
+    <p className="text-primary flex items-center gap-3 text-sm font-semibold">
+      <span className="tabular-nums">{index}</span>
+      <span aria-hidden className="bg-primary/40 h-px w-8" />
+      <span>{children}</span>
+    </p>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* JSON-LD (SEO/GEO — 27_PAGE_MENU)                                    */
+/* JSON-LD (SEO/GEO, 27_PAGE_MENU)                                     */
 /* ------------------------------------------------------------------ */
 function JsonLd() {
   const data = [

@@ -8,7 +8,7 @@ import { VendorManager } from '@/features/vendors/components/vendor-manager';
 import { ServiceManager } from '@/features/services/components/service-manager';
 import { cn } from '@/lib/utils';
 
-export const metadata = { title: 'Mitra & Katalog — Sukses Aqiqah' };
+export const metadata = { title: 'Mitra & Katalog' };
 
 type Search = Promise<{ tab?: string }>;
 
@@ -92,9 +92,9 @@ export default async function VendorsPage({ searchParams }: { searchParams: Sear
         <VendorManager vendors={vendors} />
       ) : (
         <ServiceManager
-              services={services}
-              publicBase={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
-            />
+          services={services}
+          publicBase={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
+        />
       )}
     </div>
   );

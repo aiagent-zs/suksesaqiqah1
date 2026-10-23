@@ -86,7 +86,10 @@ export const cateringCheckoutSchema = z
     items: z
       .array(cateringItemSchema)
       .min(1, 'Pilih minimal satu paket katering')
-      .max(MAX_ITEM_LINES, `Maksimal ${MAX_ITEM_LINES} jenis paket. Untuk lebih beragam, hubungi admin`),
+      .max(
+        MAX_ITEM_LINES,
+        `Maksimal ${MAX_ITEM_LINES} jenis paket. Untuk lebih beragam, hubungi admin`,
+      ),
 
     requested_date: z
       .string()
@@ -167,7 +170,7 @@ export const cateringCheckoutSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['delivery_village_code'],
-        message: 'Wilayah tujuan tidak sejalur — pilih ulang dari provinsi',
+        message: 'Wilayah tujuan tidak sejalur. Pilih ulang dari provinsi.',
       });
     }
 
@@ -180,7 +183,7 @@ export const cateringCheckoutSchema = z
         ctx.addIssue({
           code: 'custom',
           path: ['items', i, 'service_id'],
-          message: 'Paket ini sudah dipilih — gabungkan jumlahnya',
+          message: 'Paket ini sudah dipilih. Gabungkan jumlahnya.',
         });
       }
       seen.add(item.service_id);
@@ -191,7 +194,7 @@ export const cateringCheckoutSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['items'],
-        message: `Total di atas ${MAX_TOTAL_BOXES.toLocaleString('id-ID')} box — hubungi admin untuk penawaran khusus`,
+        message: `Total di atas ${MAX_TOTAL_BOXES.toLocaleString('id-ID')} box. Hubungi admin untuk penawaran khusus.`,
       });
     }
 

@@ -6,7 +6,7 @@ import { ScheduleFilters } from '@/features/schedules/components/schedule-filter
 import { ScheduleCardList, ScheduleTable } from '@/features/schedules/components/schedule-table';
 import { Pagination } from '@/components/data/pagination';
 
-export const metadata = { title: 'Jadwal — Sukses Aqiqah' };
+export const metadata = { title: 'Jadwal' };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

@@ -52,10 +52,17 @@ const PACKAGES: CheckoutPackage[] = [
     slug: 'aqiqah-ekonomi',
     description: null,
     price: 2300000,
+    features: [],
   },
 ];
 const NASI_BOXES: NasiBoxPackage[] = [
-  { id: 'a2000000-0000-4000-8000-000000000011', name: 'Paket A', slug: 'paket-a', price: 21000 },
+  {
+    id: 'a2000000-0000-4000-8000-000000000011',
+    name: 'Paket A',
+    slug: 'paket-a',
+    price: 21000,
+    items: [],
+  },
 ];
 const PROVINCES: RegionOption[] = [{ code: '32', name: 'Jawa Barat' }];
 

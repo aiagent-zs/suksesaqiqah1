@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 
 /**
  * Penyaring jenis paket di halaman depan.
@@ -58,6 +58,27 @@ export function PackageFilter({
   // yang menuntut klik tanpa menawarkan pilihan.
   const single = shown.length === 1;
 
+  // Pola tablist ARIA: panah kiri/kanan berpindah tab, Home/End ke ujung.
+  // Hanya tab aktif yang masuk urutan Tab, jadi Tab berikutnya langsung ke
+  // isi panel, bukan menyusuri semua tab satu per satu.
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const i = shown.findIndex((t) => t.id === active);
+    const next =
+      e.key === 'ArrowRight'
+        ? (i + 1) % shown.length
+        : e.key === 'ArrowLeft'
+          ? (i - 1 + shown.length) % shown.length
+          : e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? shown.length - 1
+              : -1;
+    if (next < 0) return;
+    e.preventDefault();
+    setActive(shown[next].id);
+    document.getElementById(`tab-${shown[next].id}`)?.focus();
+  };
+
   return (
     <div>
       {!single && (
@@ -76,17 +97,19 @@ export function PackageFilter({
                 id={`tab-${tab.id}`}
                 aria-selected={on}
                 aria-controls={`panel-${tab.id}`}
+                tabIndex={on ? 0 : -1}
                 onClick={() => setActive(tab.id)}
-                className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-all active:scale-[0.98] ${
+                onKeyDown={onKeyDown}
+                className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors duration-150 ${
                   on
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'border border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400 hover:bg-neutral-50'
+                    ? 'bg-primary border-primary text-white'
+                    : 'border-line text-ink hover:border-ink-muted bg-white'
                 }`}
               >
                 {tab.label}
                 {/* Angkanya bukan hiasan: ia menjawab "ada berapa" sebelum
                     pengunjung menekan tabnya. */}
-                <span className={`text-xs tabular-nums ${on ? 'opacity-80' : 'text-neutral-500'}`}>
+                <span className={`text-xs tabular-nums ${on ? 'text-white/85' : 'text-ink-muted'}`}>
                   {tab.count}
                 </span>
               </button>

@@ -6,15 +6,8 @@ import { siteConfig } from '@/lib/constants/site';
 const lastModified = new Date('2026-08-06');
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const routes = [
-    '',
-    '/proses',
-    '/paket',
-    '/galeri',
-    '/faq',
-    '/syarat-layanan',
-    '/kebijakan-privasi',
-  ];
+  // Hanya route yang ada. `/lacak` sengaja tidak masuk: halamannya noindex.
+  const routes = ['', '/paket', '/checkout', '/checkout/katering'];
 
   return routes.map((path) => ({
     url: `${siteConfig.url}${path}`,

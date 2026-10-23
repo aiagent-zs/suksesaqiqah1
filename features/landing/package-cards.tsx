@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { siteConfig } from '@/lib/constants/site';
 import type { LandingBox, getLandingCatalogue } from '@/features/landing/catalogue';
 import { formatIDR } from '@/lib/format/currency';
-import { IconArrowRight, IconCheck, IconWhatsApp } from '@/components/site/icons';
+import { IconCheck, IconWhatsApp } from '@/components/site/icons';
 import { SitePhoto } from '@/components/site/site-photo';
 import { Reveal } from '@/components/site/reveal';
 import type { PackageTab } from '@/components/site/package-filter';
@@ -61,8 +61,8 @@ function PackageCard({ data, delay }: { data: PackageCardData; delay: number }) 
       as="article"
       delay={delay}
       anim="scale"
-      className={`group/card relative flex flex-col bg-white transition-shadow hover:shadow-sm ${
-        data.popular ? 'ring-primary/40 z-10 ring-2' : ''
+      className={`border-line relative flex flex-col overflow-hidden rounded-lg border bg-white ${
+        data.popular ? 'ring-primary ring-2' : ''
       }`}
     >
       {/* Paket tanpa foto merender kartu tanpa blok gambar sama sekali, bukan
@@ -71,14 +71,14 @@ function PackageCard({ data, delay }: { data: PackageCardData; delay: number }) 
           foto, tapi tidak ada artinya bagi pengunjung. Sejak fotonya bisa
           diunggah lewat aplikasi, paket baru memang wajar belum punya foto. */}
       {data.photo && (
-        <div className="aspect-video overflow-hidden bg-neutral-100">
+        <div className="bg-surface-muted aspect-[3/2] overflow-hidden">
           <SitePhoto
             src={data.photo.src}
             alt={data.photo.alt}
             width={600}
             height={400}
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
+            className="h-full w-full object-cover"
           />
         </div>
       )}
@@ -89,36 +89,43 @@ function PackageCard({ data, delay }: { data: PackageCardData; delay: number }) 
             {/* Label jenis menggantikan judul blok yang dulu memisahkan
                 ketiganya. Ia mengerjakan hal yang sama — memberi tahu ini
                 layanan apa — tanpa memecah halaman jadi tiga bagian. */}
-            <p className="text-primary text-[11px] font-semibold tracking-[0.1em] uppercase">
-              {data.kind}
-            </p>
-            <h3 className="mt-1 text-base font-semibold text-neutral-900">{data.title}</h3>
+            <p className="text-primary text-xs font-semibold">{data.kind}</p>
+            <h3 className="text-ink mt-1 text-lg font-semibold">{data.title}</h3>
           </div>
 
           {/* Penanda populer jadi label teks kecil, bukan pita mengambang yang
               menggeser tata letak kartunya. */}
           {data.popular && (
-            <span className="bg-accent shrink-0 rounded px-2 py-0.5 text-[10px] font-bold tracking-wide text-neutral-900 uppercase">
+            <span className="bg-accent text-ink shrink-0 rounded px-2 py-0.5 text-xs font-semibold">
               {data.popularLabel}
             </span>
           )}
         </div>
 
-        <p className="mt-3 text-3xl font-bold tracking-tight text-neutral-900 tabular-nums">
+        <p className="text-ink mt-3 text-3xl font-bold tracking-tight tabular-nums">
           {formatIDR(data.price)}
-          <span className="ml-1 text-sm font-normal text-neutral-500">/{data.unit}</span>
+          <span className="text-ink-muted ml-1 text-sm font-normal">/{data.unit}</span>
         </p>
-        {data.tagline && <p className="mt-2 text-sm leading-6 text-neutral-600">{data.tagline}</p>}
+        {data.tagline && <p className="text-ink-muted mt-2 text-sm leading-6">{data.tagline}</p>}
 
+        {/* Empat isi pertama selalu terlihat supaya kartu sebaris bisa
+            dibandingkan sekilas; sisanya di balik "Lihat detail", bukan
+            dibuang, karena itu yang membedakan paket satu dengan lainnya. */}
         {data.features.length > 0 && (
-          <ul className="mt-6 flex-1 space-y-2.5 border-t border-neutral-100 pt-5">
-            {data.features.map((feat) => (
-              <li key={feat} className="flex items-start gap-2.5 text-sm text-neutral-700">
-                <IconCheck className="text-primary mt-[3px] h-3.5 w-3.5 shrink-0" />
-                <span className="leading-6">{feat}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="border-line mt-5 flex-1 border-t pt-5">
+            <FeatureList items={data.features.slice(0, 4)} />
+            {data.features.length > 4 && (
+              <details className="group mt-2">
+                <summary className="text-primary flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold underline-offset-2 hover:underline">
+                  <span className="group-open:hidden">
+                    Lihat detail ({data.features.length - 4} lainnya)
+                  </span>
+                  <span className="hidden group-open:inline">Sembunyikan detail</span>
+                </summary>
+                <FeatureList items={data.features.slice(4)} />
+              </details>
+            )}
+          </div>
         )}
 
         {/* `flex-1` pindah ke sini ketika tidak ada daftar fitur, supaya tombol
@@ -132,10 +139,23 @@ function PackageCard({ data, delay }: { data: PackageCardData; delay: number }) 
   );
 }
 
+function FeatureList({ items }: { items: string[] }) {
+  return (
+    <ul className="space-y-2">
+      {items.map((feat) => (
+        <li key={feat} className="text-ink flex items-start gap-2.5 text-sm">
+          <IconCheck className="text-primary mt-[3px] size-3.5 shrink-0" />
+          <span className="leading-6">{feat}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Kisi tunggal untuk seluruh kartu paket, apa pun jenisnya. */
 function PackageGrid({ cards }: { cards: PackageCardData[] }) {
   return (
-    <div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-neutral-200 bg-neutral-200 lg:grid-cols-3">
+    <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((card, i) => (
         <PackageCard key={`${card.kind}-${card.slug}`} data={card} delay={i * 90} />
       ))}
@@ -151,12 +171,8 @@ function PackageGrid({ cards }: { cards: PackageCardData[] }) {
 function SeeAllLink({ tab, total, label }: { tab: string; total: number; label: string }) {
   return (
     <div className="mt-6 flex justify-center">
-      <Link
-        href={`/paket?jenis=${tab}`}
-        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-5 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98]"
-      >
+      <Link href={`/paket?jenis=${tab}`} className="btn btn-outline">
         Lihat semua {total} {label}
-        <IconArrowRight className="h-4 w-4" />
       </Link>
     </div>
   );
@@ -177,14 +193,13 @@ function SeeAllLink({ tab, total, label }: { tab: string; total: number; label: 
  */
 function NasiBoxNote({ boxes }: { boxes: LandingBox[] }) {
   return (
-    <Reveal anim="scale" className="mt-6 rounded-lg border border-neutral-200 bg-white p-5 sm:p-8">
+    <Reveal anim="scale" className="border-line mt-6 rounded-lg border bg-white p-5 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-xl">
-          <h3 className="text-base font-semibold text-neutral-900">
-            Nasi box aqiqah{' '}
-            <span className="font-normal text-neutral-500">— tambahan opsional</span>
+          <h3 className="text-ink text-base font-semibold">
+            Nasi box aqiqah <span className="text-ink-muted font-normal">(tambahan opsional)</span>
           </h3>
-          <p className="mt-1.5 text-sm leading-6 text-neutral-600">
+          <p className="text-ink-muted mt-1.5 text-sm leading-6">
             Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji. Harga per porsi, dipesan{' '}
             <strong>bersama paket aqiqah</strong> lewat tim kami.
           </p>
@@ -193,7 +208,7 @@ function NasiBoxNote({ boxes }: { boxes: LandingBox[] }) {
           href={siteConfig.whatsapp.href(orderMessage('Nasi Box Aqiqah'))}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.98]"
+          className="btn btn-outline shrink-0"
         >
           <IconWhatsApp className="h-4 w-4" />
           Tanya nasi box
@@ -203,34 +218,34 @@ function NasiBoxNote({ boxes }: { boxes: LandingBox[] }) {
       {/* Lauknya dipisah koma, bukan daftar bertitik: pembeda antar paket
           adalah panjang rangkaiannya, dan itu paling cepat terbaca kalau
           kelimanya bisa dibandingkan sekilas. */}
-      <ul className="mt-6 grid gap-3 border-t border-neutral-100 pt-6 sm:mt-7 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="border-line mt-6 grid gap-3 border-t pt-6 sm:mt-7 sm:grid-cols-2 lg:grid-cols-3">
         {boxes.map((box) => (
           <li
             key={box.slug}
             className={`rounded-lg border p-4 ${
-              box.popular ? 'border-primary/30 bg-primary/3' : 'border-neutral-200'
+              box.popular ? 'border-primary/40 bg-primary-light' : 'border-line'
             }`}
           >
             <div className="flex items-baseline justify-between gap-2">
-              <h4 className="text-sm font-semibold text-neutral-900">
+              <h4 className="text-ink text-sm font-semibold">
                 {box.name}
                 {box.popular && (
-                  <span className="bg-primary/10 text-primary ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                  <span className="bg-primary ml-2 rounded px-1.5 py-0.5 text-xs font-semibold text-white">
                     Favorit
                   </span>
                 )}
               </h4>
-              <p className="text-sm font-semibold text-neutral-900 tabular-nums">
-                {formatIDR(box.price)}
-              </p>
+              <p className="text-ink text-sm font-semibold tabular-nums">{formatIDR(box.price)}</p>
             </div>
-            <p className="mt-1.5 text-xs leading-5 text-neutral-600">{box.items.join(', ')}</p>
+            <p className="text-ink-muted mt-1.5 text-sm leading-6">{box.items.join(', ')}</p>
           </li>
         ))}
       </ul>
     </Reveal>
   );
 }
+
+export type PackageSort = 'rekomendasi' | 'termurah' | 'termahal';
 
 /**
  * Tab paket untuk `PackageFilter`.
@@ -241,6 +256,7 @@ function NasiBoxNote({ boxes }: { boxes: LandingBox[] }) {
 export function buildPackageTabs(
   { programs, boxes, catering }: Awaited<ReturnType<typeof getLandingCatalogue>>,
   limit?: number,
+  sort: PackageSort = 'rekomendasi',
 ): PackageTab[] {
   const aqiqahCards: PackageCardData[] = programs.map((p) => ({
     slug: p.slug,
@@ -260,14 +276,9 @@ export function buildPackageTabs(
     action: (
       <Link
         href={`/checkout?paket=${p.slug}`}
-        className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition-all active:scale-[0.98] ${
-          p.popular
-            ? 'bg-primary hover:bg-primary-dark text-white shadow-sm hover:shadow'
-            : 'border border-neutral-300 text-neutral-800 hover:border-neutral-400 hover:bg-neutral-50'
-        }`}
+        className={`btn w-full ${p.popular ? 'btn-primary' : 'btn-outline'}`}
       >
-        Pesan paket {p.name}
-        <IconArrowRight className="h-4 w-4" />
+        Pilih paket {p.name}
       </Link>
     ),
   }));
@@ -288,14 +299,9 @@ export function buildPackageTabs(
       // `create_catering_order` melayaninya langsung.
       <Link
         href={`/checkout/katering?paket=${c.slug}`}
-        className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition-all active:scale-[0.98] ${
-          c.popular
-            ? 'bg-primary hover:bg-primary-dark text-white shadow-sm hover:shadow'
-            : 'border border-neutral-300 text-neutral-800 hover:border-neutral-400 hover:bg-neutral-50'
-        }`}
+        className={`btn w-full ${c.popular ? 'btn-primary' : 'btn-outline'}`}
       >
-        Pesan {c.name}
-        <IconArrowRight className="h-4 w-4" />
+        Pilih {c.name}
       </Link>
     ),
   }));
@@ -319,12 +325,16 @@ export function buildPackageTabs(
     ...cateringCards.filter((c) => !c.popular),
   ];
 
+  // `rekomendasi` = urutan katalog apa adanya (diatur pemilik usaha).
+  const sorted = (cards: PackageCardData[]) =>
+    sort === 'rekomendasi'
+      ? cards
+      : [...cards].sort((a, b) => (sort === 'termurah' ? a.price - b.price : b.price - a.price));
+
   const grid = (id: string, cards: PackageCardData[], label: string) => (
     <>
-      <PackageGrid cards={limit ? cards.slice(0, limit) : cards} />
-      {limit && cards.length > limit && (
-        <SeeAllLink tab={id} total={cards.length} label={label} />
-      )}
+      <PackageGrid cards={limit ? sorted(cards).slice(0, limit) : sorted(cards)} />
+      {limit && cards.length > limit && <SeeAllLink tab={id} total={cards.length} label={label} />}
     </>
   );
 

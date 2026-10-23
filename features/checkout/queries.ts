@@ -1,6 +1,7 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/database';
+import { metaItems } from '@/features/services/meta';
 
 export type CheckoutPackage = {
   id: string;
@@ -9,6 +10,8 @@ export type CheckoutPackage = {
   slug: string;
   description: string | null;
   price: number;
+  /** Isi paket (`landing_features`), sama dengan yang tampil di halaman depan. */
+  features: string[];
 };
 
 /** Paket nasi box — tambahan opsional, bukan pesanan yang berdiri sendiri. */
@@ -17,6 +20,8 @@ export type NasiBoxPackage = {
   name: string;
   slug: string;
   price: number;
+  /** Lauk per box (`meta.items`). */
+  items: string[];
 };
 
 /** Satu pilihan wilayah pada pemilih alamat bertingkat. */
@@ -55,14 +60,14 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
   const [servicesResult, boxesResult, provincesResult] = await Promise.all([
     supabase
       .from('services')
-      .select('id, type, name, slug, description, price')
+      .select('id, type, name, slug, description, price, landing_features')
       .in('type', ['aqiqah', 'qurban'])
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('sort_order', { ascending: true }),
     supabase
       .from('services')
-      .select('id, name, slug, price')
+      .select('id, name, slug, price, meta')
       .eq('type', 'nasi_box')
       .eq('is_active', true)
       .is('deleted_at', null)
@@ -75,6 +80,7 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
     name: s.name,
     slug: s.slug,
     price: Number(s.price),
+    items: metaItems(s.meta),
   }));
 
   const packages = (servicesResult.data ?? []).map((s) => ({
@@ -85,6 +91,7 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
     description: s.description,
     // `numeric` datang sebagai string dari PostgREST.
     price: Number(s.price),
+    features: s.landing_features ?? [],
   }));
 
   const provinces = (provincesResult.data ?? []).map((r) => ({ code: r.code, name: r.name }));

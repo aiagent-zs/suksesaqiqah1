@@ -8,7 +8,7 @@ export const metadata = {
   // `title.template` (`%s — Sukses Aqiqah`).
   title: 'Pesan Katering',
   description:
-    'Pesan katering nasi kotak dan prasmanan untuk acara Anda — pengajian, rapat, syukuran.',
+    'Pesan katering nasi kotak dan prasmanan untuk acara Anda: pengajian, rapat, atau syukuran.',
 };
 
 /**

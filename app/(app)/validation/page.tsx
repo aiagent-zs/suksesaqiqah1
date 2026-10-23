@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-export const metadata = { title: 'Validasi Laporan Tahap — Sukses Aqiqah' };
+export const metadata = { title: 'Validasi Laporan Tahap' };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

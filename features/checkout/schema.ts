@@ -327,7 +327,7 @@ export const guestCheckoutSchema = z
         ctx.addIssue({
           code: 'custom',
           path: ['delivery_village_code'],
-          message: 'Wilayah tujuan tidak sejalur — pilih ulang dari provinsi',
+          message: 'Wilayah tujuan tidak sejalur. Pilih ulang dari provinsi.',
         });
       }
     }

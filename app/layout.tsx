@@ -1,6 +1,15 @@
 import type { Metadata, Viewport } from 'next';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { siteConfig } from '@/lib/constants/site';
 import './globals.css';
+
+// Empat bobot (400 teks, 500 label, 600/700 judul & tombol): tiap bobot satu berkas.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-jakarta',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -14,8 +23,8 @@ export const metadata: Metadata = {
   },
 
   title: {
-    default: `${siteConfig.name} — ${siteConfig.tagline}`,
-    template: `%s — ${siteConfig.name}`,
+    default: `${siteConfig.name}: ${siteConfig.tagline}`,
+    template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
   keywords: [
@@ -33,12 +42,12 @@ export const metadata: Metadata = {
     locale: 'id_ID',
     url: siteConfig.url,
     siteName: siteConfig.name,
-    title: `${siteConfig.name} — ${siteConfig.tagline}`,
+    title: `${siteConfig.name}: ${siteConfig.tagline}`,
     description: siteConfig.description,
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${siteConfig.name} — ${siteConfig.tagline}`,
+    title: `${siteConfig.name}: ${siteConfig.tagline}`,
     description: siteConfig.description,
   },
   alternates: {
@@ -47,7 +56,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0e7c5a',
+  themeColor: '#16624f',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
@@ -59,8 +68,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     // mana pun di sini. Aman karena jangkauannya **satu tingkat**: isi halaman
     // tetap diperiksa seperti biasa, jadi ini tidak bisa menutupi selisih
     // sungguhan di dalam aplikasi.
-    <html lang="id" className="h-full antialiased" suppressHydrationWarning>
-      <body className="flex min-h-full flex-col bg-white text-neutral-900">{children}</body>
+    <html lang="id" className={`h-full antialiased ${jakarta.variable}`} suppressHydrationWarning>
+      <body className="bg-background text-ink flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

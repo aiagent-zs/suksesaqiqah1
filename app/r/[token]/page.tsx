@@ -13,7 +13,7 @@ type Params = Promise<{ token: string }>;
  * nama serta pelaksanaan ibadah mereka — tidak boleh masuk hasil pencarian.
  */
 export const metadata = {
-  title: 'Laporan Pelaksanaan — Sukses Aqiqah',
+  title: 'Laporan Pelaksanaan',
   robots: { index: false, follow: false },
 };
 

@@ -26,8 +26,8 @@ export function SuccessPanel({
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 mx-auto mt-8 max-w-xl overflow-hidden rounded-lg border border-neutral-200 bg-white duration-500">
       <div className="border-b border-neutral-200 px-6 py-8 text-center sm:px-8">
-        <span className="inline-flex size-16 items-center justify-center rounded-full bg-emerald-100/80 ring-8 ring-emerald-50">
-          <CheckCircle2 className="size-9 text-emerald-600" />
+        <span className="bg-primary-light inline-flex size-16 items-center justify-center rounded-full">
+          <CheckCircle2 className="text-success size-9" />
         </span>
         <h2 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900">
           Pesanan Anda sudah kami terima
@@ -41,7 +41,9 @@ export function SuccessPanel({
 
       <dl className="grid gap-4 px-6 py-6 sm:grid-cols-2 sm:px-8">
         <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3.5">
-          <dt className="text-xs font-medium text-neutral-500">Nomor pesanan</dt>
+          <dt className="text-ink-muted text-xs font-medium">
+            Nomor pesanan (simpan untuk melacak)
+          </dt>
           <dd className="mt-1 text-lg font-extrabold tracking-tight text-neutral-900 tabular-nums">
             {orderNumber}
           </dd>
@@ -56,10 +58,7 @@ export function SuccessPanel({
 
       <div className="space-y-2.5 border-t border-neutral-100 px-6 py-6 sm:px-8">
         {paymentUrl && (
-          <a
-            href={paymentUrl}
-            className="bg-primary text-primary-foreground inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition-opacity hover:opacity-90"
-          >
+          <a href={paymentUrl} className="btn btn-primary btn-lg w-full">
             <CreditCard className="size-4 shrink-0" />
             Bayar Sekarang
           </a>
@@ -68,21 +67,16 @@ export function SuccessPanel({
           href={waHref}
           target="_blank"
           rel="noopener noreferrer"
-          className={cn(
-            'inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition-colors',
-            paymentUrl
-              ? 'border border-emerald-600 text-emerald-700 hover:bg-emerald-50'
-              : 'bg-emerald-600 text-white hover:bg-emerald-700',
-          )}
+          className={cn('btn btn-lg w-full', paymentUrl ? 'btn-outline' : 'btn-primary')}
         >
           <MessageCircle className="size-4 shrink-0" />
           Lanjutkan ke WhatsApp Admin
         </a>
         <Link
-          href="/"
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-neutral-200 px-5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
+          href={`/lacak?nomor=${encodeURIComponent(orderNumber)}`}
+          className="btn btn-ghost btn-lg w-full"
         >
-          Kembali ke Beranda
+          Lacak pesanan ini
         </Link>
       </div>
     </div>

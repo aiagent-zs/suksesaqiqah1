@@ -1748,6 +1748,10 @@ export type Database = {
         Args: { p_mode: Database["public"]["Enums"]["distribution_mode"] }
         Returns: Database["public"]["Enums"]["fulfilment_stage"][]
       }
+      get_order_tracking: {
+        Args: { p_order_number: string; p_phone_last4: string }
+        Returns: Json
+      }
       get_public_report: { Args: { p_token: string }; Returns: Json }
       is_catering_order: { Args: { p_order_id: string }; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }

@@ -7,105 +7,97 @@ export function SiteFooter() {
   const year = 2026; // Date.now() tidak tersedia di lingkungan build ini.
 
   return (
-    <footer className="border-t border-neutral-200 bg-neutral-50">
-      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
-          {/* Brand */}
-          <div className="max-w-xs">
+    <footer className="border-line border-t bg-white">
+      <div className="mx-auto max-w-7xl px-4 pt-12 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6">
+        {/* Tiga kelompok, bukan empat kolom template: merek + kontak di kiri
+            karena kontaklah yang paling sering dicari, lalu dua daftar tautan. */}
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr]">
+          <div className="max-w-sm sm:col-span-2 lg:col-span-1">
             <Logo />
-            <p className="mt-4 text-sm leading-6 text-neutral-600">
-              {siteConfig.tagline}. Layanan Aqiqah dan Sedekah Daging yang syar’i, amanah, dan
-              terdokumentasi.
+            <p className="text-ink-muted mt-4 text-sm leading-6">
+              Layanan aqiqah dan katering dari Zakat Sukses. Setiap tahap dicatat, dan Anda menerima
+              laporan pelaksanaannya.
             </p>
-          </div>
-
-          {/* Layanan */}
-          <div>
-            <h3 className="text-sm font-semibold text-neutral-900">Layanan</h3>
-            <ul className="mt-4 space-y-3">
-              {footerNav.layanan.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="hover:text-primary text-sm text-neutral-600 transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
+            <ul className="mt-5 space-y-1">
+              <FooterContact
+                href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin bertanya.')}
+                external
+                icon={<IconWhatsApp className="text-primary size-4 shrink-0" />}
+                label={`WhatsApp ${siteConfig.whatsapp.display}`}
+              />
+              <FooterContact
+                href={siteConfig.instagram.url}
+                external
+                icon={<IconInstagram className="text-primary size-4 shrink-0" />}
+                label={siteConfig.instagram.handle}
+              />
+              <FooterContact
+                href={`mailto:${siteConfig.email}`}
+                icon={<IconMail className="text-primary size-4 shrink-0" />}
+                label={siteConfig.email}
+              />
             </ul>
           </div>
 
-          {/* Bantuan */}
-          <div>
-            <h3 className="text-sm font-semibold text-neutral-900">Bantuan</h3>
-            <ul className="mt-4 space-y-3">
-              {footerNav.bantuan.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="hover:text-primary text-sm text-neutral-600 transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Kontak */}
-          <div>
-            <h3 className="text-sm font-semibold text-neutral-900">Kontak</h3>
-            <ul className="mt-4 space-y-3">
-              <li>
-                <a
-                  href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin bertanya.')}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary inline-flex items-center gap-2 text-sm text-neutral-600 transition-colors"
-                >
-                  <IconWhatsApp className="text-primary h-4 w-4 shrink-0" />
-                  WhatsApp
-                </a>
-              </li>
-              <li>
-                <a
-                  href={siteConfig.instagram.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary inline-flex items-center gap-2 text-sm text-neutral-600 transition-colors"
-                >
-                  <IconInstagram className="text-primary h-4 w-4 shrink-0" />
-                  {siteConfig.instagram.handle}
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`mailto:${siteConfig.email}`}
-                  className="hover:text-primary inline-flex items-center gap-2 text-sm text-neutral-600 transition-colors"
-                >
-                  <IconMail className="text-primary h-4 w-4 shrink-0" />
-                  {siteConfig.email}
-                </a>
-              </li>
-            </ul>
-          </div>
+          <FooterGroup title="Layanan" items={footerNav.layanan} />
+          <FooterGroup title="Bantuan" items={footerNav.bantuan} />
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-neutral-200 pt-6 sm:flex-row">
-          <p className="text-xs text-neutral-500">
-            © {year} {siteConfig.name} — Zakat Sukses. Seluruh hak cipta dilindungi.
-          </p>
-          <div className="flex items-center gap-4">
-            <Link href="/syarat-layanan" className="hover:text-primary text-xs text-neutral-500">
-              Syarat Layanan
-            </Link>
-            <Link href="/kebijakan-privasi" className="hover:text-primary text-xs text-neutral-500">
-              Kebijakan Privasi
-            </Link>
-          </div>
-        </div>
+        <p className="border-line text-ink-muted mt-10 border-t pt-6 text-xs">
+          © {year} {siteConfig.name}, bagian dari Zakat Sukses.
+        </p>
       </div>
     </footer>
+  );
+}
+
+function FooterGroup({
+  title,
+  items,
+}: {
+  title: string;
+  items: readonly { label: string; href: string }[];
+}) {
+  return (
+    <nav aria-label={title}>
+      <h2 className="text-ink text-sm font-semibold">{title}</h2>
+      <ul className="mt-3">
+        {items.map((item) => (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              className="text-ink-muted hover:text-primary flex min-h-11 items-center text-sm"
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+function FooterContact({
+  href,
+  icon,
+  label,
+  external,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  external?: boolean;
+}) {
+  return (
+    <li>
+      <a
+        href={href}
+        {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        className="text-ink-muted hover:text-primary inline-flex min-h-11 items-center gap-2 text-sm break-all"
+      >
+        {icon}
+        {label}
+      </a>
+    </li>
   );
 }

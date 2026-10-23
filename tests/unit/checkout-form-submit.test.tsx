@@ -66,10 +66,17 @@ const PACKAGES: CheckoutPackage[] = [
     slug: 'aqiqah-ekonomi',
     description: null,
     price: 2300000,
+    features: [],
   },
 ];
 const NASI_BOXES: NasiBoxPackage[] = [
-  { id: 'a2000000-0000-4000-8000-000000000011', name: 'Paket A', slug: 'paket-a', price: 21000 },
+  {
+    id: 'a2000000-0000-4000-8000-000000000011',
+    name: 'Paket A',
+    slug: 'paket-a',
+    price: 21000,
+    items: [],
+  },
 ];
 /**
  * Jendela tanggal datang sebagai prop dari server, jadi di sini cukup nilai
@@ -229,11 +236,11 @@ describe('alur empat tahap', () => {
     const text = document.body.textContent ?? '';
 
     expect(text).toContain('Aqiqah untuk siapa');
-    expect(text).toContain('Pilih Paket');
+    expect(text).toContain('Pilih paket');
     expect(text).toContain('Aqiqah Ekonomi');
-    expect(text).toContain('Nasi Box');
+    expect(text).toContain('Tambah nasi box');
     expect(text).toContain('Tidak pakai');
-    expect(text).toContain('Jumlah Ekor');
+    expect(text).toContain('Jumlah ekor');
   });
 
   it('tidak bisa maju sebelum memilih jenis kelamin', () => {
@@ -262,7 +269,7 @@ describe('alur empat tahap', () => {
     // muncul selama belum ada paket box terpilih.
     expect(document.getElementById('co-boxqty')).toBeNull();
     clickText('Lanjut ke');
-    expect(document.body.textContent).toContain('Cara Penyaluran');
+    expect(document.body.textContent).toContain('Dagingnya mau ke mana');
   });
 
   it('memilih paket nasi box menuntut jumlahnya', () => {
@@ -306,12 +313,12 @@ describe('alur empat tahap', () => {
     goToFinalStep();
     const text = document.body.textContent ?? '';
 
-    expect(text).toContain('Rincian Pesanan');
+    expect(text).toContain('Rincian pesanan');
     expect(text).toContain('Anak Laki-laki');
     expect(text).toContain('Fatih');
     expect(text).toContain('Aqiqah Salur');
     expect(text).toContain('Budi Santoso');
-    expect(text).toContain('Total Tagihan');
+    expect(text).toContain('Total tagihan');
     // Kesempatan terakhir mengoreksi data yang akan tercetak di sertifikat.
     expect(text).toContain('Lahir di Bandung');
   });
@@ -333,7 +340,7 @@ describe('alur empat tahap', () => {
     expect(document.body.textContent).toContain('Tempat lahir anak wajib diisi');
     expect(document.body.textContent).toContain('Isi tanggal lahir anak');
     // Masih di tahap 3 — ringkasan belum dirender.
-    expect(document.body.textContent).not.toContain('Rincian Pesanan');
+    expect(document.body.textContent).not.toContain('Rincian pesanan');
   });
 
   it('menolak tanggal lahir di masa depan sekalipun diketik langsung', () => {

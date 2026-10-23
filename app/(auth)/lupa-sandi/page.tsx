@@ -4,7 +4,7 @@ import { AuthShell } from '../auth-shell';
 import { ForgotPasswordForm } from './forgot-password-form';
 
 export const metadata = {
-  title: 'Lupa Kata Sandi — Sukses Aqiqah Command',
+  title: 'Lupa Kata Sandi',
   description: 'Minta tautan untuk mengatur ulang kata sandi akun Sukses Aqiqah Command Center',
 };
 

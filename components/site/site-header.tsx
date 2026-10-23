@@ -2,28 +2,25 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { primaryNav, siteConfig } from '@/lib/constants/site';
 import { IconClose, IconMenu, IconWhatsApp } from './icons';
 import { Logo } from './logo';
 
+const WA_MESSAGE = 'Halo Sukses Aqiqah, saya ingin konsultasi soal paket aqiqah.';
+
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [activeHash, setActiveHash] = useState('');
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
 
   /**
    * Seluruh menu utama menunjuk section di landing (`#layanan`, `#paket`, …).
-   *
-   * Header ini juga dipakai di `/checkout`, dan di sana section itu tidak ada
-   * sama sekali — jadi `href="#layanan"` tidak menuju ke mana pun: menunya
-   * **mati total**, dan pengunjung yang sudah masuk halaman checkout tidak
-   * punya jalan kembali ke bagian mana pun di landing selain lewat logo.
-   *
-   * Karena itu anchor-nya diberi awalan path saat kita sedang di luar landing,
-   * sehingga jadi tautan lintas-halaman (`/#layanan`) yang membuka landing lalu
-   * menggulir ke seksinya. Di landing sendiri anchor dibiarkan polos supaya
-   * peramban menggulir mulus tanpa memuat ulang halaman.
+   * Di luar landing section itu tidak ada, jadi anchor-nya diberi awalan path
+   * (`/#layanan`) supaya tetap membawa ke tempatnya. Di landing dibiarkan polos
+   * supaya peramban menggulir tanpa memuat ulang halaman.
    */
   const isLanding = pathname === '/';
   const navHref = (hash: string) => (isLanding ? hash : `/${hash}`);
@@ -35,39 +32,54 @@ export function SiteHeader() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Kunci scroll body saat menu mobile terbuka.
+  // Penanda menu aktif: section yang sedang menempati bagian atas layar.
   useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : '';
+    if (!isLanding) return;
+    const sections = primaryNav
+      .map((n) => document.querySelector<HTMLElement>(n.href))
+      .filter((el): el is HTMLElement => el !== null);
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setActiveHash(`#${e.target.id}`);
+      },
+      { rootMargin: '-30% 0px -60% 0px' },
+    );
+    sections.forEach((s) => io.observe(s));
+    return () => io.disconnect();
+  }, [isLanding]);
+
+  // Menu mobile: kunci gulir body, tutup dengan Escape, kembalikan fokus ke
+  // tombol pembukanya supaya pengguna keyboard tidak kehilangan posisi.
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
     };
   }, [open]);
 
   /**
-   * Tutup menu, lalu biarkan peramban menggulir ke anchor-nya.
+   * Tutup menu, lalu gulir ke anchor-nya pada frame berikutnya.
    *
-   * Menekan "Paket" di menu mobile memanggil `setOpen(false)` **sekaligus**
-   * melepas navigasi `#paket`. Kunci `overflow: hidden` di atas baru terlepas
-   * setelah React selesai me-render, sementara peramban sudah mencoba menggulir
-   * lebih dulu — dan menggulir di dalam `body` yang masih terkunci tidak
-   * menghasilkan apa-apa. Menunya terasa mati padahal tautannya benar.
-   *
-   * Jadi navigasi bawaannya dicegah, menu ditutup, lalu penggulirannya
-   * dikerjakan sendiri pada frame berikutnya — saat kuncinya sudah lepas.
-   * `history.pushState` dipakai agar alamatnya tetap membawa hash, sehingga
-   * tautannya masih bisa disalin dan dibagikan.
+   * Kunci `overflow: hidden` baru terlepas setelah React selesai me-render,
+   * sementara peramban sudah mencoba menggulir lebih dulu, dan menggulir di
+   * `body` yang masih terkunci tidak menghasilkan apa-apa.
    */
   const handleMobileNavClick = (hash: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
-    // Di luar landing tautannya lintas-halaman (`/#paket`) — biarkan Next
-    // yang menanganinya seperti biasa.
     if (!isLanding) {
       setOpen(false);
       return;
     }
-
     const target = document.querySelector(hash);
-    if (!target) return; // Section tak ditemukan: jangan cegah apa pun.
-
+    if (!target) return;
     e.preventDefault();
     setOpen(false);
     requestAnimationFrame(() => {
@@ -76,116 +88,108 @@ export function SiteHeader() {
     });
   };
 
+  const linkState = (href: string) =>
+    isLanding && activeHash === href ? 'text-primary' : 'text-ink-muted hover:text-ink';
+
   return (
-    // Latar solid dan garis bawah yang selalu ada. Versi sebelumnya memakai
-    // `bg-white/70` tanpa border, sehingga header melebur ke hero yang sama
-    // terangnya — batas antara navigasi dan konten jadi tidak terbaca. Yang
-    // berubah saat scroll hanya kedalaman bayangannya, bukan ada/tidaknya batas.
     <header
-      className={`sticky top-0 z-50 w-full border-b bg-white transition-shadow duration-300 ${
-        scrolled ? 'border-neutral-200 shadow-sm' : 'border-neutral-100'
+      className={`sticky top-0 z-50 w-full border-b bg-white transition-shadow duration-150 ${
+        scrolled ? 'border-line shadow-sm' : 'border-transparent'
       }`}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="shrink-0" onClick={() => setOpen(false)}>
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+        <Link href="/" className="shrink-0 rounded" onClick={() => setOpen(false)}>
           <Logo />
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav aria-label="Menu utama" className="hidden items-center gap-1 lg:flex">
           {primaryNav.map((item) => (
             <a
               key={item.href}
               href={navHref(item.href)}
-              className="hover:text-primary inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-neutral-600 transition-colors"
+              aria-current={isLanding && activeHash === item.href ? 'true' : undefined}
+              className={`inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors duration-150 ${linkState(item.href)}`}
             >
               {item.label}
             </a>
           ))}
+          <Link
+            href="/lacak"
+            aria-current={pathname === '/lacak' ? 'page' : undefined}
+            className={`inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors duration-150 ${
+              pathname === '/lacak' ? 'text-primary' : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            Lacak pesanan
+          </Link>
         </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
-          {/* <Link
-            href="/login"
-            className="hover:text-primary inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-          >
-            Masuk
-          </Link> */}
-          {/* Pemesanan mandiri berdampingan dengan WhatsApp, bukan
-              menggantikannya — memilih kanal pemesanan adalah keputusan bisnis. */}
+        <div className="hidden items-center gap-2 lg:flex">
           <a
-            href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin memesan layanan.')}
+            href={siteConfig.whatsapp.href(WA_MESSAGE)}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-primary inline-flex items-center gap-2 text-sm font-medium text-neutral-600 transition-colors"
+            className="btn btn-ghost"
           >
-            <IconWhatsApp className="h-4 w-4" />
+            <IconWhatsApp className="size-4" />
             WhatsApp
           </a>
-          {/* Satu tombol utama saja. Sebelumnya ada dua tombol berdampingan —
-              "Pesan Online" dan "Pesan Sekarang" — yang menyulitkan pengunjung
-              menebak bedanya. WhatsApp turun jadi tautan biasa. */}
-          <Link
-            href="/checkout"
-            className="bg-primary hover:bg-primary-dark inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold text-white shadow-sm transition-all hover:shadow active:scale-[0.98]"
-          >
-            Pesan Online
+          <Link href="/paket" className="btn btn-primary">
+            Lihat paket aqiqah
           </Link>
         </div>
 
-        {/* 44×44px — ambang target sentuh yang nyaman di ponsel
-            (`design.md §9`: "target sentuh besar"). */}
         <button
+          ref={toggleRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-neutral-700 transition-colors hover:bg-neutral-100 active:bg-neutral-200 md:hidden"
+          className="text-ink hover:bg-surface-muted inline-flex size-11 items-center justify-center rounded-lg lg:hidden"
           aria-label={open ? 'Tutup menu' : 'Buka menu'}
           aria-expanded={open}
+          aria-controls="mobile-menu"
         >
-          {open ? <IconClose className="h-6 w-6" /> : <IconMenu className="h-6 w-6" />}
+          {open ? <IconClose className="size-6" /> : <IconMenu className="size-6" />}
         </button>
       </div>
 
-      {/* Menu mobile — memudar & turun sedikit saat dibuka. 320ms: cukup untuk
-          terbaca sebagai "panel ini datang dari header" dan selaras dengan
-          gerakan lain di halaman, tanpa menahan pengunjung yang sudah tahu mau
-          ke mana. Panel yang dibuka atas permintaan pengguna memang wajar lebih
-          singkat daripada reveal yang muncul sendiri saat digulir. */}
       {open && (
-        <div className="animate-in fade-in slide-in-from-top-2 border-t border-neutral-200 bg-white duration-[320ms] ease-out md:hidden">
-          <nav className="mx-auto flex max-w-6xl flex-col px-4 py-3 sm:px-6">
+        <div
+          id="mobile-menu"
+          className="animate-in fade-in slide-in-from-top-2 border-line max-h-[calc(100dvh-4rem)] overflow-y-auto border-t bg-white pb-[env(safe-area-inset-bottom)] duration-300 ease-out lg:hidden"
+        >
+          <nav
+            aria-label="Menu utama"
+            className="mx-auto flex max-w-7xl flex-col px-4 py-3 sm:px-6"
+          >
             {primaryNav.map((item) => (
               <a
                 key={item.href}
                 href={navHref(item.href)}
                 onClick={handleMobileNavClick(item.href)}
-                className="hover:text-primary rounded-lg px-2 py-3.5 text-base font-medium text-neutral-700 transition-colors hover:bg-neutral-50 active:bg-neutral-100"
+                className="text-ink hover:bg-surface-muted flex min-h-12 items-center rounded-lg px-2 text-base font-medium"
               >
                 {item.label}
               </a>
             ))}
-            <div className="mt-3 flex flex-col gap-2 border-t border-neutral-100 pt-3">
-              {/* <Link
-                href="/login"
-                onClick={() => setOpen(false)}
-                className="flex min-h-11 items-center justify-center rounded-lg border border-neutral-200 px-4 text-center text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 active:bg-neutral-100"
-              >
-                Masuk
-              </Link> */}
-              <Link
-                href="/checkout"
-                onClick={() => setOpen(false)}
-                className="bg-primary rounded-lg px-4 py-3 text-center text-sm font-semibold text-white"
-              >
-                Pesan Online
+            <Link
+              href="/lacak"
+              onClick={() => setOpen(false)}
+              className="text-ink hover:bg-surface-muted flex min-h-12 items-center rounded-lg px-2 text-base font-medium"
+            >
+              Lacak pesanan
+            </Link>
+            <div className="border-line mt-3 flex flex-col gap-2 border-t pt-3">
+              <Link href="/paket" onClick={() => setOpen(false)} className="btn btn-primary btn-lg">
+                Lihat paket aqiqah
               </Link>
               <a
-                href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin memesan layanan.')}
+                href={siteConfig.whatsapp.href(WA_MESSAGE)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 px-4 py-3 text-sm font-semibold text-neutral-800"
+                className="btn btn-outline btn-lg"
               >
-                <IconWhatsApp className="h-4 w-4" />
-                Tanya via WhatsApp
+                <IconWhatsApp className="size-4" />
+                Konsultasi WhatsApp
               </a>
             </div>
           </nav>

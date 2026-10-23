@@ -12,7 +12,7 @@ import { formatCurrency } from '@/lib/format';
 
 type Params = Promise<{ id: string }>;
 
-export const metadata = { title: 'Detail Paket — Sukses Aqiqah' };
+export const metadata = { title: 'Detail Paket' };
 
 /**
  * Detail satu paket katalog — berhenti di superadmin, sama seperti daftarnya.

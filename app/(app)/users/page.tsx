@@ -4,7 +4,7 @@ import { canDo } from '@/server/auth/capabilities';
 import { getVendorOptions, listUsers } from '@/features/users/queries';
 import { UserManager } from '@/features/users/components/user-manager';
 
-export const metadata = { title: 'Pengguna — Sukses Aqiqah' };
+export const metadata = { title: 'Pengguna' };
 
 /**
  * Pengelolaan akun — berhenti di superadmin.

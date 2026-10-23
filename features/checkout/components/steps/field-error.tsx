@@ -20,9 +20,9 @@ export function FieldError({ id, message }: { id?: string; message: string }) {
     <p
       id={id}
       role="alert"
-      className="animate-in fade-in slide-in-from-top-1 mt-1.5 flex items-start gap-1.5 text-xs font-medium text-red-600 duration-200"
+      className="animate-in fade-in slide-in-from-top-1 text-danger mt-1.5 flex items-start gap-1.5 text-sm font-medium duration-150"
     >
-      <AlertCircle className="mt-px size-3.5 shrink-0" />
+      <AlertCircle className="mt-0.5 size-4 shrink-0" />
       <span>{message}</span>
     </p>
   );

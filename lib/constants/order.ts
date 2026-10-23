@@ -61,8 +61,8 @@ export const AQIQAH_FOR_LABEL: Record<string, string> = {
 };
 
 export const DISTRIBUTION_MODE_LABEL: Record<string, string> = {
-  salur: 'Aqiqah Salur — disalurkan ke penerima manfaat',
-  kirim: 'Aqiqah Kirim — diantar ke alamat pemesan',
+  salur: 'Aqiqah Salur (disalurkan ke penerima manfaat)',
+  kirim: 'Aqiqah Kirim (diantar ke alamat pemesan)',
 };
 
 export const PAYMENT_STATUS_META: Record<PaymentStatus, StatusMeta> = {

@@ -13,7 +13,7 @@ interface LoginPageProps {
 }
 
 export const metadata = {
-  title: 'Login — Sukses Aqiqah Command',
+  title: 'Login',
   description: 'Halaman login sistem manajemen Sukses Aqiqah Command Center',
 };
 

@@ -19,7 +19,7 @@ import { DISTRIBUTION_MODE_LABEL } from '@/features/stages/sequence';
 
 type Params = Promise<{ id: string }>;
 
-export const metadata = { title: 'Detail Mitra — Sukses Aqiqah' };
+export const metadata = { title: 'Detail Mitra' };
 
 /**
  * Detail satu mitra — berhenti di superadmin, sama seperti daftarnya.

@@ -4,7 +4,7 @@ import { requireRole } from '@/server/auth/session';
 import { getOrderFormOptions } from '@/features/orders/queries';
 import { OrderForm } from '@/features/orders/components/order-form';
 
-export const metadata = { title: 'Order Baru — Sukses Aqiqah' };
+export const metadata = { title: 'Order Baru' };
 
 export default async function NewOrderPage() {
   // Membuat order adalah pekerjaan sisi kami, bukan vendor.

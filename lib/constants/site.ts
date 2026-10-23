@@ -33,7 +33,7 @@ export const siteConfig = {
    */
   description:
     'Layanan Aqiqah dan Sedekah Daging yang syar’i, amanah, dan terdokumentasi. ' +
-    'Pantau setiap tahap secara real-time dan terima laporan transparan tanpa perlu bertanya.',
+    'Lacak setiap tahap pesanan Anda dan terima laporan pelaksanaan berisi foto.',
   url: appUrl(),
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'halo@zakatsukses.org',
   instagram: {
@@ -65,17 +65,22 @@ export const primaryNav = [
   { label: 'FAQ', href: '#faq' },
 ] as const;
 
-/** Menu footer sesuai 27_PAGE_MENU. */
+/**
+ * Menu footer. Hanya tujuan yang benar-benar ada: `/proses`, `/galeri`, `/faq`
+ * dulu tercantum sebagai halaman padahal hanya section di landing (404), dan
+ * Syarat Layanan / Kebijakan Privasi dicabut sampai teks resminya tersedia.
+ */
 export const footerNav = {
   layanan: [
-    { label: 'Proses', href: '/proses' },
-    { label: 'Paket', href: '/paket' },
-    { label: 'Galeri', href: '/galeri' },
+    { label: 'Semua paket', href: '/paket' },
+    { label: 'Pesan aqiqah', href: '/checkout' },
+    { label: 'Pesan katering', href: '/checkout/katering' },
+    { label: 'Proses layanan', href: '/#proses' },
   ],
   bantuan: [
-    { label: 'FAQ', href: '/faq' },
-    { label: 'Syarat Layanan', href: '/syarat-layanan' },
-    { label: 'Kebijakan Privasi', href: '/kebijakan-privasi' },
+    { label: 'Lacak pesanan', href: '/lacak' },
+    { label: 'Galeri dokumentasi', href: '/#galeri' },
+    { label: 'Pertanyaan umum', href: '/#faq' },
   ],
 } as const;
 
@@ -105,7 +110,7 @@ export const services = [
     icon: 'aqiqah',
     title: 'Nasi Box Aqiqah',
     description:
-      'Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji — dipesan bersama paket aqiqah Anda lewat tim kami.',
+      'Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji, dipesan bersama paket aqiqah Anda lewat tim kami.',
   },
 ] as const;
 
@@ -128,10 +133,12 @@ export const services = [
 export const landingPhotos = {
   /** Foto utama di hero. Lanskap; wajah/objek penting jangan di tepi bawah. */
   hero: {
-    src: 'images/landing/goat.webp',
+    src: 'images/landing/hero.webp',
     alt: 'Tim Sukses Aqiqah menyiapkan pesanan aqiqah',
+    // Rasio berkas aslinya 3:2 (5558×3705). Wadah hero mengikuti angka ini,
+    // jadi foto lain dengan rasio berbeda akan terpotong.
     width: 1200,
-    height: 900,
+    height: 800,
   },
   /**
    * Galeri dokumentasi — enam foto berurutan mengikuti tahapan sungguhan di
@@ -167,7 +174,7 @@ export const landingPhotos = {
     {
       src: 'images/landing/dok_akhir.webp',
       alt: 'Penyaluran daging aqiqah kepada penerima manfaat',
-      caption: 'Proses penyaluran & Pengriman Sesuai Pesanan',
+      caption: 'Penyaluran & pengiriman sesuai pesanan',
     },
   ],
 } as const;
@@ -233,9 +240,9 @@ export const features = [
   },
   {
     icon: 'activity',
-    title: 'Pantau Real-time',
+    title: 'Pantau Sendiri',
     description:
-      'Lihat progres setiap tahap order Anda tanpa perlu menelepon atau menunggu balasan chat.',
+      'Buka halaman Lacak Pesanan dengan nomor pesanan Anda untuk melihat tahap yang sedang berjalan, tanpa menunggu balasan chat.',
   },
   {
     icon: 'camera',
@@ -247,7 +254,7 @@ export const features = [
     icon: 'file',
     title: 'Laporan Transparan',
     description:
-      'Laporan pelaksanaan lengkap dikirim otomatis via link unik — cukup dibuka tanpa login.',
+      'Laporan pelaksanaan lengkap dikirim otomatis via link unik dan cukup dibuka tanpa login.',
   },
   {
     icon: 'clock',
@@ -263,17 +270,41 @@ export const features = [
   },
 ] as const;
 
+/**
+ * Testimoni pemesan. **Isi hanya dengan ulasan asli** yang sudah diizinkan
+ * pemiliknya untuk ditampilkan. Selama daftar ini kosong, section testimoni
+ * di landing tidak dirender sama sekali.
+ *
+ * `name`: nama atau inisial sesuai izin pemesan, misalnya "Ibu R." atau "Budi S."
+ * `city`: kota pemesan (opsional).
+ * `service`: layanan yang dipesan, misalnya "Aqiqah Kirim, 2 ekor" (opsional).
+ * `quote`: isi ulasan, apa adanya. 1 sampai 3 kalimat paling enak dibaca.
+ */
+export const testimonials: readonly {
+  name: string;
+  city?: string;
+  service?: string;
+  quote: string;
+}[] = [
+  // { name: 'Ibu R.', city: 'Bandung', service: 'Aqiqah Kirim, 1 ekor', quote: '...' },
+];
+
 /** FAQ (juga dipakai untuk FAQPage JSON-LD / GEO — 27_PAGE_MENU). */
 export const faqs = [
   {
     question: 'Apa itu Sukses Aqiqah?',
     answer:
-      'Sukses Aqiqah adalah layanan Aqiqah dan Sedekah Daging dari Zakat Sukses yang mengedepankan proses syar’i, amanah, dan terdokumentasi lengkap — sehingga Anda dapat memantau ibadah dan menerima laporan yang transparan.',
+      'Sukses Aqiqah adalah layanan Aqiqah dan Sedekah Daging dari Zakat Sukses yang mengedepankan proses syar’i, amanah, dan terdokumentasi lengkap, sehingga Anda dapat memantau ibadah dan menerima laporan yang transparan.',
   },
   {
     question: 'Bagaimana cara memesan?',
     answer:
-      'Cukup hubungi kami melalui WhatsApp atau lakukan pemesanan di website. Pilih paket yang sesuai, lakukan pembayaran, lalu tim kami akan menjadwalkan pelaksanaan dan memberi kabar setiap tahapnya.',
+      'Pilih paket di halaman Paket lalu isi form pemesanan, atau hubungi kami lewat WhatsApp. Setelah pesanan masuk, Anda menerima nomor pesanan untuk membayar dan melacak setiap tahapnya.',
+  },
+  {
+    question: 'Bagaimana cara melihat sampai mana pesanan saya?',
+    answer:
+      'Buka halaman Lacak Pesanan, lalu masukkan nomor pesanan dan 4 digit terakhir nomor HP yang Anda pakai saat memesan. Di sana terlihat tahap yang sudah selesai dan yang sedang berjalan.',
   },
   {
     question: 'Apakah hewan dijamin sehat dan sesuai syariat?',

@@ -20,7 +20,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/server/auth/session';
 
-export const metadata = { title: 'Dashboard — Sukses Aqiqah Command' };
+export const metadata = { title: 'Dashboard' };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
