@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { addCalendarDays, todayWib } from '@/lib/format/date-range';
+import { OUT_OF_AREA_MESSAGE, isInServiceArea } from './service-area';
 
 const uuid = z.string().uuid('Pilihan tidak valid');
 
@@ -291,6 +292,14 @@ export const guestCheckoutSchema = z
 
       for (const [path, value, message] of wilayah) {
         if (!value) ctx.addIssue({ code: 'custom', path: [path], message });
+      }
+
+      if (v.delivery_city_code && !isInServiceArea(v.delivery_city_code)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['delivery_city_code'],
+          message: OUT_OF_AREA_MESSAGE,
+        });
       }
 
       if (!v.delivery_detail?.trim()) {
