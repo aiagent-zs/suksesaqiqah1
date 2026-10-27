@@ -1,6 +1,7 @@
 import { SiteFooter } from '@/components/site/site-footer';
 import { SiteHeader } from '@/components/site/site-header';
 import { getBrand } from '@/lib/brand-server';
+import { ChatWidget } from '@/components/site/chat-widget';
 
 // ponytail: membaca cookie kanal membuat halaman publik dirender per permintaan
 // (sebelumnya statis). Kalau beban Supabase terasa, cache `getLandingCatalogue`.
@@ -25,6 +26,7 @@ export default async function SiteLayout({ children }: LayoutProps<'/'>) {
       <SiteHeader brand={brand} />
       <main className="flex-1">{children}</main>
       <SiteFooter />
+      {process.env.NEXT_PUBLIC_CHATBOT_ENABLED !== 'false' && <ChatWidget brandName={brand.name} />}
     </>
   );
 }
