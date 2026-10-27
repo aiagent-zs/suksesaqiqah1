@@ -1,6 +1,22 @@
 import type { NextConfig } from 'next';
+import { readdirSync } from 'node:fs';
+import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
+
+/**
+ * Daftar foto di `public/images`, dibaca **saat build** (di sini masih Node).
+ *
+ * `SitePhoto` memakainya untuk memutuskan foto atau placeholder. Dulu ia
+ * memanggil `existsSync` saat render, dan itu tidak jalan di Cloudflare
+ * Workers: berkas `public/` di sana aset statis, bukan filesystem.
+ */
+const repoImages = readdirSync('public/images', { recursive: true, withFileTypes: true })
+  .filter((e) => e.isFile())
+  // `parentPath` memakai `\` di Windows; SitePhoto selalu memakai `/`.
+  .map((e) => `${e.parentPath.split('\\').join('/').replace(/^public\//, '')}/${e.name}`);
 
 const nextConfig: NextConfig = {
+  env: { REPO_IMAGES: JSON.stringify(repoImages) },
+
   /**
    * React PDF membawa dependensi non-JS (fontkit, parser biner) yang rusak bila
    * ikut dibundel Next. Dibiarkan sebagai paket eksternal supaya di-resolve
@@ -47,3 +63,6 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+// Binding Cloudflare (env, aset) tersedia saat `next dev`. Tidak berpengaruh di Vercel.
+initOpenNextCloudflareForDev();

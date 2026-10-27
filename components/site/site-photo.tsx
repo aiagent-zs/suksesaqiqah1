@@ -1,6 +1,4 @@
 import Image from 'next/image';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 
 /**
  * Foto landing yang **belum tentu ada berkasnya**.
@@ -10,11 +8,10 @@ import { join } from 'node:path';
  * Keduanya sengaja dihindari: gambar rusak membuat halaman tampak salah, sedang
  * ruang kosong menyembunyikan slot yang justru perlu diingat untuk diisi.
  *
- * Keberadaan berkas diperiksa di **server**, saat render. Ini komponen server
- * (tanpa `'use client'`), jadi `existsSync` aman di sini dan tidak pernah ikut
- * ke peramban. Konsekuensinya: menambahkan foto baru menuntut halaman dirender
- * ulang — di `next dev` itu terjadi sendiri, sedangkan di produksi berkasnya
- * memang sudah ikut saat build.
+ * Keberadaan berkas dicocokkan dengan daftar `public/images` yang dibaca
+ * `next.config.ts` saat build (`REPO_IMAGES`), bukan dengan filesystem saat
+ * render: di Cloudflare Workers `public/` bukan filesystem. Konsekuensinya:
+ * foto baru baru dikenali setelah build ulang (atau restart `next dev`).
  *
  * Dipakai `next/image` — berbeda dengan galeri bukti di `/r/{token}` yang
  * sengaja memakai `<img>` polos. Alasannya berkebalikan: foto pemasaran justru
@@ -24,7 +21,7 @@ import { join } from 'node:path';
  * ## Dua sumber foto
  *
  * `src` yang diawali `images/` adalah berkas di `public/` — bawaan repo, ikut
- * saat build, keberadaannya diperiksa `existsSync`. Selain itu ia object path
+ * saat build, keberadaannya dicocokkan dengan `REPO_IMAGES`. Selain itu ia object path
  * di bucket `public-assets`, diunggah superadmin lewat `/vendors`.
  *
  * Bucket itu **publik** (`storage_public_assets_read` membuka `select` untuk
@@ -78,16 +75,10 @@ function storageUrl(path: string): string | null {
   return `${base.replace(/\/$/, '')}/storage/v1/object/public/public-assets/${path}`;
 }
 
+const repoImages = new Set<string>(JSON.parse(process.env.REPO_IMAGES ?? '[]'));
+
 function photoExists(src: string): boolean {
-  // Path dari pemanggil, bukan dari input pengguna — tapi tetap ditolak kalau
-  // mencoba keluar dari `public/`, supaya komponen ini tidak bisa dipakai
-  // mengintip berkas lain seandainya suatu saat sumbernya jadi dinamis.
-  if (src.includes('..')) return false;
-  try {
-    return existsSync(join(process.cwd(), 'public', src));
-  } catch {
-    return false;
-  }
+  return repoImages.has(src);
 }
 
 export function SitePhoto({ src, alt, width, height, className, priority, sizes }: SitePhotoProps) {

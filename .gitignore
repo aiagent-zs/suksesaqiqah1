@@ -54,3 +54,8 @@ graphify-out/
 anti-slop
 .vercel
 .env*
+
+# Cloudflare (OpenNext / wrangler)
+.open-next
+.wrangler
+.dev.vars
