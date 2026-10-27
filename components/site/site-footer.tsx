@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { getBrand } from '@/lib/brand-server';
 import { footerNav, siteConfig } from '@/lib/constants/site';
 import { IconInstagram, IconMail, IconWhatsApp } from './icons';
 import { Logo } from './logo';
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const brand = await getBrand();
   const year = 2026; // Date.now() tidak tersedia di lingkungan build ini.
 
   return (
@@ -13,14 +15,14 @@ export function SiteFooter() {
             karena kontaklah yang paling sering dicari, lalu dua daftar tautan. */}
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr]">
           <div className="max-w-sm sm:col-span-2 lg:col-span-1">
-            <Logo />
+            <Logo brand={brand} />
             <p className="text-ink-muted mt-4 text-sm leading-6">
               Layanan aqiqah dan katering dari Zakat Sukses. Setiap tahap dicatat, dan Anda menerima
               laporan pelaksanaannya.
             </p>
             <ul className="mt-5 space-y-1">
               <FooterContact
-                href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin bertanya.')}
+                href={siteConfig.whatsapp.href(`Halo ${brand.name}, saya ingin bertanya.`)}
                 external
                 icon={<IconWhatsApp className="text-primary size-4 shrink-0" />}
                 label={`WhatsApp ${siteConfig.whatsapp.display}`}
@@ -44,7 +46,7 @@ export function SiteFooter() {
         </div>
 
         <p className="border-line text-ink-muted mt-10 border-t pt-6 text-xs">
-          © {year} {siteConfig.name}, bagian dari Zakat Sukses.
+          © {year} {brand.name}, bagian dari Zakat Sukses.
         </p>
       </div>
     </footer>

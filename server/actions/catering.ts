@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { getChannel } from '@/lib/brand-server';
 import { cateringCheckoutSchema } from '@/features/catering/schema';
 import type { CateringOrderResult } from '@/features/catering/queries';
 import { createPaymentLink } from '@/features/payments/durianpay';
@@ -73,33 +74,36 @@ export async function createCateringOrderAction(
   const data = parsed.data;
   const supabase = await createClient();
 
-  const { data: result, error } = await supabase.rpc('create_catering_order', {
-    p_payload: {
-      participant: {
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        address: data.address || null,
+  const { data: result, error } = await supabase
+    .rpc('create_catering_order', {
+      p_payload: {
+        participant: {
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          address: data.address || null,
+        },
+        // Beberapa paket sekaligus. Hanya id & jumlahnya — harga tiap baris
+        // dibaca ulang RPC dari `services`.
+        items: data.items.map((i) => ({ service_id: i.service_id, qty: i.qty })),
+        requested_date: data.requested_date,
+        requested_time: data.requested_time,
+        // `distribution_mode` sengaja tidak dikirim: katering selalu `kirim`, dan
+        // RPC menetapkannya sendiri. Menerimanya dari klien berarti membuka mode
+        // `salur` untuk pesanan yang memang harus diantar.
+        delivery_province_code: data.delivery_province_code,
+        delivery_city_code: data.delivery_city_code,
+        delivery_district_code: data.delivery_district_code,
+        delivery_village_code: data.delivery_village_code,
+        delivery_postal_code: data.delivery_postal_code,
+        delivery_detail: data.delivery_detail,
+        recipient_institution: data.recipient_institution || null,
+        referral_code: data.referral_code || null,
+        notes: data.notes || null,
       },
-      // Beberapa paket sekaligus. Hanya id & jumlahnya — harga tiap baris
-      // dibaca ulang RPC dari `services`.
-      items: data.items.map((i) => ({ service_id: i.service_id, qty: i.qty })),
-      requested_date: data.requested_date,
-      requested_time: data.requested_time,
-      // `distribution_mode` sengaja tidak dikirim: katering selalu `kirim`, dan
-      // RPC menetapkannya sendiri. Menerimanya dari klien berarti membuka mode
-      // `salur` untuk pesanan yang memang harus diantar.
-      delivery_province_code: data.delivery_province_code,
-      delivery_city_code: data.delivery_city_code,
-      delivery_district_code: data.delivery_district_code,
-      delivery_village_code: data.delivery_village_code,
-      delivery_postal_code: data.delivery_postal_code,
-      delivery_detail: data.delivery_detail,
-      recipient_institution: data.recipient_institution || null,
-      referral_code: data.referral_code || null,
-      notes: data.notes || null,
-    },
-  });
+    })
+    // Kanal masuk → `orders.channel` lewat trigger `set_order_channel`.
+    .setHeader('x-order-channel', await getChannel());
 
   if (error) {
     if (EXPECTED_REJECTIONS.has(error.code ?? '')) {

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { siteConfig } from '@/lib/constants/site';
+import { getBrand } from '@/lib/brand-server';
 import './globals.css';
 
 // Empat bobot (400 teks, 500 label, 600/700 judul & tombol): tiap bobot satu berkas.
@@ -11,49 +12,56 @@ const jakarta = Plus_Jakarta_Sans({
   variable: '--font-jakarta',
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
-  icons: {
-    icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
-      { url: '/images/icon.webp', type: 'image/webp' },
-    ],
-    shortcut: '/icon.svg',
-    apple: '/images/logo_sukses_aqiqah_icon.webp',
-  },
+/**
+ * Nama merek ikut kanal masuk (`lib/brand.ts`): judul tab di mini app LinkAja
+ * berbunyi "Aqiqah Aja", di web biasa "Sukses Aqiqah".
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { name } = await getBrand();
+  return {
+    metadataBase: new URL(siteConfig.url),
+    icons: {
+      icon: [
+        { url: '/icon.svg', type: 'image/svg+xml' },
+        { url: '/images/icon.webp', type: 'image/webp' },
+      ],
+      shortcut: '/icon.svg',
+      apple: '/images/logo_sukses_aqiqah_icon.webp',
+    },
 
-  title: {
-    default: `${siteConfig.name}: ${siteConfig.tagline}`,
-    template: `%s | ${siteConfig.name}`,
-  },
-  description: siteConfig.description,
-  keywords: [
-    'aqiqah',
-    'aqiqah anak',
-    'sedekah daging',
-    'aqiqah syar’i',
-    'jasa aqiqah',
-    'Zakat Sukses',
-    'Sukses Aqiqah',
-  ],
-  applicationName: siteConfig.name,
-  openGraph: {
-    type: 'website',
-    locale: 'id_ID',
-    url: siteConfig.url,
-    siteName: siteConfig.name,
-    title: `${siteConfig.name}: ${siteConfig.tagline}`,
+    title: {
+      default: `${name}: ${siteConfig.tagline}`,
+      template: `%s | ${name}`,
+    },
     description: siteConfig.description,
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: `${siteConfig.name}: ${siteConfig.tagline}`,
-    description: siteConfig.description,
-  },
-  alternates: {
-    canonical: '/',
-  },
-};
+    keywords: [
+      'aqiqah',
+      'aqiqah anak',
+      'sedekah daging',
+      'aqiqah syar’i',
+      'jasa aqiqah',
+      'Zakat Sukses',
+      'Sukses Aqiqah',
+    ],
+    applicationName: name,
+    openGraph: {
+      type: 'website',
+      locale: 'id_ID',
+      url: siteConfig.url,
+      siteName: name,
+      title: `${name}: ${siteConfig.tagline}`,
+      description: siteConfig.description,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${name}: ${siteConfig.tagline}`,
+      description: siteConfig.description,
+    },
+    alternates: {
+      canonical: '/',
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#16624f',

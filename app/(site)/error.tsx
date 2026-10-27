@@ -21,7 +21,7 @@ export default function SiteError({ error, retry }: { error: unknown; retry: () 
           Coba lagi
         </button>
         <a
-          href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, halaman web gagal dimuat.')}
+          href={siteConfig.whatsapp.href('Halo admin, halaman web gagal dimuat.')}
           target="_blank"
           rel="noopener noreferrer"
           className="btn btn-outline btn-lg"

@@ -178,8 +178,7 @@ describe('katering di landing', () => {
   it('halaman depan menerima & merender daftarnya', () => {
     // Halaman depan memuat katalog lalu menyerahkan normalisasi + render kartu
     // ke helper bersama.
-    expect(page).toContain('buildPackageTabs(catalogue, 3)');
-    expect(page).toContain('<PackageFilter tabs={buildPackageTabs(catalogue, 3)}');
+    expect(page).toContain('tabs={buildPackageTabs(catalogue, 3,');
     // Katering dinormalkan jadi kartu, lalu masuk kisi yang sama dengan aqiqah.
     expect(cards).toContain('cateringCards');
     expect(cards).toContain('catering.map');
@@ -224,7 +223,7 @@ describe('katering di landing', () => {
 
     // Dan ia muncul di kedua tab yang memuat aqiqah: pengunjung yang berhenti
     // di tab bawaan harus tetap tahu tambahan ini ada.
-    const noteUses = cards.match(/<NasiBoxNote boxes=\{boxes\} \/>/g) ?? [];
+    const noteUses = cards.match(/<NasiBoxNote boxes=\{boxes\} brandName=\{brandName\} \/>/g) ?? [];
     expect(noteUses.length).toBe(2);
   });
 

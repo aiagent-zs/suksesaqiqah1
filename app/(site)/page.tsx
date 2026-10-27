@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { getBrand } from '@/lib/brand-server';
+import type { Brand } from '@/lib/brand';
 import {
   faqs,
   features,
@@ -16,15 +18,16 @@ import { SitePhoto } from '@/components/site/site-photo';
 import { Reveal } from '@/components/site/reveal';
 import { PackageFilter } from '@/components/site/package-filter';
 
-export const metadata: Metadata = {
-  // `absolute`: judul ini sudah memuat nama situs, jadi `title.template` di
-  // root layout tidak boleh menempelkannya sekali lagi.
-  title: { absolute: `${siteConfig.name}: ${siteConfig.tagline}` },
-  description: siteConfig.description,
-  alternates: { canonical: '/' },
-};
-
-const WA_CONSULT = 'Halo Sukses Aqiqah, saya ingin konsultasi soal paket aqiqah.';
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getBrand();
+  return {
+    // `absolute`: judul ini sudah memuat nama situs, jadi `title.template` di
+    // root layout tidak boleh menempelkannya sekali lagi.
+    title: { absolute: `${brand.name}: ${siteConfig.tagline}` },
+    description: siteConfig.description,
+    alternates: { canonical: '/' },
+  };
+}
 
 /**
  * Urutan section mengikuti pertanyaan pemesan: apa layanannya, berapa
@@ -33,27 +36,27 @@ const WA_CONSULT = 'Halo Sukses Aqiqah, saya ingin konsultasi soal paket aqiqah.
  * tidak boleh sama di lebih dari dua sumbu).
  */
 export default async function LandingPage() {
-  const catalogue = await getLandingCatalogue();
+  const [catalogue, brand] = await Promise.all([getLandingCatalogue(), getBrand()]);
 
   return (
     <>
       <JsonLd />
-      <Hero />
+      <Hero brand={brand} />
       <ServicesSection />
-      <PackagesSection catalogue={catalogue} />
+      <PackagesSection catalogue={catalogue} brand={brand} />
       <ProcessSection />
       <GallerySection />
       <FeaturesSection />
       {testimonials.length > 0 && <TestimonialsSection />}
-      <FaqSection />
-      <CtaSection />
+      <FaqSection brand={brand} />
+      <CtaSection brand={brand} />
     </>
   );
 }
 
 /* Hero: teks kiri, foto kanan. Satu motif saja (kisi garis di pojok), tanpa
    watermark logo dan gradasi yang dulu menumpuk lima lapis. */
-function Hero() {
+function Hero({ brand }: { brand: Brand }) {
   return (
     <section className="border-line relative overflow-hidden border-b bg-white">
       <div
@@ -82,7 +85,9 @@ function Hero() {
                 Lihat paket aqiqah
               </Link>
               <a
-                href={siteConfig.whatsapp.href(WA_CONSULT)}
+                href={siteConfig.whatsapp.href(
+                  `Halo ${brand.name}, saya ingin konsultasi soal paket aqiqah.`,
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-outline btn-lg"
@@ -169,8 +174,10 @@ function ServicesSection() {
 
 function PackagesSection({
   catalogue,
+  brand,
 }: {
   catalogue: Awaited<ReturnType<typeof getLandingCatalogue>>;
+  brand: Brand;
 }) {
   const { programs, boxes, catering } = catalogue;
   // Katalog kosong berarti database tak terjangkau. Section disembunyikan:
@@ -195,7 +202,10 @@ function PackagesSection({
             Bandingkan semua paket
           </Link>
         </Reveal>
-        <PackageFilter tabs={buildPackageTabs(catalogue, 3)} defaultTab="pilihan" />
+        <PackageFilter
+          tabs={buildPackageTabs(catalogue, 3, undefined, brand.name)}
+          defaultTab="pilihan"
+        />
       </div>
     </section>
   );
@@ -268,7 +278,7 @@ function GallerySection() {
         <div className="mt-10 grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
           {landingPhotos.gallery.map((photo, i) => (
             <Reveal key={photo.src} as="figure" delay={(i % 3) * 90} anim="scale">
-              <div className="border-line bg-surface-muted aspect-[4/3] overflow-hidden rounded-lg border">
+              <div className="border-line bg-surface-muted aspect-4/3 overflow-hidden rounded-lg border">
                 <SitePhoto
                   src={photo.src}
                   alt={photo.alt}
@@ -326,44 +336,148 @@ function FeaturesSection() {
 
 /**
  * Testimoni. Hanya dirender bila `testimonials` di `lib/constants/site.ts`
- * berisi ulasan asli. Kisi statis, bukan carousel otomatis: semua ulasan
- * terbaca tanpa menunggu, dan tidak ada kontrol yang harus dikejar.
+ * berisi ulasan asli. Ulasan pertama jadi sorotan besar, sisanya berjajar
+ * di bawahnya. Statis, bukan carousel: semua ulasan terbaca tanpa menunggu.
  */
 function TestimonialsSection() {
+  const [featured, ...rest] = testimonials;
   return (
-    <section id="testimoni" className="border-line border-b bg-white">
+    // Latar hijau muda: membedakan suara pemesan dari klaim kami sendiri di
+    // section sebelum dan sesudahnya, yang berlatar abu dan putih.
+    <section id="testimoni" className="bg-primary-light border-line border-b">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
-        <Reveal className="max-w-2xl">
-          <SectionLabel index="06">Kata pemesan</SectionLabel>
-          <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
-            Dari keluarga yang sudah memesan
-          </h2>
+        <Reveal className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <SectionLabel index="06">Kata pemesan</SectionLabel>
+            <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
+              Dari keluarga yang sudah memesan
+            </h2>
+            <p className="text-ink-muted mt-4 text-base leading-7">
+              Ditulis oleh pemesan, ditampilkan dengan izin mereka.
+            </p>
+          </div>
+          {/* Ulasan menyebut pelacakan realtime: beri jalan untuk membuktikannya. */}
+          <Link href="/lacak" className="btn btn-outline shrink-0 bg-white">
+            Coba lacak pesanan
+          </Link>
         </Reveal>
-        <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {testimonials.map((t, i) => (
-            <Reveal
-              key={`${t.name}-${i}`}
-              as="li"
-              delay={(i % 3) * 80}
-              className="border-line bg-surface flex flex-col rounded-lg border p-6"
-            >
-              <blockquote className="text-ink flex-1 text-base leading-7">“{t.quote}”</blockquote>
-              <p className="border-line mt-5 border-t pt-4 text-sm">
-                <span className="text-ink font-semibold">{t.name}</span>
-                {t.city && <span className="text-ink-muted">, {t.city}</span>}
-                {t.service && <span className="text-ink-muted block">{t.service}</span>}
-              </p>
-            </Reveal>
-          ))}
-        </ul>
+
+        <Reveal
+          as="figure"
+          anim="scale"
+          className={`border-line mt-10 grid overflow-hidden rounded-lg border bg-white ${featured.photo ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}
+        >
+          {featured.photo && (
+            <div className="bg-surface-muted aspect-4/3 lg:aspect-auto">
+              <SitePhoto
+                src={featured.photo.src}
+                alt={featured.photo.alt}
+                width={800}
+                height={600}
+                sizes="(min-width: 1024px) 40vw, 100vw"
+                className="h-full w-full object-cover"
+              />
+            </div>
+          )}
+          <div className="flex flex-col p-6 sm:p-10">
+            <div className="flex items-center justify-between gap-4">
+              <span aria-hidden className="text-primary text-7xl leading-[0.6] font-bold">
+                “
+              </span>
+              {featured.rating && <Stars rating={featured.rating} />}
+            </div>
+            <blockquote className="text-ink mt-6 flex-1 text-xl leading-relaxed font-semibold text-balance sm:text-2xl lg:text-[1.75rem] lg:leading-snug">
+              {featured.quote}
+            </blockquote>
+            <TestimonialAuthor t={featured} />
+          </div>
+        </Reveal>
+
+        {rest.length > 0 && (
+          <ul className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {rest.map((t, i) => (
+              <Reveal
+                key={`${t.name}-${i}`}
+                as="li"
+                delay={(i % 3) * 80}
+                className="border-line flex flex-col overflow-hidden rounded-lg border bg-white"
+              >
+                <figure className="flex flex-1 flex-col">
+                  {t.photo && (
+                    <div className="bg-surface-muted aspect-4/3">
+                      <SitePhoto
+                        src={t.photo.src}
+                        alt={t.photo.alt}
+                        width={800}
+                        height={600}
+                        sizes="(min-width: 1024px) 31vw, (min-width: 768px) 47vw, 100vw"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-1 flex-col p-6">
+                    {t.rating && <Stars rating={t.rating} />}
+                    <blockquote
+                      className={`text-ink flex-1 text-base leading-7 ${t.rating ? 'mt-3' : ''}`}
+                    >
+                      “{t.quote}”
+                    </blockquote>
+                    <TestimonialAuthor t={t} />
+                  </div>
+                </figure>
+              </Reveal>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );
 }
 
+/** Bintang dari pemesan. Warna aksen emas: satu-satunya tempatnya di section ini. */
+function Stars({ rating }: { rating: number }) {
+  return (
+    <span role="img" aria-label={`Rating ${rating} dari 5`} className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <svg
+          key={n}
+          viewBox="0 0 20 20"
+          aria-hidden
+          className={`size-5 ${n <= rating ? 'text-accent-dark' : 'text-line'}`}
+          fill="currentColor"
+        >
+          <path d="M10 1.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L10 14.9l-5.3 2.7 1-5.8L1.5 7.7l5.9-.9z" />
+        </svg>
+      ))}
+    </span>
+  );
+}
+
+/** Inisial + nama, kota, lalu layanan dan tanggal pesanan. */
+function TestimonialAuthor({ t }: { t: (typeof testimonials)[number] }) {
+  const detail = [t.service, t.date].filter(Boolean).join(' · ');
+  return (
+    <figcaption className="border-line mt-6 flex items-center gap-3 border-t pt-5">
+      <span
+        aria-hidden
+        className="bg-primary flex size-11 shrink-0 items-center justify-center rounded-full text-base font-bold text-white"
+      >
+        {t.name.charAt(0).toUpperCase()}
+      </span>
+      <span className="min-w-0 text-sm leading-5">
+        <span className="text-ink block font-semibold">
+          {t.name}
+          {t.city && <span className="text-ink-muted font-normal">, {t.city}</span>}
+        </span>
+        {detail && <span className="text-primary block font-medium">{detail}</span>}
+      </span>
+    </figcaption>
+  );
+}
+
 /* FAQ: judul di kiri, akordeon di kanan. `<details>` bawaan: dibuka dengan
    Enter/Spasi, terbaca screen reader, dan jalan tanpa JavaScript. */
-function FaqSection() {
+function FaqSection({ brand }: { brand: Brand }) {
   return (
     <section id="faq" className="border-line border-b bg-white">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
@@ -373,7 +487,7 @@ function FaqSection() {
           <p className="text-ink-muted mt-4 text-base leading-7">
             Belum menemukan jawabannya?{' '}
             <a
-              href={siteConfig.whatsapp.href('Halo Sukses Aqiqah, saya ingin bertanya.')}
+              href={siteConfig.whatsapp.href(`Halo ${brand.name}, saya ingin bertanya.`)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary font-semibold underline underline-offset-2"
@@ -410,7 +524,7 @@ function FaqSection() {
   );
 }
 
-function CtaSection() {
+function CtaSection({ brand }: { brand: Brand }) {
   return (
     <section className="bg-white">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16">
@@ -426,7 +540,7 @@ function CtaSection() {
               Lihat paket aqiqah
             </Link>
             <a
-              href={siteConfig.whatsapp.href(orderMessage())}
+              href={siteConfig.whatsapp.href(orderMessage(brand.name))}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-lg border border-white/70 text-white hover:bg-white/10"

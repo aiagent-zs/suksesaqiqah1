@@ -710,6 +710,7 @@ export type Database = {
       orders: {
         Row: {
           aqiqah_for: string | null
+          channel: string
           child_birth_date: string | null
           child_birth_place: string | null
           child_photo_path: string | null
@@ -753,6 +754,7 @@ export type Database = {
         }
         Insert: {
           aqiqah_for?: string | null
+          channel?: string
           child_birth_date?: string | null
           child_birth_place?: string | null
           child_photo_path?: string | null
@@ -796,6 +798,7 @@ export type Database = {
         }
         Update: {
           aqiqah_for?: string | null
+          channel?: string
           child_birth_date?: string | null
           child_birth_place?: string | null
           child_photo_path?: string | null

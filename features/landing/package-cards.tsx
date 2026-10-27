@@ -14,8 +14,8 @@ import type { PackageTab } from '@/components/site/package-filter';
  * kedua halaman merender kartu yang persis sama.
  */
 
-export const orderMessage = (paket?: string) =>
-  `Halo Sukses Aqiqah, saya ingin memesan${paket ? ` paket ${paket}` : ' layanan'}.`;
+export const orderMessage = (brandName: string, paket?: string) =>
+  `Halo ${brandName}, saya ingin memesan${paket ? ` paket ${paket}` : ' layanan'}.`;
 
 /**
  * Satu kartu paket — bentuk yang sama untuk **seluruh layanan**.
@@ -191,7 +191,7 @@ function SeeAllLink({ tab, total, label }: { tab: string; total: number; label: 
  * Bentuk ringkasnya justru menyampaikan perannya: satu blok bersahaja di bawah
  * deretan kartu, dengan satu tombol tanya ke WhatsApp untuk seluruh paket.
  */
-function NasiBoxNote({ boxes }: { boxes: LandingBox[] }) {
+function NasiBoxNote({ boxes, brandName }: { boxes: LandingBox[]; brandName: string }) {
   return (
     <Reveal anim="scale" className="border-line mt-6 rounded-lg border bg-white p-5 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -205,7 +205,7 @@ function NasiBoxNote({ boxes }: { boxes: LandingBox[] }) {
           </p>
         </div>
         <a
-          href={siteConfig.whatsapp.href(orderMessage('Nasi Box Aqiqah'))}
+          href={siteConfig.whatsapp.href(orderMessage(brandName, 'Nasi Box Aqiqah'))}
           target="_blank"
           rel="noopener noreferrer"
           className="btn btn-outline shrink-0"
@@ -257,6 +257,7 @@ export function buildPackageTabs(
   { programs, boxes, catering }: Awaited<ReturnType<typeof getLandingCatalogue>>,
   limit?: number,
   sort: PackageSort = 'rekomendasi',
+  brandName = 'Sukses Aqiqah',
 ): PackageTab[] {
   const aqiqahCards: PackageCardData[] = programs.map((p) => ({
     slug: p.slug,
@@ -350,7 +351,7 @@ export function buildPackageTabs(
               adalah tambahan atasnya — menyebutkannya hanya di tab Aqiqah
               berarti pengunjung yang berhenti di tab bawaan tidak pernah tahu
               tambahan itu ada. */}
-          {boxes.length > 0 && <NasiBoxNote boxes={boxes} />}
+          {boxes.length > 0 && <NasiBoxNote boxes={boxes} brandName={brandName} />}
         </>
       ),
     },
@@ -363,7 +364,7 @@ export function buildPackageTabs(
       content: (
         <>
           {grid('aqiqah', aqiqahCards, 'paket aqiqah')}
-          {boxes.length > 0 && <NasiBoxNote boxes={boxes} />}
+          {boxes.length > 0 && <NasiBoxNote boxes={boxes} brandName={brandName} />}
         </>
       ),
     },
