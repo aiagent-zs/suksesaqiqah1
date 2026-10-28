@@ -69,7 +69,7 @@ function Hero({ brand }: { brand: Brand }) {
             <p className="text-primary text-sm font-semibold">Layanan aqiqah dari Zakat Sukses</p>
           </Reveal>
           <Reveal delay={90}>
-            <h1 className="text-display text-ink mt-3 font-bold tracking-tight text-balance">
+            <h1 className="text-display text-ink mt-2 font-bold tracking-tight text-balance">
               Aqiqah lebih mudah, tenang, dan <span className="text-primary">terpercaya</span>
             </h1>
           </Reveal>
@@ -98,11 +98,11 @@ function Hero({ brand }: { brand: Brand }) {
             </div>
           </Reveal>
           <Reveal delay={360}>
-            <ul className="text-ink mt-8 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+            <ul className="text-ink mt-8 grid grid-cols-3 gap-x-1 gap-y-2 text-[11px] leading-tight sm:gap-x-6 sm:text-sm sm:leading-normal">
               {['Pesan tanpa membuat akun', 'Tiap tahap divalidasi tim', 'Laporan berisi foto'].map(
                 (t) => (
-                  <li key={t} className="flex items-start gap-2">
-                    <IconCheck className="text-primary mt-0.5 size-4 shrink-0" />
+                  <li key={t} className="flex min-w-0 items-start gap-0.5 sm:gap-2">
+                    <IconCheck className="text-primary mt-0.5 size-2.5 shrink-0 sm:size-4" />
                     {t}
                   </li>
                 ),
@@ -356,10 +356,6 @@ function TestimonialsSection() {
               Ditulis oleh pemesan, ditampilkan dengan izin mereka.
             </p>
           </div>
-          {/* Ulasan menyebut pelacakan realtime: beri jalan untuk membuktikannya. */}
-          <Link href="/lacak" className="btn btn-outline shrink-0 bg-white">
-            Coba lacak pesanan
-          </Link>
         </Reveal>
 
         <Reveal
