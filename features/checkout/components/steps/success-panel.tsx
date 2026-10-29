@@ -34,7 +34,7 @@ export function SuccessPanel({
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-neutral-600">
           {paymentUrl
-            ? 'Selesaikan pembayaran di halaman Durianpay, metode bayarnya dipilih di sana.'
+            ? 'Halaman bayar Durianpay terbuka di tab baru. Simpan nomor pesanan di bawah: setelah membayar, statusnya bisa dicek di Lacak pesanan.'
             : 'Satu langkah lagi: kirim pesan ke admin lewat WhatsApp untuk mendapatkan rincian pembayaran. Ringkasan pesanan sudah kami tuliskan di pesannya.'}
         </p>
       </div>
@@ -58,7 +58,14 @@ export function SuccessPanel({
 
       <div className="space-y-2.5 border-t border-neutral-100 px-6 py-6 sm:px-8">
         {paymentUrl && (
-          <a href={paymentUrl} className="btn btn-primary btn-lg w-full">
+          // Tab baru: payment link Durianpay selalu berakhir di halaman suksesnya
+          // sendiri, tidak bisa diarahkan balik — panel ini tetap terbuka di tab asal.
+          <a
+            href={paymentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-primary btn-lg w-full"
+          >
             <CreditCard className="size-4 shrink-0" />
             Bayar Sekarang
           </a>
