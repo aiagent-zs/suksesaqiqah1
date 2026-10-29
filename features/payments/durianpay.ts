@@ -1,24 +1,22 @@
 /**
  * Durianpay — dipanggil hanya dari server (server action & route webhook).
  *
- * Kunci yang sama melayani sandbox maupun live; Durianpay membedakannya dari
- * kuncinya sendiri, bukan dari URL. Auth-nya Basic dengan kunci sebagai
- * username dan password kosong.
+ * Sandbox dan live beda kunci sekaligus beda host: kunci `dp_test_` ditolak
+ * (401) di host live, jadi host dipilih dari awalan kuncinya. Auth-nya Basic
+ * dengan kunci sebagai username dan password kosong.
  */
-const API = 'https://api.durianpay.id/v1';
 const LINK_BASE = 'https://links.durianpay.id/payment/';
 
-function authHeader(): string | null {
-  const key = process.env.DURIANPAY_SECRET_KEY;
-  return key ? `Basic ${Buffer.from(`${key}:`).toString('base64')}` : null;
-}
-
 async function dpFetch(path: string, init?: RequestInit): Promise<Record<string, unknown> | null> {
-  const auth = authHeader();
-  if (!auth) return null;
-  const res = await fetch(`${API}${path}`, {
+  const key = process.env.DURIANPAY_SECRET_KEY;
+  if (!key) return null;
+  const host = key.startsWith('dp_test_') ? 'api-sandbox.durianpay.id' : 'api.durianpay.id';
+  const res = await fetch(`https://${host}/v1${path}`, {
     ...init,
-    headers: { Authorization: auth, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}`,
+      'Content-Type': 'application/json',
+    },
     cache: 'no-store',
   });
   if (!res.ok) {
