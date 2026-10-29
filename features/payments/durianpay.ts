@@ -1,16 +1,17 @@
 /**
  * Durianpay — dipanggil hanya dari server (server action & route webhook).
  *
- * Sandbox dan live beda kunci sekaligus beda host: kunci `dp_test_` ditolak
- * (401) di host live, jadi host dipilih dari awalan kuncinya. Auth-nya Basic
+ * Sandbox dan live beda kunci sekaligus beda host (API maupun halaman bayar):
+ * kunci `dp_test_` ditolak (401) di host live, dan link sandbox tidak dikenal
+ * di `links.`, jadi keduanya dipilih dari awalan kuncinya. Auth-nya Basic
  * dengan kunci sebagai username dan password kosong.
  */
-const LINK_BASE = 'https://links.durianpay.id/payment/';
+const sandbox = () => process.env.DURIANPAY_SECRET_KEY?.startsWith('dp_test_') ?? false;
 
 async function dpFetch(path: string, init?: RequestInit): Promise<Record<string, unknown> | null> {
   const key = process.env.DURIANPAY_SECRET_KEY;
   if (!key) return null;
-  const host = key.startsWith('dp_test_') ? 'api-sandbox.durianpay.id' : 'api.durianpay.id';
+  const host = sandbox() ? 'api-sandbox.durianpay.id' : 'api.durianpay.id';
   const res = await fetch(`https://${host}/v1${path}`, {
     ...init,
     headers: {
@@ -68,7 +69,9 @@ export async function createPaymentLink(order: {
       }),
     });
     const code = data?.payment_link_url;
-    return typeof code === 'string' && code ? `${LINK_BASE}${code}` : null;
+    return typeof code === 'string' && code
+      ? `https://${sandbox() ? 'links-sandbox' : 'links'}.durianpay.id/payment/${code}`
+      : null;
   } catch (err) {
     console.error('[durianpay] gagal membuat payment link', err);
     return null;
