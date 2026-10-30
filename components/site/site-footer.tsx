@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getBrand } from '@/lib/brand-server';
 import { footerNav, siteConfig } from '@/lib/constants/site';
-import { IconInstagram, IconMail, IconWhatsApp } from './icons';
+import { IconArrowRight, IconInstagram, IconMail, IconWhatsApp } from './icons';
 import { Logo } from './logo';
 
 export async function SiteFooter() {
@@ -9,43 +9,47 @@ export async function SiteFooter() {
   const year = 2026; // Date.now() tidak tersedia di lingkungan build ini.
 
   return (
-    <footer className="border-line border-t bg-white">
-      <div className="mx-auto max-w-7xl px-4 pt-12 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6">
-        {/* Tiga kelompok, bukan empat kolom template: merek + kontak di kiri
-            karena kontaklah yang paling sering dicari, lalu dua daftar tautan. */}
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr]">
-          <div className="max-w-sm sm:col-span-2 lg:col-span-1">
-            <Logo brand={brand} />
-            <p className="text-ink-muted mt-4 text-sm leading-6">
+    <footer className="bg-primary-dark text-white">
+      <div className="mx-auto max-w-7xl px-4 pt-12 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:px-6">
+        <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr]">
+          <div className="max-w-sm">
+            <span className="inline-flex rounded-lg bg-white px-3 py-2">
+              <Logo brand={brand} />
+            </span>
+            <p className="mt-4 text-sm leading-6 text-white/75">
               Layanan aqiqah dan katering dari Zakat Sukses. Setiap tahap dicatat, dan Anda menerima
               laporan pelaksanaannya.
             </p>
-            <ul className="mt-5 space-y-1">
-              <FooterContact
+            <div className="mt-5 flex gap-3">
+              <SocialButton
                 href={siteConfig.whatsapp.href(`Halo ${brand.name}, saya ingin bertanya.`)}
-                external
-                icon={<IconWhatsApp className="text-primary size-4 shrink-0" />}
                 label={`WhatsApp ${siteConfig.whatsapp.display}`}
+                icon={<IconWhatsApp className="size-5" />}
               />
-              <FooterContact
+              <SocialButton
                 href={siteConfig.instagram.url}
-                external
-                icon={<IconInstagram className="text-primary size-4 shrink-0" />}
-                label={siteConfig.instagram.handle}
+                label={`Instagram ${siteConfig.instagram.handle}`}
+                icon={<IconInstagram className="size-5" />}
               />
-              <FooterContact
-                href={`mailto:${siteConfig.email}`}
-                icon={<IconMail className="text-primary size-4 shrink-0" />}
-                label={siteConfig.email}
-              />
-            </ul>
+              {siteConfig.email && (
+                <SocialButton
+                  href={`mailto:${siteConfig.email}`}
+                  label={`Email ${siteConfig.email}`}
+                  icon={<IconMail className="size-5" />}
+                />
+              )}
+            </div>
           </div>
 
-          <FooterGroup title="Layanan" items={footerNav.layanan} />
-          <FooterGroup title="Bantuan" items={footerNav.bantuan} />
+          {/* Dua kolom berdampingan sejak ponsel: dua daftar pendek yang
+              ditumpuk hanya menambah panjang gulir tanpa menambah isi. */}
+          <div className="grid grid-cols-2 gap-6 lg:contents">
+            <FooterGroup title="Layanan" items={footerNav.layanan} />
+            <FooterGroup title="Bantuan" items={footerNav.bantuan} />
+          </div>
         </div>
 
-        <p className="border-line text-ink-muted mt-10 border-t pt-6 text-xs">
+        <p className="mt-10 border-t border-white/10 pt-6 text-xs text-white/60">
           © {year} {brand.name}, bagian dari Zakat Sukses.
         </p>
       </div>
@@ -62,15 +66,16 @@ function FooterGroup({
 }) {
   return (
     <nav aria-label={title}>
-      <h2 className="text-ink text-sm font-semibold">{title}</h2>
-      <ul className="mt-3">
+      <h2 className="text-accent text-sm font-semibold">{title}</h2>
+      <ul className="mt-2">
         {items.map((item) => (
           <li key={item.href}>
             <Link
               href={item.href}
-              className="text-ink-muted hover:text-primary flex min-h-11 items-center text-sm"
+              className="group flex min-h-11 items-center gap-1.5 text-sm text-white/85 hover:text-white"
             >
               {item.label}
+              <IconArrowRight className="size-3.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
             </Link>
           </li>
         ))}
@@ -79,27 +84,25 @@ function FooterGroup({
   );
 }
 
-function FooterContact({
+function SocialButton({
   href,
-  icon,
   label,
-  external,
+  icon,
 }: {
   href: string;
-  icon: React.ReactNode;
   label: string;
-  external?: boolean;
+  icon: React.ReactNode;
 }) {
+  const external = href.startsWith('http');
   return (
-    <li>
-      <a
-        href={href}
-        {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-        className="text-ink-muted hover:text-primary inline-flex min-h-11 items-center gap-2 text-sm break-all"
-      >
-        {icon}
-        {label}
-      </a>
-    </li>
+    <a
+      href={href}
+      aria-label={label}
+      title={label}
+      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      className="inline-flex size-11 items-center justify-center rounded-lg border border-white/20 text-white transition-colors duration-150 hover:bg-white/10 active:scale-95"
+    >
+      {icon}
+    </a>
   );
 }

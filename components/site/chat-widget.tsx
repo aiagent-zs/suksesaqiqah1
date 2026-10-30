@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { siteConfig } from '@/lib/constants/site';
 import { IconChat, IconClose, IconWhatsApp } from './icons';
 
@@ -22,6 +23,7 @@ const QUICK_QUESTIONS = [
  * pengunjung, supaya ia tidak perlu mengetik ulang.
  */
 export function ChatWidget({ brandName }: { brandName: string }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -85,6 +87,10 @@ export function ChatWidget({ brandName }: { brandName: string }) {
       setPending(false);
     }
   }
+
+  // Checkout punya bilah tombol tetap di bawah layar; gelembung ini
+  // menutupinya di ponsel, dan pemesan di sana sudah tahu apa yang dicari.
+  if (pathname?.startsWith('/checkout')) return null;
 
   const lastQuestion = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
   const waHref = siteConfig.whatsapp.href(
@@ -217,9 +223,9 @@ export function ChatWidget({ brandName }: { brandName: string }) {
         aria-expanded={open}
         aria-controls="chat-panel"
         aria-label={open ? 'Tutup chat' : 'Buka chat bantuan'}
-        className="bg-primary hover:bg-primary-dark inline-flex size-14 items-center justify-center rounded-full text-white shadow-lg"
+        className="bg-primary hover:bg-primary-dark inline-flex size-12 items-center justify-center rounded-full text-white shadow-md ring-4 ring-white transition-transform duration-150 active:scale-95 sm:size-14"
       >
-        {open ? <IconClose className="size-6" /> : <IconChat className="size-7" />}
+        {open ? <IconClose className="size-6" /> : <IconChat className="size-6 sm:size-7" />}
       </button>
     </div>
   );

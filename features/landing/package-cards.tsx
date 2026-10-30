@@ -55,15 +55,23 @@ type PackageCardData = {
   action: ReactNode;
 };
 
-function PackageCard({ data, delay }: { data: PackageCardData; delay: number }) {
+function PackageCard({
+  data,
+  delay,
+  className = '',
+}: {
+  data: PackageCardData;
+  delay: number;
+  className?: string;
+}) {
   return (
     <Reveal
       as="article"
       delay={delay}
       anim="scale"
       className={`border-line relative flex flex-col overflow-hidden rounded-lg border bg-white ${
-        data.popular ? 'ring-primary ring-2' : ''
-      }`}
+        data.popular ? 'ring-primary ring-2 ring-inset' : ''
+      } ${className}`}
     >
       {/* Paket tanpa foto merender kartu tanpa blok gambar sama sekali, bukan
           placeholder: `SitePhoto` menampilkan kotak bertuliskan path berkas
@@ -83,7 +91,7 @@ function PackageCard({ data, delay }: { data: PackageCardData; delay: number }) 
         </div>
       )}
 
-      <div className="flex flex-1 flex-col p-6">
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             {/* Label jenis menggantikan judul blok yang dulu memisahkan
@@ -152,12 +160,30 @@ function FeatureList({ items }: { items: string[] }) {
   );
 }
 
-/** Kisi tunggal untuk seluruh kartu paket, apa pun jenisnya. */
-function PackageGrid({ cards }: { cards: PackageCardData[] }) {
+/**
+ * Kisi tunggal untuk seluruh kartu paket, apa pun jenisnya.
+ *
+ * `swipe` (landing): di ponsel kartu berjajar dan digeser ke samping, dengan
+ * kartu berikutnya mengintip di tepi kanan sebagai tanda masih ada lagi. Tiga
+ * kartu setinggi layar yang ditumpuk membuat harga paket kedua baru terlihat
+ * setelah dua kali gulir penuh. Dari `sm` ke atas kembali jadi kisi.
+ */
+function PackageGrid({ cards, swipe = false }: { cards: PackageCardData[]; swipe?: boolean }) {
   return (
-    <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div
+      className={
+        swipe
+          ? '-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 [&::-webkit-scrollbar]:hidden'
+          : 'mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3'
+      }
+    >
       {cards.map((card, i) => (
-        <PackageCard key={`${card.kind}-${card.slug}`} data={card} delay={i * 90} />
+        <PackageCard
+          key={`${card.kind}-${card.slug}`}
+          data={card}
+          delay={swipe ? 0 : i * 90}
+          className={swipe ? 'w-[84%] shrink-0 snap-start sm:w-auto' : ''}
+        />
       ))}
     </div>
   );
@@ -334,7 +360,7 @@ export function buildPackageTabs(
 
   const grid = (id: string, cards: PackageCardData[], label: string) => (
     <>
-      <PackageGrid cards={limit ? sorted(cards).slice(0, limit) : sorted(cards)} />
+      <PackageGrid cards={limit ? sorted(cards).slice(0, limit) : sorted(cards)} swipe={!!limit} />
       {limit && cards.length > limit && <SeeAllLink tab={id} total={cards.length} label={label} />}
     </>
   );

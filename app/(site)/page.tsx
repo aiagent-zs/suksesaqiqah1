@@ -63,7 +63,7 @@ function Hero({ brand }: { brand: Brand }) {
         aria-hidden
         className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(70%_80%_at_0%_0%,black,transparent_70%)]"
       />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 pt-8 pb-12 sm:gap-10 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
         <div className="min-w-0">
           <Reveal>
             <p className="text-primary text-sm font-semibold">Layanan aqiqah dari Zakat Sukses</p>
@@ -98,11 +98,16 @@ function Hero({ brand }: { brand: Brand }) {
             </div>
           </Reveal>
           <Reveal delay={360}>
-            <ul className="text-ink mt-8 grid grid-cols-3 gap-x-1 gap-y-2 text-[11px] leading-tight sm:gap-x-6 sm:text-sm sm:leading-normal">
+            {/* Ponsel: chip yang membungkus ke baris berikutnya, bukan tiga
+                kolom 11px yang memaksa tiap kalimat patah jadi dua baris. */}
+            <ul className="text-ink mt-6 flex flex-wrap gap-2 text-sm sm:mt-8 sm:gap-x-6">
               {['Pesan tanpa membuat akun', 'Tiap tahap divalidasi tim', 'Laporan berisi foto'].map(
                 (t) => (
-                  <li key={t} className="flex min-w-0 items-start gap-0.5 sm:gap-2">
-                    <IconCheck className="text-primary mt-0.5 size-2.5 shrink-0 sm:size-4" />
+                  <li
+                    key={t}
+                    className="bg-primary-light flex items-center gap-1.5 rounded-lg px-3 py-1.5 sm:bg-transparent sm:p-0"
+                  >
+                    <IconCheck className="text-primary size-4 shrink-0" />
                     {t}
                   </li>
                 ),
@@ -146,7 +151,7 @@ function Hero({ brand }: { brand: Brand }) {
 function ServicesSection() {
   return (
     <section id="layanan" className="border-line border-b bg-white">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
         <Reveal className="lg:sticky lg:top-24 lg:self-start">
           <SectionLabel index="01">Layanan</SectionLabel>
           <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
@@ -186,7 +191,7 @@ function PackagesSection({
 
   return (
     <section id="paket" className="bg-surface-muted border-line border-b">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-20">
         <Reveal className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <SectionLabel index="02">Paket & harga</SectionLabel>
@@ -216,7 +221,7 @@ function PackagesSection({
 function ProcessSection() {
   return (
     <section id="proses" className="bg-primary-dark text-white">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-20">
         <Reveal className="max-w-2xl">
           <p className="text-accent text-sm font-semibold tabular-nums">03 · Alur layanan</p>
           <h2 className="text-h2 mt-3 font-bold tracking-tight">Lima langkah, semuanya tercatat</h2>
@@ -265,7 +270,7 @@ function ProcessSection() {
 function GallerySection() {
   return (
     <section id="galeri" className="border-line border-b bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-20">
         <Reveal className="max-w-2xl">
           <SectionLabel index="04">Dokumentasi</SectionLabel>
           <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
@@ -275,24 +280,28 @@ function GallerySection() {
             Foto pelaksanaan pesanan Anda sendiri dikirim di laporan akhir.
           </p>
         </Reveal>
-        <div className="mt-10 grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Dua kolom sejak ponsel: enam foto selebar layar yang ditumpuk
+            memakan enam kali gulir untuk isi yang dibaca sekilas. */}
+        <div className="mt-8 grid grid-cols-2 gap-x-3 gap-y-5 sm:mt-10 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3">
           {landingPhotos.gallery.map((photo, i) => (
             <Reveal key={photo.src} as="figure" delay={(i % 3) * 90} anim="scale">
-              <div className="border-line bg-surface-muted aspect-4/3 overflow-hidden rounded-lg border">
+              <div className="border-line bg-surface-muted aspect-square overflow-hidden rounded-lg border sm:aspect-4/3">
                 <SitePhoto
                   src={photo.src}
                   alt={photo.alt}
                   width={800}
                   height={600}
-                  sizes="(min-width: 1024px) 31vw, (min-width: 640px) 47vw, 100vw"
+                  sizes="(min-width: 1024px) 31vw, 50vw"
                   className="h-full w-full object-cover"
                 />
               </div>
-              <figcaption className="mt-3 flex items-baseline gap-3">
-                <span className="text-primary text-sm font-bold tabular-nums">
+              <figcaption className="mt-2 flex items-baseline gap-2 sm:mt-3 sm:gap-3">
+                <span className="text-primary text-xs font-bold tabular-nums sm:text-sm">
                   {String(i + 1).padStart(2, '0')}
                 </span>
-                <span className="text-ink text-sm font-medium">{photo.caption}</span>
+                <span className="text-ink text-xs leading-5 font-medium sm:text-sm">
+                  {photo.caption}
+                </span>
               </figcaption>
             </Reveal>
           ))}
@@ -307,25 +316,30 @@ function GallerySection() {
 function FeaturesSection() {
   return (
     <section id="keunggulan" className="bg-surface-muted border-line border-b">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-20">
         <Reveal className="max-w-2xl">
           <SectionLabel index="05">Kenapa kami</SectionLabel>
           <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
             Ibadah yang bisa Anda telusuri
           </h2>
         </Reveal>
-        <dl className="mt-10 grid gap-x-12 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        <dl className="mt-8 grid gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-x-12 sm:gap-y-8 lg:grid-cols-3">
           {features.map((f, i) => (
             <Reveal
               key={f.title}
               delay={(i % 3) * 80}
-              className="border-primary/30 border-t-2 pt-5"
+              className="border-line flex gap-4 rounded-lg border bg-white p-4 sm:block sm:rounded-none sm:border-x-0 sm:border-b-0 sm:border-t-2 sm:border-t-primary/30 sm:bg-transparent sm:p-0 sm:pt-5"
             >
-              <dt className="text-ink flex items-center gap-2.5 text-base font-semibold">
-                <Icon name={f.icon} className="text-primary size-5 shrink-0" />
-                {f.title}
-              </dt>
-              <dd className="text-ink-muted mt-2 text-sm leading-6">{f.description}</dd>
+              <span className="bg-primary-light text-primary flex size-10 shrink-0 items-center justify-center rounded-lg sm:hidden">
+                <Icon name={f.icon} className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <dt className="text-ink flex items-center gap-2.5 text-base font-semibold">
+                  <Icon name={f.icon} className="text-primary hidden size-5 shrink-0 sm:block" />
+                  {f.title}
+                </dt>
+                <dd className="text-ink-muted mt-1 text-sm leading-6 sm:mt-2">{f.description}</dd>
+              </div>
             </Reveal>
           ))}
         </dl>
@@ -345,7 +359,7 @@ function TestimonialsSection() {
     // Latar hijau muda: membedakan suara pemesan dari klaim kami sendiri di
     // section sebelum dan sesudahnya, yang berlatar abu dan putih.
     <section id="testimoni" className="bg-primary-light border-line border-b">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-20">
         <Reveal className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <SectionLabel index="06">Kata pemesan</SectionLabel>
@@ -476,7 +490,7 @@ function TestimonialAuthor({ t }: { t: (typeof testimonials)[number] }) {
 function FaqSection({ brand }: { brand: Brand }) {
   return (
     <section id="faq" className="border-line border-b bg-white">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
         <Reveal>
           <SectionLabel index={testimonials.length > 0 ? '07' : '06'}>Pertanyaan umum</SectionLabel>
           <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">Yang sering ditanyakan</h2>
