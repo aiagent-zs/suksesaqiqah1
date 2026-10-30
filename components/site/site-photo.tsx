@@ -10,7 +10,7 @@ import Image from 'next/image';
  *
  * Keberadaan berkas dicocokkan dengan daftar `public/images` yang dibaca
  * `next.config.ts` saat build (`REPO_IMAGES`), bukan dengan filesystem saat
- * render: di Cloudflare Workers `public/` bukan filesystem. Konsekuensinya:
+ * render. Konsekuensinya:
  * foto baru baru dikenali setelah build ulang (atau restart `next dev`).
  *
  * Dipakai `next/image` — berbeda dengan galeri bukti di `/r/{token}` yang

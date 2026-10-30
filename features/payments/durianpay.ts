@@ -8,20 +8,33 @@
  */
 const sandbox = () => process.env.DURIANPAY_SECRET_KEY?.startsWith('dp_test_') ?? false;
 
+/** Durianpay tidak menjawab dengan benar (5xx, 429, jaringan, timeout): coba lagi nanti. */
+export class DurianpayUnavailableError extends Error {}
+
 async function dpFetch(path: string, init?: RequestInit): Promise<Record<string, unknown> | null> {
   const key = process.env.DURIANPAY_SECRET_KEY;
   if (!key) return null;
   const host = sandbox() ? 'api-sandbox.durianpay.id' : 'api.durianpay.id';
-  const res = await fetch(`https://${host}/v1${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}`,
-      'Content-Type': 'application/json',
-    },
-    cache: 'no-store',
-  });
+  let res: Response;
+  try {
+    res = await fetch(`https://${host}/v1${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch (err) {
+    throw new DurianpayUnavailableError(`${init?.method ?? 'GET'} ${path}: ${String(err)}`);
+  }
   if (!res.ok) {
     console.error(`[durianpay] ${init?.method ?? 'GET'} ${path} → ${res.status}`);
+    // 4xx = permintaan ditolak permanen; 429 dan 5xx = Durianpay sedang bermasalah.
+    if (res.status === 429 || res.status >= 500) {
+      throw new DurianpayUnavailableError(`${path} → ${res.status}`);
+    }
     return null;
   }
   const body = (await res.json()) as Record<string, unknown>;
@@ -91,34 +104,48 @@ export type VerifiedPayment = {
  * Siapa pun bisa menembak URL webhook dengan JSON karangan; yang tidak bisa
  * mereka palsukan adalah jawaban API Durianpay atas kunci rahasia kita. Jadi
  * yang dipakai dari webhook hanya `pay_...`-nya, sisanya dibaca dari sumbernya.
+ *
+ * `null` = ditolak permanen. Melempar `DurianpayUnavailableError` bila
+ * Durianpay tidak bisa ditanya sekarang, supaya webhook dijawab 500 dan diulang.
  */
 export async function fetchCompletedPayment(payId: string): Promise<VerifiedPayment | null> {
   if (!/^pay_[A-Za-z0-9]+$/.test(payId)) return null;
-  const payment = await dpFetch(`/payments/${payId}`);
+  // Tanpa `expand` endpoint detail menjawab 404 (teruji di sandbox, 2026-10-30);
+  // `expand=order` sekaligus membawa `order_ref_id`, jadi cukup satu panggilan.
+  const payment = await dpFetch(`/payments/${payId}?expand=order`);
   if (!payment || payment.status !== 'completed') return null;
 
-  const dpOrderId = String(payment.order_id ?? '');
-  if (!/^ord_[A-Za-z0-9]+$/.test(dpOrderId)) return null;
-  const order = await dpFetch(`/orders/${dpOrderId}`);
+  const order = payment.order as Record<string, unknown> | undefined;
   const orderNumber = order?.order_ref_id;
-  if (typeof orderNumber !== 'string' || !orderNumber) return null;
+  if (typeof orderNumber !== 'string' || !orderNumber) {
+    // `expand=order` baru teruji di sandbox; kalau bentuk live berbeda, log ini
+    // yang menunjukkannya, dan Durianpay mengulang alih-alih uangnya hilang.
+    throw new DurianpayUnavailableError(
+      `order_ref_id tidak ada pada ${payId}; kunci: ${Object.keys(payment).join(',')}`,
+    );
+  }
 
   return {
     payId,
     orderNumber,
     amount: Number(payment.amount),
-    method: String(payment.payment_method ?? payment.payment_method_id ?? ''),
+    method: String(payment.method_id ?? payment.payment_method ?? ''),
   };
 }
 
-/** Pelunasan penuh: nominal harus pas dengan total order, dan order belum lunas. */
+/**
+ * Pelunasan penuh: nominal harus pas dengan total order (dibulatkan sama
+ * seperti saat link dibuat), dan order masih bisa menerima pembayaran.
+ */
 export function paymentMatchesOrder(
   amount: number,
-  order: { total_amount: number; payment_status: string },
+  order: { total_amount: number; payment_status: string; status?: string; deleted_at?: string | null },
 ): boolean {
   return (
     order.payment_status !== 'paid' &&
+    order.status !== 'cancelled' &&
+    !order.deleted_at &&
     Number.isFinite(amount) &&
-    amount === Number(order.total_amount)
+    Math.round(amount) === Math.round(Number(order.total_amount))
   );
 }

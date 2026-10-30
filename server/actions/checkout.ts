@@ -51,21 +51,19 @@ export async function createGuestOrderAction(
 ): Promise<ActionResult<GuestOrderResult>> {
   // Rem laju sebelum validasi: menolak banjiran permintaan tidak boleh menuntut
   // pekerjaan parsing lebih dulu.
-  const ip = clientIpFrom(await headers());
-  if (ip) {
-    const gate = checkoutLimiter.consume(ip);
-    if (!gate.allowed) {
-      const minutes = Math.max(1, Math.ceil(gate.retryAfterMs / 60_000));
-      return {
-        ok: false,
-        error: {
-          code: 'CONFLICT',
-          message:
-            `Terlalu banyak percobaan pemesanan dari jaringan ini. ` +
-            `Coba lagi dalam ${minutes} menit, atau hubungi kami lewat WhatsApp.`,
-        },
-      };
-    }
+  // Tanpa IP berbagi satu kunci: tidak dihitung sama sekali = tanpa rem.
+  const gate = checkoutLimiter.consume(clientIpFrom(await headers()) ?? 'unknown');
+  if (!gate.allowed) {
+    const minutes = Math.max(1, Math.ceil(gate.retryAfterMs / 60_000));
+    return {
+      ok: false,
+      error: {
+        code: 'CONFLICT',
+        message:
+          `Terlalu banyak percobaan pemesanan dari jaringan ini. ` +
+          `Coba lagi dalam ${minutes} menit, atau hubungi kami lewat WhatsApp.`,
+      },
+    };
   }
 
   const parsed = guestCheckoutSchema.safeParse(input);

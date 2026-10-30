@@ -1,13 +1,12 @@
 import type { NextConfig } from 'next';
 import { readdirSync } from 'node:fs';
-import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
 
 /**
  * Daftar foto di `public/images`, dibaca **saat build** (di sini masih Node).
  *
  * `SitePhoto` memakainya untuk memutuskan foto atau placeholder. Dulu ia
- * memanggil `existsSync` saat render, dan itu tidak jalan di Cloudflare
- * Workers: berkas `public/` di sana aset statis, bukan filesystem.
+ * memanggil `existsSync` saat render; daftar sekali saat build lebih murah dan
+ * tidak bergantung pada letak `public/` di server produksi.
  */
 const repoImages = readdirSync('public/images', { recursive: true, withFileTypes: true })
   .filter((e) => e.isFile())
@@ -63,6 +62,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
-// Binding Cloudflare (env, aset) tersedia saat `next dev`. Tidak berpengaruh di Vercel.
-initOpenNextCloudflareForDev();

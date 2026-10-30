@@ -16,7 +16,8 @@ import { RateLimiter, clientIpFrom } from '@/lib/security/rate-limit';
 
 const client = new Anthropic();
 
-// ponytail: per-instance seperti limiter checkout; pindah ke store bersama
+// ponytail: hitungan di memori satu proses — cukup untuk satu server VPS,
+// hilang saat restart. Tambah aturan rate limit WAF Cloudflare untuk /api/chat
 // bila biaya API menunjukkan penyalahgunaan terdistribusi.
 const chatLimiter = new RateLimiter({ limit: 20, windowMs: 10 * 60 * 1000 });
 
@@ -59,8 +60,7 @@ const HANDOFF_FALLBACK = {
 };
 
 export async function POST(request: NextRequest) {
-  const ip = clientIpFrom(request.headers);
-  if (ip && !chatLimiter.consume(ip).allowed) {
+  if (!chatLimiter.consume(clientIpFrom(request.headers) ?? 'unknown').allowed) {
     return NextResponse.json(
       {
         reply: 'Terlalu banyak pesan dalam waktu singkat. Silakan hubungi admin lewat WhatsApp.',
@@ -79,7 +79,9 @@ export async function POST(request: NextRequest) {
     const brand = await getBrand();
     const response = await client.beta.messages.create({
       model: 'claude-opus-5-5',
-      max_tokens: 4000,
+      // Jawaban chat pendek; batas ini juga plafon biaya per pesan dari
+      // endpoint publik. Opus 5.5 selalu berpikir, jadi tetap ada ruang untuk itu.
+      max_tokens: 1500,
       // Obrolan layanan pelanggan pendek: effort rendah cukup dan lebih cepat.
       output_config: { effort: 'low', format: REPLY_FORMAT },
       // Penolakan oleh pengaman model dialihkan ke model cadangan, bukan
@@ -96,7 +98,10 @@ export async function POST(request: NextRequest) {
       messages: parsed.data.messages,
     });
 
-    if (response.stop_reason === 'refusal') return NextResponse.json(HANDOFF_FALLBACK);
+    // `max_tokens` = JSON terpotong; JSON.parse akan gagal.
+    if (response.stop_reason === 'refusal' || response.stop_reason === 'max_tokens') {
+      return NextResponse.json(HANDOFF_FALLBACK);
+    }
 
     const text = response.content.find((b) => b.type === 'text');
     const reply = replySchema.safeParse(text ? JSON.parse(text.text) : null);

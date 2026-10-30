@@ -33,9 +33,9 @@ const AQIQAH_FAVORIT = 'a2000000-0000-4000-8000-000000000002';
 
 const REGION = {
   province: '32',
-  city: '32.73',
-  district: '32.73.11',
-  village: '32.73.11.1001',
+  city: '32.75',
+  district: '32.75.01',
+  village: '32.75.01.1001',
 } as const;
 
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
