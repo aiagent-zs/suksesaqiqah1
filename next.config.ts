@@ -1,6 +1,27 @@
 import type { NextConfig } from 'next';
+import { readdirSync } from 'node:fs';
+
+/**
+ * Daftar foto di `public/images`, dibaca **saat build** (di sini masih Node).
+ *
+ * `SitePhoto` memakainya untuk memutuskan foto atau placeholder. Dulu ia
+ * memanggil `existsSync` saat render; daftar sekali saat build lebih murah dan
+ * tidak bergantung pada letak `public/` di server produksi.
+ */
+const repoImages = readdirSync('public/images', { recursive: true, withFileTypes: true })
+  .filter((e) => e.isFile())
+  // `parentPath` memakai `\` di Windows; SitePhoto selalu memakai `/`.
+  .map((e) => `${e.parentPath.split('\\').join('/').replace(/^public\//, '')}/${e.name}`);
 
 const nextConfig: NextConfig = {
+  /**
+   * Image Docker hanya membawa `.next/standalone` (server + node_modules yang
+   * benar-benar dipakai), bukan seluruh node_modules. Lihat `Dockerfile`.
+   */
+  output: 'standalone',
+
+  env:{ REPO_IMAGES: JSON.stringify(repoImages) },
+
   /**
    * React PDF membawa dependensi non-JS (fontkit, parser biner) yang rusak bila
    * ikut dibundel Next. Dibiarkan sebagai paket eksternal supaya di-resolve
