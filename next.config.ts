@@ -14,13 +14,13 @@ const repoImages = readdirSync('public/images', { recursive: true, withFileTypes
   .map((e) => `${e.parentPath.split('\\').join('/').replace(/^public\//, '')}/${e.name}`);
 
 const nextConfig: NextConfig = {
+  env: { REPO_IMAGES: JSON.stringify(repoImages) },
+
   /**
    * Image Docker hanya membawa `.next/standalone` (server + node_modules yang
    * benar-benar dipakai), bukan seluruh node_modules. Lihat `Dockerfile`.
    */
   output: 'standalone',
-
-  env:{ REPO_IMAGES: JSON.stringify(repoImages) },
 
   /**
    * React PDF membawa dependensi non-JS (fontkit, parser biner) yang rusak bila
