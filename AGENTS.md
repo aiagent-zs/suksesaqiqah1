@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## rules git commit dan push
+jangan pernah commit selain menggunakan akun ini
+Co-Authored-By: bani1610 <0110224091@student.nurulfikri.ac.id>
+
 <!-- antislop:start -->
 ## antislop
 For UI, copy, people, mobile layout, or code comments work, load the antislop skill for the task:

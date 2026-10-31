@@ -17,6 +17,11 @@ const nextConfig: NextConfig = {
   env: { REPO_IMAGES: JSON.stringify(repoImages) },
 
   /**
+   * Image Docker hanya membawa `.next/standalone` (server + node_modules yang
+   * benar-benar dipakai), bukan seluruh node_modules. Lihat `Dockerfile`.
+   */
+  output: 'standalone',
+  /**
    * React PDF membawa dependensi non-JS (fontkit, parser biner) yang rusak bila
    * ikut dibundel Next. Dibiarkan sebagai paket eksternal supaya di-resolve
    * langsung dari node_modules saat runtime server.
