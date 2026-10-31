@@ -68,26 +68,24 @@ describe('clientIpFrom', () => {
     return { get: (name: string) => map[name] ?? null };
   }
 
-  it('mengambil entri pertama x-forwarded-for — itulah klien aslinya', () => {
-    expect(clientIpFrom(headersOf({ 'x-forwarded-for': '203.0.113.9, 70.41.3.18' }))).toBe(
-      '203.0.113.9',
-    );
+  it('mendahulukan cf-connecting-ip — ditulis edge Cloudflare', () => {
+    expect(
+      clientIpFrom(
+        headersOf({ 'cf-connecting-ip': ' 203.0.113.9 ', 'x-forwarded-for': '6.6.6.6, 203.0.113.9' }),
+      ),
+    ).toBe('203.0.113.9');
   });
 
-  it('membuang spasi di sekitar alamat', () => {
-    expect(clientIpFrom(headersOf({ 'x-forwarded-for': '  203.0.113.9 , 70.41.3.18' }))).toBe(
-      '203.0.113.9',
-    );
+  it('mengabaikan x-forwarded-for — entri pertamanya bisa dikarang klien', () => {
+    expect(clientIpFrom(headersOf({ 'x-forwarded-for': '6.6.6.6' }))).toBeNull();
   });
 
-  it('jatuh ke x-real-ip bila x-forwarded-for tidak ada', () => {
+  it('jatuh ke x-real-ip dari reverse proxy VPS', () => {
     expect(clientIpFrom(headersOf({ 'x-real-ip': '198.51.100.7' }))).toBe('198.51.100.7');
   });
 
   it('mengembalikan null bila tidak ada header yang bisa dibaca', () => {
     expect(clientIpFrom(headersOf({}))).toBeNull();
-    // Header ada tapi kosong bukan alamat — jangan sampai seluruh permintaan
-    // tanpa IP berbagi satu kunci rem yang sama.
-    expect(clientIpFrom(headersOf({ 'x-forwarded-for': '   ' }))).toBeNull();
+    expect(clientIpFrom(headersOf({ 'cf-connecting-ip': '   ' }))).toBeNull();
   });
 });

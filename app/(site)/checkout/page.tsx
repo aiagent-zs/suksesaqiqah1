@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { getBrand } from '@/lib/brand-server';
 import { getCheckoutOptions } from '@/features/checkout/queries';
 import { bookingMaxDate, bookingMinDate } from '@/features/checkout/schema';
 import { todayWib } from '@/lib/format/date-range';
@@ -6,9 +7,9 @@ import { CheckoutForm } from '@/features/checkout/components/checkout-form';
 
 export const metadata = {
   // Tanpa akhiran nama situs: root layout sudah menempelkannya lewat
-  // `title.template` (`%s — Sukses Aqiqah`).
+  // `title.template` (`%s | <nama merek>`).
   title: 'Pesan Aqiqah',
-  description: 'Pesan paket Aqiqah Sukses Aqiqah secara mandiri, tanpa perlu membuat akun.',
+  description: 'Pesan paket aqiqah secara mandiri, tanpa perlu membuat akun.',
 };
 
 /**
@@ -99,6 +100,7 @@ export default async function CheckoutPage({
             maxDate={maxDate}
             today={today}
             initialServiceId={preselected?.id}
+            brandName={(await getBrand()).name}
           />
         )}
       </div>

@@ -142,7 +142,10 @@ export function CateringForm({
   minDate,
   maxDate,
   initialServiceId,
+  brandName = 'Sukses Aqiqah',
 }: {
+  /** Nama merek kanal masuk, untuk sapaan pesan WhatsApp ke admin. */
+  brandName?: string;
   packages: CateringPackage[];
   provinces: RegionOption[];
   minDate: string;
@@ -343,6 +346,7 @@ export function CateringForm({
             requestedDate: draft.requested_date,
             requestedTime: draft.requested_time,
             customerName: draft.name,
+            brandName,
           }),
         )}
       />

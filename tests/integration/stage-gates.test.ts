@@ -218,13 +218,34 @@ describe('enforce_stage_review', () => {
       const stages = await stagesOf(tx, orderId);
       const persiapan = stages.find((s) => s.stage === 'persiapan')!;
 
-      await actAs(tx, SEED.vendorUserA);
-      await reportStage(tx, persiapan.id, SEED.vendorUserA);
+      // Admin yang melapor tidak boleh memvalidasi laporannya sendiri.
+      await actAs(tx, SEED.admin);
+      await reportStage(tx, persiapan.id, SEED.admin);
 
-      // Masih sebagai pelapor yang sama.
       const failure = await expectFailure(() => validateStage(tx, persiapan.id));
       expect(failure.message).toMatch(/tidak boleh memvalidasi laporannya sendiri/i);
       expect(failure.code).toBe('42501'); // insufficient_privilege
+    });
+  });
+
+  it('menolak vendor memvalidasi, meski reported_by dikosongkan', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+      await assignVendor(tx, orderId);
+      const persiapan = (await stagesOf(tx, orderId)).find((s) => s.stage === 'persiapan')!;
+
+      await actAs(tx, SEED.vendorUserA);
+      // `reported_by` kiriman klien diabaikan: trigger menulisnya dari sesi.
+      await reportStage(tx, persiapan.id, SEED.admin);
+      const [row] = await tx<{ reported_by: string }[]>`
+        select reported_by::text from public.order_stage_events where id = ${persiapan.id}
+      `;
+      expect(row.reported_by).toBe(SEED.vendorUserA);
+
+      const failure = await expectFailure(() => validateStage(tx, persiapan.id));
+      expect(failure.message).toMatch(/Hanya admin/);
+      expect(failure.code).toBe('42501');
     });
   });
 

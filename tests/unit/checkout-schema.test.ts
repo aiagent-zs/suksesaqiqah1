@@ -39,15 +39,15 @@ const valid = {
 
 /**
  * Alamat Aqiqah Kirim yang sah — kode Kemendagri sungguhan, sejalur dari
- * provinsi sampai kelurahan: Jawa Barat → Kota Bandung → Cibeunying Kidul.
+ * provinsi sampai kelurahan: Jawa Barat → Kota Depok → Pancoran Mas.
  */
 const KIRIM = {
   distribution_mode: 'kirim',
   delivery_province_code: '32',
-  delivery_city_code: '32.73',
-  delivery_district_code: '32.73.24',
-  delivery_village_code: '32.73.24.1003',
-  delivery_postal_code: '40125',
+  delivery_city_code: '32.76',
+  delivery_district_code: '32.76.01',
+  delivery_village_code: '32.76.01.1007',
+  delivery_postal_code: '16431',
   delivery_detail: 'Jl. Cikutra Barat No. 12, RT 003/RW 007',
 };
 
@@ -277,10 +277,10 @@ describe('alamat pengiriman terstruktur', () => {
     // Kode kabupaten yang mendarat di kolom kelurahan: bentuknya sah sebagai
     // kode, tapi bukan kode kelurahan.
     expect(
-      guestCheckoutSchema.safeParse({ ...valid, ...KIRIM, delivery_village_code: '32.73' }).success,
+      guestCheckoutSchema.safeParse({ ...valid, ...KIRIM, delivery_village_code: '32.76' }).success,
     ).toBe(false);
     expect(
-      guestCheckoutSchema.safeParse({ ...valid, ...KIRIM, delivery_province_code: '32.73' })
+      guestCheckoutSchema.safeParse({ ...valid, ...KIRIM, delivery_province_code: '32.76' })
         .success,
     ).toBe(false);
   });

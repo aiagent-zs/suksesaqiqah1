@@ -24,9 +24,9 @@ const SERVICE = {
 
 const REGION = {
   province: '32',
-  city: '32.73',
-  district: '32.73.11',
-  village: '32.73.11.1001',
+  city: '32.75',
+  district: '32.75.01',
+  village: '32.75.01.1001',
 } as const;
 
 /**
@@ -197,10 +197,10 @@ describe('create_guest_order — jalur berhasil', () => {
 
       // Nama diambil dari `regions`, tidak pernah dari klien — yang dibaca kurir
       // adalah namanya, jadi nama yang salah kirim berarti paket salah alamat.
-      expect(row.delivery_city).toBe('Kota Bandung');
+      expect(row.delivery_city).toBe('Kota Bekasi');
       expect(row.delivery_province).toBe('Jawa Barat');
       expect(row.delivery_address).toContain('Jl. Uji No. 9');
-      expect(row.delivery_address).toContain('Kota Bandung');
+      expect(row.delivery_address).toContain('Kota Bekasi');
     });
   });
 

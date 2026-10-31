@@ -14,8 +14,8 @@ import type { PackageTab } from '@/components/site/package-filter';
  * kedua halaman merender kartu yang persis sama.
  */
 
-export const orderMessage = (paket?: string) =>
-  `Halo Sukses Aqiqah, saya ingin memesan${paket ? ` paket ${paket}` : ' layanan'}.`;
+export const orderMessage = (brandName: string, paket?: string) =>
+  `Halo ${brandName}, saya ingin memesan${paket ? ` paket ${paket}` : ' layanan'}.`;
 
 /**
  * Satu kartu paket — bentuk yang sama untuk **seluruh layanan**.
@@ -55,15 +55,23 @@ type PackageCardData = {
   action: ReactNode;
 };
 
-function PackageCard({ data, delay }: { data: PackageCardData; delay: number }) {
+function PackageCard({
+  data,
+  delay,
+  className = '',
+}: {
+  data: PackageCardData;
+  delay: number;
+  className?: string;
+}) {
   return (
     <Reveal
       as="article"
       delay={delay}
       anim="scale"
       className={`border-line relative flex flex-col overflow-hidden rounded-lg border bg-white ${
-        data.popular ? 'ring-primary ring-2' : ''
-      }`}
+        data.popular ? 'ring-primary ring-2 ring-inset' : ''
+      } ${className}`}
     >
       {/* Paket tanpa foto merender kartu tanpa blok gambar sama sekali, bukan
           placeholder: `SitePhoto` menampilkan kotak bertuliskan path berkas
@@ -83,7 +91,7 @@ function PackageCard({ data, delay }: { data: PackageCardData; delay: number }) 
         </div>
       )}
 
-      <div className="flex flex-1 flex-col p-6">
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             {/* Label jenis menggantikan judul blok yang dulu memisahkan
@@ -152,12 +160,30 @@ function FeatureList({ items }: { items: string[] }) {
   );
 }
 
-/** Kisi tunggal untuk seluruh kartu paket, apa pun jenisnya. */
-function PackageGrid({ cards }: { cards: PackageCardData[] }) {
+/**
+ * Kisi tunggal untuk seluruh kartu paket, apa pun jenisnya.
+ *
+ * `swipe` (landing): di ponsel kartu berjajar dan digeser ke samping, dengan
+ * kartu berikutnya mengintip di tepi kanan sebagai tanda masih ada lagi. Tiga
+ * kartu setinggi layar yang ditumpuk membuat harga paket kedua baru terlihat
+ * setelah dua kali gulir penuh. Dari `sm` ke atas kembali jadi kisi.
+ */
+function PackageGrid({ cards, swipe = false }: { cards: PackageCardData[]; swipe?: boolean }) {
   return (
-    <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div
+      className={
+        swipe
+          ? '-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 [&::-webkit-scrollbar]:hidden'
+          : 'mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3'
+      }
+    >
       {cards.map((card, i) => (
-        <PackageCard key={`${card.kind}-${card.slug}`} data={card} delay={i * 90} />
+        <PackageCard
+          key={`${card.kind}-${card.slug}`}
+          data={card}
+          delay={swipe ? 0 : i * 90}
+          className={swipe ? 'w-[84%] shrink-0 snap-start sm:w-auto' : ''}
+        />
       ))}
     </div>
   );
@@ -191,7 +217,7 @@ function SeeAllLink({ tab, total, label }: { tab: string; total: number; label: 
  * Bentuk ringkasnya justru menyampaikan perannya: satu blok bersahaja di bawah
  * deretan kartu, dengan satu tombol tanya ke WhatsApp untuk seluruh paket.
  */
-function NasiBoxNote({ boxes }: { boxes: LandingBox[] }) {
+function NasiBoxNote({ boxes, brandName }: { boxes: LandingBox[]; brandName: string }) {
   return (
     <Reveal anim="scale" className="border-line mt-6 rounded-lg border bg-white p-5 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -205,7 +231,7 @@ function NasiBoxNote({ boxes }: { boxes: LandingBox[] }) {
           </p>
         </div>
         <a
-          href={siteConfig.whatsapp.href(orderMessage('Nasi Box Aqiqah'))}
+          href={siteConfig.whatsapp.href(orderMessage(brandName, 'Nasi Box Aqiqah'))}
           target="_blank"
           rel="noopener noreferrer"
           className="btn btn-outline shrink-0"
@@ -257,6 +283,7 @@ export function buildPackageTabs(
   { programs, boxes, catering }: Awaited<ReturnType<typeof getLandingCatalogue>>,
   limit?: number,
   sort: PackageSort = 'rekomendasi',
+  brandName = 'Sukses Aqiqah',
 ): PackageTab[] {
   const aqiqahCards: PackageCardData[] = programs.map((p) => ({
     slug: p.slug,
@@ -333,7 +360,7 @@ export function buildPackageTabs(
 
   const grid = (id: string, cards: PackageCardData[], label: string) => (
     <>
-      <PackageGrid cards={limit ? sorted(cards).slice(0, limit) : sorted(cards)} />
+      <PackageGrid cards={limit ? sorted(cards).slice(0, limit) : sorted(cards)} swipe={!!limit} />
       {limit && cards.length > limit && <SeeAllLink tab={id} total={cards.length} label={label} />}
     </>
   );
@@ -350,7 +377,7 @@ export function buildPackageTabs(
               adalah tambahan atasnya — menyebutkannya hanya di tab Aqiqah
               berarti pengunjung yang berhenti di tab bawaan tidak pernah tahu
               tambahan itu ada. */}
-          {boxes.length > 0 && <NasiBoxNote boxes={boxes} />}
+          {boxes.length > 0 && <NasiBoxNote boxes={boxes} brandName={brandName} />}
         </>
       ),
     },
@@ -363,7 +390,7 @@ export function buildPackageTabs(
       content: (
         <>
           {grid('aqiqah', aqiqahCards, 'paket aqiqah')}
-          {boxes.length > 0 && <NasiBoxNote boxes={boxes} />}
+          {boxes.length > 0 && <NasiBoxNote boxes={boxes} brandName={brandName} />}
         </>
       ),
     },

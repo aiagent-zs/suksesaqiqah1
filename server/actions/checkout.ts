@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { getChannel } from '@/lib/brand-server';
 import { guestCheckoutSchema } from '@/features/checkout/schema';
 import type { GuestOrderResult } from '@/features/checkout/queries';
 import { createPaymentLink } from '@/features/payments/durianpay';
@@ -50,21 +51,19 @@ export async function createGuestOrderAction(
 ): Promise<ActionResult<GuestOrderResult>> {
   // Rem laju sebelum validasi: menolak banjiran permintaan tidak boleh menuntut
   // pekerjaan parsing lebih dulu.
-  const ip = clientIpFrom(await headers());
-  if (ip) {
-    const gate = checkoutLimiter.consume(ip);
-    if (!gate.allowed) {
-      const minutes = Math.max(1, Math.ceil(gate.retryAfterMs / 60_000));
-      return {
-        ok: false,
-        error: {
-          code: 'CONFLICT',
-          message:
-            `Terlalu banyak percobaan pemesanan dari jaringan ini. ` +
-            `Coba lagi dalam ${minutes} menit, atau hubungi kami lewat WhatsApp.`,
-        },
-      };
-    }
+  // Tanpa IP berbagi satu kunci: tidak dihitung sama sekali = tanpa rem.
+  const gate = checkoutLimiter.consume(clientIpFrom(await headers()) ?? 'unknown');
+  if (!gate.allowed) {
+    const minutes = Math.max(1, Math.ceil(gate.retryAfterMs / 60_000));
+    return {
+      ok: false,
+      error: {
+        code: 'CONFLICT',
+        message:
+          `Terlalu banyak percobaan pemesanan dari jaringan ini. ` +
+          `Coba lagi dalam ${minutes} menit, atau hubungi kami lewat WhatsApp.`,
+      },
+    };
   }
 
   const parsed = guestCheckoutSchema.safeParse(input);
@@ -73,45 +72,48 @@ export async function createGuestOrderAction(
   const data = parsed.data;
   const supabase = await createClient();
 
-  const { data: result, error } = await supabase.rpc('create_guest_order', {
-    p_payload: {
-      participant: {
-        name: data.name,
-        phone: data.phone,
-        email: data.email || null,
-        address: data.address || null,
+  const { data: result, error } = await supabase
+    .rpc('create_guest_order', {
+      p_payload: {
+        participant: {
+          name: data.name,
+          phone: data.phone,
+          email: data.email || null,
+          address: data.address || null,
+        },
+        service_id: data.service_id,
+        species: data.species,
+        qty: data.qty,
+        aqiqah_for: data.aqiqah_for,
+        requested_date: data.requested_date,
+        requested_time: data.requested_time,
+        distribution_mode: data.distribution_mode,
+        // Kosong = "Tidak pakai". RPC memperlakukan id kosong sebagai tanpa add-on.
+        nasi_box_service_id: data.nasi_box_service_id || null,
+        nasi_box_qty: data.nasi_box_qty ?? 0,
+        // Nama anak dan nasabnya disatukan di sini — `animals.on_behalf_of`
+        // menyimpannya sebagai satu teks.
+        on_behalf_of: [data.child_name, data.bin_binti].filter(Boolean).join(' ').trim(),
+        // Data lahir tidak ikut ke dalam teks itu: ia mendarat di kolomnya sendiri
+        // pada `orders`, supaya tetap bisa dibaca mesin (acuan hari ke-7, isi
+        // sertifikat) dan tidak tersalin ke tiap ekor hewan.
+        child_birth_place: data.child_birth_place,
+        child_birth_date: data.child_birth_date,
+        // Hanya kode wilayahnya. `delivery_address` satu baris tidak dikirim dari
+        // sini — RPC merakitnya sendiri dari nama yang ia baca di `regions`.
+        delivery_province_code: data.delivery_province_code || null,
+        delivery_city_code: data.delivery_city_code || null,
+        delivery_district_code: data.delivery_district_code || null,
+        delivery_village_code: data.delivery_village_code || null,
+        delivery_postal_code: data.delivery_postal_code || null,
+        delivery_detail: data.delivery_detail || null,
+        recipient_institution: data.recipient_institution || null,
+        referral_code: data.referral_code || null,
+        notes: data.notes || null,
       },
-      service_id: data.service_id,
-      species: data.species,
-      qty: data.qty,
-      aqiqah_for: data.aqiqah_for,
-      requested_date: data.requested_date,
-      requested_time: data.requested_time,
-      distribution_mode: data.distribution_mode,
-      // Kosong = "Tidak pakai". RPC memperlakukan id kosong sebagai tanpa add-on.
-      nasi_box_service_id: data.nasi_box_service_id || null,
-      nasi_box_qty: data.nasi_box_qty ?? 0,
-      // Nama anak dan nasabnya disatukan di sini — `animals.on_behalf_of`
-      // menyimpannya sebagai satu teks.
-      on_behalf_of: [data.child_name, data.bin_binti].filter(Boolean).join(' ').trim(),
-      // Data lahir tidak ikut ke dalam teks itu: ia mendarat di kolomnya sendiri
-      // pada `orders`, supaya tetap bisa dibaca mesin (acuan hari ke-7, isi
-      // sertifikat) dan tidak tersalin ke tiap ekor hewan.
-      child_birth_place: data.child_birth_place,
-      child_birth_date: data.child_birth_date,
-      // Hanya kode wilayahnya. `delivery_address` satu baris tidak dikirim dari
-      // sini — RPC merakitnya sendiri dari nama yang ia baca di `regions`.
-      delivery_province_code: data.delivery_province_code || null,
-      delivery_city_code: data.delivery_city_code || null,
-      delivery_district_code: data.delivery_district_code || null,
-      delivery_village_code: data.delivery_village_code || null,
-      delivery_postal_code: data.delivery_postal_code || null,
-      delivery_detail: data.delivery_detail || null,
-      recipient_institution: data.recipient_institution || null,
-      referral_code: data.referral_code || null,
-      notes: data.notes || null,
-    },
-  });
+    })
+    // Kanal masuk → `orders.channel` lewat trigger `set_order_channel`.
+    .setHeader('x-order-channel', await getChannel());
 
   if (error) {
     if (EXPECTED_REJECTIONS.has(error.code ?? '')) {

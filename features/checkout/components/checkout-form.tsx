@@ -198,7 +198,10 @@ export function CheckoutForm({
   maxDate,
   today,
   initialServiceId,
+  brandName = 'Sukses Aqiqah',
 }: {
+  /** Nama merek kanal masuk, untuk sapaan pesan WhatsApp ke admin. */
+  brandName?: string;
   packages: CheckoutPackage[];
   nasiBoxes: NasiBoxPackage[];
   /** Tingkat teratas pemilih alamat; sisanya diambil peramban saat dipilih. */
@@ -748,6 +751,7 @@ export function CheckoutForm({
             requestedTime: draft.requested_time,
             distributionMode: draft.distribution_mode,
             customerName: draft.name,
+            brandName,
           }),
         )}
       />
