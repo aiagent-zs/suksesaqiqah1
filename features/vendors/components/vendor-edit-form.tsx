@@ -143,7 +143,7 @@ export function VendorEditForm({
         <Field
           id="v-code"
           label="Kode mitra"
-          hint="2-12 huruf kapital atau angka — harus unik antar mitra"
+          hint="2-12 huruf kapital atau angka, harus unik antar mitra"
           value={draft.code}
           error={fieldErrors.code}
           onChange={(v) => set('code', v.toUpperCase())}
@@ -158,7 +158,7 @@ export function VendorEditForm({
         <Field
           id="v-legal"
           label="Nama badan hukum"
-          hint="Opsional — dipakai pada dokumen perjanjian"
+          hint="Opsional, dipakai pada dokumen perjanjian"
           value={draft.legal_name}
           error={fieldErrors.legal_name}
           onChange={(v) => set('legal_name', v)}

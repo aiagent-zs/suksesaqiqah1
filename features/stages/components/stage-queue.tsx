@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DocStatusBadge } from '@/components/data/status-badge';
 import { DocPreview } from '@/features/documentation/components/doc-preview';
-import { formatDateTime, formatRelative } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import { reviewStage } from '@/server/actions/stages';
 import { STAGE_META } from '../sequence';
 import type { StageQueueItem } from '../queries';
@@ -96,7 +96,7 @@ export function StageQueue({
                   <p className="text-muted-foreground mt-1 text-xs">
                     {item.vendorName ?? 'Mitra belum ditetapkan'}
                     {item.reporterName ? ` · dilaporkan ${item.reporterName}` : ''}
-                    {item.reportedAt ? ` · ${formatRelative(item.reportedAt)}` : ''}
+                    {item.reportedAgo ? ` · ${item.reportedAgo}` : ''}
                   </p>
                 </div>
               </div>
@@ -136,7 +136,7 @@ export function StageQueue({
 
               {isOwnReport ? (
                 <p className="text-muted-foreground border-border mt-3 border-t pt-3 text-xs">
-                  Anda yang melaporkan tahap ini — validasinya menunggu admin lain.
+                  Anda yang melaporkan tahap ini, jadi validasinya menunggu admin lain.
                 </p>
               ) : (
                 <div className="border-border mt-3 flex flex-wrap items-center gap-2 border-t pt-3">

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, CalendarDays, Globe, MapPin, Receipt, User, UserCog } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Globe, Receipt, User, UserCog } from 'lucide-react';
 import { BRANDS, parseChannel } from '@/lib/brand';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
@@ -28,6 +28,7 @@ import { getOrderReports } from '@/features/reporting/queries';
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/data/status-badge';
 import { DOC_STAGE_LABEL, ORDER_STATUS_META, type DocStage } from '@/lib/constants/order';
 import { formatCurrency, formatDate, formatDateTime, formatTime } from '@/lib/format';
+import { appUrl } from '@/lib/constants/site';
 import {
   Table,
   TableBody,
@@ -404,7 +405,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               <ReportManager
                 orderId={order.id}
                 publicToken={order.public_token}
-                appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
+                appUrl={appUrl()}
                 reports={reports}
                 canGenerate={canShareReport}
                 canShare={canShareReport}
@@ -542,14 +543,6 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               </div>
 
               <div className="flex gap-3">
-                <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-                <div>
-                  <dt className="text-muted-foreground">Cabang</dt>
-                  <dd className="font-medium">{vendor ? vendor.name : 'Belum ditugaskan'}</dd>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
                 <CalendarDays className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                 <div>
                   <dt className="text-muted-foreground">Jadwal</dt>
@@ -562,7 +555,6 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                       <dd className="text-muted-foreground text-xs">
                         {schedule.locationName ?? 'Lokasi belum diisi'}
                       </dd>
-                      <dd className="mt-1"></dd>
                     </>
                   ) : (
                     <dd className="text-muted-foreground">Belum dijadwalkan</dd>

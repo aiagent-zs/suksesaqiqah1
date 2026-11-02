@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 
 /**
@@ -38,10 +39,20 @@ export function PackageFilter({
   tabs,
   /** Tab yang terbuka saat halaman dimuat. */
   defaultTab,
+  /**
+   * Urutan aktif di `/paket`. Bila diisi, tab yang dipilih ikut ditulis ke
+   * `?jenis=` supaya tautan urutan (dirakit di server dari URL) membawa tab
+   * yang sedang terbuka. Tanpa ini, memilih Katering lalu "Termurah"
+   * mengembalikan pengunjung ke tab Pilihan. Halaman depan tidak mengisinya:
+   * ia prerender statis dan tidak punya tautan urutan.
+   */
+  urlSort,
 }: {
   tabs: PackageTab[];
   defaultTab: string;
+  urlSort?: string;
 }) {
+  const router = useRouter();
   // Tab kosong tidak ditawarkan: "Katering (0)" yang diklik lalu memperlihatkan
   // ruang kosong lebih buruk daripada tidak ada tabnya sama sekali.
   const shown = tabs.filter((t) => t.count > 0);
@@ -53,6 +64,13 @@ export function PackageFilter({
   );
 
   if (shown.length === 0) return null;
+
+  function select(id: string) {
+    setActive(id);
+    // `replace`, bukan `push`: berganti tab bukan langkah yang layak diulang
+    // dengan tombol kembali. `scroll: false` supaya halaman tidak melompat ke atas.
+    if (urlSort) router.replace(`?jenis=${id}&urut=${urlSort}`, { scroll: false });
+  }
 
   // Satu jenis saja berarti tidak ada yang perlu disaring — tabnya jadi hiasan
   // yang menuntut klik tanpa menawarkan pilihan.
@@ -75,7 +93,7 @@ export function PackageFilter({
               : -1;
     if (next < 0) return;
     e.preventDefault();
-    setActive(shown[next].id);
+    select(shown[next].id);
     document.getElementById(`tab-${shown[next].id}`)?.focus();
   };
 
@@ -98,7 +116,7 @@ export function PackageFilter({
                 aria-selected={on}
                 aria-controls={`panel-${tab.id}`}
                 tabIndex={on ? 0 : -1}
-                onClick={() => setActive(tab.id)}
+                onClick={() => select(tab.id)}
                 onKeyDown={onKeyDown}
                 className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors duration-150 ${
                   on

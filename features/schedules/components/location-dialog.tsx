@@ -152,7 +152,7 @@ export function LocationDialog({
                 className="mt-1.5"
               />
               <p className="text-muted-foreground mt-1 text-xs">
-                Wajib diisi — alamat ini yang dipakai mitra untuk berangkat, dan ikut tercetak di
+                Wajib diisi. Alamat ini yang dipakai mitra untuk berangkat, dan ikut tercetak di
                 laporan peserta.
               </p>
             </div>

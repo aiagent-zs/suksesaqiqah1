@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RateLimiter, clientIpFrom } from '@/lib/security/rate-limit';
+import { RateLimiter, clientIpFrom, rateLimitKey } from '@/lib/security/rate-limit';
 
 /**
  * Rem laju checkout publik. Waktu selalu disuntikkan lewat parameter `now`
@@ -68,24 +68,59 @@ describe('clientIpFrom', () => {
     return { get: (name: string) => map[name] ?? null };
   }
 
-  it('mendahulukan cf-connecting-ip — ditulis edge Cloudflare', () => {
+  it('memakai cf-connecting-ip hanya bila TRUST_CF_HEADER aktif', () => {
+    const h = headersOf({ 'cf-connecting-ip': ' 203.0.113.9 ', 'x-real-ip': '10.0.0.2' });
+    expect(clientIpFrom(h, true)).toBe('203.0.113.9');
+    // Tanpa jaminan firewall, header itu bisa dikarang penembak origin langsung.
+    expect(clientIpFrom(h, false)).toBe('10.0.0.2');
+  });
+
+  it('mendahulukan x-real-ip dari reverse proxy VPS', () => {
     expect(
-      clientIpFrom(
-        headersOf({ 'cf-connecting-ip': ' 203.0.113.9 ', 'x-forwarded-for': '6.6.6.6, 203.0.113.9' }),
-      ),
-    ).toBe('203.0.113.9');
+      clientIpFrom(headersOf({ 'x-real-ip': '198.51.100.7', 'x-forwarded-for': '6.6.6.6' }), false),
+    ).toBe('198.51.100.7');
   });
 
-  it('mengabaikan x-forwarded-for — entri pertamanya bisa dikarang klien', () => {
-    expect(clientIpFrom(headersOf({ 'x-forwarded-for': '6.6.6.6' }))).toBeNull();
-  });
-
-  it('jatuh ke x-real-ip dari reverse proxy VPS', () => {
-    expect(clientIpFrom(headersOf({ 'x-real-ip': '198.51.100.7' }))).toBe('198.51.100.7');
+  it('jatuh ke entri pertama x-forwarded-for bila tidak ada x-real-ip', () => {
+    expect(clientIpFrom(headersOf({ 'x-forwarded-for': ' 6.6.6.6 , 10.0.0.1' }), false)).toBe(
+      '6.6.6.6',
+    );
   });
 
   it('mengembalikan null bila tidak ada header yang bisa dibaca', () => {
-    expect(clientIpFrom(headersOf({}))).toBeNull();
-    expect(clientIpFrom(headersOf({ 'cf-connecting-ip': '   ' }))).toBeNull();
+    expect(clientIpFrom(headersOf({}), true)).toBeNull();
+    expect(clientIpFrom(headersOf({ 'cf-connecting-ip': '   ' }), true)).toBeNull();
+  });
+});
+
+describe('rateLimitKey', () => {
+  it('IPv4 apa adanya, tanpa IP jadi kunci bersama', () => {
+    expect(rateLimitKey('203.0.113.9')).toBe('203.0.113.9');
+    expect(rateLimitKey('::ffff:203.0.113.9')).toBe('203.0.113.9');
+    expect(rateLimitKey(null)).toBe('unknown');
+  });
+
+  it('IPv6 satu /64 berbagi kunci, apa pun penulisannya', () => {
+    const key = rateLimitKey('2001:db8:aa:1::1');
+    expect(key).toBe('2001:db8:aa:1::/64');
+    expect(rateLimitKey('2001:0DB8:00aa:0001:ffff:ffff:ffff:ffff')).toBe(key);
+    expect(rateLimitKey('2001:db8:aa:1:dead:beef::7%eth0')).toBe(key);
+    // /64 tetangga dihitung terpisah.
+    expect(rateLimitKey('2001:db8:aa:2::1')).not.toBe(key);
+    expect(rateLimitKey('2001:db8::1')).toBe('2001:db8:0:0::/64');
+    expect(rateLimitKey('::1')).toBe('0:0:0:0::/64');
+  });
+});
+
+describe('RateLimiter — plafon memori', () => {
+  it('membuang kunci tertua bila jumlahnya mencapai plafon', () => {
+    const limiter = new RateLimiter({ limit: 1, windowMs: 60_000 });
+    expect(limiter.consume('pertama', 0).allowed).toBe(true);
+    expect(limiter.consume('pertama', 0).allowed).toBe(false);
+    for (let i = 0; i < 10_000; i++) limiter.consume(`ip-${i}`, 0);
+    // Masih dalam jendela yang sama, tapi kunci tertuanya sudah dibuang.
+    expect(limiter.consume('pertama', 0).allowed).toBe(true);
+    // Kunci terbaru tetap terhitung.
+    expect(limiter.consume('ip-9999', 0).allowed).toBe(false);
   });
 });

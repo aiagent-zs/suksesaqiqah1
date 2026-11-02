@@ -212,7 +212,7 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
             </div>
             <p className="text-muted-foreground mt-1 text-xs">
               Mitra tanpa &ldquo;Aqiqah Kirim&rdquo; tidak akan ditawarkan untuk order yang harus
-              diantar — tahap pengiriman akan terbit dan tidak pernah bisa ia penuhi.
+              diantar: tahap pengiriman akan terbit dan tidak pernah bisa ia penuhi.
             </p>
           </div>
 
@@ -327,7 +327,7 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
               ) : (
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-amber-700">
                   <UserX className="size-3" />
-                  Belum punya akun login — buatkan di menu Pengguna.
+                  Belum punya akun login. Buatkan di menu Pengguna.
                 </p>
               )}
 
@@ -381,7 +381,7 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
                 hint={
                   v.ordersOpen > 0 ? (
                     <>
-                      Mitra ini sedang mengerjakan <strong>{v.ordersOpen} order</strong> — database
+                      Mitra ini sedang mengerjakan <strong>{v.ordersOpen} order</strong>, jadi database
                       akan menolak, sebab jejak order lama tidak boleh kehilangan pelaksananya.
                       Pakai <strong>Nonaktifkan</strong> di halaman detail untuk berhenti
                       menugaskannya.
@@ -389,7 +389,7 @@ export function VendorManager({ vendors }: { vendors: VendorRow[] }) {
                   ) : (
                     <>
                       Kalau hanya perlu berhenti menugaskannya, pakai <strong>Nonaktifkan</strong>{' '}
-                      di halaman detail — datanya tetap tersimpan.
+                      di halaman detail. Datanya tetap tersimpan.
                     </>
                   )
                 }

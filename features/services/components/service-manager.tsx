@@ -102,7 +102,7 @@ export function ServiceManager({
         <Info className="mt-0.5 size-4 shrink-0" />
         <span>
           Perubahan tersimpan langsung terlihat di <strong>halaman depan</strong> dan{' '}
-          <strong>checkout</strong>. Harga order yang sudah berjalan tidak ikut berubah — harganya
+          <strong>checkout</strong>. Harga order yang sudah berjalan tidak ikut berubah karena harganya
           sudah tersalin saat order dibuat.
         </span>
       </p>

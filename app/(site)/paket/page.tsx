@@ -15,8 +15,9 @@ export const metadata: Metadata = {
 
 const SORTS: { id: PackageSort; label: string }[] = [
   { id: 'rekomendasi', label: 'Rekomendasi' },
-  { id: 'termurah', label: 'Harga terendah' },
-  { id: 'termahal', label: 'Harga tertinggi' },
+  // Label pendek supaya ketiganya muat sebaris di ponsel 375px.
+  { id: 'termurah', label: 'Termurah' },
+  { id: 'termahal', label: 'Termahal' },
 ];
 
 /**
@@ -28,9 +29,14 @@ const SORTS: { id: PackageSort; label: string }[] = [
 export default async function PackagesPage({ searchParams }: PageProps<'/paket'>) {
   const { jenis, urut } = await searchParams;
   const sort = SORTS.find((s) => s.id === urut)?.id ?? 'rekomendasi';
-  const tab = typeof jenis === 'string' ? jenis : 'pilihan';
   const [catalogue, brand] = await Promise.all([getLandingCatalogue(), getBrand()]);
   const tabs = buildPackageTabs(catalogue, undefined, sort, brand.name);
+  // Hanya tab yang benar-benar ada dan berisi yang dibawa ke tautan urutan.
+  // `?jenis=bogus` dulu ikut tersalin apa adanya ke setiap tautan.
+  const tab =
+    tabs.find((t) => t.id === jenis && t.count > 0)?.id ??
+    tabs.find((t) => t.count > 0)?.id ??
+    'pilihan';
   const empty = tabs.every((t) => t.count === 0);
 
   return (
@@ -64,16 +70,16 @@ export default async function PackagesPage({ searchParams }: PageProps<'/paket'>
           <>
             <nav
               aria-label="Urutkan paket"
-              className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-2 text-sm"
+              className="mt-8 flex flex-wrap items-center gap-y-2 text-sm sm:gap-x-1"
             >
-              <span className="text-ink-muted mr-2">Urutkan:</span>
+              <span className="text-ink-muted mr-1 sm:mr-2">Urutkan:</span>
               {SORTS.map((s) => (
                 <Link
                   key={s.id}
                   href={`/paket?jenis=${tab}&urut=${s.id}`}
                   scroll={false}
                   aria-current={s.id === sort ? 'true' : undefined}
-                  className={`inline-flex min-h-11 items-center rounded-md px-3 font-medium ${
+                  className={`inline-flex min-h-11 items-center rounded-md px-2 font-medium sm:px-3 ${
                     s.id === sort
                       ? 'text-primary underline decoration-2 underline-offset-4'
                       : 'text-ink-muted hover:text-ink'
@@ -83,7 +89,7 @@ export default async function PackagesPage({ searchParams }: PageProps<'/paket'>
                 </Link>
               ))}
             </nav>
-            <PackageFilter key={sort} tabs={tabs} defaultTab={tab} />
+            <PackageFilter key={sort} tabs={tabs} defaultTab={tab} urlSort={sort} />
           </>
         )}
       </div>

@@ -38,7 +38,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Sea
           <CalendarOff className="text-muted-foreground size-10" />
           <p className="mt-4 font-medium">Tidak ada jadwal yang cocok</p>
           <p className="text-muted-foreground mt-1 max-w-sm text-sm">
-            Longgarkan filter, atau tetapkan jadwal dari halaman detail order — tanggal, lokasi, dan
+            Longgarkan filter, atau tetapkan jadwal dari halaman detail order. Tanggal, lokasi, dan
             PIC diatur di sana.
           </p>
         </div>

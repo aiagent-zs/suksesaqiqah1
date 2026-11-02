@@ -10,10 +10,9 @@ import {
   verifyPaymentSchema,
 } from '@/features/payments/schema';
 import { isProofPathForOrder } from '@/features/payments/storage';
-import { checkTransition } from '@/features/orders/state-machine';
-import { getOrderDetail } from '@/features/orders/queries';
+import { advanceToPaidIfReady } from './advance-to-paid';
 
-import { scopedInternalError, validationError, type ActionResult } from './result';
+import { conflict, scopedInternalError, validationError, type ActionResult } from './result';
 
 const internalError = scopedInternalError('payments');
 
@@ -105,9 +104,14 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ id: 
   // **terverifikasi**. Catatan yang masih `pending` sengaja tidak ikut
   // dikurangkan: ia belum tentu jadi uang, dan mengurangkannya berarti nominal
   // yang benar ditolak hanya karena ada catatan yang belum diputuskan.
+  //
+  // Dibandingkan dalam sen bulat: kolom numeric(14,2) datang sebagai float, dan
+  // selisih seperti 0.1 + 0.2 akan menolak nominal yang sebenarnya pas.
   const outstanding = order.total_amount - order.paid_amount;
-  if (order.total_amount > 0 && amount !== outstanding) {
-    const kurang = amount < outstanding;
+  const amountCents = Math.round(amount * 100);
+  const outstandingCents = Math.round(outstanding * 100);
+  if (order.total_amount > 0 && amountCents !== outstandingCents) {
+    const kurang = amountCents < outstandingCents;
     return {
       ok: false,
       error: {
@@ -151,58 +155,6 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ id: 
 // =============================================================================
 // Verifikasi / tolak (prd.md FR-P2)
 // =============================================================================
-
-/**
- * Naikkan `verified → paid` bila tagihannya sudah lunas.
- *
- * Dipanggil sesudah verifikasi pembayaran berhasil. Alasannya: syarat transisi
- * itu **persis** hal yang barusan dikerjakan — `paymentGatePassed`, tidak ada
- * yang lain. Menyuruh admin menekan "Terbayar" sesudahnya berarti meminta ia
- * menegaskan sesuatu yang sudah ia buktikan satu detik sebelumnya, di panel
- * yang tepat di sebelahnya.
- *
- * **Tidak ada aturan baru di sini.** Keputusannya diserahkan ke
- * `checkTransition` yang sama dengan yang dipakai tombol manual, dengan konteks
- * yang dibaca ulang dari database sesudah trigger `sync_order_payment` selesai.
- * Jadi kenaikan otomatis ini tidak mungkin melewati gerbang yang akan menahan
- * penekanan tombolnya.
- *
- * **Gagal tidak membatalkan verifikasinya.** Pembayarannya sudah sah tersimpan;
- * kalau kenaikan status tertahan — order tamu belum diverifikasi, atau status
- * sudah digerakkan orang lain — yang benar adalah membiarkan tombolnya tetap
- * ada, bukan menggagalkan pencatatan uang yang sudah masuk. Karena itu
- * fungsinya tidak pernah melempar dan tidak mengembalikan kegagalan.
- *
- * Hanya `verified → paid` yang diotomatiskan. Transisi lain menuntut pekerjaan
- * yang tidak terjadi di panel ini (mitra ditetapkan, hewan didaftarkan), jadi
- * menaikkannya berantai akan melompati keputusan yang memang milik admin.
- */
-async function advanceToPaidIfReady(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  orderId: string,
-  role: Parameters<typeof checkTransition>[2],
-): Promise<boolean> {
-  // Dibaca ulang, bukan dihitung sendiri: `payment_status` baru ditulis oleh
-  // trigger `sync_order_payment` sesudah UPDATE pembayaran di atas, dan
-  // menyalin rumusnya ke sini berarti dua sumber kebenaran untuk gerbang yang
-  // sama.
-  const detail = await getOrderDetail(orderId);
-  if (!detail) return false;
-
-  if (detail.order.status !== 'verified') return false;
-  if (!checkTransition('verified', 'paid', role, detail.guard).ok) return false;
-
-  const { data } = await supabase
-    .from('orders')
-    .update({ status: 'paid' })
-    .eq('id', orderId)
-    // Status lama jadi syarat: kalau ada yang menggerakkannya lebih dulu,
-    // kenaikan ini batal tanpa menimpa apa pun.
-    .eq('status', 'verified')
-    .select('id');
-
-  return (data ?? []).length > 0;
-}
 
 /**
  * Menyetujui atau menolak satu pembayaran.
@@ -292,6 +244,14 @@ export async function verifyPayment(
     .select('order_id')
     .maybeSingle();
 
+  // 23514 dari `sync_order_payment`: pembayaran lain (webhook Durianpay atau
+  // verifikator lain) terverifikasi di antara cek di atas dan UPDATE ini.
+  // Database yang menolak, jadi pesannya bukan galat internal.
+  if (error?.code === '23514') {
+    return conflict(
+      'Order ini sudah lunas oleh pembayaran lain. Muat ulang halaman, lalu tolak pembayaran ini bila memang ganda.',
+    );
+  }
   if (error) return internalError('Gagal memperbarui status pembayaran', error);
 
   if (!data) {

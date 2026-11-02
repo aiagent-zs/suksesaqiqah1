@@ -70,8 +70,10 @@ function ToastBody({
   return (
     <div
       // `fixed` + inset bawah: tetap terlihat sekalipun halaman sedang tergulir
-      // jauh, dan tidak ikut mendorong tata letak form.
-      className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 sm:bottom-6 sm:justify-end sm:px-6"
+      // jauh, dan tidak ikut mendorong tata letak form. Di bawah `lg` ia naik
+      // melewati bar navigasi bawah (~56px + safe area) yang kalau tidak
+      // menutupi toast dan tombol tutupnya.
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 flex justify-center px-4 sm:justify-end sm:px-6 lg:bottom-6"
     >
       <div
         role="status"

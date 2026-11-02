@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,8 +31,42 @@ type AnimalRow = {
   on_behalf_of: string;
 };
 
-let rowSeq = 0;
-const nextKey = () => ++rowSeq;
+/**
+ * Label medan yang terbaca operator untuk kunci galat dari server.
+ *
+ * `validationError` mengembalikan path zod apa adanya (`items.0.qty`), dan
+ * itu yang dulu tercetak di daftar galat. Nomor baris ditambah satu karena
+ * operator menghitung dari 1, bukan dari 0.
+ */
+const FIELD_LABEL: Record<string, string> = {
+  participant: 'Peserta',
+  participant_id: 'Peserta',
+  name: 'Nama peserta',
+  phone: 'Nomor WhatsApp',
+  email: 'Email',
+  address: 'Alamat',
+  distribution_mode: 'Cara penyaluran',
+  items: 'Item layanan',
+  animals: 'Hewan',
+  service_id: 'layanan',
+  qty: 'qty',
+  unit_price: 'harga satuan',
+  on_behalf_of: 'atas nama',
+  species: 'jenis',
+  tag_code: 'kode hewan',
+  weight_kg: 'berat',
+  notes: 'Catatan',
+};
+
+function fieldLabel(key: string): string {
+  const parts = key.split('.');
+  if ((parts[0] === 'items' || parts[0] === 'animals') && /^\d+$/.test(parts[1] ?? '')) {
+    const row = `${parts[0] === 'items' ? 'Item' : 'Hewan'} ${Number(parts[1]) + 1}`;
+    return parts[2] ? `${row}, ${FIELD_LABEL[parts[2]] ?? parts[2]}` : row;
+  }
+  const last = parts[parts.length - 1];
+  return FIELD_LABEL[last] ?? FIELD_LABEL[parts[0]] ?? key;
+}
 
 export function OrderForm({
   services,
@@ -50,8 +84,15 @@ export function OrderForm({
   const [distributionMode, setDistributionMode] = useState<'salur' | 'kirim' | ''>('');
   const [notes, setNotes] = useState('');
 
+  // Kunci baris dari ref per komponen, bukan pencacah tingkat modul: pencacah
+  // modul sudah bergerak di server saat render pertama, jadi `id`/`htmlFor`
+  // baris pertama berbeda antara HTML server dan hidrasi klien. Baris awal
+  // selalu 0; hanya penambahan yang menaikkannya.
+  const seq = useRef(0);
+  const nextKey = () => ++seq.current;
+
   const [items, setItems] = useState<ItemRow[]>([
-    { key: nextKey(), service_id: '', qty: 1, unit_price: 0, on_behalf_of: '' },
+    { key: 0, service_id: '', qty: 1, unit_price: 0, on_behalf_of: '' },
   ]);
   const [animals, setAnimals] = useState<AnimalRow[]>([]);
 
@@ -131,7 +172,7 @@ export function OrderForm({
               <ul className="mt-1 list-inside list-disc text-xs">
                 {Object.entries(fieldErrors).map(([field, message]) => (
                   <li key={field}>
-                    {field}: {message}
+                    {fieldLabel(field)}: {message}
                   </li>
                 ))}
               </ul>
@@ -165,7 +206,7 @@ export function OrderForm({
               onChange={(e) => setDistributionMode(e.target.value as 'salur' | 'kirim')}
               className="mt-1.5"
             >
-              <option value="">— pilih cara penyaluran —</option>
+              <option value="">Pilih cara penyaluran</option>
               <option value="salur">Aqiqah Salur</option>
               <option value="kirim">Aqiqah Kirim</option>
             </Select>
@@ -184,7 +225,7 @@ export function OrderForm({
               onChange={(e) => setParticipantId(e.target.value)}
               className="mt-1.5"
             >
-              <option value="">— pilih peserta —</option>
+              <option value="">Pilih peserta</option>
               {participants.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -279,7 +320,7 @@ export function OrderForm({
                   onChange={(e) => pickService(item.key, e.target.value)}
                   className="mt-1.5"
                 >
-                  <option value="">— pilih layanan —</option>
+                  <option value="">Pilih layanan</option>
                   {services.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} ({formatCurrency(s.price)})
@@ -303,7 +344,7 @@ export function OrderForm({
                   id={`price-${item.key}`}
                   readOnly
                   aria-describedby="price-note"
-                  value={item.service_id ? formatCurrency(item.unit_price) : '—'}
+                  value={item.service_id ? formatCurrency(item.unit_price) : '-'}
                   className="bg-muted text-muted-foreground mt-1.5 tabular-nums"
                 />
               </div>

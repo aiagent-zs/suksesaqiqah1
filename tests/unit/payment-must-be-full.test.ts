@@ -166,3 +166,14 @@ describe('order tanpa nilai', () => {
     expect(result.ok).toBe(true);
   });
 });
+
+describe('perbandingan dalam sen', () => {
+  it('selisih pembulatan float tidak menolak nominal yang pas', async () => {
+    // 0.3 - 0.1 = 0.19999999999999998 di float; dibandingkan mentah, nominal
+    // 0.2 yang benar akan ditolak sebagai "kurang".
+    orderTotal = 0.3;
+    orderPaid = 0.1;
+    const result = await record(0.2);
+    expect(result.ok).toBe(true);
+  });
+});

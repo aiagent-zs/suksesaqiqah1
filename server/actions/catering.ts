@@ -6,7 +6,7 @@ import { getChannel } from '@/lib/brand-server';
 import { cateringCheckoutSchema } from '@/features/catering/schema';
 import type { CateringOrderResult } from '@/features/catering/queries';
 import { createPaymentLink } from '@/features/payments/durianpay';
-import { RateLimiter, clientIpFrom } from '@/lib/security/rate-limit';
+import { RateLimiter, rateLimitKeyFrom } from '@/lib/security/rate-limit';
 import { scopedInternalError, validationError, type ActionResult } from './result';
 
 const internalError = scopedInternalError('catering');
@@ -51,8 +51,7 @@ export async function createCateringOrderAction(
 ): Promise<ActionResult<CateringOrderResult>> {
   // Rem laju sebelum validasi: menolak banjiran permintaan tidak boleh menuntut
   // pekerjaan parsing lebih dulu.
-  // Tanpa IP berbagi satu kunci: tidak dihitung sama sekali = tanpa rem.
-  const gate = cateringLimiter.consume(clientIpFrom(await headers()) ?? 'unknown');
+  const gate = cateringLimiter.consume(rateLimitKeyFrom(await headers()));
   if (!gate.allowed) {
     const minutes = Math.max(1, Math.ceil(gate.retryAfterMs / 60_000));
     return {

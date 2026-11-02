@@ -271,7 +271,7 @@ export function ScheduleManager({
       {!vendor && (
         <p className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
-          Mitra belum ditugaskan — daftar tahap kerja baru terbit setelah mitra ditetapkan.
+          Mitra belum ditugaskan. Daftar tahap kerja baru terbit setelah mitra ditetapkan.
         </p>
       )}
 
@@ -448,7 +448,7 @@ export function ScheduleManager({
 
                 {noLocations && (
                   <p className="text-muted-foreground text-xs">
-                    Belum ada lokasi terdaftar — tambahkan lewat “Tambah lokasi”.
+                    Belum ada lokasi terdaftar. Tambahkan lewat “Tambah lokasi”.
                   </p>
                 )}
               </dd>

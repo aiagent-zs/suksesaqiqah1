@@ -155,7 +155,7 @@ export function Modal({
               header yang menyediakan ruangnya. */}
           <Dialog.Close
             aria-label="Tutup"
-            className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-lg transition-colors max-sm:top-5"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-lg transition-colors max-sm:top-3 max-sm:size-11"
           >
             <X className="size-4" />
           </Dialog.Close>

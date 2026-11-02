@@ -59,7 +59,7 @@ afterEach(() => {
 describe('sebelum dikirim', () => {
   it('mengundang ditekan dan bisa ditekan', () => {
     const btn = mount();
-    expect(btn.textContent).toBe('Masuk ke System');
+    expect(btn.textContent).toBe('Masuk');
     expect(btn.disabled).toBe(false);
   });
 

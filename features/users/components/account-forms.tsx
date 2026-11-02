@@ -226,7 +226,7 @@ export function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
           <Check className="mt-0.5 size-4 shrink-0" />
           <span>
             Tautan konfirmasi dikirim ke <strong>{sentTo}</strong>. Emailnya baru berpindah setelah
-            tautan itu diklik — sampai saat itu, tetap masuk dengan email lama.
+            tautan itu diklik. Sampai saat itu, tetap masuk dengan email lama.
           </span>
         </p>
       )}

@@ -37,7 +37,7 @@ export function VendorActiveToggle({
         disabled={pending || blocked}
         title={
           blocked
-            ? `Masih memegang ${ordersOpen} order berjalan — selesaikan atau pindahkan lebih dulu`
+            ? `Masih memegang ${ordersOpen} order berjalan. Selesaikan atau pindahkan lebih dulu`
             : undefined
         }
         onClick={() => {

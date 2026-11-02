@@ -1,3 +1,5 @@
+import { cache } from 'react';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CheckCircle2, Download, MapPin, ShieldCheck } from 'lucide-react';
 import { getPublicReport } from '@/server/services/public-report';
@@ -12,10 +14,25 @@ type Params = Promise<{ token: string }>;
  * Sengaja `noindex`: tautannya dibagikan langsung ke peserta dan isinya memuat
  * nama serta pelaksanaan ibadah mereka — tidak boleh masuk hasil pencarian.
  */
-export const metadata = {
-  title: 'Laporan Pelaksanaan',
-  robots: { index: false, follow: false },
-};
+/**
+ * `cache` supaya `generateMetadata` dan halaman berbagi satu panggilan RPC per
+ * permintaan: klien Supabase tidak lewat `fetch`, jadi memoisasi bawaan Next
+ * tidak berlaku di sini.
+ */
+const loadReport = cache(getPublicReport);
+
+/**
+ * Judul tab ikut jujur soal 404: token tak dikenal dulu tetap berjudul
+ * "Laporan Pelaksanaan" di atas halaman tidak ditemukan.
+ */
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { token } = await params;
+  const report = await loadReport(token);
+  return {
+    title: report ? 'Laporan Pelaksanaan' : 'Laporan tidak ditemukan',
+    robots: { index: false, follow: false },
+  };
+}
 
 /** Label tahap untuk halaman publik. */
 const STAGE_LABEL_PUBLIC: Record<string, string> = {
@@ -29,7 +46,7 @@ const STAGE_LABEL_PUBLIC: Record<string, string> = {
 
 export default async function PublicReportPage({ params }: { params: Params }) {
   const { token } = await params;
-  const report = await getPublicReport(token);
+  const report = await loadReport(token);
 
   // Token tak dikenal, terlalu pendek, atau laporannya belum dibuat —
   // ketiganya menghasilkan 404 yang sama agar tidak ada isyarat yang bisa
@@ -50,6 +67,12 @@ export default async function PublicReportPage({ params }: { params: Params }) {
     .map(([label, count]) => `${count} ${label}`)
     .join(', ');
 
+  // Klaim "seluruh bukti tervalidasi" hanya boleh muncul bila memang begitu.
+  // Laporan yang dibagikan saat sebagian tahap masih berjalan dulu tetap
+  // menampilkannya, dan peserta membacanya sebagai pekerjaan yang sudah tuntas.
+  const { stagesValidated, stagesTotal } = report.progress;
+  const allValidated = Boolean(report.report) && stagesTotal > 0 && stagesValidated >= stagesTotal;
+
   const onBehalf = report.animals.map((a) => a.onBehalfOf).filter((v): v is string => Boolean(v));
 
   return (
@@ -66,7 +89,9 @@ export default async function PublicReportPage({ params }: { params: Params }) {
         </p>
         <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs text-emerald-800">
           <ShieldCheck className="size-3.5" />
-          Seluruh bukti telah melalui validasi dua tingkat
+          {allValidated
+            ? 'Seluruh bukti telah melalui validasi dua tingkat'
+            : `${stagesValidated} dari ${stagesTotal} tahap sudah divalidasi, sisanya masih berjalan`}
         </p>
       </header>
 
@@ -184,20 +209,25 @@ export default async function PublicReportPage({ params }: { params: Params }) {
               </figure>
             ))}
           </div>
+        </section>
+      )}
 
-          {videos.length > 0 && (
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {videos.map((m, i) => (
-                <figure key={i}>
-                  <video src={m.url!} controls preload="metadata" className="w-full rounded-xl" />
-                  <figcaption className="mt-1 text-xs text-slate-500">
-                    {DOC_STAGE_LABEL[m.stage]}
-                    {m.caption ? ` · ${m.caption}` : ''}
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-          )}
+      {/* Bagian sendiri, bukan menumpang di galeri foto: order yang hanya punya
+          video dulu tidak menampilkan buktinya sama sekali. */}
+      {videos.length > 0 && (
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-slate-900">Video Bukti</h2>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {videos.map((m, i) => (
+              <figure key={i}>
+                <video src={m.url!} controls preload="metadata" className="w-full rounded-xl" />
+                <figcaption className="mt-1 text-xs text-slate-500">
+                  {DOC_STAGE_LABEL[m.stage]}
+                  {m.caption ? ` · ${m.caption}` : ''}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
         </section>
       )}
 

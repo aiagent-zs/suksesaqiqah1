@@ -9,7 +9,7 @@ import { AlertCircle, Clock } from 'lucide-react';
 import { IDLE_NOTICE, IDLE_TIMEOUT_MS } from '@/lib/auth/idle';
 
 interface LoginPageProps {
-  searchParams: Promise<{ error?: string; notice?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string; email?: string }>;
 }
 
 export const metadata = {
@@ -18,7 +18,11 @@ export const metadata = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { error, notice } = await searchParams;
+  const { error, notice, email } = await searchParams;
+  // Email yang tadi diketik, dikembalikan `loginWithEmail` setelah gagal.
+  // Aman dicetak sebagai `defaultValue`: React meloloskannya sebagai atribut,
+  // dan ia hanya mengisi kotak yang memang milik pemakainya.
+  const typedEmail = typeof email === 'string' ? email.slice(0, 254) : undefined;
 
   // Kunci di sini harus sama persis dengan LoginErrorCode di
   // server/actions/auth.ts. Kode yang tidak dikenal jatuh ke pesan umum —
@@ -91,6 +95,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             name="email"
             type="email"
             autoComplete="email"
+            defaultValue={typedEmail}
             required
             placeholder="nama@zakatsukses.org"
             className={AUTH_FIELD_CLASS}

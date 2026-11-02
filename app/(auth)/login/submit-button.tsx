@@ -37,7 +37,7 @@ export function LoginSubmitButton() {
           Memverifikasi…
         </>
       ) : (
-        'Masuk ke System'
+        'Masuk'
       )}
     </button>
   );

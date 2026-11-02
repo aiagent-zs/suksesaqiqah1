@@ -199,7 +199,7 @@ export function VendorServicePanel({
               <option value="">Pilih paket</option>
               {available.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {o.name} — jual {formatCurrency(o.price)}
+                  {o.name} (jual {formatCurrency(o.price)})
                 </option>
               ))}
             </Select>
@@ -227,7 +227,7 @@ export function VendorServicePanel({
                 className={`mt-1 text-xs ${previewMargin < 0 ? 'text-destructive' : 'text-muted-foreground'}`}
               >
                 Margin {formatCurrency(previewMargin)}
-                {previewMargin < 0 ? ' — modal melebihi harga jual' : ''}
+                {previewMargin < 0 ? ' (modal melebihi harga jual)' : ''}
               </p>
             )}
           </div>
@@ -300,7 +300,7 @@ export function VendorServicePanel({
               className="mt-1.5"
             />
             <p className="text-muted-foreground mt-1 text-xs">
-              Kesepakatan khusus dengan mitra ini — tidak tampil ke pembeli.
+              Kesepakatan khusus dengan mitra ini, tidak tampil ke pembeli.
             </p>
           </div>
 
@@ -602,7 +602,7 @@ export function VendorServicePanel({
                         className="mt-1.5"
                       />
                       <p className="text-muted-foreground mt-1 text-xs">
-                        Kesepakatan khusus dengan mitra ini — tidak tampil ke pembeli.
+                        Kesepakatan khusus dengan mitra ini, tidak tampil ke pembeli.
                       </p>
                     </div>
                   </div>

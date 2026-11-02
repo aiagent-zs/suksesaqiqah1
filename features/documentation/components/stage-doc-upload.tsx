@@ -55,6 +55,12 @@ export function StageDocUpload({
   const [fileKey, setFileKey] = useState(0);
   const [caption, setCaption] = useState('');
   const [isNote, setIsNote] = useState(false);
+  /**
+   * Path berkas yang sudah sampai di Storage untuk `file` yang sedang dipilih.
+   * Kalau `uploadDocumentation` menolak, Simpan berikutnya memakai path ini
+   * lagi alih-alih mengunggah ulang dan meninggalkan berkas yatim.
+   */
+  const [stored, setStored] = useState<{ file: File; path: string } | null>(null);
 
   const busy = disabled || uploading;
 
@@ -63,6 +69,7 @@ export function StageDocUpload({
     setFileKey((k) => k + 1);
     setCaption('');
     setIsNote(false);
+    setStored(null);
     setError(null);
     setNotice(null);
     setOpen(false);
@@ -89,8 +96,16 @@ export function StageDocUpload({
       type = check.type;
 
       if (check.oversizePhoto) {
-        setNotice('Foto lebih besar dari 2 MB — pertimbangkan memperkecilnya untuk hemat kuota.');
+        setNotice('Foto lebih besar dari 2 MB. Pertimbangkan memperkecilnya untuk hemat kuota.');
       }
+    }
+
+    // Berkas yang sama sudah di Storage dari percobaan sebelumnya.
+    if (file && !isNote && stored?.file === file) {
+      storagePath = stored.path;
+    } else if (file && !isNote) {
+      const check = checkDocFile(file);
+      if (!check.ok) return;
 
       setUploading(true);
       try {
@@ -113,6 +128,7 @@ export function StageDocUpload({
           setError(`Gagal mengunggah berkas: ${uploadError.message}`);
           return;
         }
+        setStored({ file, path: storagePath });
       } finally {
         setUploading(false);
       }

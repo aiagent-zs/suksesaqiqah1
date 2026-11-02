@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Check, MapPin, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -84,11 +84,27 @@ export function StagePanel({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Aksi mana yang sedang berjalan atau terakhir gagal, mis. `validate:<id>`
+   * atau `report:<id>`. `pending` milik seluruh panel, jadi tanpa kunci ini
+   * satu Validasi yang berjalan membuat tombol Validasi di setiap baris
+   * berputar, dan galat laporan tercetak di puncak panel, jauh dari form-nya.
+   */
+  const [actionKey, setActionKey] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState('');
   /** Foto yang dipilih di form laporan, diunggah bersamaan saat Simpan. */
   const [files, setFiles] = useState<File[]>([]);
+  /**
+   * Berkas yang sudah sampai di Storage, beserta path-nya.
+   *
+   * Kalau `reportStage` atau pencatatan buktinya ditolak sesudah unggah
+   * berhasil, Simpan berikutnya tidak boleh mengunggah ulang: tiap unggahan
+   * ulang meninggalkan berkas yatim, dan yang lolos tercatat jadi bukti ganda.
+   * Ref, bukan state, karena dibaca dan ditulis di tengah alur async yang sama.
+   */
+  const uploaded = useRef(new Map<File, { path: string; type: 'photo' | 'video' | 'note' }>());
   const [uploading, setUploading] = useState(false);
   // Input file tidak bisa dikosongkan lewat prop `value`; menaikkan key ini
   // memasang ulang elemennya sehingga nama berkas lama hilang dari layar.
@@ -110,8 +126,10 @@ export function StagePanel({
       ok: boolean;
       error?: { message: string; fields?: Record<string, string> };
     }>,
+    key: string | null = null,
   ) {
     setError(null);
+    setActionKey(key);
     startTransition(async () => {
       const result = await fn();
       if (!result.ok) {
@@ -120,7 +138,7 @@ export function StagePanel({
         // medan, sehingga tidak ada yang bisa dikerjakan pembacanya.
         const fields = Object.values(result.error?.fields ?? {});
         setError(
-          [result.error?.message ?? 'Terjadi kesalahan.', ...fields].filter(Boolean).join(' — '),
+          [result.error?.message ?? 'Terjadi kesalahan.', ...fields].filter(Boolean).join('. '),
         );
         return;
       }
@@ -129,6 +147,7 @@ export function StagePanel({
       setRejectNote('');
       setFiles([]);
       setFileKey((k) => k + 1);
+      uploaded.current.clear();
       router.refresh();
     });
   }
@@ -146,11 +165,13 @@ export function StagePanel({
    * ponsel rutin melewati batas itu.
    */
   async function submitReport(row: StageEventRow) {
+    const key = `report:${row.id}`;
     setError(null);
+    setActionKey(key);
 
     // `note` tidak mungkin muncul di sini — `checkDocFile` menurunkannya dari
     // MIME berkas, dan catatan tertulis tidak punya berkas sama sekali.
-    const paths: Array<{ path: string; type: 'photo' | 'video' | 'note' }> = [];
+    const paths: Array<{ file: File; path: string; type: 'photo' | 'video' | 'note' }> = [];
 
     if (files.length > 0) {
       for (const file of files) {
@@ -165,6 +186,13 @@ export function StagePanel({
       try {
         const supabase = createClient();
         for (const file of files) {
+          // Sudah di Storage dari percobaan sebelumnya: pakai path-nya lagi.
+          const done = uploaded.current.get(file);
+          if (done) {
+            paths.push({ file, ...done });
+            continue;
+          }
+
           const check = checkDocFile(file);
           if (!check.ok) return;
 
@@ -186,7 +214,8 @@ export function StagePanel({
             setError(`Gagal mengunggah ${file.name}: ${uploadError.message}`);
             return;
           }
-          paths.push({ path, type: check.type });
+          uploaded.current.set(file, { path, type: check.type });
+          paths.push({ file, path, type: check.type });
         }
       } finally {
         setUploading(false);
@@ -211,7 +240,7 @@ export function StagePanel({
       // Berkasnya sudah di Storage; yang tersisa mencatatkan barisnya. Satu
       // yang gagal dilaporkan apa adanya — laporannya sendiri sudah tersimpan,
       // jadi menggagalkan keseluruhannya justru menyesatkan.
-      for (const { path, type } of paths) {
+      for (const { file, path, type } of paths) {
         const saved = await uploadDocumentation({
           stage_event_id: row.id,
           type,
@@ -219,16 +248,21 @@ export function StagePanel({
           caption: '',
         });
         if (!saved.ok) return saved;
+        // Sudah jadi baris bukti: keluar dari daftar supaya percobaan ulang
+        // tidak mencatatnya dua kali.
+        uploaded.current.delete(file);
+        setFiles((prev) => prev.filter((f) => f !== file));
       }
 
       return reported;
-    });
+    }, key);
   }
 
   function openForm(row: StageEventRow) {
     setOpenId(row.id);
     setError(null);
     setFiles([]);
+    uploaded.current.clear();
     setFileKey((k) => k + 1);
     setDraft({
       // Prasetel waktu sekarang: yang dilaporkan hampir selalu baru terjadi.
@@ -261,7 +295,9 @@ export function StagePanel({
         berikutnya.
       </p>
 
-      {error && (
+      {/* Galat laporan tercetak di dalam form-nya sendiri (lihat bawah): di
+          ponsel puncak panel ini bisa berjarak beberapa layar dari form. */}
+      {error && !(openId && actionKey === `report:${openId}`) && (
         <p className="border-destructive/20 bg-destructive/5 text-destructive flex items-start gap-2 border-b px-5 py-3 text-sm">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           {error}
@@ -483,7 +519,10 @@ export function StagePanel({
                     </Button>
                   )}
 
-                  {canValidate && row.status === 'reported' && (
+                  {/* Pelapor tidak memvalidasi laporannya sendiri: server
+                      menolaknya (`reviewStage`), jadi tombolnya tidak
+                      ditawarkan. Sama dengan antrean di /validation. */}
+                  {canValidate && row.status === 'reported' && row.reportedBy !== currentUserId && (
                     <>
                       {/* Validasi menggerakkan tahap berikutnya sekaligus
                           menyetujui buktinya — aksi paling menentukan di panel
@@ -492,10 +531,14 @@ export function StagePanel({
                       <BusyButton
                         type="button"
                         size="sm"
-                        busy={pending}
+                        busy={pending && actionKey === `validate:${row.id}`}
+                        disabled={pending}
                         busyLabel="Memvalidasi…"
                         onClick={() =>
-                          run(() => reviewStage({ stage_event_id: row.id, decision: 'validate' }))
+                          run(
+                            () => reviewStage({ stage_event_id: row.id, decision: 'validate' }),
+                            `validate:${row.id}`,
+                          )
                         }
                       >
                         <Check className="size-3.5" />
@@ -516,6 +559,12 @@ export function StagePanel({
                 </div>
               </div>
 
+              {canValidate && row.status === 'reported' && row.reportedBy === currentUserId && (
+                <p className="text-muted-foreground mt-2 text-xs">
+                  Anda yang melaporkan tahap ini, jadi validasinya menunggu admin lain.
+                </p>
+              )}
+
               {rejectId === row.id && (
                 <div className="bg-muted/40 mt-3 space-y-2 rounded-xl p-3">
                   <Label htmlFor={`reject-${row.id}`}>Alasan penolakan</Label>
@@ -528,7 +577,7 @@ export function StagePanel({
                     className="bg-card"
                   />
                   <p className="text-muted-foreground text-xs">
-                    Wajib diisi — tanpa alasan, mitra tidak tahu apa yang harus diperbaiki.
+                    Wajib diisi. Tanpa alasan, mitra tidak tahu apa yang harus diperbaiki.
                   </p>
                   <Button
                     type="button"
@@ -670,8 +719,8 @@ export function StagePanel({
                     />
                     <p className="text-muted-foreground mt-1 text-xs">
                       {hasEvidence
-                        ? `${rowDocs.length} bukti sudah terlampir — tambahkan lagi bila perlu.`
-                        : 'Wajib — laporan tanpa foto tidak bisa disimpan. JPG, PNG, WebP, atau MP4 · maksimal 25 MB per berkas.'}
+                        ? `${rowDocs.length} bukti sudah terlampir. Tambahkan lagi bila perlu.`
+                        : 'Wajib: laporan tanpa foto tidak bisa disimpan. JPG, PNG, WebP, atau MP4 · maksimal 25 MB per berkas.'}
                     </p>
                   </div>
 
@@ -686,6 +735,16 @@ export function StagePanel({
                       className="bg-card mt-1.5"
                     />
                   </div>
+
+                  {error && actionKey === `report:${row.id}` && (
+                    <p
+                      role="alert"
+                      className="border-destructive/20 bg-destructive/5 text-destructive flex items-start gap-2 rounded-lg border px-3 py-2 text-sm sm:col-span-2"
+                    >
+                      <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                      {error}
+                    </p>
+                  )}
 
                   <div className="flex items-center gap-2 sm:col-span-2">
                     <BusyButton

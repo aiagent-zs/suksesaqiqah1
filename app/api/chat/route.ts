@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { buildSystemPrompt } from '@/features/chatbot/knowledge';
 import { getBrand } from '@/lib/brand-server';
-import { RateLimiter, clientIpFrom } from '@/lib/security/rate-limit';
+import { RateLimiter, rateLimitKeyFrom } from '@/lib/security/rate-limit';
 
 /**
  * Chatbot halaman publik. Pertanyaan umum dijawab Claude dari isi situs;
@@ -31,9 +31,15 @@ const bodySchema = z.object({
     )
     .min(1)
     .max(20)
-    .refine((m) => m[0]?.role === 'user' && m.at(-1)?.role === 'user', {
-      message: 'Percakapan harus diawali dan diakhiri pesan pengunjung',
-    }),
+    // Bergantian user/assistant, diawali dan diakhiri pengunjung: giliran
+    // `assistant` palsu yang berderet bisa dipakai menyuntikkan "jawaban"
+    // model sebelumnya.
+    .refine(
+      (m) =>
+        m.length % 2 === 1 &&
+        m.every((msg, i) => msg.role === (i % 2 === 0 ? 'user' : 'assistant')),
+      { message: 'Percakapan harus bergantian, diawali dan diakhiri pesan pengunjung' },
+    ),
 });
 
 const replySchema = z.object({ reply: z.string().min(1), handoff: z.boolean() });
@@ -60,7 +66,13 @@ const HANDOFF_FALLBACK = {
 };
 
 export async function POST(request: NextRequest) {
-  if (!chatLimiter.consume(clientIpFrom(request.headers) ?? 'unknown').allowed) {
+  // Flag yang sama menyembunyikan widget; tanpa cek ini endpoint-nya tetap
+  // bisa ditembak langsung dan tetap memakan biaya API.
+  if (process.env.NEXT_PUBLIC_CHATBOT_ENABLED === 'false') {
+    return NextResponse.json({ error: 'Tidak ditemukan' }, { status: 404 });
+  }
+
+  if (!chatLimiter.consume(rateLimitKeyFrom(request.headers)).allowed) {
     return NextResponse.json(
       {
         reply: 'Terlalu banyak pesan dalam waktu singkat. Silakan hubungi admin lewat WhatsApp.',

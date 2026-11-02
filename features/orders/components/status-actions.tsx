@@ -26,6 +26,8 @@ export function StatusActions({
   const [selected, setSelected] = useState<TransitionOption | null>(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /** Transisi yang sedang dikirim: hanya tombolnya yang berputar, yang lain cukup mati. */
+  const [runningTo, setRunningTo] = useState<OrderStatus | null>(null);
 
   if (options.length === 0) {
     return (
@@ -38,6 +40,7 @@ export function StatusActions({
 
   function run(option: TransitionOption, withReason: string) {
     setError(null);
+    setRunningTo(option.to);
     startTransition(async () => {
       const result = await changeOrderStatus({
         order_id: orderId,
@@ -75,9 +78,9 @@ export function StatusActions({
             key={option.to}
             size="lg"
             variant={REASON_REQUIRED.includes(option.to) ? 'outline' : 'default'}
-            busy={pending}
+            busy={pending && runningTo === option.to}
             busyLabel="Memproses…"
-            disabled={!option.allowed}
+            disabled={!option.allowed || pending}
             title={option.reason ?? undefined}
             onClick={() => handleClick(option)}
           >

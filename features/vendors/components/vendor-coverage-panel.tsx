@@ -173,7 +173,7 @@ export function VendorCoveragePanel({
         <div className="sm:col-span-2">
           {picked.length === 0 ? (
             <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-center text-sm">
-              Belum ada wilayah. Selama kosong, tidak ada penyaringan otomatis — mitra ini tetap
+              Belum ada wilayah. Selama kosong, tidak ada penyaringan otomatis: mitra ini tetap
               bisa ditugaskan ke order kirim mana pun.
             </p>
           ) : (

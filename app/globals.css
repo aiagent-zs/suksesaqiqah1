@@ -354,6 +354,15 @@ html {
   background-size: 56px 56px;
 }
 
+/* Kisi yang sama untuk latar hijau tua: garis putih tipis, karena garis
+   `primary` tidak terlihat di atas warnanya sendiri. */
+.bg-grid-inverse {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.07) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
 /* Kisi yang sama, seperempat ukuran — dipakai bertumpuk di atas yang
    besar supaya kepadatannya berubah dan tidak terbaca sebagai satu
    raster datar. */

@@ -84,7 +84,7 @@ export function ServiceDialog({
         </div>
       ) : (
         <p className="text-muted-foreground border-border mb-5 border-b pb-5 text-xs">
-          Foto paket bisa diunggah setelah paket ini tersimpan — buka kembali lewat tombol{' '}
+          Foto paket bisa diunggah setelah paket ini tersimpan. Buka kembali lewat tombol{' '}
           <strong>Edit</strong> di daftar.
         </p>
       )}

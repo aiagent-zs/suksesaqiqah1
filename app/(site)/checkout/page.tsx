@@ -69,8 +69,8 @@ export default async function CheckoutPage({
       />
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
         <header className="border-b border-neutral-200 py-10 sm:py-14">
-          <p className="text-primary text-xs font-semibold tracking-[0.14em] uppercase">
-            Pemesanan Mandiri
+          <p className="text-primary text-sm font-semibold">
+            Pemesanan mandiri
           </p>
           <h1 className="mt-4 text-[1.75rem] leading-tight font-bold tracking-tight text-neutral-900 sm:text-4xl">
             Pesan aqiqah

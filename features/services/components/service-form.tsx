@@ -240,7 +240,7 @@ export function ServiceForm({
           // "Rp" dibuang dari label: satuannya kini melekat di dalam kotaknya.
           label={`Harga jual per ${isPerBoxType(draft.type) ? 'box' : 'ekor'}`}
           error={fieldErrors.price}
-          hint="Order yang sudah berjalan tidak ikut berubah — harganya sudah tersalin saat order dibuat."
+          hint="Order yang sudah berjalan tidak ikut berubah. Harganya sudah tersalin saat order dibuat."
         >
           <CurrencyInput
             value={draft.price}
@@ -263,7 +263,7 @@ export function ServiceForm({
           <Field
             label="Deskripsi (internal)"
             error={fieldErrors.description}
-            hint="Dibaca operator & panel modal mitra — bukan yang tampil di halaman depan."
+            hint="Dibaca operator & panel modal mitra, bukan yang tampil di halaman depan."
           >
             <Textarea
               rows={2}
@@ -287,10 +287,10 @@ export function ServiceForm({
         <h3 className="text-sm font-semibold">Isi paket</h3>
         <p className="text-muted-foreground mt-0.5 text-xs">
           {draft.type.startsWith('katering')
-            ? 'Isi satu box katering. Katering dipesan sendiri lewat /checkout/katering — bukan tambahan atas pesanan aqiqah.'
+            ? 'Isi satu box katering. Katering dipesan sendiri lewat /checkout/katering, bukan tambahan atas pesanan aqiqah.'
             : draft.type === 'nasi_box'
               ? 'Isi satu box. Nasi box dipesan terpisah dari paket aqiqah, dengan harganya sendiri.'
-              : 'Hasil dari satu ekor — lauk saja. Nasi box adalah paket tersendiri.'}
+              : 'Hasil dari satu ekor, lauk saja. Nasi box adalah paket tersendiri.'}
         </p>
 
         {/* Bentuknya beda per jenis, dan itu disengaja: "80 porsi, olahan gulai
@@ -315,7 +315,7 @@ export function ServiceForm({
             <Field
               label="Perkiraan porsi per ekor"
               error={fieldErrors.porsi}
-              hint="Keterangan hasil untuk pembeli, bukan batas pesanan — ia tetap bebas memesan berapa ekor."
+              hint="Keterangan hasil untuk pembeli, bukan batas pesanan. Pembeli tetap bebas memesan berapa ekor."
             >
               <NumberInput
                 min={1}
