@@ -51,9 +51,27 @@ export async function POST(request: Request) {
     console.error('[durianpay] gagal membaca order', readError);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
+  // Kiriman ulang untuk pembayaran yang sudah tercatat: order-nya kini sudah
+  // lunas, jadi `paymentMatchesOrder` pasti menolak dan log-nya akan menyuruh
+  // memeriksa refund yang tidak perlu. Dicek lebih dulu supaya tetap idempoten.
+  const { data: recorded, error: recordedError } = await supabase
+    .from('payments')
+    .select('id')
+    .eq('gateway_ref', payment.payId)
+    .maybeSingle();
+  if (recordedError) {
+    console.error('[durianpay] gagal membaca pembayaran', recordedError);
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+  if (recorded) return NextResponse.json({ ok: true });
+
   if (!order || !paymentMatchesOrder(payment.amount, order)) {
     // Termasuk order batal/terhapus yang tetap dibayar: uangnya perlu dikembalikan.
-    console.error('[durianpay] webhook ditolak: order tidak cocok — periksa refund', payment, order);
+    console.error(
+      '[durianpay] webhook ditolak: order tidak cocok — periksa refund',
+      payment,
+      order,
+    );
     return NextResponse.json({ ok: true });
   }
 
@@ -66,6 +84,15 @@ export async function POST(request: Request) {
     gateway_ref: payment.payId,
     note: `Durianpay ${payment.method}`.trim(),
   });
+
+  // 23514 = `sync_order_payment` menolak kelebihan bayar: pembayaran lain
+  // (mis. transfer yang diverifikasi admin) melunasi order ini sesaat sebelum
+  // webhook masuk. Mengulang tidak akan mengubah apa pun, jadi dijawab 200 dan
+  // uangnya diserahkan ke pemeriksaan manual.
+  if (error?.code === '23514') {
+    console.error('[durianpay] kelebihan bayar ditolak — periksa refund', payment, error.message);
+    return NextResponse.json({ ok: true });
+  }
 
   // 23505 = `gateway_ref` sudah ada: webhook kiriman ulang, uangnya sudah tercatat.
   if (error && error.code !== '23505') {

@@ -82,7 +82,10 @@ export function AnimalManager({
               setShowForm(next);
               // Dikosongkan saat dibuka, bukan saat ditutup: ketikan yang
               // diurungkan tidak boleh muncul lagi sebagai data tersimpan.
-              if (next) setDraft(EMPTY_DRAFT);
+              if (next) {
+                setDraft(EMPTY_DRAFT);
+                setError(null);
+              }
             }}
             trigger={
               <Button type="button" variant="outline" size="sm">
@@ -144,6 +147,15 @@ export function AnimalManager({
               </div>
             </div>
 
+            {/* Galat di dalam modal: modalnya tetap terbuka saat gagal, jadi
+                pesan yang tercetak di panel tertutup lapisan modal. */}
+            {error && (
+              <p className="border-destructive/20 bg-destructive/5 text-destructive mt-3 flex items-start gap-2 rounded-lg border px-3 py-2 text-sm">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {error}
+              </p>
+            )}
+
             <div className="mt-4 flex items-center justify-end gap-2">
               <Button
                 type="button"
@@ -177,7 +189,7 @@ export function AnimalManager({
         </div>
       )}
 
-      {error && (
+      {error && !showForm && !removing && (
         <p className="border-destructive/20 bg-destructive/5 text-destructive flex items-start gap-2 border-b px-5 py-3 text-sm">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           {error}
@@ -232,7 +244,7 @@ export function AnimalManager({
                   }
                   title={`Hapus ${animal.tag_code ?? 'hewan tanpa kode'}?`}
                   description="Ekor ini hilang dari order, beserta kode dan beratnya."
-                  hint="Kalau tahapnya sudah dilaporkan, database akan menolak — jejak pelaksanaannya tidak boleh kehilangan hewannya."
+                  hint="Kalau tahapnya sudah dilaporkan, database akan menolak: jejak pelaksanaannya tidak boleh kehilangan hewannya."
                   error={error}
                   confirmLabel="Ya, hapus"
                   pending={pending}

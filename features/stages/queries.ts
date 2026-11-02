@@ -1,5 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
+import { formatRelative } from '@/lib/format';
 import { signPaths, type DocumentationRow } from '@/features/documentation/queries';
 import type { DocStage, DocStatus, DocType } from '@/features/documentation/storage';
 import type { FulfilmentStage, StageEventStatus } from './sequence';
@@ -134,6 +135,8 @@ export async function getOrderStages(orderId: string): Promise<StageEventRow[]> 
 }
 
 export type StageQueueItem = StageEventRow & {
+  /** "3 jam lalu", sudah diformat di server. */
+  reportedAgo: string | null;
   orderId: string;
   orderNumber: string;
   vendorName: string | null;
@@ -160,9 +163,11 @@ export type StageQueueItem = StageEventRow & {
 export async function getStageQueue(
   filter?: { stage?: FulfilmentStage },
   limit = 50,
-): Promise<StageQueueItem[]> {
+): Promise<{ items: StageQueueItem[]; total: number }> {
   const supabase = await createClient();
 
+  // `count: 'exact'` ikut dibaca: halaman menampilkan jumlah antrean, dan
+  // `items.length` berhenti di `limit` sehingga antrean 80 terbaca "50".
   let query = supabase
     .from('order_stage_events')
     .select(
@@ -173,6 +178,7 @@ export async function getStageQueue(
          vendor:vendors!orders_vendor_id_fkey ( name )
        ),
        documentations ( ${DOC_QUEUE_FIELDS} )`,
+      { count: 'exact' },
     )
     .eq('status', 'reported')
     .order('reported_at', { ascending: true })
@@ -180,11 +186,11 @@ export async function getStageQueue(
 
   if (filter?.stage) query = query.eq('stage', filter.stage);
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     console.error('[stages] Gagal memuat antrian tahap:', error.code ?? '-', error.message);
-    return [];
+    return { items: [], total: 0 };
   }
 
   const rows = (data ?? []) as unknown as Array<
@@ -209,7 +215,7 @@ export async function getStageQueue(
     ),
   );
 
-  return rows.map((r) => ({
+  const items: StageQueueItem[] = rows.map((r) => ({
     id: r.id,
     stage: r.stage,
     seq: r.seq,
@@ -219,6 +225,9 @@ export async function getStageQueue(
     reportedBy: r.reported_by,
     reporterName: r.reporter?.full_name ?? null,
     reportedAt: r.reported_at,
+    // Diformat di server: dihitung dari `Date.now()` di komponen klien,
+    // teksnya bisa berbeda antara HTML server dan hidrasi.
+    reportedAgo: r.reported_at ? formatRelative(r.reported_at) : null,
     occurredAt: r.occurred_at,
     notes: r.notes,
     packagesCount: r.packages_count,
@@ -252,4 +261,6 @@ export async function getStageQueue(
       mediaUrl: d.storage_path ? (urlByPath.get(d.storage_path) ?? null) : null,
     })),
   }));
+
+  return { items, total: count ?? items.length };
 }

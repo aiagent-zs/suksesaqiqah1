@@ -47,6 +47,8 @@ export function CertificatePanel({
   const [fileKey, setFileKey] = useState(0);
 
   const busy = pending || uploading;
+  /** Hanya unduhan sertifikat yang boleh berbunyi "Menyiapkan…" di tombolnya. */
+  const [downloading, setDownloading] = useState(false);
 
   /**
    * Unduh PDF yang dikembalikan Server Action.
@@ -57,8 +59,10 @@ export function CertificatePanel({
    */
   function download() {
     setError(null);
+    setDownloading(true);
     startTransition(async () => {
       const result = await generateCertificate({ order_id: orderId });
+      setDownloading(false);
       if (!result.ok) {
         setError(result.error?.message ?? 'Terjadi kesalahan.');
         return;
@@ -102,6 +106,9 @@ export function CertificatePanel({
 
       if (uploadError) {
         setError(`Gagal mengunggah foto: ${uploadError.message}`);
+        // Dipasang ulang supaya memilih berkas yang sama lagi tetap memicu
+        // `onChange`; tanpa ini percobaan ulang tidak melakukan apa-apa.
+        setFileKey((k) => k + 1);
         return;
       }
     } finally {
@@ -112,6 +119,7 @@ export function CertificatePanel({
       const result = await setChildPhoto({ order_id: orderId, storage_path: path });
       if (!result.ok) {
         setError(result.error?.message ?? 'Terjadi kesalahan.');
+        setFileKey((k) => k + 1);
         return;
       }
       setFileKey((k) => k + 1);
@@ -150,9 +158,9 @@ export function CertificatePanel({
           <BusyButton
             type="button"
             size="sm"
-            busy={busy}
+            busy={pending && downloading}
             busyLabel="Menyiapkan…"
-            disabled={belumAdaNama}
+            disabled={belumAdaNama || busy}
             onClick={download}
           >
             <Award className="size-3.5" />
@@ -180,7 +188,7 @@ export function CertificatePanel({
             <div className="flex flex-wrap items-center gap-3">
               <span className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800">
                 <ImageIcon className="size-3.5" />
-                Foto terpasang — sertifikat memakai varian bergambar
+                Foto terpasang. Sertifikat memakai varian bergambar.
               </span>
               <Button
                 type="button"

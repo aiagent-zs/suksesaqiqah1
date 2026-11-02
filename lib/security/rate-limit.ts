@@ -37,12 +37,16 @@ export type RateLimitOptions = {
 
 type Bucket = { count: number; resetAt: number };
 
+/** Plafon jumlah kunci yang disimpan, supaya memori tetap terbatas. */
+const MAX_BUCKETS = 10_000;
+
 /**
  * Wadah hitungan. Diekspor sebagai kelas supaya pengujian bisa memakai
  * instance-nya sendiri — modul bersama akan membawa sisa hitungan antar test.
  */
 export class RateLimiter {
   private buckets = new Map<string, Bucket>();
+  private lastPrune = 0;
 
   constructor(private readonly options: RateLimitOptions) {}
 
@@ -57,12 +61,23 @@ export class RateLimiter {
 
     // Pembersihan oportunistik: tanpa ini, Map tumbuh selamanya mengikuti
     // jumlah IP unik yang pernah datang — jalur kebocoran memori di server yang
-    // hidup lama.
-    if (this.buckets.size > 10_000) this.prune(now);
+    // hidup lama. Paling banyak sekali per jendela: memindai 10.000 entri di
+    // setiap permintaan justru jadi beban saat banjir datang.
+    if (this.buckets.size > MAX_BUCKETS && now - this.lastPrune >= windowMs) {
+      this.lastPrune = now;
+      this.prune(now);
+    }
 
     const bucket = this.buckets.get(key);
 
     if (!bucket || bucket.resetAt <= now) {
+      // Banjir kunci baru dalam satu jendela tidak bisa diatasi `prune` (semua
+      // masih aktif), jadi entri tertua dibuang — Map menyimpan urutan sisip.
+      // Kunci yang dibuang mendapat jatah baru; itu harga plafon memori.
+      if (bucket) this.buckets.delete(key);
+      while (this.buckets.size >= MAX_BUCKETS) {
+        this.buckets.delete(this.buckets.keys().next().value as string);
+      }
       this.buckets.set(key, { count: 1, resetAt: now + windowMs });
       return { allowed: true, remaining: limit - 1, retryAfterMs: windowMs };
     }
@@ -93,15 +108,64 @@ export class RateLimiter {
 /**
  * Alamat IP pengirim.
  *
- * Domain di-proxy Cloudflare: `cf-connecting-ip` ditulis edge-nya dan tidak
- * bisa diisi klien **selama origin VPS hanya menerima koneksi dari IP
- * Cloudflare** (firewall). Tanpa proxy, reverse proxy VPS (Traefik/Nginx)
- * menulis `x-real-ip` dari alamat koneksi. `x-forwarded-for` sengaja
- * diabaikan: entri pertamanya karangan pengirim.
+ * Header mana yang dipercaya bergantung pada jalur masuknya:
+ *   - `TRUST_CF_HEADER=1`: domain di-proxy Cloudflare dan origin hanya menerima
+ *     koneksi dari IP Cloudflare (firewall). `cf-connecting-ip` ditulis edge-nya.
+ *     Tanpa firewall itu, siapa pun yang menembak origin langsung bisa
+ *     mengarangnya — karena itu tidak dipercaya secara default.
+ *   - selain itu: `x-real-ip` yang ditulis reverse proxy VPS (Traefik/Nginx)
+ *     dari alamat koneksi, lalu entri pertama `x-forwarded-for`. Entri itu bisa
+ *     dikarang klien bila proxy di depannya tidak membuangnya; ia hanya
+ *     cadangan untuk lingkungan tanpa `x-real-ip`.
  *
- * `null` bila tidak ada; pemanggil memakai kunci bersama untuk kasus itu
- * supaya permintaan tanpa IP tidak lolos tanpa rem.
+ * `null` bila tidak ada.
  */
-export function clientIpFrom(headers: { get(name: string): string | null }): string | null {
-  return headers.get('cf-connecting-ip')?.trim() || headers.get('x-real-ip')?.trim() || null;
+export function clientIpFrom(
+  headers: { get(name: string): string | null },
+  trustCf: boolean = process.env.TRUST_CF_HEADER === '1',
+): string | null {
+  return (
+    (trustCf ? headers.get('cf-connecting-ip')?.trim() : '') ||
+    headers.get('x-real-ip')?.trim() ||
+    headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    null
+  );
+}
+
+/**
+ * Kunci rem laju untuk satu alamat IP.
+ *
+ * IPv6 dikunci per prefiks /64: satu pelanggan rumahan biasanya mendapat
+ * seluruh /64, jadi mengunci per alamat penuh berarti ia punya 2^64 kunci
+ * untuk dirotasi. IPv4 (termasuk bentuk `::ffff:a.b.c.d`) dipakai apa adanya.
+ *
+ * Tanpa IP, semua permintaan berbagi kunci `unknown`: tidak dihitung sama
+ * sekali = tanpa rem. Akibatnya bila proxy salah setel dan header IP hilang,
+ * seluruh pengunjung berbagi satu jatah — gejala yang terlihat (banyak 429),
+ * bukan celah yang diam-diam terbuka.
+ */
+export function rateLimitKey(ip: string | null): string {
+  if (!ip) return 'unknown';
+  const addr = ip.toLowerCase().split('%')[0];
+  if (!addr.includes(':')) return addr;
+
+  const mapped = addr.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return mapped[1];
+
+  const [head, tail] = addr.split('::');
+  const headParts = head ? head.split(':') : [];
+  const tailParts = tail ? tail.split(':') : [];
+  const groups =
+    tail === undefined
+      ? headParts
+      : [...headParts, ...Array(8 - headParts.length - tailParts.length).fill('0'), ...tailParts];
+  const prefix = groups.slice(0, 4);
+  // Bentuk yang tidak terbaca tetap dihitung, hanya tanpa pengelompokan.
+  if (prefix.length < 4 || prefix.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return addr;
+  return `${prefix.map((g) => parseInt(g, 16).toString(16)).join(':')}::/64`;
+}
+
+/** Kunci rem laju langsung dari header permintaan. */
+export function rateLimitKeyFrom(headers: { get(name: string): string | null }): string {
+  return rateLimitKey(clientIpFrom(headers));
 }

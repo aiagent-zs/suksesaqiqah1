@@ -70,7 +70,7 @@ export function ServiceDeleteDialog({
         hint={
           <>
             Kalau hanya perlu menghentikan penjualannya, pakai <strong>Nonaktifkan</strong> di
-            halaman detail — paketnya tetap tersimpan beserta riwayatnya, dan bisa dihidupkan lagi
+            halaman detail. Paketnya tetap tersimpan beserta riwayatnya, dan bisa dihidupkan lagi
             kapan saja.
           </>
         }

@@ -102,7 +102,7 @@ export default async function VendorDetailPage({ params }: { params: Params }) {
             ) : (
               <p className="mt-1 flex items-center gap-1.5 text-sm text-amber-700">
                 <UserX className="size-3.5" />
-                Belum punya akun login — buatkan di menu Pengguna.
+                Belum punya akun login. Buatkan di menu Pengguna.
               </p>
             )}
 

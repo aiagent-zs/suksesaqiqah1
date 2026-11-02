@@ -114,7 +114,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               <p className="text-sm font-bold">Sukses Aqiqah</p>
             </div>
             <span className="rounded-full bg-emerald-900 px-2.5 py-1 text-xs font-medium text-emerald-200">
-              {session.profile?.role ?? 'staf'}
+              {ROLE_LABEL[session.profile?.role ?? ''] ?? 'Staf'}
             </span>
           </header>
 

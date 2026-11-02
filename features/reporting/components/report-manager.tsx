@@ -123,9 +123,17 @@ export function ReportManager({
                   size="sm"
                   variant="outline"
                   onClick={async () => {
-                    await navigator.clipboard.writeText(publicUrl);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
+                    // Clipboard API ditolak di konteks tidak aman (http selain
+                    // localhost) dan bila izinnya diblokir. Tanpa tangkapan ini
+                    // tombolnya diam saja, dan tautannya tidak tersalin.
+                    try {
+                      await navigator.clipboard.writeText(publicUrl);
+                      setError(null);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    } catch {
+                      setError('Tautan gagal disalin otomatis. Salin manual dari kotak di atas.');
+                    }
                   }}
                 >
                   <Copy className="size-3.5" />

@@ -25,7 +25,9 @@ as $$
 declare
   v_channel text;
 begin
-  v_channel := coalesce(current_setting('request.headers', true), '{}')::jsonb ->> 'x-order-channel';
+  -- `nullif`: di luar PostgREST setting ini bisa berisi string kosong, dan
+  -- ''::jsonb melempar galat — insert dari SQL editor/seed ikut gagal.
+  v_channel := coalesce(nullif(current_setting('request.headers', true), ''), '{}')::jsonb ->> 'x-order-channel';
   new.channel := case when v_channel in ('web', 'linkaja') then v_channel else 'web' end;
   return new;
 end $$;

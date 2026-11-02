@@ -51,7 +51,7 @@ export function NextStepCard({ step }: { step: NextStep }) {
       ) : (
         step.readyFor && (
           <p className="mt-3 text-sm text-emerald-800">
-            Semua syarat terpenuhi — order siap dinaikkan lewat panel Aksi Status.
+            Semua syarat terpenuhi. Order siap dinaikkan lewat panel Aksi Status.
           </p>
         )
       )}

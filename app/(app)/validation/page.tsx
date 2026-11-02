@@ -67,7 +67,7 @@ export default async function ValidationPage({ searchParams }: { searchParams: S
     );
   }
 
-  const items = await getStageQueue({ stage: filter.stage });
+  const { items, total } = await getStageQueue({ stage: filter.stage });
 
   return (
     <div className="space-y-6">
@@ -81,7 +81,11 @@ export default async function ValidationPage({ searchParams }: { searchParams: S
 
         <span className="border-border bg-card inline-flex items-center gap-1.5 self-start rounded-full border px-3 py-1.5 text-sm">
           <ShieldCheck className="text-primary size-4" />
-          <span className="font-medium tabular-nums">{items.length}</span> menunggu
+          <span className="font-medium tabular-nums">{total}</span> menunggu
+          {/* Antrean dibatasi 50 tertua; jumlahnya tetap jumlah sesungguhnya. */}
+          {total > items.length && (
+            <span className="text-muted-foreground">· menampilkan {items.length} terlama</span>
+          )}
         </span>
       </header>
 

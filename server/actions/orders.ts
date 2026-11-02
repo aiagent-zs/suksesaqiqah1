@@ -14,6 +14,7 @@ import {
 } from '@/features/orders/schema';
 import { checkTransition } from '@/features/orders/state-machine';
 import { getOrderDetail } from '@/features/orders/queries';
+import { advanceToPaidIfReady } from './advance-to-paid';
 import type { OrderStatus } from '@/lib/constants/order';
 
 import {
@@ -133,7 +134,9 @@ export async function updateOrder(input: unknown): Promise<ActionResult<null>> {
   const { data, error } = await supabase
     .from('orders')
     .update({
-      notes: changes.notes || null,
+      // Hanya bila dikirim: `undefined` = tidak disentuh, '' = dikosongkan.
+      // Tanpa syarat ini, ubah nilai order saja ikut menghapus catatannya.
+      ...(changes.notes !== undefined ? { notes: changes.notes || null } : {}),
       ...(changes.total_amount !== undefined ? { total_amount: changes.total_amount } : {}),
     })
     .eq('id', order_id)
@@ -296,9 +299,17 @@ export async function changeOrderStatus(
     };
   }
 
+  // Order yang sudah lunas lewat Durianpay sebelum admin memverifikasinya:
+  // webhook hanya menaikkan order berstatus `verified`, jadi kenaikannya
+  // dilakukan di sini. Gerbangnya tetap `checkTransition` yang sama.
+  const finalStatus =
+    to === 'verified' && (await advanceToPaidIfReady(supabase, order_id, role))
+      ? 'paid'
+      : (to as OrderStatus);
+
   revalidatePath(`/orders/${order_id}`);
   revalidatePath('/orders');
-  return { ok: true, data: { status: to as OrderStatus } };
+  return { ok: true, data: { status: finalStatus } };
 }
 
 // =============================================================================

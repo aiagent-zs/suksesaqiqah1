@@ -170,7 +170,7 @@ export function ServicePhotoField({
           <Input
             value={alt}
             onChange={(e) => setAlt(e.target.value)}
-            placeholder="Teks alternatif — mis. Sajian masakan paket Ekonomi"
+            placeholder="Teks alternatif, mis. Sajian masakan paket Ekonomi"
             disabled={busy}
           />
           {/* Teks alternatif dibaca pembaca layar dan tampil saat fotonya gagal

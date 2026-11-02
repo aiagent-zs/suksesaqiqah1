@@ -127,7 +127,7 @@ export function ServiceDetailActions({
 
       {ordersUsing > 0 && (
         <p className="text-muted-foreground text-right text-xs">
-          Sudah dipakai {ordersUsing} order — tidak dapat dihapus, hanya dinonaktifkan.
+          Sudah dipakai {ordersUsing} order, jadi tidak dapat dihapus, hanya dinonaktifkan.
         </p>
       )}
 

@@ -43,7 +43,7 @@ export default async function ServiceDetailPage({ params }: { params: Params }) 
         <ShieldOff className="text-muted-foreground mx-auto size-8" />
         <h1 className="mt-3 text-lg font-semibold">Katalog paket dibatasi</h1>
         <p className="text-muted-foreground mx-auto mt-1.5 max-w-md text-sm">
-          Hanya superadmin yang dapat mengubah nama, harga, dan deskripsi paket — harga di sini
+          Hanya superadmin yang dapat mengubah nama, harga, dan deskripsi paket. Harga di sini
           adalah harga yang ditagih ke pembeli saat memesan.
         </p>
       </div>

@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Check, FileText, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import { ConfirmModal, Modal } from '@/components/ui/modal';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -60,6 +60,14 @@ export function PaymentManager({
   // Input file tidak bisa dikosongkan lewat prop `value`; menaikkan key ini
   // memasang ulang elemennya sehingga nama berkas lama hilang dari layar.
   const [fileKey, setFileKey] = useState(0);
+  /**
+   * Bukti yang sudah sampai di Storage untuk `file` yang sedang dipilih. Kalau
+   * `recordPayment` menolak (mis. nominal tidak pas), Simpan berikutnya memakai
+   * path ini lagi, bukan mengunggah salinan kedua yang langsung jadi yatim.
+   */
+  const [storedProof, setStoredProof] = useState<{ file: File; path: string } | null>(null);
+  /** Pembayaran yang tombol Hapus-nya ditekan; dialog penegasannya milik baris itu. */
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const [draft, setDraft] = useState({
     amount: '',
     method: 'transfer_bank' as PaymentMethod,
@@ -114,6 +122,7 @@ export function PaymentManager({
     setDraft({ amount: '', method: 'transfer_bank', note: '' });
     setFile(null);
     setFileKey((k) => k + 1);
+    setStoredProof(null);
     setShowForm(false);
   }
 
@@ -122,7 +131,9 @@ export function PaymentManager({
 
     let proofPath = '';
 
-    if (file) {
+    if (file && storedProof?.file === file) {
+      proofPath = storedProof.path;
+    } else if (file) {
       // Divalidasi di klien untuk umpan balik cepat; bucket dan server action
       // memeriksa ulang hal yang sama.
       const check = checkProofFile(file);
@@ -151,13 +162,15 @@ export function PaymentManager({
           show('error', message);
           return;
         }
+        setStoredProof({ file, path: proofPath });
       } finally {
         setUploading(false);
       }
     }
 
-    // Bila pencatatan gagal setelah unggah berhasil, berkasnya menjadi yatim di
-    // Storage. Dibiarkan dengan sengaja — role pencatat tidak punya hak hapus di
+    // Bila pencatatan gagal setelah unggah berhasil, path-nya disimpan di
+    // `storedProof` dan dipakai ulang saat mencoba lagi. Yang tetap bisa yatim
+    // hanya bukti yang lalu diganti atau formnya dibatalkan. Dibiarkan dengan sengaja — role pencatat tidak punya hak hapus di
     // bucket, dan berkas yatim sudah punya jadwal pembersihan (docs/17 §5).
     run(async () => {
       const result = await recordPayment({
@@ -169,7 +182,7 @@ export function PaymentManager({
       });
       if (result.ok) resetForm();
       return result;
-    }, 'Pembayaran tercatat — menunggu verifikasi.');
+    }, 'Pembayaran tercatat, menunggu verifikasi.');
   }
 
   return (
@@ -192,6 +205,7 @@ export function PaymentManager({
                 setDraft({ amount: '', method: 'transfer_bank', note: '' });
                 setFile(null);
                 setFileKey((k) => k + 1);
+                setStoredProof(null);
                 setError(null);
               }
               setShowForm(next);
@@ -385,7 +399,7 @@ export function PaymentManager({
                             () => verifyPayment({ payment_id: payment.id, decision: 'verified' }),
                             (data) =>
                               (data as { advancedToPaid?: boolean })?.advancedToPaid
-                                ? 'Pembayaran diverifikasi — order naik ke Terbayar.'
+                                ? 'Pembayaran diverifikasi. Order naik ke Terbayar.'
                                 : 'Pembayaran diverifikasi.',
                           )
                         }
@@ -409,22 +423,35 @@ export function PaymentManager({
                     </>
                   )}
 
+                  {/* Penegasan dulu: satu salah-klik di sebelah Verifikasi
+                      menghapus catatan uang, dan bukti transfernya tidak
+                      bisa dikaitkan ulang dari layar ini. */}
                   {canRecord && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      disabled={busy}
-                      onClick={() =>
-                        run(
-                          () => deletePayment({ payment_id: payment.id }),
-                          'Catatan pembayaran dihapus.',
-                        )
+                    <ConfirmModal
+                      open={removingId === payment.id}
+                      onOpenChange={(next) => {
+                        setRemovingId(next ? payment.id : null);
+                        if (next) setError(null);
+                      }}
+                      trigger={
+                        <Button type="button" size="sm" variant="destructive" disabled={busy}>
+                          <Trash2 className="size-3.5" />
+                          Hapus
+                        </Button>
                       }
-                    >
-                      <Trash2 className="size-3.5" />
-                      Hapus
-                    </Button>
+                      title={`Hapus pembayaran ${formatCurrency(payment.amount)}?`}
+                      description="Catatan pembayaran ini hilang dari order beserta tautan bukti transfernya."
+                      error={error}
+                      confirmLabel="Ya, hapus"
+                      pending={pending}
+                      onConfirm={() =>
+                        run(async () => {
+                          const result = await deletePayment({ payment_id: payment.id });
+                          if (result.ok) setRemovingId(null);
+                          return result;
+                        }, 'Catatan pembayaran dihapus.')
+                      }
+                    />
                   )}
                 </div>
               )}

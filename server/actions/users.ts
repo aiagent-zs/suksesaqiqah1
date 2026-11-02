@@ -122,10 +122,9 @@ export async function createUser(
     user_metadata: {
       full_name: v.full_name,
       phone: v.phone || null,
-      // Sengaja tanpa `role`: trigger mengabaikannya. `vendor_id` boleh karena
-      // ia tidak memberi wewenang apa pun — hanya menentukan order mana yang
-      // kelak terlihat.
-      vendor_id: v.vendor_id || null,
+      // Sengaja tanpa `role` dan `vendor_id`: `handle_new_user` mengabaikan
+      // keduanya (metadata bisa diisi siapa pun yang mendaftar). Keduanya
+      // ditulis lewat update profil di bawah.
     },
   });
 

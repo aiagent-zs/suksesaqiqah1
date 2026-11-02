@@ -99,18 +99,30 @@ export const services = [
     title: 'Aqiqah Kirim',
     description:
       'Masakan aqiqah diantar langsung ke alamat Anda, siap disajikan untuk keluarga dan tetangga. Anda mengonfirmasi sendiri saat pesanan sampai.',
+    photo: {
+      src: 'images/landing/pacing2.webp',
+      alt: 'Masakan aqiqah dibagi ke wadah porsi sebelum diantar',
+    },
   },
   {
     icon: 'sedekah',
     title: 'Aqiqah Salur',
     description:
       'Daging aqiqah disalurkan tim kami kepada penghafal Qur’an dan dhuafa, lengkap dengan bukti penyaluran yang bisa Anda telusuri.',
+    photo: {
+      src: 'images/landing/dok_akhir.webp',
+      alt: 'Penyerahan paket aqiqah di Rumah Tahfizh Sukses',
+    },
   },
   {
     icon: 'aqiqah',
     title: 'Nasi Box Aqiqah',
     description:
       'Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji, dipesan bersama paket aqiqah Anda lewat tim kami.',
+    photo: {
+      src: 'images/landing/packing.webp',
+      alt: 'Nasi box aqiqah tersusun di keranjang siap dikirim',
+    },
   },
 ] as const;
 

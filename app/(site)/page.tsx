@@ -120,7 +120,7 @@ function Hero({ brand }: { brand: Brand }) {
           as="figure"
           delay={180}
           anim="scale"
-          className="relative mx-auto w-full max-w-md lg:max-w-none"
+          className="relative w-full max-w-md lg:max-w-none"
         >
           {/* Bidang hijau yang digeser: kedalaman lewat bentuk, bukan bayangan (design.md §4).
               Di ponsel ia hanya turun ke bawah, tidak menjorok ke kanan: gutter
@@ -146,28 +146,55 @@ function Hero({ brand }: { brand: Brand }) {
   );
 }
 
-/* Layanan: judul berdampingan dengan daftar, bukan judul + kisi kartu.
-   Daftar karena ketiganya pilihan setara yang dibaca berurutan. */
+/* Layanan: tiga cara, masing-masing dengan foto aslinya. Kartu foto karena
+   ketiganya berbeda di ujung proses (diantar, disalurkan, dibagikan), dan
+   perbedaan itu lebih cepat terlihat daripada terbaca. Kartu pertama lebih
+   lebar di desktop: Aqiqah Kirim layanan utama. */
 function ServicesSection() {
   return (
     <section id="layanan" className="border-line border-b bg-white">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-        <Reveal className="lg:sticky lg:top-24 lg:self-start">
-          <SectionLabel index="01">Layanan</SectionLabel>
-          <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
-            Pilih cara aqiqah Anda ditunaikan
-          </h2>
-          <p className="text-ink-muted mt-4 text-base leading-7">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
+        <Reveal className="grid gap-4 lg:grid-cols-2 lg:items-end lg:gap-16">
+          <div>
+            <SectionLabel index="01">Layanan</SectionLabel>
+            <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
+              Pilih cara aqiqah Anda ditunaikan
+            </h2>
+          </div>
+          <p className="text-ink-muted text-base leading-7 lg:pb-1">
             Prosesnya sama sampai daging siap. Yang berbeda hanya ke mana ia berakhir.
           </p>
         </Reveal>
-        <ul className="divide-line border-line divide-y border-y">
+        <ul className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr]">
           {services.map((s, i) => (
-            <Reveal key={s.title} as="li" delay={i * 90} className="flex gap-5 py-6 sm:py-7">
-              <Icon name={s.icon} className="text-primary size-8 shrink-0" />
-              <div className="min-w-0">
-                <h3 className="text-h3 text-ink font-semibold">{s.title}</h3>
-                <p className="text-ink-muted mt-2 text-base leading-7">{s.description}</p>
+            <Reveal
+              key={s.title}
+              as="li"
+              delay={i * 90}
+              anim="scale"
+              className="group border-line flex flex-col overflow-hidden rounded-lg border bg-white md:last:col-span-2 lg:last:col-span-1"
+            >
+              <div className="bg-surface-muted relative aspect-[4/3] overflow-hidden md:aspect-[16/10] lg:aspect-auto lg:h-60">
+                <SitePhoto
+                  src={s.photo.src}
+                  alt={s.photo.alt}
+                  width={800}
+                  height={600}
+                  sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                />
+                <span className="text-primary absolute top-3 left-3 rounded-md bg-white px-2 py-1 text-xs font-bold tabular-nums">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+              </div>
+              <div className="flex flex-1 gap-4 p-5 sm:p-6">
+                <Icon name={s.icon} className="text-primary size-7 shrink-0" />
+                <div className="min-w-0">
+                  <h3 className="text-h3 text-ink font-semibold">{s.title}</h3>
+                  <p className="text-ink-muted mt-2 text-sm leading-6 sm:text-base sm:leading-7">
+                    {s.description}
+                  </p>
+                </div>
               </div>
             </Reveal>
           ))}
@@ -534,30 +561,46 @@ function FaqSection({ brand }: { brand: Brand }) {
   );
 }
 
+/* CTA: foto masakan sebagai latar dengan lapisan hijau, bukan kotak hijau
+   polos: penutup halaman memperlihatkan lagi hasil akhirnya. Lapisan 90%
+   menjaga teks putih tetap di atas 7:1 di bagian foto paling terang (R-25). */
 function CtaSection({ brand }: { brand: Brand }) {
   return (
     <section className="bg-white">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16">
-        <Reveal className="bg-primary flex flex-col gap-6 rounded-lg px-6 py-10 text-white sm:px-10 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-xl">
-            <h2 className="text-h3 font-bold">Siap menunaikan aqiqah?</h2>
-            <p className="mt-2 text-base leading-7 text-white/85">
-              Tim kami membantu dari memilih paket sampai laporan pelaksanaan. Konsultasi gratis.
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
-            <Link href="/paket" className="btn btn-secondary btn-lg">
-              Lihat paket aqiqah
-            </Link>
-            <a
-              href={siteConfig.whatsapp.href(orderMessage(brand.name))}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-lg border border-white/70 text-white hover:bg-white/10"
-            >
-              <IconWhatsApp className="size-5" />
-              Konsultasi WhatsApp
-            </a>
+        <Reveal className="relative overflow-hidden rounded-lg text-white">
+          <SitePhoto
+            src="images/landing/masak.webp"
+            alt=""
+            width={1600}
+            height={1067}
+            sizes="(min-width: 1280px) 1216px, 100vw"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div aria-hidden className="bg-primary-dark/90 absolute inset-0" />
+          <div aria-hidden className="bg-grid-inverse absolute inset-0" />
+          <div className="relative flex flex-col gap-8 px-6 py-12 sm:px-12 sm:py-16 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-xl">
+              <p className="text-sm font-semibold text-white/90">Konsultasi gratis</p>
+              <h2 className="text-h2 mt-3 font-bold tracking-tight">Siap menunaikan aqiqah?</h2>
+              <p className="mt-3 text-base leading-7 text-white/85">
+                Tim kami membantu dari memilih paket sampai laporan pelaksanaan.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+              <Link href="/paket" className="btn btn-secondary btn-lg">
+                Lihat paket aqiqah
+              </Link>
+              <a
+                href={siteConfig.whatsapp.href(orderMessage(brand.name))}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-lg border border-white/50 text-white hover:bg-white/10"
+              >
+                <IconWhatsApp className="size-5" />
+                Konsultasi WhatsApp
+              </a>
+            </div>
           </div>
         </Reveal>
       </div>

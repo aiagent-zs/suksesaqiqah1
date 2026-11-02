@@ -90,15 +90,24 @@ export async function loginWithEmail(formData: FormData) {
     password: formData.get('password'),
   });
 
+  // Email yang diketik dibawa balik ke /login supaya tidak perlu diketik
+  // ulang setelah salah sandi. Hanya email: sandi tidak pernah masuk URL.
+  // Dipotong 254 karakter (batas alamat email) agar URL tidak bisa digelembungkan.
+  const rawEmail = formData.get('email');
+  const keep =
+    typeof rawEmail === 'string' && rawEmail.trim()
+      ? `&email=${encodeURIComponent(rawEmail.trim().slice(0, 254))}`
+      : '';
+
   if (!parsed.success) {
-    redirect('/login?error=invalid_input');
+    redirect(`/login?error=invalid_input${keep}`);
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    redirect(`/login?error=${toLoginErrorCode(error)}`);
+    redirect(`/login?error=${toLoginErrorCode(error)}${keep}`);
   }
 
   await startActivityWindow();

@@ -35,7 +35,7 @@ function AgeLabel({ days }: { days: number }) {
 
 function IssueCell({ row }: { row: OpenOrderRow }) {
   if (row.openIssues === 0 || !row.maxSeverity) {
-    return <span className="text-muted-foreground text-xs">—</span>;
+    return <span className="text-muted-foreground text-xs">-</span>;
   }
 
   const meta = ISSUE_SEVERITY_META[row.maxSeverity];

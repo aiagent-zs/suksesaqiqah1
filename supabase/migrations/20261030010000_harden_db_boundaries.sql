@@ -7,7 +7,9 @@
 -- 1. EXECUTE fungsi: default Supabase memberi `anon`/`authenticated` hak
 --    menjalankan SEMUA fungsi baru di `public`, termasuk helper internal
 --    (`next_order_number`, `enqueue_notification`, `close_*`). `revoke ... from
---    public` di migration lama tidak mencabut grant per-role itu.
+--    public` di migration lama tidak mencabut grant per-role itu. Default
+--    global Postgres (EXECUTE untuk PUBLIC) juga tidak bisa dicabut per skema —
+--    hanya lewat `alter default privileges` tanpa `in schema`.
 -- 2. `next_order_number`: `lpad(…, 4)` memotong order ke-10.000 dalam sebulan
 --    menjadi nomor yang sudah ada.
 -- 3. `orders`: transisi status (cermin `features/orders/state-machine.ts`)
@@ -15,7 +17,8 @@
 -- 4. `order_stage_events`: hanya staf yang memvalidasi, `reported_by` dari sesi.
 -- 5. `documentations`: unggahan non-staf selalu masuk sebagai `pending`.
 -- 6. `sync_order_payment`: kunci baris order supaya dua pembayaran yang
---    diverifikasi bersamaan tidak saling menimpa jumlahnya.
+--    diverifikasi bersamaan tidak saling menimpa jumlahnya, dan tolak
+--    (23514) total terverifikasi yang melebihi nilai order.
 -- 7. `handle_new_user`: `vendor_id` dari metadata pendaftaran diabaikan.
 -- 8. `get_order_tracking`: rem tebakan per nomor pesanan di database, dan
 --    hanya bisa dipanggil server (service role).
@@ -26,6 +29,10 @@
 alter default privileges in schema public revoke execute on functions from public, anon, authenticated;
 alter default privileges for role postgres in schema public
   revoke execute on functions from public, anon, authenticated;
+-- Versi per skema di atas hanya menghapus grant tambahan; EXECUTE untuk PUBLIC
+-- adalah default global, dan cuma bentuk tanpa `in schema` yang mencabutnya.
+-- Tanpa ini, fungsi baru buatan `postgres` tetap bisa dipanggil `anon`.
+alter default privileges for role postgres revoke execute on functions from public;
 -- Revoke menyeluruh + grant eksplisit ada di akhir berkas, supaya ikut
 -- mencakup fungsi yang dibuat di migration ini.
 
@@ -253,6 +260,15 @@ begin
   select coalesce(sum(p.amount), 0) into v_paid
   from public.payments p
   where p.order_id = v_order and p.status = 'verified';
+
+  -- Pagar kelebihan bayar di sini, bukan hanya di server action: webhook
+  -- Durianpay dan verifikasi manual bisa melunasi order yang sama hampir
+  -- bersamaan, dan hanya di dalam kunci baris di atas keduanya pasti saling
+  -- melihat. Order bernilai 0 (belum dihargai) dikecualikan.
+  if v_total > 0 and v_paid > v_total then
+    raise exception 'Total pembayaran terverifikasi (%) melebihi nilai order (%).', v_paid, v_total
+      using errcode = '23514';
+  end if;
 
   update public.orders
   set paid_amount = v_paid,

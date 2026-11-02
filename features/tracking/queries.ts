@@ -1,6 +1,6 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { RateLimiter } from '@/lib/security/rate-limit';
+import { RateLimiter, rateLimitKey } from '@/lib/security/rate-limit';
 import type { OrderStatus, PaymentStatus } from '@/lib/constants/order';
 import type { DistributionMode, FulfilmentStage } from '@/features/stages/sequence';
 
@@ -35,7 +35,7 @@ export async function lookupOrder(
   phoneLast4: string,
   ip: string | null,
 ): Promise<TrackingLookup> {
-  const gate = trackingLimiter.consume(ip ?? 'unknown');
+  const gate = trackingLimiter.consume(rateLimitKey(ip));
   if (!gate.allowed) {
     return { kind: 'limited', minutes: Math.max(1, Math.ceil(gate.retryAfterMs / 60_000)) };
   }

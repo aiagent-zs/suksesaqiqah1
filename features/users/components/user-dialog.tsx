@@ -198,9 +198,9 @@ export function UserDialog({
                 }
                 className="mt-1.5"
               >
-                <option value="vendor">Vendor — pelaksana lapangan</option>
-                <option value="admin">Admin — penghubung pembeli &amp; mitra</option>
-                <option value="superadmin">Superadmin — akses penuh</option>
+                <option value="vendor">Vendor (pelaksana lapangan)</option>
+                <option value="admin">Admin (penghubung pembeli &amp; mitra)</option>
+                <option value="superadmin">Superadmin (akses penuh)</option>
               </Select>
             </div>
 

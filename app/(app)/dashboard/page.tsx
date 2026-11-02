@@ -117,7 +117,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <PackageSearch className="text-muted-foreground size-10" />
             <p className="mt-4 font-medium">Tidak ada order tertunda</p>
             <p className="text-muted-foreground mt-1 max-w-sm text-sm">
-              Semua order dalam cakupan akses Anda sudah selesai atau dibatalkan — atau filter di
+              Semua order dalam cakupan akses Anda sudah selesai atau dibatalkan, atau filter di
               atas terlalu sempit.
             </p>
           </div>

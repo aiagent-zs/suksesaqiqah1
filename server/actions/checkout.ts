@@ -6,7 +6,7 @@ import { getChannel } from '@/lib/brand-server';
 import { guestCheckoutSchema } from '@/features/checkout/schema';
 import type { GuestOrderResult } from '@/features/checkout/queries';
 import { createPaymentLink } from '@/features/payments/durianpay';
-import { RateLimiter, clientIpFrom } from '@/lib/security/rate-limit';
+import { RateLimiter, rateLimitKeyFrom } from '@/lib/security/rate-limit';
 import { scopedInternalError, validationError, type ActionResult } from './result';
 
 const internalError = scopedInternalError('checkout');
@@ -51,8 +51,7 @@ export async function createGuestOrderAction(
 ): Promise<ActionResult<GuestOrderResult>> {
   // Rem laju sebelum validasi: menolak banjiran permintaan tidak boleh menuntut
   // pekerjaan parsing lebih dulu.
-  // Tanpa IP berbagi satu kunci: tidak dihitung sama sekali = tanpa rem.
-  const gate = checkoutLimiter.consume(clientIpFrom(await headers()) ?? 'unknown');
+  const gate = checkoutLimiter.consume(rateLimitKeyFrom(await headers()));
   if (!gate.allowed) {
     const minutes = Math.max(1, Math.ceil(gate.retryAfterMs / 60_000));
     return {

@@ -92,9 +92,23 @@ export default async function TrackPage({ searchParams }: PageProps<'/lacak'>) {
         </form>
 
         <div aria-live="polite" className="mt-8">
+          {/* Pesannya menyebut aturan yang benar-benar dilanggar. Dulu satu kalimat
+              "nomor pesanan wajib diisi" dipakai untuk semua kasus, padahal nomor
+              yang sudah terisi tapi kependekan juga jatuh ke sini. */}
           {submitted && !validInput && (
             <Notice tone="error">
-              Periksa lagi isiannya: nomor pesanan wajib diisi, dan nomor HP harus tepat 4 angka.
+              Periksa lagi isiannya:{' '}
+              {[
+                nomor === ''
+                  ? 'nomor pesanan wajib diisi'
+                  : nomor.length < 4
+                    ? 'nomor pesanan minimal 4 karakter, contohnya IA-202610-0001'
+                    : null,
+                /^\d{4}$/.test(hp) ? null : 'nomor HP harus tepat 4 angka',
+              ]
+                .filter(Boolean)
+                .join(', dan ')}
+              .
             </Notice>
           )}
           {result?.kind === 'not_found' && (

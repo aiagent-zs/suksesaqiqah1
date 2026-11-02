@@ -58,10 +58,12 @@ type PackageCardData = {
 function PackageCard({
   data,
   delay,
+  showPhoto,
   className = '',
 }: {
   data: PackageCardData;
   delay: number;
+  showPhoto: boolean;
   className?: string;
 }) {
   return (
@@ -78,7 +80,7 @@ function PackageCard({
           yang ditunggu — petunjuk kerja yang berguna bagi yang menyiapkan
           foto, tapi tidak ada artinya bagi pengunjung. Sejak fotonya bisa
           diunggah lewat aplikasi, paket baru memang wajar belum punya foto. */}
-      {data.photo && (
+      {showPhoto && data.photo && (
         <div className="bg-surface-muted aspect-[3/2] overflow-hidden">
           <SitePhoto
             src={data.photo.src}
@@ -166,14 +168,22 @@ function FeatureList({ items }: { items: string[] }) {
  * `swipe` (landing): di ponsel kartu berjajar dan digeser ke samping, dengan
  * kartu berikutnya mengintip di tepi kanan sebagai tanda masih ada lagi. Tiga
  * kartu setinggi layar yang ditumpuk membuat harga paket kedua baru terlihat
- * setelah dua kali gulir penuh. Dari `sm` ke atas kembali jadi kisi.
+ * setelah dua kali gulir penuh. Tablet ikut menggeser (dua kartu plus satu
+ * yang mengintip): tiga kartu di kisi dua kolom menyisakan satu kartu yatim.
+ * Dari `lg` ke atas kembali jadi kisi tiga kolom.
+ *
+ * Foto tampil hanya kalau **semua** kartu di kisi punya foto. Kartu berfoto di
+ * samping kartu tanpa foto memaksa yang kedua meregang setinggi yang pertama,
+ * dan sisanya jadi bidang putih kosong di tengah kartu. Unggah foto katering
+ * lewat katalog, dan tab campuran ikut menampilkan foto lagi.
  */
 function PackageGrid({ cards, swipe = false }: { cards: PackageCardData[]; swipe?: boolean }) {
+  const showPhoto = cards.every((c) => c.photo);
   return (
     <div
       className={
         swipe
-          ? '-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 [&::-webkit-scrollbar]:hidden'
+          ? '-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:mx-0 lg:grid lg:snap-none lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden'
           : 'mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3'
       }
     >
@@ -182,7 +192,8 @@ function PackageGrid({ cards, swipe = false }: { cards: PackageCardData[]; swipe
           key={`${card.kind}-${card.slug}`}
           data={card}
           delay={swipe ? 0 : i * 90}
-          className={swipe ? 'w-[84%] shrink-0 snap-start sm:w-auto' : ''}
+          showPhoto={showPhoto}
+          className={swipe ? 'w-[84%] shrink-0 snap-start sm:w-[46%] lg:w-auto' : ''}
         />
       ))}
     </div>
