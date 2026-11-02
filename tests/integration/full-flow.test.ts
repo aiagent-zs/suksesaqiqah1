@@ -24,9 +24,9 @@ import type postgres from 'postgres';
 const SERVICE_AQIQAH = 'a2000000-0000-4000-8000-000000000002';
 const REGION = {
   province: '32',
-  city: '32.73',
-  district: '32.73.11',
-  village: '32.73.11.1001',
+  city: '32.75',
+  district: '32.75.01',
+  village: '32.75.01.1001',
 } as const;
 
 beforeAll(async () => {
@@ -193,6 +193,7 @@ describe('alur penuh — mode kirim (5 tahap, berujung konfirmasi penerima)', ()
       // ---------------------------------------------------------------- 3
       // Admin menugaskan mitra — di sinilah daftar tahap terbit.
       await actAs(tx, SEED.admin);
+      await tx`update public.orders set status = 'paid'::public.order_status where id = ${orderId}`;
       await tx`
         update public.orders set
           vendor_id = ${SEED.vendorA},
@@ -261,9 +262,11 @@ describe('alur penuh — mode kirim (5 tahap, berujung konfirmasi penerima)', ()
       // ---------------------------------------------------------------- 7
       // Laporan dibuat; halaman publik baru terbuka sesudah ini.
       await actAs(tx, SEED.admin);
-      await tx`
-        update public.orders set status = 'reporting'::public.order_status where id = ${orderId}
-      `;
+      for (const status of ['in_progress', 'validation', 'reporting'] as const) {
+        await tx`
+          update public.orders set status = ${status}::public.order_status where id = ${orderId}
+        `;
+      }
       await tx`
         insert into public.reports (order_id, version, pdf_path, generated_by)
         values (${orderId}, 1, ${'2026/08/uji/laporan-v1.pdf'}, ${SEED.admin})
@@ -348,7 +351,9 @@ describe('alur penuh — mode salur (4 tahap, tanpa konfirmasi penerima)', () =>
       `;
       const orderId = order.id;
 
-      await actAs(tx, SEED.admin);
+      // Penyiapan langsung ke `assigned`: transisi & pembayaran sudah diuji
+      // di alur kirim di atas.
+      await actAsOwner(tx);
       await tx`
         update public.orders set
           guest_verified_at = now(), guest_verified_by = ${SEED.admin},

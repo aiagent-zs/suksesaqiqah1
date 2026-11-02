@@ -17,6 +17,15 @@ describe('paymentMatchesOrder', () => {
   it('menolak order yang sudah lunas', () => {
     expect(paymentMatchesOrder(2_500_000, { ...order, payment_status: 'paid' })).toBe(false);
   });
+
+  it('menolak order batal atau terhapus', () => {
+    expect(paymentMatchesOrder(2_500_000, { ...order, status: 'cancelled' })).toBe(false);
+    expect(paymentMatchesOrder(2_500_000, { ...order, deleted_at: '2026-10-01' })).toBe(false);
+  });
+
+  it('membulatkan sama seperti saat link dibuat', () => {
+    expect(paymentMatchesOrder(2_500_001, { ...order, total_amount: 2_500_000.6 })).toBe(true);
+  });
 });
 
 describe('normalizeMobile', () => {

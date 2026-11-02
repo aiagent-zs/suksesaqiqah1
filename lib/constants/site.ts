@@ -279,14 +279,43 @@ export const features = [
  * `city`: kota pemesan (opsional).
  * `service`: layanan yang dipesan, misalnya "Aqiqah Kirim, 2 ekor" (opsional).
  * `quote`: isi ulasan, apa adanya. 1 sampai 3 kalimat paling enak dibaca.
+ * `rating`: bintang 1 sampai 5 yang **diberikan pemesan sendiri** (opsional).
+ * `date`: kapan pesanan dilaksanakan, misalnya "September 2026" (opsional).
+ * `photo`: foto dari pesanan pemesan itu, path relatif `public/`, misalnya
+ *   `images/testimoni/adam.webp`, rasio 4:3 (opsional, hanya dengan izin).
+ *
+ * Field opsional yang kosong tidak dirender: jangan isi dengan tebakan.
+ * Ulasan pertama tampil sebagai sorotan besar di landing: taruh yang paling
+ * spesifik di urutan teratas.
  */
 export const testimonials: readonly {
   name: string;
   city?: string;
   service?: string;
   quote: string;
+  rating?: 1 | 2 | 3 | 4 | 5;
+  date?: string;
+  photo?: { src: string; alt: string };
 }[] = [
-  // { name: 'Ibu R.', city: 'Bandung', service: 'Aqiqah Kirim, 1 ekor', quote: '...' },
+  {
+    name: 'Adam',
+    city: 'Bogor',
+    service: 'Aqiqah Salur, 2 ekor',
+    quote:
+      'Sangat cepat dan laporannya sangat lengkap. Kami bisa melihat proses pesanan kami secara realtime.',
+    rating: 5,
+    date: 'September 2026',
+    photo: {
+      src: 'images/testimoni/testing1.webp',
+      alt: 'Daging aqiqah pesanan Adam dibagikan ke penerima',
+    },
+  },
+  {
+    name: 'Ghaida',
+    city: 'Depok',
+    service: 'Aqiqah Kirim, 1 ekor',
+    quote: 'Pelayanan cepat dan sampai di tujuan.',
+  },
 ];
 
 /** FAQ (juga dipakai untuk FAQPage JSON-LD / GEO — 27_PAGE_MENU). */

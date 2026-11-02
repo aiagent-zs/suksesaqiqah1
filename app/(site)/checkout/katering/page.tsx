@@ -1,11 +1,12 @@
 import { AlertTriangle } from 'lucide-react';
+import { getBrand } from '@/lib/brand-server';
 import { getCateringOptions } from '@/features/catering/queries';
 import { bookingMaxDate, bookingMinDate } from '@/features/catering/schema';
 import { CateringForm } from '@/features/catering/components/catering-form';
 
 export const metadata = {
   // Tanpa akhiran nama situs: root layout sudah menempelkannya lewat
-  // `title.template` (`%s — Sukses Aqiqah`).
+  // `title.template` (`%s | <nama merek>`).
   title: 'Pesan Katering',
   description:
     'Pesan katering nasi kotak dan prasmanan untuk acara Anda: pengajian, rapat, atau syukuran.',
@@ -95,6 +96,7 @@ export default async function CateringCheckoutPage({
             minDate={minDate}
             maxDate={maxDate}
             initialServiceId={preselected?.id}
+            brandName={(await getBrand()).name}
           />
         )}
       </div>

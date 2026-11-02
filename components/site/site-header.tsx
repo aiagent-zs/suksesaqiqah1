@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import type { Brand } from '@/lib/brand';
 import { primaryNav, siteConfig } from '@/lib/constants/site';
 import { IconClose, IconMenu, IconWhatsApp } from './icons';
 import { Logo } from './logo';
 
-const WA_MESSAGE = 'Halo Sukses Aqiqah, saya ingin konsultasi soal paket aqiqah.';
-
-export function SiteHeader() {
+export function SiteHeader({ brand }: { brand: Brand }) {
+  const waMessage = `Halo ${brand.name}, saya ingin konsultasi soal paket aqiqah.`;
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeHash, setActiveHash] = useState('');
@@ -99,7 +99,7 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="shrink-0 rounded" onClick={() => setOpen(false)}>
-          <Logo />
+          <Logo brand={brand} />
         </Link>
 
         <nav aria-label="Menu utama" className="hidden items-center gap-1 lg:flex">
@@ -126,7 +126,7 @@ export function SiteHeader() {
 
         <div className="hidden items-center gap-2 lg:flex">
           <a
-            href={siteConfig.whatsapp.href(WA_MESSAGE)}
+            href={siteConfig.whatsapp.href(waMessage)}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-ghost"
@@ -183,7 +183,7 @@ export function SiteHeader() {
                 Lihat paket aqiqah
               </Link>
               <a
-                href={siteConfig.whatsapp.href(WA_MESSAGE)}
+                href={siteConfig.whatsapp.href(waMessage)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-outline btn-lg"

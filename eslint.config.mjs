@@ -15,6 +15,11 @@ const eslintConfig = defineConfig([
     // Artefak lokal, bukan kode project:
     'supabase/.temp/**',
     'graphify-out/**',
+    'anti-slop/**',
+    '.claude/**',
+    '.agents/**',
+    '.codex/**',
+    '.opencode/**',
   ]),
 ]);
 

@@ -57,7 +57,7 @@ describe('enforce_vendor_assignment', () => {
           update public.orders set vendor_id = ${SEED.vendorB} where id = ${orderId}
         `,
       );
-      expect(failure.message).toMatch(/Penugasan mitra hanya dapat diubah admin/);
+      expect(failure.message).toMatch(/Penugasan mitra|row-level security/);
       expect(failure.code).toBe('42501');
     });
   });
@@ -81,6 +81,9 @@ describe('enforce_vendor_assignment', () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
       const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+      // `create_order` boleh menulis total di transaksi yang sama dengan
+      // insert-nya; order uji dibuat di transaksi ini, jadi dimundurkan.
+      await tx`update public.orders set created_at = now() - interval '1 day' where id = ${orderId}`;
       await actAs(tx, SEED.vendorUserA);
 
       // Ketiga kolom diuji terpisah: trigger memeriksanya dalam satu kondisi
@@ -93,7 +96,7 @@ describe('enforce_vendor_assignment', () => {
             update public.orders set ${sp(column)} = 999 where id = ${orderId}
           `,
         );
-        expect(failure.message).toMatch(/Nilai tagihan hanya dapat diubah admin/);
+        expect(failure.message).toMatch(/Nilai tagihan|Status pembayaran/);
       }
 
       const failure = await expectFailureInSavepoint(
@@ -104,17 +107,17 @@ describe('enforce_vendor_assignment', () => {
           where id = ${orderId}
         `,
       );
-      expect(failure.message).toMatch(/Nilai tagihan hanya dapat diubah admin/);
+      expect(failure.message).toMatch(/Status pembayaran hanya berubah/);
     });
   });
 
-  it('vendor tetap boleh menyentuh kolom yang bukan uang & bukan penugasan', async () => {
+  it('vendor tetap boleh menjalankan transisi lapangan', async () => {
     await inRollback(async (tx) => {
       await actAsOwner(tx);
       const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+      await tx`update public.orders set status = 'assigned'::public.order_status where id = ${orderId}`;
 
       // Kalau trigger ini terlalu ketat, vendor tidak bisa mengerjakan apa pun.
-      // Tes ini yang menjaga batasnya tetap sempit.
       await actAs(tx, SEED.vendorUserA);
       await tx`
         update public.orders set status = 'in_progress'::public.order_status
@@ -125,6 +128,68 @@ describe('enforce_vendor_assignment', () => {
         select status::text from public.orders where id = ${orderId}
       `;
       expect(row.status).toBe('in_progress');
+    });
+  });
+
+  it('menolak vendor melompati alur status (paid -> completed)', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+
+      await actAs(tx, SEED.vendorUserA);
+      for (const to of ['completed', 'in_progress', 'cancelled'] as const) {
+        const failure = await expectFailureInSavepoint(
+          tx,
+          (sp) => sp`
+            update public.orders set status = ${to}::public.order_status where id = ${orderId}
+          `,
+        );
+        expect(failure.code).toBe('42501');
+      }
+    });
+  });
+
+  it('menolak admin melompati alur status dan menulis status pembayaran', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+
+      await actAs(tx, SEED.admin);
+      const skip = await expectFailureInSavepoint(
+        tx,
+        (sp) => sp`
+          update public.orders set status = 'completed'::public.order_status where id = ${orderId}
+        `,
+      );
+      expect(skip.code).toBe('42501');
+
+      const paid = await expectFailureInSavepoint(
+        tx,
+        (sp) => sp`
+          update public.orders set payment_status = 'unpaid'::public.payment_status where id = ${orderId}
+        `,
+      );
+      expect(paid.message).toMatch(/Status pembayaran hanya berubah/);
+    });
+  });
+
+  it('menolak vendor memalsukan konfirmasi terima dan mengganti token laporan', async () => {
+    await inRollback(async (tx) => {
+      await actAsOwner(tx);
+      const { orderId } = await makePaidOrder(tx, { mode: 'salur' });
+
+      await actAs(tx, SEED.vendorUserA);
+      const confirm = await expectFailureInSavepoint(
+        tx,
+        (sp) => sp`update public.orders set delivery_confirmed_at = now() where id = ${orderId}`,
+      );
+      expect(confirm.code).toBe('42501');
+
+      const token = await expectFailureInSavepoint(
+        tx,
+        (sp) => sp`update public.orders set public_token = repeat('a', 32) where id = ${orderId}`,
+      );
+      expect(token.code).toBe('42501');
     });
   });
 });

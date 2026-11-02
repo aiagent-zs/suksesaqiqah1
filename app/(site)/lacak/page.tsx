@@ -7,6 +7,7 @@ import { buildTimeline } from '@/features/tracking/timeline';
 import { ORDER_STATUS_META, PAYMENT_STATUS_META } from '@/lib/constants/order';
 import { formatDate } from '@/lib/format';
 import { siteConfig } from '@/lib/constants/site';
+import { getBrand } from '@/lib/brand-server';
 import { IconCheck, IconWhatsApp } from '@/components/site/icons';
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default async function TrackPage({ searchParams }: PageProps<'/lacak'>) {
   const submitted = nomor !== '' || hp !== '';
   const validInput = nomor.length >= 4 && /^\d{4}$/.test(hp);
 
+  const { name: brandName } = await getBrand();
   const result: TrackingLookup | null =
     submitted && validInput ? await lookupOrder(nomor, hp, clientIpFrom(await headers())) : null;
 
@@ -99,29 +101,35 @@ export default async function TrackPage({ searchParams }: PageProps<'/lacak'>) {
             <Notice tone="error">
               Pesanan tidak ditemukan. Pastikan nomor pesanan dan 4 digit HP sama dengan yang
               dipakai saat memesan.
-              <HelpLink nomor={nomor} />
+              <HelpLink nomor={nomor} brandName={brandName} />
             </Notice>
           )}
           {result?.kind === 'limited' && (
             <Notice tone="error">
               Terlalu banyak percobaan dari jaringan ini. Coba lagi dalam {result.minutes} menit.
-              <HelpLink nomor={nomor} />
+              <HelpLink nomor={nomor} brandName={brandName} />
             </Notice>
           )}
           {result?.kind === 'error' && (
             <Notice tone="error">
               Data pesanan sedang tidak bisa dimuat. Coba beberapa saat lagi.
-              <HelpLink nomor={nomor} />
+              <HelpLink nomor={nomor} brandName={brandName} />
             </Notice>
           )}
-          {result?.kind === 'found' && <TrackingCard order={result.order} />}
+          {result?.kind === 'found' && <TrackingCard order={result.order} brandName={brandName} />}
         </div>
       </div>
     </section>
   );
 }
 
-function TrackingCard({ order }: { order: Extract<TrackingLookup, { kind: 'found' }>['order'] }) {
+function TrackingCard({
+  order,
+  brandName,
+}: {
+  order: Extract<TrackingLookup, { kind: 'found' }>['order'];
+  brandName: string;
+}) {
   const steps = buildTimeline(order);
   const halted = order.status === 'cancelled' || order.status === 'on_hold';
 
@@ -214,7 +222,7 @@ function TrackingCard({ order }: { order: Extract<TrackingLookup, { kind: 'found
         )}
         <a
           href={siteConfig.whatsapp.href(
-            `Halo Sukses Aqiqah, saya ingin menanyakan pesanan ${order.order_number}.`,
+            `Halo ${brandName}, saya ingin menanyakan pesanan ${order.order_number}.`,
           )}
           target="_blank"
           rel="noopener noreferrer"
@@ -239,11 +247,11 @@ function Notice({ tone, children }: { tone: 'error'; children: React.ReactNode }
   );
 }
 
-function HelpLink({ nomor }: { nomor: string }) {
+function HelpLink({ nomor, brandName }: { nomor: string; brandName: string }) {
   return (
     <a
       href={siteConfig.whatsapp.href(
-        `Halo Sukses Aqiqah, saya ingin melacak pesanan${nomor ? ` ${nomor}` : ''}.`,
+        `Halo ${brandName}, saya ingin melacak pesanan${nomor ? ` ${nomor}` : ''}.`,
       )}
       target="_blank"
       rel="noopener noreferrer"

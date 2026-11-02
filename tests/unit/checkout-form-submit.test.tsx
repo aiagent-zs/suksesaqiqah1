@@ -42,9 +42,9 @@ vi.mock('@/server/actions/checkout', () => ({ createGuestOrderAction }));
  * dan tanpa mock ini komponennya menuntut kredensial Supabase yang sungguhan.
  */
 const REGION_CHILDREN: Record<string, RegionOption[]> = {
-  '32': [{ code: '32.73', name: 'Kota Bandung' }],
-  '32.73': [{ code: '32.73.24', name: 'Cibeunying Kidul' }],
-  '32.73.24': [{ code: '32.73.24.1003', name: 'Sukapada' }],
+  '32': [{ code: '32.76', name: 'Kota Depok' }],
+  '32.76': [{ code: '32.76.01', name: 'Pancoran Mas' }],
+  '32.76.01': [{ code: '32.76.01.1007', name: 'Depok Jaya' }],
 };
 
 const fetchRegionChildren = vi.fn(async (parentCode: string) => REGION_CHILDREN[parentCode] ?? []);
@@ -524,15 +524,15 @@ describe('pemilih alamat bertingkat', () => {
     await flush();
     expect(fetchRegionChildren).toHaveBeenCalledWith('32');
     expect(byId<HTMLSelectElement>('co-city').disabled).toBe(false);
-    expect(document.body.textContent).toContain('Kota Bandung');
+    expect(document.body.textContent).toContain('Kota Depok');
 
-    pickOption('co-city', '32.73');
+    pickOption('co-city', '32.76');
     await flush();
-    expect(document.body.textContent).toContain('Cibeunying Kidul');
+    expect(document.body.textContent).toContain('Pancoran Mas');
 
-    pickOption('co-dist', '32.73.24');
+    pickOption('co-dist', '32.76.01');
     await flush();
-    expect(document.body.textContent).toContain('Sukapada');
+    expect(document.body.textContent).toContain('Depok Jaya');
   });
 
   it('mengganti provinsi mengosongkan tingkat di bawahnya', async () => {
@@ -541,13 +541,13 @@ describe('pemilih alamat bertingkat', () => {
     await goToDeliveryStep();
     pickOption('co-prov', '32');
     await flush();
-    pickOption('co-city', '32.73');
+    pickOption('co-city', '32.76');
     await flush();
-    pickOption('co-dist', '32.73.24');
+    pickOption('co-dist', '32.76.01');
     await flush();
-    pickOption('co-vill', '32.73.24.1003');
+    pickOption('co-vill', '32.76.01.1007');
     await flush();
-    expect(byId<HTMLSelectElement>('co-vill').value).toBe('32.73.24.1003');
+    expect(byId<HTMLSelectElement>('co-vill').value).toBe('32.76.01.1007');
 
     pickOption('co-prov', '');
     await flush();
@@ -567,13 +567,13 @@ describe('pemilih alamat bertingkat', () => {
     await goToDeliveryStep();
     pickOption('co-prov', '32');
     await flush();
-    pickOption('co-city', '32.73');
+    pickOption('co-city', '32.76');
     await flush();
-    pickOption('co-dist', '32.73.24');
+    pickOption('co-dist', '32.76.01');
     await flush();
-    pickOption('co-vill', '32.73.24.1003');
+    pickOption('co-vill', '32.76.01.1007');
     await flush();
-    type('co-postal', '40125');
+    type('co-postal', '16431');
     type('co-detail', 'Jl. Cikutra Barat No. 12');
 
     type('co-date', PICKED_DATE);
@@ -591,10 +591,10 @@ describe('pemilih alamat bertingkat', () => {
 
     const payload = createGuestOrderAction.mock.calls[0][0] as unknown as Record<string, unknown>;
     expect(payload.delivery_province_code).toBe('32');
-    expect(payload.delivery_city_code).toBe('32.73');
-    expect(payload.delivery_district_code).toBe('32.73.24');
-    expect(payload.delivery_village_code).toBe('32.73.24.1003');
-    expect(payload.delivery_postal_code).toBe('40125');
+    expect(payload.delivery_city_code).toBe('32.76');
+    expect(payload.delivery_district_code).toBe('32.76.01');
+    expect(payload.delivery_village_code).toBe('32.76.01.1007');
+    expect(payload.delivery_postal_code).toBe('16431');
     expect(payload.delivery_detail).toBe('Jl. Cikutra Barat No. 12');
 
     // Nama wilayah dibaca RPC dari `regions`; mengirimnya dari klien hanya

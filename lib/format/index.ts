@@ -7,6 +7,30 @@ function toDate(value: string | Date | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+const wibParts = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Jakarta',
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: 'numeric',
+  hourCycle: 'h23',
+});
+
+/**
+ * Jam dinding WIB sebagai `Date` lokal, untuk diformat `date-fns`.
+ *
+ * Server (UTC) dan peramban (WIB) harus mencetak teks yang sama, atau React
+ * melaporkan hydration mismatch dan jamnya selisih 7 jam. Tanggal kalender
+ * murni (`2026-06-12`) tidak punya jam, jadi tidak dikonversi.
+ */
+function toWib(value: string | Date | null | undefined): Date | null {
+  const d = toDate(value);
+  if (!d || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))) return d;
+  const p = Object.fromEntries(wibParts.formatToParts(d).map((x) => [x.type, Number(x.value)]));
+  return new Date(p.year, p.month - 1, p.day, p.hour, p.minute);
+}
+
 /** Rp1.750.000 — tanpa desimal, sesuai tampilan harga program (docs/28). */
 export function formatCurrency(value: number | string | null | undefined): string {
   const n = typeof value === 'string' ? Number(value) : (value ?? 0);
@@ -41,13 +65,13 @@ export function formatCurrencyCompact(value: number | string | null | undefined)
 
 /** 12 Jun 2026 */
 export function formatDate(value: string | Date | null | undefined): string {
-  const d = toDate(value);
+  const d = toWib(value);
   return d ? format(d, 'd MMM yyyy', { locale: localeId }) : '-';
 }
 
 /** 12 Jun 2026, 07:30 */
 export function formatDateTime(value: string | Date | null | undefined): string {
-  const d = toDate(value);
+  const d = toWib(value);
   return d ? format(d, 'd MMM yyyy, HH:mm', { locale: localeId }) : '-';
 }
 

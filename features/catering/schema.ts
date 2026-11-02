@@ -7,6 +7,7 @@ import {
   bookingMinDate,
 } from '@/features/checkout/schema';
 import { todayWib } from '@/lib/format/date-range';
+import { OUT_OF_AREA_MESSAGE, isInServiceArea } from '@/features/checkout/service-area';
 
 /**
  * Jendela pemesanan & slot jam **dipakai ulang dari checkout aqiqah**, tidak
@@ -172,6 +173,10 @@ export const cateringCheckoutSchema = z
         path: ['delivery_village_code'],
         message: 'Wilayah tujuan tidak sejalur. Pilih ulang dari provinsi.',
       });
+    }
+
+    if (!isInServiceArea(v.delivery_city_code)) {
+      ctx.addIssue({ code: 'custom', path: ['delivery_city_code'], message: OUT_OF_AREA_MESSAGE });
     }
 
     // Paket yang sama dipilih dua kali adalah kekeliruan pengisian, bukan

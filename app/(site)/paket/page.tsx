@@ -4,11 +4,12 @@ import { getLandingCatalogue } from '@/features/landing/catalogue';
 import { buildPackageTabs, orderMessage, type PackageSort } from '@/features/landing/package-cards';
 import { PackageFilter } from '@/components/site/package-filter';
 import { siteConfig } from '@/lib/constants/site';
+import { getBrand } from '@/lib/brand-server';
 import { IconWhatsApp } from '@/components/site/icons';
 
 export const metadata: Metadata = {
   title: 'Semua Paket & Harga',
-  description: 'Daftar lengkap paket aqiqah dan katering Sukses Aqiqah beserta harganya.',
+  description: 'Daftar lengkap paket aqiqah dan katering beserta harganya.',
   alternates: { canonical: '/paket' },
 };
 
@@ -28,8 +29,8 @@ export default async function PackagesPage({ searchParams }: PageProps<'/paket'>
   const { jenis, urut } = await searchParams;
   const sort = SORTS.find((s) => s.id === urut)?.id ?? 'rekomendasi';
   const tab = typeof jenis === 'string' ? jenis : 'pilihan';
-  const catalogue = await getLandingCatalogue();
-  const tabs = buildPackageTabs(catalogue, undefined, sort);
+  const [catalogue, brand] = await Promise.all([getLandingCatalogue(), getBrand()]);
+  const tabs = buildPackageTabs(catalogue, undefined, sort, brand.name);
   const empty = tabs.every((t) => t.count === 0);
 
   return (
@@ -50,7 +51,7 @@ export default async function PackagesPage({ searchParams }: PageProps<'/paket'>
               kami.
             </p>
             <a
-              href={siteConfig.whatsapp.href(orderMessage())}
+              href={siteConfig.whatsapp.href(orderMessage(brand.name))}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-outline mt-4"

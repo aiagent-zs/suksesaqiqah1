@@ -34,10 +34,10 @@ const VALID = {
   phone: '081234567890',
   email: 'budi@example.test',
   delivery_province_code: '32',
-  delivery_city_code: '32.73',
-  delivery_district_code: '32.73.01',
-  delivery_village_code: '32.73.01.1001',
-  delivery_postal_code: '40286',
+  delivery_city_code: '32.76',
+  delivery_district_code: '32.76.01',
+  delivery_village_code: '32.76.01.1007',
+  delivery_postal_code: '16431',
   delivery_detail: 'Jl. Merdeka No. 10',
 };
 

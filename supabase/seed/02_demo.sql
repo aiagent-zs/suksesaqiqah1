@@ -31,7 +31,7 @@ select
   extensions.crypt('Password123!', extensions.gen_salt('bf')),
   now(), now(), now(),
   '{"provider": "email", "providers": ["email"]}'::jsonb,
-  jsonb_strip_nulls(jsonb_build_object('full_name', u.full_name, 'vendor_id', u.vendor_id)),
+  jsonb_build_object('full_name', u.full_name),
   '', '', '', ''
 from (
   values
@@ -60,11 +60,12 @@ update public.profiles set role = 'superadmin', is_active = true
   where id = 'd0000000-0000-4000-8000-000000000001';
 update public.profiles set role = 'admin', is_active = true
   where id = 'd0000000-0000-4000-8000-000000000002';
-update public.profiles set role = 'vendor', is_active = true
-  where id in (
-    'd0000000-0000-4000-8000-000000000003',
-    'd0000000-0000-4000-8000-000000000004'
-  );
+update public.profiles set role = 'vendor', is_active = true,
+  vendor_id = 'c0000000-0000-4000-8000-000000000001'
+  where id = 'd0000000-0000-4000-8000-000000000003';
+update public.profiles set role = 'vendor', is_active = true,
+  vendor_id = 'c0000000-0000-4000-8000-000000000002'
+  where id = 'd0000000-0000-4000-8000-000000000004';
 
 -- --- Peserta ----------------------------------------------------------------
 insert into public.participants (id, name, phone, email, address) values
@@ -104,10 +105,10 @@ insert into public.orders (
   'in_progress'::public.order_status, 'paid'::public.payment_status, 2800000, 2800000,
   'kirim'::public.distribution_mode, 'laki_laki', 'Bandung', '2026-07-28',
   current_date + 2, '09:00',
-  '32', 'JAWA BARAT', '32.73', 'KOTA BANDUNG',
-  '32.73.11', 'ANTAPANI', '32.73.11.1001', 'ANTAPANI KIDUL',
-  '40291', 'Jl. Purwakarta No. 88',
-  'Jl. Purwakarta No. 88, Kel. ANTAPANI KIDUL, Kec. ANTAPANI, KOTA BANDUNG, JAWA BARAT 40291',
+  '32', 'JAWA BARAT', '32.75', 'KOTA BEKASI',
+  '32.75.01', 'BEKASI TIMUR', '32.75.01.1001', 'BEKASIJAYA',
+  '17112', 'Jl. Ir. H. Juanda No. 88',
+  'Jl. Ir. H. Juanda No. 88, Kel. BEKASIJAYA, Kec. BEKASI TIMUR, KOTA BEKASI, JAWA BARAT 17112',
   now() - interval '3 days', 'd0000000-0000-4000-8000-000000000002'
 ) on conflict (id) do nothing;
 

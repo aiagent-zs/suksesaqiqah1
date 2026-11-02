@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useRegionCascade } from '../use-region-cascade';
 import type { RegionOption } from '../queries';
 import type { DeliveryAddressValue } from '../address';
+import { SERVICE_AREA_LABEL, isInServiceArea } from '../service-area';
 
 /**
  * Bagian alamat yang dipegang form. Kode **dan** nama: kodenya yang dikirim ke
@@ -133,7 +134,7 @@ export function AddressPicker({
       <div>
         <p className="text-base font-bold text-neutral-900">Alamat Pengiriman</p>
         <p className="mt-0.5 text-xs text-neutral-500">
-          Ke mana hasil olahan diantar. Pilih berurutan dari provinsi.
+          Ke mana hasil olahan diantar. Pengiriman saat ini baru melayani {SERVICE_AREA_LABEL}.
         </p>
       </div>
 
@@ -148,7 +149,9 @@ export function AddressPicker({
         />
 
         {(['city', 'district', 'village'] as const).map((level) => {
-          const { parent, options, loading } = stateOf(level);
+          const { parent, options: all, loading } = stateOf(level);
+          // Provinsinya memuat kota di luar jangkauan (Bandung, Serang, …).
+          const options = level === 'city' ? all.filter((o) => isInServiceArea(o.code)) : all;
           return (
             <RegionField
               key={level}

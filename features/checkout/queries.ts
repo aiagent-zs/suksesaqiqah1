@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/database';
 import { metaItems } from '@/features/services/meta';
+import { SERVICE_AREA_PROVINCES } from '@/features/checkout/service-area';
 
 export type CheckoutPackage = {
   id: string;
@@ -72,7 +73,12 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('sort_order', { ascending: true }),
-    supabase.from('regions').select('code, name').eq('level', 1).order('name', { ascending: true }),
+    supabase
+      .from('regions')
+      .select('code, name')
+      .eq('level', 1)
+      .in('code', SERVICE_AREA_PROVINCES)
+      .order('name', { ascending: true }),
   ]);
 
   const nasiBoxes = (boxesResult.data ?? []).map((s) => ({

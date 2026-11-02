@@ -41,7 +41,7 @@ describe('payload get_public_report sama antara SQL dan TypeScript', () => {
       .filter((f) => f.endsWith('.sql'))
       .sort()
       .map((f) => readFileSync(join(migrationsDir, f), 'utf8'))
-      .filter((body) => body.includes('function public.get_public_report'))
+      .filter((body) => body.includes('create or replace function public.get_public_report'))
       .pop();
     if (!last) throw new Error('Definisi get_public_report tidak ditemukan di migration mana pun.');
     return last;
@@ -49,7 +49,7 @@ describe('payload get_public_report sama antara SQL dan TypeScript', () => {
 
   /** Isi `jsonb_build_object(...)` milik fungsi ini, dari `select` sampai `into v_result`. */
   const body = (() => {
-    const start = sql.indexOf('function public.get_public_report');
+    const start = sql.indexOf('create or replace function public.get_public_report');
     const open = sql.indexOf('select jsonb_build_object(', start);
     const close = sql.indexOf('into v_result', open);
     if (open === -1 || close === -1) throw new Error('Blok jsonb_build_object tidak ditemukan.');

@@ -1,5 +1,5 @@
 import 'server-only';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { RateLimiter } from '@/lib/security/rate-limit';
 import type { OrderStatus, PaymentStatus } from '@/lib/constants/order';
 import type { DistributionMode, FulfilmentStage } from '@/features/stages/sequence';
@@ -24,11 +24,9 @@ export type TrackingLookup =
   | { kind: 'error' };
 
 /**
- * Pasangan 4 digit hanya punya 10.000 kemungkinan. 20 percobaan per 10 menit
- * per IP cukup untuk salah ketik berkali-kali, dan membuat tebakan satu nomor
- * pesanan butuh berhari-hari dari satu jaringan.
- * ponytail: per-instance, seperti limiter checkout; pindah ke store bersama
- * bila tebakan terdistribusi terlihat di log.
+ * Rem kasar per IP di depan. Rem yang sesungguhnya ada di `get_order_tracking`:
+ * 10 tebakan salah per nomor per jam, dicatat di database, jadi tetap berlaku
+ * meski IP dirotasi atau server di-restart.
  */
 const trackingLimiter = new RateLimiter({ limit: 20, windowMs: 10 * 60 * 1000 });
 
@@ -37,14 +35,14 @@ export async function lookupOrder(
   phoneLast4: string,
   ip: string | null,
 ): Promise<TrackingLookup> {
-  if (ip) {
-    const gate = trackingLimiter.consume(ip);
-    if (!gate.allowed) {
-      return { kind: 'limited', minutes: Math.max(1, Math.ceil(gate.retryAfterMs / 60_000)) };
-    }
+  const gate = trackingLimiter.consume(ip ?? 'unknown');
+  if (!gate.allowed) {
+    return { kind: 'limited', minutes: Math.max(1, Math.ceil(gate.retryAfterMs / 60_000)) };
   }
 
-  const supabase = await createClient();
+  // Service role: RPC ini tertutup untuk anon supaya tidak bisa ditembak
+  // langsung tanpa rem di atas.
+  const supabase = createAdminClient();
   const { data, error } = await supabase.rpc('get_order_tracking', {
     p_order_number: orderNumber,
     p_phone_last4: phoneLast4,

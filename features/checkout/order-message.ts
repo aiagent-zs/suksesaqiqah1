@@ -33,9 +33,10 @@ export function orderWhatsAppMessage(input: {
   requestedTime?: string | null;
   distributionMode?: string | null;
   customerName?: string | null;
+  brandName?: string;
 }): string {
   const lines = [
-    `Halo Admin Sukses Aqiqah, saya baru saja memesan lewat website.`,
+    `Halo Admin ${input.brandName ?? 'Sukses Aqiqah'}, saya baru saja memesan lewat website.`,
     ``,
     `No. Pesanan: ${input.orderNumber}`,
   ];

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, CalendarDays, MapPin, Receipt, User, UserCog } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Globe, MapPin, Receipt, User, UserCog } from 'lucide-react';
+import { BRANDS, parseChannel } from '@/lib/brand';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import { getOrderDetail, getOrderTimeline } from '@/features/orders/queries';
@@ -576,6 +577,17 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                   <dd className="font-medium">{vendor?.name ?? 'Belum ditugaskan'}</dd>
                 </div>
               </div>
+
+              {/* Hanya pesanan mitra yang diberi tanda; `web` adalah bawaan. */}
+              {order.channel !== 'web' && (
+                <div className="flex gap-3">
+                  <Globe className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+                  <div>
+                    <dt className="text-muted-foreground">Kanal masuk</dt>
+                    <dd className="font-medium">{BRANDS[parseChannel(order.channel)].name}</dd>
+                  </div>
+                </div>
+              )}
             </dl>
           </section>
 

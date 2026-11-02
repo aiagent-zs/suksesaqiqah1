@@ -1,8 +1,26 @@
 import { updateSession } from '@/lib/supabase/middleware';
+import { CHANNEL_COOKIE, CHANNEL_PARAM, parseChannel } from '@/lib/brand';
 import type { NextRequest } from 'next/server';
 
 export async function proxy(request: NextRequest) {
-  return await updateSession(request);
+  // Link masuk mitra (`?ch=linkaja`) menetapkan merek untuk sisa kunjungan.
+  // Ditulis ke cookie permintaan juga, supaya render pertama sudah bermerek.
+  const ch = request.nextUrl.searchParams.get(CHANNEL_PARAM);
+  if (ch !== null) request.cookies.set(CHANNEL_COOKIE, parseChannel(ch));
+
+  const response = await updateSession(request);
+
+  if (ch !== null) {
+    response.cookies.set(CHANNEL_COOKIE, parseChannel(ch), {
+      // `none` + secure: webview mitra bisa memperlakukan halaman kita sebagai
+      // konteks pihak ketiga, dan `lax` membuat cookie-nya tidak terkirim.
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  }
+  return response;
 }
 
 export const config = {

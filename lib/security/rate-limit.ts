@@ -91,24 +91,17 @@ export class RateLimiter {
 }
 
 /**
- * Alamat IP pengirim dari header proxy.
+ * Alamat IP pengirim.
  *
- * `x-forwarded-for` berisi rantai `klien, proxy1, proxy2`; entri **pertama**
- * adalah klien asli. Nilai itu bisa dipalsukan kalau permintaan bisa mencapai
- * aplikasi tanpa melewati proxy tepercaya — di belakang platform hosting
- * (Vercel, Cloudflare) header ini ditulis ulang oleh platform, jadi entri
- * pertamanya dapat dipercaya.
+ * Domain di-proxy Cloudflare: `cf-connecting-ip` ditulis edge-nya dan tidak
+ * bisa diisi klien **selama origin VPS hanya menerima koneksi dari IP
+ * Cloudflare** (firewall). Tanpa proxy, reverse proxy VPS (Traefik/Nginx)
+ * menulis `x-real-ip` dari alamat koneksi. `x-forwarded-for` sengaja
+ * diabaikan: entri pertamanya karangan pengirim.
  *
- * Mengembalikan `null` bila tidak ada header yang bisa dibaca; pemanggilnya
- * yang memutuskan apa artinya — di sini permintaan tanpa IP tidak dilempar,
- * hanya tidak ikut terhitung.
+ * `null` bila tidak ada; pemanggil memakai kunci bersama untuk kasus itu
+ * supaya permintaan tanpa IP tidak lolos tanpa rem.
  */
 export function clientIpFrom(headers: { get(name: string): string | null }): string | null {
-  const forwarded = headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-
-  return headers.get('x-real-ip')?.trim() || null;
+  return headers.get('cf-connecting-ip')?.trim() || headers.get('x-real-ip')?.trim() || null;
 }
