@@ -51,19 +51,30 @@ const nextConfig: NextConfig = {
      * (tanpanya siapa pun bisa memakai pengoptimal gambar ini sebagai proxy
      * terbuka), jadi yang diizinkan dipersempit sampai ke prefix bucketnya.
      *
-     * Host-nya dibaca dari env supaya lokal, staging, dan produksi tidak perlu
-     * daftar terpisah. Kalau env-nya belum ada saat build, daftarnya kosong dan
-     * `SitePhoto` jatuh ke placeholder alih-alih merender gambar rusak.
+     * Host produksi ditulis sebagai pola `*.supabase.co`, bukan dibaca dari env:
+     * daftar ini dibekukan saat build, dan build yang berjalan tanpa
+     * `NEXT_PUBLIC_SUPABASE_URL` dulu menghasilkan daftar kosong — seluruh foto
+     * katalog lalu ditolak `400 "url" parameter is not allowed` di produksi.
+     * Entri dari env tetap ada untuk Supabase lokal (`http://127.0.0.1`).
      */
-    remotePatterns: process.env.NEXT_PUBLIC_SUPABASE_URL
-      ? [
-          {
-            protocol: 'https' as const,
-            hostname: new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname,
-            pathname: '/storage/v1/object/public/public-assets/**',
-          },
-        ]
-      : [],
+    remotePatterns: [
+      {
+        protocol: 'https' as const,
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/object/public/public-assets/**',
+      },
+      ...(process.env.NEXT_PUBLIC_SUPABASE_URL
+        ? [
+            {
+              protocol: new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).protocol.replace(':', '') as
+                | 'http'
+                | 'https',
+              hostname: new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname,
+              pathname: '/storage/v1/object/public/public-assets/**',
+            },
+          ]
+        : []),
+    ],
   },
 };
 
