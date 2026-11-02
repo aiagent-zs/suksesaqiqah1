@@ -51,8 +51,10 @@ jobs:
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+        # `--fail-with-body`: kalau Dokploy menolak, alasannya tercetak di log
+        # Actions, bukan hanya kode keluar 22.
         run: |
-          curl -fsS -X POST "$DOKPLOY_URL/api/application.deploy" \
+          curl -sS --fail-with-body -X POST "${DOKPLOY_URL%/}/api/application.deploy" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"applicationId\":\"$DOKPLOY_APPLICATION_ID\"}"
