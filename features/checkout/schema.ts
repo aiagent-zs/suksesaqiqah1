@@ -405,6 +405,19 @@ export const guestCheckoutSchema = z
 export type GuestCheckoutInput = z.infer<typeof guestCheckoutSchema>;
 
 /**
+ * Pesan galat pertama dari `schema` untuk `value`, atau `null` bila sah.
+ *
+ * Dipakai form untuk memeriksa jumlah ekor dan box dengan medan zod yang
+ * **sama** dengan yang dipakai server, bukan salinan aturannya. Salinan pernah
+ * tertinggal: form hanya menolak `< 1`, jadi 2,5 box atau 99999 box lolos
+ * sampai ke tombol kirim lalu ditolak server.
+ */
+export function issueOf(schema: z.ZodType, value: unknown): string | null {
+  const result = schema.safeParse(value);
+  return result.success ? null : (result.error.issues[0]?.message ?? 'Isian tidak valid');
+}
+
+/**
  * Jenis hewan yang masuk akal per jenis layanan.
  *
  * Aturan yang sama ditegakkan di dalam RPC; disatukan di sini supaya form tidak

@@ -78,8 +78,8 @@ export function StepDataPemesan({
               />
               <Input
                 id="co-phone"
+                type="tel"
                 value={draft.phone}
-                inputMode="tel"
                 autoComplete="tel"
                 required
                 aria-required
@@ -143,6 +143,7 @@ export function StepDataPemesan({
               />
               <Input
                 id="co-child"
+                autoComplete="off"
                 value={draft.child_name}
                 required
                 aria-required
@@ -169,6 +170,7 @@ export function StepDataPemesan({
               />
               <Input
                 id="co-binbinti"
+                autoComplete="off"
                 value={draft.bin_binti}
                 aria-invalid={Boolean(fieldErrors.bin_binti)}
                 aria-describedby={fieldErrors.bin_binti ? 'bin_binti-error' : undefined}
@@ -193,6 +195,7 @@ export function StepDataPemesan({
               />
               <Input
                 id="co-birthplace"
+                autoComplete="off"
                 value={draft.child_birth_place}
                 required
                 aria-required

@@ -1,28 +1,16 @@
 'use client';
 
-import {
-  AlertCircle,
-  Baby,
-  Beef,
-  CalendarDays,
-  HandHeart,
-  Package,
-  ShieldCheck,
-  Tag,
-  Truck,
-  User,
-  Users,
-} from 'lucide-react';
+import { AlertCircle, ShieldCheck, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ANIMAL_SPECIES_LABEL } from '@/lib/constants/order';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import type { Draft } from '../../draft';
 import type { CheckoutPackage, NasiBoxPackage } from '../../queries';
 import { FieldError } from './field-error';
 import { StepIntro } from './step-header';
-import { SummaryRow } from './summary-row';
+import { SummaryRow, SummarySection, SummaryTotal } from './summary-row';
 
 /** Langkah 4 — ringkasan sebelum pesanan dikirim. */
 export function StepRingkasan({
@@ -53,63 +41,43 @@ export function StepRingkasan({
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
       <StepIntro title="Periksa sekali lagi sebelum dikirim">
-        Ada yang keliru? Ketuk Ubah di baris yang ingin diganti.
+        Ada yang keliru? Ketuk Ubah di kelompok yang ingin diganti.
       </StepIntro>
 
+      {/* Dikelompokkan per langkah, urut seperti form: satu "Ubah" per
+          kelompok membawa ke langkah asalnya. Nominal rata kanan seperti nota,
+          supaya jumlahnya bisa dicocokkan dengan total tanpa mencari. */}
       <div className="border-line overflow-hidden rounded-lg border bg-white">
-        <div className="border-line bg-surface-muted border-b px-5 py-3">
-          <p className="text-ink text-base font-semibold">Rincian pesanan</p>
-        </div>
-
-        <dl className="divide-line divide-y">
-          <SummaryRow label="Aqiqah untuk" icon={Users} onEdit={() => onEdit(1)}>
+        <SummarySection title="Pesanan" onEdit={() => onEdit(1)}>
+          <SummaryRow label="Aqiqah untuk">
             {draft.aqiqah_for === 'laki_laki' ? 'Anak Laki-laki' : 'Anak Perempuan'}
           </SummaryRow>
-          <SummaryRow label="Atas nama" icon={Baby} onEdit={() => onEdit(3)}>
-            {[draft.child_name, draft.bin_binti].filter(Boolean).join(' ') || '-'}
-            {/* Tempat & tanggal lahir ikut ditampilkan di sini, bukan
-                      sebagai barisnya sendiri: keduanya menerangkan anak yang
-                      sama, dan inilah kesempatan terakhir pemesan mengoreksi
-                      salah ketik sebelum keduanya tercetak di sertifikat. */}
-            {(draft.child_birth_place || draft.child_birth_date) && (
-              <span className="text-ink-muted block text-xs">
-                Lahir di {draft.child_birth_place || '-'}
-                {draft.child_birth_date && `, ${formatDate(draft.child_birth_date)}`}
-              </span>
-            )}
-          </SummaryRow>
-          <SummaryRow label="Paket" icon={Beef} onEdit={() => onEdit(1)}>
-            {selected?.name ?? '-'} · {draft.qty}{' '}
+          <SummaryRow label="Paket" amount={packageSubtotal}>
+            {selected?.name ?? '-'}, {draft.qty}{' '}
             {ANIMAL_SPECIES_LABEL[draft.species as keyof typeof ANIMAL_SPECIES_LABEL]}
-            <span className="text-ink-muted block text-xs tabular-nums">
-              {formatCurrency(packageSubtotal)}
-            </span>
           </SummaryRow>
           {selectedBox && draft.nasi_box_qty > 0 && (
-            <SummaryRow label="Nasi box" icon={Package} onEdit={() => onEdit(1)}>
-              {selectedBox.name} · {draft.nasi_box_qty} box
-              <span className="text-ink-muted block text-xs tabular-nums">
-                {formatCurrency(boxSubtotal)}
-              </span>
+            <SummaryRow label="Nasi box" amount={boxSubtotal}>
+              {selectedBox.name}, {draft.nasi_box_qty} box
             </SummaryRow>
           )}
-          <SummaryRow label="Pelaksanaan" icon={CalendarDays} onEdit={() => onEdit(2)}>
+        </SummarySection>
+
+        <SummarySection title="Jadwal & penyaluran" onEdit={() => onEdit(2)}>
+          <SummaryRow label="Pelaksanaan">
             {formatDate(draft.requested_date)}
-            {draft.requested_time && ` · ${draft.requested_time} WIB`}
-            <span className="text-ink-muted block text-xs">Menunggu konfirmasi tim kami</span>
+            {draft.requested_time && `, ${draft.requested_time} WIB`}
+            <span className="text-ink-muted block text-xs font-normal">
+              Menunggu konfirmasi tim kami
+            </span>
           </SummaryRow>
-          <SummaryRow
-            label="Penyaluran"
-            icon={draft.distribution_mode === 'kirim' ? Truck : HandHeart}
-            onEdit={() => onEdit(2)}
-          >
+          <SummaryRow label="Penyaluran">
             {draft.distribution_mode === 'kirim' ? 'Aqiqah Kirim' : 'Aqiqah Salur'}
-            {/* Bagian alamat ditampilkan terpisah, tidak dirangkai jadi
-                      satu baris. Bentuk satu barisnya dirakit `create_guest_order`
-                      dan hanya di sana — merakitnya lagi di sini berarti dua
-                      tempat menyusun teks yang sama dengan hasil bisa berbeda. */}
+            {/* Bagian alamat ditampilkan terpisah, tidak dirangkai jadi satu
+                baris. Bentuk satu barisnya dirakit `create_guest_order` dan
+                hanya di sana. */}
             {draft.distribution_mode === 'kirim' && draft.delivery.village_code && (
-              <span className="text-ink-muted mt-1 block text-xs leading-5">
+              <span className="text-ink-muted mt-1 block text-xs leading-5 font-normal">
                 {draft.delivery.detail}
                 <br />
                 Kel. {draft.delivery.village_name}, Kec. {draft.delivery.district_name}
@@ -119,18 +87,31 @@ export function StepRingkasan({
               </span>
             )}
           </SummaryRow>
-          <SummaryRow label="Pemesan" icon={User} onEdit={() => onEdit(3)}>
+        </SummarySection>
+
+        <SummarySection title="Data pemesan & anak" onEdit={() => onEdit(3)}>
+          <SummaryRow label="Atas nama anak">
+            {[draft.child_name, draft.bin_binti].filter(Boolean).join(' ') || '-'}
+            {/* Kesempatan terakhir mengoreksi salah ketik sebelum tempat dan
+                tanggal lahir tercetak di sertifikat. */}
+            {(draft.child_birth_place || draft.child_birth_date) && (
+              <span className="text-ink-muted block text-xs font-normal">
+                Lahir di {draft.child_birth_place || '-'}
+                {draft.child_birth_date && `, ${formatDate(draft.child_birth_date)}`}
+              </span>
+            )}
+          </SummaryRow>
+          <SummaryRow label="Pemesan">
             {draft.name}
-            <span className="text-ink-muted block text-xs">
-              {draft.phone} · {draft.email}
+            <span className="text-ink-muted block text-xs font-normal wrap-break-word">
+              {draft.phone}
+              <br />
+              {draft.email}
             </span>
           </SummaryRow>
-        </dl>
+        </SummarySection>
 
-        <div className="bg-primary flex items-center justify-between gap-4 px-5 py-4 text-white">
-          <span className="text-base font-semibold">Total tagihan</span>
-          <span className="text-2xl font-bold tabular-nums">{formatCurrency(total)}</span>
-        </div>
+        <SummaryTotal label="Total tagihan" total={total} />
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -144,6 +125,8 @@ export function StepRingkasan({
           </Label>
           <Input
             id="co-referral"
+            autoComplete="off"
+            autoCapitalize="characters"
             value={draft.referral_code}
             aria-invalid={Boolean(fieldErrors.referral_code)}
             aria-describedby={fieldErrors.referral_code ? 'referral_code-error' : undefined}

@@ -37,6 +37,8 @@ export type LandingBox = {
    */
   tagline: string | null;
   photo: { src: string; alt: string } | null;
+  /** Jenis di katalog (`katering_ayam`, ...): subjudul tabel katering di `/paket`. */
+  type: string;
 };
 
 /**
@@ -155,6 +157,7 @@ export async function getLandingCatalogue(): Promise<{
         photo: s.photo_path
           ? { src: s.photo_path, alt: s.photo_alt ?? `Sajian ${s.name}` }
           : null,
+        type,
       }));
 
   const catering = [

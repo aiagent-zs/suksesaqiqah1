@@ -36,8 +36,8 @@ export function ChoiceCard({
   price?: React.ReactNode;
   badge?: React.ReactNode;
   /**
-   * Isi paket. Ditampilkan utuh, bukan dipotong: inilah yang membedakan satu
-   * paket dari yang lain, dan pemesan memilih berdasarkan daftar ini.
+   * Isi yang membedakan kartu ini. Isi yang sama di semua kartu sudah ditulis
+   * sekali di atas kisi (`splitCommonFeatures`), jadi daftar ini tidak dipotong.
    */
   includes?: string[];
   role?: 'radio' | 'button';
@@ -82,7 +82,6 @@ export function ChoiceCard({
       )}
       {includes && includes.length > 0 && (
         <span className="border-line mt-3 block space-y-1.5 border-t pt-3">
-          <span className="text-ink block text-xs font-semibold">Yang Anda dapat:</span>
           {includes.map((item) => (
             <span key={item} className="text-ink flex items-start gap-2 text-sm leading-5">
               <Check aria-hidden className="text-primary mt-0.5 size-3.5 shrink-0 stroke-[3]" />

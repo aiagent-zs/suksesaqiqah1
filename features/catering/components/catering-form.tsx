@@ -8,12 +8,9 @@ import {
   CalendarClock,
   CalendarDays,
   Check,
-  ChevronLeft,
-  ChevronRight,
   ClipboardCheck,
   Clock,
   Drumstick,
-  Loader2,
   Mail,
   Minus,
   Package,
@@ -23,7 +20,6 @@ import {
   ShieldCheck,
   Soup,
   Tag,
-  Truck,
   User,
   type LucideIcon,
 } from 'lucide-react';
@@ -40,7 +36,12 @@ import { FieldError } from '@/features/checkout/components/steps/field-error';
 import { StepperButton } from '@/features/checkout/components/steps/stepper-button';
 import { ErrorSummary } from '@/features/checkout/components/steps/error-summary';
 import { SuccessPanel } from '@/features/checkout/components/steps/success-panel';
-import { SummaryRow } from '@/features/checkout/components/steps/summary-row';
+import {
+  SummaryRow,
+  SummarySection,
+  SummaryTotal,
+} from '@/features/checkout/components/steps/summary-row';
+import { StepNav } from '@/features/checkout/components/steps/step-nav';
 import {
   SectionLabel,
   StepHeader,
@@ -49,7 +50,14 @@ import {
 import { createCateringOrderAction } from '@/server/actions/catering';
 import type { RegionOption } from '@/features/checkout/queries';
 import type { CateringPackage } from '../queries';
-import { BOOKING_MAX_DAYS, BOOKING_TIME_SLOTS, MAX_QTY_PER_LINE } from '../schema';
+import { issueOf } from '@/features/checkout/schema';
+import {
+  BOOKING_MAX_DAYS,
+  BOOKING_TIME_SLOTS,
+  MAX_QTY_PER_LINE,
+  MAX_TOTAL_BOXES,
+  cateringItemSchema,
+} from '../schema';
 import {
   clearDraft,
   emptyDraft,
@@ -190,12 +198,20 @@ export function CateringForm({
     set('items', [...rest, { service_id: id, qty }]);
   }
 
+  /**
+   * Baris yang terisi, beserta penolakannya menurut medan zod server.
+   *
+   * Baris yang akan ditolak (2,5 box, di atas batas) tetap ikut di sini supaya
+   * `validateStep` bisa menyebutnya, tapi subtotalnya nol: total yang tampil
+   * tidak boleh dihitung dari jumlah yang tidak bisa dipesan.
+   */
   const lines = useMemo(
     () =>
       packages
         .map((pkg) => {
           const qty = Number(draft.items.find((i) => i.service_id === pkg.id)?.qty) || 0;
-          return { pkg, qty, subtotal: pkg.price * qty };
+          const issue = issueOf(cateringItemSchema.shape.qty, qty);
+          return { pkg, qty, issue, subtotal: issue ? 0 : pkg.price * qty };
         })
         .filter((l) => l.qty > 0),
     [draft.items, packages],
@@ -220,9 +236,11 @@ export function CateringForm({
   function validateStep(n: number): boolean {
     const errors: Record<string, string> = {};
     if (n === 1) {
+      const invalid = lines.find((l) => l.issue);
       if (lines.length === 0) errors.items = 'Isi jumlah box untuk minimal satu paket';
-      else if (lines.some((l) => l.qty > MAX_QTY_PER_LINE)) {
-        errors.items = `Untuk pesanan di atas ${MAX_QTY_PER_LINE} box per paket, hubungi admin`;
+      else if (invalid) errors.items = `${invalid.pkg.name}: ${invalid.issue}`;
+      else if (totalBoxes > MAX_TOTAL_BOXES) {
+        errors.items = `Total di atas ${MAX_TOTAL_BOXES.toLocaleString('id-ID')} box. Hubungi admin untuk penawaran khusus.`;
       }
     } else if (n === 2) {
       if (!draft.requested_date) errors.requested_date = 'Pilih tanggal pengiriman';
@@ -286,7 +304,22 @@ export function CateringForm({
     }
     setStep(next);
     saveDraft(draft, next);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Tanpa `behavior`: `scroll-behavior` di globals.css yang menentukan, dan
+    // itu sudah dimatikan untuk `prefers-reduced-motion`.
+    window.scrollTo({ top: 0 });
+  }
+
+  /**
+   * Penunjuk langkah: mundur bebas, maju hanya bila **setiap** langkah yang
+   * dilewati sah. Dulu yang diperiksa hanya langkah yang sedang terbuka, jadi
+   * pemesan bisa langsung ke Ringkasan dengan alamat dan kontak kosong.
+   * `validateStep` sendiri yang membawa layar ke langkah yang bermasalah.
+   */
+  function jumpStep(target: number) {
+    if (target > step) {
+      for (let n = step; n < target; n += 1) if (!validateStep(n)) return;
+    }
+    goToStep(target);
   }
 
   function submit() {
@@ -355,14 +388,7 @@ export function CateringForm({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <StepHeader
-        steps={STEPS}
-        current={step}
-        total={total}
-        onJump={(id) => {
-          if (id < step || validateStep(step)) goToStep(id);
-        }}
-      />
+      <StepHeader steps={STEPS} current={step} total={total} onJump={jumpStep} />
 
       <ErrorSummary errors={fieldErrors} labels={FIELD_LABEL} onJump={jumpToField} />
 
@@ -405,12 +431,12 @@ export function CateringForm({
         </div>
       )}
 
-      <div className="p-2 pt-8 sm:p-4 sm:pt-10">
+      <div className="pt-6 sm:pt-8">
         {step === 1 && (
           <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
             <StepIntro title="Paket apa, dan berapa box?">
-              Isi jumlah box di paket yang Anda mau, boleh lebih dari satu paket. Tombol + dan −
-              menambah 10 box sekaligus, angkanya juga bisa diketik langsung.
+              Isi jumlah box di paket yang Anda mau, boleh lebih dari satu paket. Tombol + dan -
+              menambah atau mengurangi 10 box, angkanya juga bisa diketik langsung.
             </StepIntro>
 
             <div id="kt-packages" tabIndex={-1} className="outline-none">
@@ -464,6 +490,7 @@ export function CateringForm({
                     {group.items.map((pkg) => {
                       const raw = qtyOf(pkg.id);
                       const qty = Number(raw) || 0;
+                      const qtyIssue = qty > 0 && issueOf(cateringItemSchema.shape.qty, qty);
                       return (
                         <li
                           key={pkg.id}
@@ -530,9 +557,14 @@ export function CateringForm({
                                 {formatCurrency(pkg.price)}
                               </span>
                               <span className="text-ink-muted"> /box</span>
-                              {qty > 0 && (
+                              {qty > 0 && !qtyIssue && (
                                 <span className="text-primary block text-sm font-semibold">
                                   {formatCurrency(pkg.price * qty)}
+                                </span>
+                              )}
+                              {qtyIssue && (
+                                <span className="text-danger block text-sm font-semibold">
+                                  {qtyIssue}
                                 </span>
                               )}
                             </p>
@@ -728,7 +760,7 @@ export function CateringForm({
                   />
                   <Input
                     id="kt-phone"
-                    inputMode="tel"
+                    type="tel"
                     autoComplete="tel"
                     value={draft.phone}
                     onChange={(e) => set('phone', e.target.value)}
@@ -770,31 +802,31 @@ export function CateringForm({
         {step === 4 && (
           <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
             <StepIntro title="Periksa sekali lagi sebelum dikirim">
-              Ada yang keliru? Ketuk Ubah di baris yang ingin diganti.
+              Ada yang keliru? Ketuk Ubah di kelompok yang ingin diganti.
             </StepIntro>
 
             <div className="border-line overflow-hidden rounded-lg border bg-white">
-              <div className="border-line bg-surface-muted border-b px-5 py-3">
-                <p className="text-ink text-base font-semibold">Rincian pesanan</p>
-              </div>
-              <dl className="divide-line divide-y">
+              <SummarySection title="Pesanan" onEdit={() => goToStep(1)}>
                 {lines.map(({ pkg, qty, subtotal }) => (
                   <SummaryRow
                     key={pkg.id}
-                    label={pkg.name}
-                    icon={TYPE_ICON[pkg.type] ?? Package}
-                    onEdit={() => goToStep(1)}
+                    label={TYPE_LABEL[pkg.type] ?? 'Katering'}
+                    amount={subtotal}
                   >
-                    {qty.toLocaleString('id-ID')} box
-                    <span className="text-ink-muted block text-xs tabular-nums">
-                      {formatCurrency(subtotal)}
-                    </span>
+                    {pkg.name}, {qty.toLocaleString('id-ID')} box
                   </SummaryRow>
                 ))}
-                <SummaryRow label="Dikirim" icon={Truck} onEdit={() => goToStep(2)}>
+              </SummarySection>
+              <SummarySection title="Jadwal & alamat" onEdit={() => goToStep(2)}>
+                <SummaryRow label="Dikirim">
                   {draft.requested_date ? formatDate(draft.requested_date) : '-'}
-                  {draft.requested_time && ` · ${draft.requested_time} WIB`}
-                  <span className="text-ink-muted mt-1 block text-xs leading-5">
+                  {draft.requested_time && `, ${draft.requested_time} WIB`}
+                </SummaryRow>
+                <SummaryRow label="Alamat">
+                  {draft.recipient_institution && (
+                    <span className="block">{draft.recipient_institution}</span>
+                  )}
+                  <span className="text-ink-muted block text-xs leading-5 font-normal">
                     {draft.delivery.detail}
                     <br />
                     Kel. {draft.delivery.village_name}, Kec. {draft.delivery.district_name}
@@ -803,19 +835,28 @@ export function CateringForm({
                     {draft.delivery.postal_code}
                   </span>
                 </SummaryRow>
-                <SummaryRow label="Pemesan" icon={User} onEdit={() => goToStep(3)}>
+              </SummarySection>
+              <SummarySection title="Data pemesan" onEdit={() => goToStep(3)}>
+                <SummaryRow label="Pemesan">
                   {draft.name}
-                  <span className="text-ink-muted block text-xs">
-                    {draft.phone} · {draft.email}
+                  <span className="text-ink-muted block text-xs font-normal wrap-break-word">
+                    {draft.phone}
+                    <br />
+                    {draft.email}
                   </span>
                 </SummaryRow>
-              </dl>
-              <div className="bg-primary flex items-center justify-between gap-4 px-5 py-4 text-white">
-                <span className="text-base font-semibold">
-                  Total tagihan ({totalBoxes.toLocaleString('id-ID')} box)
-                </span>
-                <span className="text-2xl font-bold tabular-nums">{formatCurrency(total)}</span>
-              </div>
+              </SummarySection>
+              <SummaryTotal
+                label={
+                  <>
+                    Total tagihan
+                    <span className="block text-sm font-normal">
+                      {totalBoxes.toLocaleString('id-ID')} box
+                    </span>
+                  </>
+                }
+                total={total}
+              />
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -829,6 +870,8 @@ export function CateringForm({
                 </Label>
                 <Input
                   id="kt-referral"
+                  autoComplete="off"
+                  autoCapitalize="characters"
                   value={draft.referral_code}
                   onChange={(e) => set('referral_code', e.target.value)}
                   placeholder="Mis. SA-BUDI"
@@ -869,61 +912,20 @@ export function CateringForm({
           </div>
         )}
 
-        {/* Menempel di bawah layar: daftar paket bisa panjang, dan tombol yang
-            baru terlihat setelah menggulir habis membuat pemesan bingung
-            harus ke mana sesudah mengisi jumlah. */}
-        <div className="border-line sticky bottom-0 z-20 -mx-2 mt-8 flex items-center justify-between gap-2 border-t bg-white px-2 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-4 sm:px-4">
-          {step > 1 ? (
-            <button
-              type="button"
-              onClick={() => goToStep(step - 1)}
-              disabled={pending}
-              className="btn btn-outline shrink-0 px-3.5 sm:px-5"
-            >
-              <ChevronLeft className="size-4" /> Kembali
-            </button>
-          ) : (
-            <p aria-live="polite" className="text-ink-muted min-w-0 text-sm">
-              {totalBoxes > 0 ? (
-                <>
-                  <span className="text-ink font-semibold tabular-nums">
-                    {totalBoxes.toLocaleString('id-ID')} box
-                  </span>{' '}
-                  dari {lines.length} paket
-                </>
-              ) : (
-                'Belum ada paket dipilih'
-              )}
-            </p>
-          )}
-
-          {/* `key` berbeda wajib: tanpanya React memakai ulang elemen tombol
-              Lanjut sebagai tombol kirim, lengkap dengan fokusnya. */}
-          {step < STEPS.length ? (
-            <button
-              key="nav-next"
-              type="button"
-              onClick={() => validateStep(step) && goToStep(step + 1)}
-              className="btn btn-primary shrink-0 whitespace-nowrap sm:px-6"
-            >
-              Lanjut ke <span className="sm:hidden">{STEPS[step].shortTitle}</span>
-              <span className="hidden sm:inline">{STEPS[step].title}</span>
-              <ChevronRight className="size-4 shrink-0" />
-            </button>
-          ) : (
-            <button
-              key="nav-submit"
-              type="button"
-              onClick={submit}
-              disabled={pending}
-              aria-busy={pending}
-              className="btn btn-primary btn-lg sm:px-7"
-            >
-              {pending && <Loader2 className="size-4 animate-spin" />}
-              {pending ? 'Mengirim pesanan…' : 'Konfirmasi & Kirim Pesanan'}
-            </button>
-          )}
-        </div>
+        <StepNav
+          steps={STEPS}
+          current={step}
+          total={total}
+          status={
+            totalBoxes > 0
+              ? `${totalBoxes.toLocaleString('id-ID')} box dari ${lines.length} paket`
+              : 'Belum ada paket dipilih'
+          }
+          pending={pending}
+          onBack={() => goToStep(step - 1)}
+          onNext={() => validateStep(step) && goToStep(step + 1)}
+          onSubmit={submit}
+        />
       </div>
     </div>
   );
