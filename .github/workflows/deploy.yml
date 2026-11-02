@@ -54,6 +54,9 @@ jobs:
         # `--fail-with-body`: kalau Dokploy menolak, alasannya tercetak di log
         # Actions, bukan hanya kode keluar 22.
         run: |
+          for v in DOKPLOY_URL DOKPLOY_API_KEY DOKPLOY_APPLICATION_ID; do
+            [ -n "${!v}" ] || { echo "::error::Secret $v kosong. Isi di Settings → Secrets and variables → Actions."; exit 1; }
+          done
           curl -sS --fail-with-body -X POST "${DOKPLOY_URL%/}/api/application.deploy" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
             -H "Content-Type: application/json" \
