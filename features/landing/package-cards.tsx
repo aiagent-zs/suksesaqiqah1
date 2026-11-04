@@ -131,9 +131,9 @@ function PackageCard({
               <details className="group mt-2">
                 <summary className="text-primary flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold underline-offset-2 hover:underline">
                   <span className="group-open:hidden">
-                    Lihat detail ({data.features.length - 4} lainnya)
+                    Lihat semua isi paket (+{data.features.length - 4})
                   </span>
-                  <span className="hidden group-open:inline">Sembunyikan detail</span>
+                  <span className="hidden group-open:inline">Tutup isi paket</span>
                 </summary>
                 <FeatureList items={data.features.slice(4)} />
               </details>

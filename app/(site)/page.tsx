@@ -11,8 +11,8 @@ import {
   siteConfig,
   testimonials,
 } from '@/lib/constants/site';
-import { STAGE_META, STAGE_SEQUENCE } from '@/features/stages/sequence';
 import { getLandingCatalogue } from '@/features/landing/catalogue';
+import { SERVICE_AREA_LABEL } from '@/features/checkout/service-area';
 import { buildPackageTabs, orderMessage } from '@/features/landing/package-cards';
 import { IconWhatsApp } from '@/components/site/icons';
 import { SitePhoto } from '@/components/site/site-photo';
@@ -61,9 +61,6 @@ export default async function LandingPage() {
    Kisi garis pindah ke belakang kolom foto dan bingkai fotonya menempel ke sel
    56px, jadi motifnya terbaca sebagai halaman bergaris, bukan noda di pojok. */
 function Hero({ brand }: { brand: Brand }) {
-  // Nama tahap persis seperti di Lacak Pesanan (`STAGE_META`), urutan `kirim`.
-  const slip = STAGE_SEQUENCE.kirim.map((s) => STAGE_META[s].label);
-
   return (
     <section className="border-line relative overflow-hidden border-b bg-white">
       {/* Kisi hanya di separuh kanan desktop (di belakang foto): teks tetap di
@@ -87,6 +84,11 @@ function Hero({ brand }: { brand: Brand }) {
               Penyembelihan sesuai syariat, dimasak, lalu diantar ke rumah atau disalurkan ke
               penerima manfaat. Setiap tahap dicatat dan bisa Anda lacak sendiri, tanpa membuat
               akun.
+            </p>
+            {/* Cakupan dari konstanta yang sama dengan validasi checkout, supaya
+                pemesan di luar wilayah tahu sejak awal, bukan di langkah alamat. */}
+            <p className="text-ink mt-3 text-sm font-medium">
+              Pengiriman saat ini melayani wilayah {SERVICE_AREA_LABEL}.
             </p>
           </Reveal>
           <Reveal delay={270}>
@@ -132,62 +134,6 @@ function Hero({ brand }: { brand: Brand }) {
               className="h-full w-full object-cover"
             />
           </div>
-
-          {/* Slip: contoh tampilan Lacak Pesanan, ditandai sebagai contoh (R-38),
-              bukan status pesanan sungguhan. Timeline titik-dan-garis, bukan
-              tabel bergaris: lima baris tabel menutupi separuh foto dan terbaca
-              seperti formulir. Titiknya menandai status nyata (selesai, berjalan,
-              menunggu), tanpa denyut. Ponsel: di bawah foto, hanya menindih
-              tepinya. Desktop: kartu sempit di pojok kiri bawah. */}
-          <figcaption className="border-line relative mx-4 -mt-8 rounded-lg border bg-white px-4 py-3.5 shadow-sm sm:mr-auto sm:ml-8 sm:w-60 lg:absolute lg:-bottom-8 lg:-left-8 lg:m-0">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-ink text-sm font-semibold">Lacak pesanan</p>
-              <span className="bg-surface-muted text-ink-muted rounded px-1.5 py-0.5 text-[11px]">
-                Contoh
-              </span>
-            </div>
-            <ol className="mt-3">
-              {slip.map((label, i) => {
-                const state = i < 2 ? 'done' : i === 2 ? 'current' : 'todo';
-                return (
-                  <li key={label} className="relative flex items-center gap-3 pb-2.5 last:pb-0">
-                    {/* Garis penghubung ke titik berikutnya; hijau bila tahap ini sudah lewat. */}
-                    {i < slip.length - 1 && (
-                      <span
-                        aria-hidden
-                        className={`absolute top-3.5 left-[5px] h-full w-0.5 ${state === 'done' ? 'bg-primary' : 'bg-line'}`}
-                      />
-                    )}
-                    <span
-                      aria-hidden
-                      className={`relative size-3 shrink-0 rounded-full ${
-                        state === 'done'
-                          ? 'bg-primary'
-                          : state === 'current'
-                            ? 'border-primary border-2 bg-white'
-                            : 'border-line border-2 bg-white'
-                      }`}
-                    />
-                    <span
-                      className={`flex-1 text-sm ${
-                        state === 'todo' ? 'text-ink-muted' : 'text-ink font-medium'
-                      }`}
-                    >
-                      {label}
-                      <span className="sr-only">
-                        {state === 'done' ? ', selesai' : state === 'current' ? ', berjalan' : ''}
-                      </span>
-                    </span>
-                    {state === 'current' && (
-                      <span aria-hidden className="text-primary text-xs font-semibold">
-                        Berjalan
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          </figcaption>
         </Reveal>
       </div>
     </section>
@@ -217,10 +163,18 @@ function ServicesSection() {
           <div className="relative">
             <p className="border-primary/40 text-ink relative border-t pt-3 text-center text-sm font-semibold sm:text-base">
               Disembelih dan dimasak sama untuk semua pesanan.{' '}
-              <span className="text-ink-muted font-normal">Yang berbeda hanya ke mana ia berakhir.</span>
+              <span className="text-ink-muted font-normal">
+                Yang berbeda hanya ke mana ia berakhir.
+              </span>
             </p>
-            <span aria-hidden className="bg-primary/40 absolute top-full left-1/4 hidden h-8 w-px md:block" />
-            <span aria-hidden className="bg-primary/40 absolute top-full left-3/4 hidden h-8 w-px md:block" />
+            <span
+              aria-hidden
+              className="bg-primary/40 absolute top-full left-1/4 hidden h-8 w-px md:block"
+            />
+            <span
+              aria-hidden
+              className="bg-primary/40 absolute top-full left-3/4 hidden h-8 w-px md:block"
+            />
           </div>
         </Reveal>
 
@@ -321,7 +275,10 @@ function LedgerSection() {
 
         <ol className="border-line border-t">
           {processSteps.map((step) => {
-            const photos = (LEDGER_PHOTOS[step.step] ?? []).map((i) => ({ ...gallery[i], n: i + 1 }));
+            const photos = (LEDGER_PHOTOS[step.step] ?? []).map((i) => ({
+              ...gallery[i],
+              n: i + 1,
+            }));
             return (
               <Reveal
                 key={step.step}
@@ -351,7 +308,11 @@ function LedgerSection() {
                                 alt={p.alt}
                                 width={800}
                                 height={600}
-                                sizes={photos.length > 2 ? '(min-width: 1024px) 13vw, 45vw' : '(min-width: 1024px) 26vw, 45vw'}
+                                sizes={
+                                  photos.length > 2
+                                    ? '(min-width: 1024px) 13vw, 45vw'
+                                    : '(min-width: 1024px) 26vw, 45vw'
+                                }
                                 className="h-full w-full object-cover"
                               />
                             </div>
@@ -386,7 +347,8 @@ function FeaturesSection() {
           <h2 className="text-ink-muted text-sm font-semibold">Kenapa kami</h2>
           <p className="text-ink mt-4 max-w-3xl text-2xl leading-snug font-semibold text-balance lg:text-3xl">
             Ibadah yang bisa Anda telusuri: dari hewan yang diperiksa sebelum disembelih sampai
-            daging yang sampai ke penerima, <span className="text-primary">setiap tahapnya punya bukti</span>.
+            daging yang sampai ke penerima,{' '}
+            <span className="text-primary">setiap tahapnya punya bukti</span>.
           </p>
         </Reveal>
         <Reveal delay={90}>
@@ -493,13 +455,7 @@ function TestimonialAuthor({ t }: { t: (typeof testimonials)[number] }) {
 
 /* FAQ: judul di kiri, akordeon di kanan. `<details>` bawaan: dibuka dengan
    Enter/Spasi, terbaca screen reader, dan jalan tanpa JavaScript. */
-function FaqSection({
-  brand,
-  faqList,
-}: {
-  brand: Brand;
-  faqList: ReturnType<typeof faqs>;
-}) {
+function FaqSection({ brand, faqList }: { brand: Brand; faqList: ReturnType<typeof faqs> }) {
   return (
     <section id="faq" className="border-line border-b bg-white">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">

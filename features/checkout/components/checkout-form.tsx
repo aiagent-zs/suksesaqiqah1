@@ -607,6 +607,11 @@ export function CheckoutForm({
     syncStepHistory(next);
     stepRef.current = next;
     setCurrentStep(next);
+    // Toast penolakan milik langkah yang baru saja lolos. Kalau dibiarkan, ia
+    // masih berbunyi "3 isian perlu diperbaiki" di langkah berikutnya yang
+    // sebenarnya bersih. `focusFirstError` memanggil ini dengan
+    // `scrollTop=false` dan memunculkan toastnya sesudahnya, jadi aman.
+    if (scrollTop) setToast(null);
     // Tanpa ini, di ponsel judul dan medan pertama langkah baru berada jauh di
     // atas layar: halamannya tetap di posisi tombol "Lanjut" yang baru diklik.
     // Tanpa `behavior`, jadi `scroll-behavior` di globals.css yang menentukan,
