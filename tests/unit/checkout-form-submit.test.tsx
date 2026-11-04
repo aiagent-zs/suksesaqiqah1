@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import type { CheckoutPackage, NasiBoxPackage, RegionOption } from '@/features/checkout/queries';
 import { BOOKING_MIN_DAYS } from '@/features/checkout/schema';
 import { addCalendarDays } from '@/lib/format/date-range';
+import { formatCurrency } from '@/lib/format';
 
 /**
  * Menjaga agar pesanan hanya terkirim lewat klik yang disengaja, dan agar alur
@@ -187,6 +188,9 @@ function pressEnter(id: string): { defaultPrevented: boolean } {
  * Yang diuji di sini perpindahan langkah & fokusnya, bukan pengguliran.
  */
 Element.prototype.scrollIntoView = vi.fn();
+// Sama halnya `window.scrollTo`: jsdom hanya mencetak "Not implemented". Dibuat
+// mock supaya tes bisa memeriksa bahwa pindah langkah menggulir ke atas.
+window.scrollTo = vi.fn() as typeof window.scrollTo;
 
 function advanceClock(ms: number) {
   act(() => {
@@ -313,7 +317,7 @@ describe('alur empat tahap', () => {
     goToFinalStep();
     const text = document.body.textContent ?? '';
 
-    expect(text).toContain('Rincian pesanan');
+    expect(text).toContain('Jadwal & penyaluran');
     expect(text).toContain('Anak Laki-laki');
     expect(text).toContain('Fatih');
     expect(text).toContain('Aqiqah Salur');
@@ -340,7 +344,7 @@ describe('alur empat tahap', () => {
     expect(document.body.textContent).toContain('Tempat lahir anak wajib diisi');
     expect(document.body.textContent).toContain('Isi tanggal lahir anak');
     // Masih di tahap 3 — ringkasan belum dirender.
-    expect(document.body.textContent).not.toContain('Rincian pesanan');
+    expect(document.body.textContent).not.toContain('Total tagihan');
   });
 
   it('menolak tanggal lahir di masa depan sekalipun diketik langsung', () => {
@@ -362,6 +366,78 @@ describe('alur empat tahap', () => {
     clickText('Lanjut ke');
 
     expect(document.body.textContent).toContain('Tanggal lahir tidak boleh di masa depan');
+  });
+});
+
+describe('navigasi langkah', () => {
+  const jumpTo = (id: number) => {
+    const btn = document.querySelector<HTMLButtonElement>(`[aria-label^="Langkah ${id}:"]`);
+    if (!btn) throw new Error(`penunjuk langkah ${id} tidak ditemukan`);
+    act(() => btn.click());
+  };
+  const onStep = () =>
+    document.querySelector('[aria-current="step"]')?.getAttribute('aria-label') ?? '';
+
+  it('pindah langkah menggulir ke atas halaman', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    vi.mocked(window.scrollTo).mockClear();
+    clickText('Lanjut ke');
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0 });
+  });
+
+  it('penunjuk langkah tidak bisa melompati langkah yang masih kosong', () => {
+    mount();
+    clickText('Anak Laki-laki');
+    jumpTo(4);
+    // Berhenti di langkah 2, langkah pertama yang belum sah, beserta galatnya.
+    expect(onStep()).toBe('Langkah 2: Jadwal & Penyaluran');
+    expect(document.body.textContent).toContain('Pilih tanggal pelaksanaan');
+    expect(document.body.textContent).not.toContain('Total tagihan');
+  });
+
+  it('mundur lewat penunjuk langkah tetap bebas', () => {
+    goToFinalStep();
+    jumpTo(1);
+    expect(onStep()).toBe('Langkah 1: Pesanan');
+  });
+
+  it('"Kembali" sesudah melompat mendarat di langkah sebelumnya', () => {
+    goToFinalStep();
+    jumpTo(1);
+    jumpTo(4);
+    clickText('Kembali');
+    expect(onStep()).toBe('Langkah 3: Data Pemesan');
+  });
+
+  it('tombol Lanjut memakai judul pendek di layar sempit', () => {
+    mount();
+    const next = [...document.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Lanjut ke'),
+    )!;
+    expect(next.querySelector('.sm\\:hidden')?.textContent).toBe('Jadwal');
+  });
+});
+
+describe('jumlah nasi box mengikuti schema server', () => {
+  it.each([
+    ['2.5', 'Jumlah nasi box harus bilangan bulat'],
+    ['99999', 'Untuk pesanan di atas 5000 box, hubungi admin'],
+    ['-5', 'Jumlah nasi box tidak boleh negatif'],
+  ])('menolak %s box di langkah 1', (value, message) => {
+    mount();
+    clickText('Anak Laki-laki');
+    clickText('Paket A');
+    type('co-boxqty', value);
+    // Total tidak boleh dihitung dari jumlah yang akan ditolak server: yang
+    // terhitung hanya 2 ekor paket aqiqah.
+    const total = [...document.querySelectorAll('[aria-live="polite"]')].find((el) =>
+      el.textContent?.startsWith('Total'),
+    );
+    expect(total?.textContent).toBe(`Total ${formatCurrency(2 * PACKAGES[0].price)}`);
+    clickText('Lanjut ke');
+    expect(document.body.textContent).toContain(message);
+    expect(document.getElementById('co-boxqty')).not.toBeNull();
   });
 });
 

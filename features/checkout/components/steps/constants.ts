@@ -5,11 +5,6 @@ export const AQIQAH_FOR_OPTIONS = [
   { value: 'laki_laki', label: 'Anak Laki-laki', hint: 'Rekomendasi 2 ekor' },
   { value: 'perempuan', label: 'Anak Perempuan', hint: 'Rekomendasi 1 ekor' },
 ];
-export const SERVICE_TYPE_LABEL: Record<string, string> = {
-  aqiqah: 'Aqiqah',
-  // qurban: 'Qurban',
-};
-
 export const RECOMMENDED_QTY: Record<string, number> = { laki_laki: 2, perempuan: 1 };
 
 export const DISTRIBUTION_OPTIONS = [

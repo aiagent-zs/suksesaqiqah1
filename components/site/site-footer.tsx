@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { getBrand } from '@/lib/brand-server';
+import { getBrand, getChannel } from '@/lib/brand-server';
 import { footerNav, siteConfig } from '@/lib/constants/site';
 import { IconArrowRight, IconInstagram, IconMail, IconWhatsApp } from './icons';
 import { Logo } from './logo';
 
 export async function SiteFooter() {
-  const brand = await getBrand();
+  const [brand, channel] = await Promise.all([getBrand(), getChannel()]);
   const year = 2026; // Date.now() tidak tersedia di lingkungan build ini.
 
   return (
@@ -20,6 +20,13 @@ export async function SiteFooter() {
               Layanan aqiqah dan katering dari Zakat Sukses. Setiap tahap dicatat, dan Anda menerima
               laporan pelaksanaannya.
             </p>
+            {/* Hanya di kanal LinkAja: di web biasa kemitraan itu bukan
+                konteksnya. Teks, bukan logo: belum ada aset resmi LinkAja. */}
+            {channel === 'linkaja' && (
+              <p className="mt-3 text-sm font-semibold text-white/90">
+                Kolaborasi LinkAja x Zakat Sukses
+              </p>
+            )}
             <div className="mt-5 flex gap-3">
               <SocialButton
                 href={siteConfig.whatsapp.href(`Halo ${brand.name}, saya ingin bertanya.`)}
@@ -66,7 +73,8 @@ function FooterGroup({
 }) {
   return (
     <nav aria-label={title}>
-      <h2 className="text-accent text-sm font-semibold">{title}</h2>
+      {/* Putih tebal, bukan emas: emas khusus sorotan KPI (design.md §0). */}
+      <h2 className="text-sm font-semibold text-white">{title}</h2>
       <ul className="mt-2">
         {items.map((item) => (
           <li key={item.href}>

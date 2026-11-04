@@ -33,7 +33,7 @@ export type Brand = {
 
 export const BRANDS: Record<Channel, Brand> = {
   web: { name: 'Sukses Aqiqah', wordmark: ['Sukses', 'Aqiqah'], logo: '/images/logo_new.webp' },
-  // ponytail: logo & warna Aqiqah Aja belum diterima, sementara teks dengan
-  // warna Sukses Aqiqah. Isi `logo` begitu asetnya ada di `public/images/`.
-  linkaja: { name: 'Aqiqah Aja', wordmark: ['Aqiqah', 'Aja'], logo: null },
+  // Logo gambar sengaja sama dengan Sukses Aqiqah (keputusan pemilik): yang
+  // membedakan kanal LinkAja hanya namanya.
+  linkaja: { name: 'Aqiqah Aja', wordmark: ['Aqiqah', 'Aja'], logo: '/images/logo_new.webp' },
 };

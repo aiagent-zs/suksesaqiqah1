@@ -91,7 +91,9 @@ export default async function PublicReportPage({ params }: { params: Params }) {
           <ShieldCheck className="size-3.5" />
           {allValidated
             ? 'Seluruh bukti telah melalui validasi dua tingkat'
-            : `${stagesValidated} dari ${stagesTotal} tahap sudah divalidasi, sisanya masih berjalan`}
+            : stagesTotal > 0 && stagesValidated < stagesTotal
+              ? `${stagesValidated} dari ${stagesTotal} tahap sudah divalidasi, sisanya masih berjalan`
+              : 'Bukti pelaksanaan sedang diperiksa tim kami'}
         </p>
       </header>
 

@@ -1,16 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react';
-import {
-  CalendarClock,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardCheck,
-  Loader2,
-  Package,
-  RotateCcw,
-  User,
-} from 'lucide-react';
+import { CalendarClock, ClipboardCheck, Package, RotateCcw, User } from 'lucide-react';
 import { Toast, type ToastState } from '@/components/ui/toast';
 import { formatDate } from '@/lib/format';
 import { siteConfig } from '@/lib/constants/site';
@@ -21,6 +12,8 @@ import {
   BOOKING_MIN_DAYS,
   CHILD_BIRTH_MIN_DATE,
   SPECIES_BY_SERVICE_TYPE,
+  guestCheckoutSchema,
+  issueOf,
 } from '../schema';
 import {
   clearDraft,
@@ -39,6 +32,7 @@ import { StepRingkasan } from './steps/step-ringkasan';
 import { StepHeader } from './steps/step-header';
 import { SuccessPanel } from './steps/success-panel';
 import { ErrorSummary } from './steps/error-summary';
+import { StepNav } from './steps/step-nav';
 
 /**
  * Jeda sebelum tombol kirim mau menerima klik, dihitung sejak tiba di langkah
@@ -253,13 +247,22 @@ export function CheckoutForm({
   const submitArmedRef = useRef(false);
   const armTimerRef = useRef<number | undefined>(undefined);
   /**
-   * Berapa entri riwayat yang sudah kami dorong sendiri.
+   * Berapa entri riwayat yang sudah kami dorong sendiri di bawah posisi
+   * sekarang.
    *
-   * Dipakai `prevStep` untuk memastikan `history.back()` mendarat di langkah
-   * sebelumnya, bukan melempar pemesan keluar dari halaman checkout — di entri
-   * paling awal tidak ada apa pun milik kami untuk dimundurkan.
+   * Dipakai `syncStepHistory` untuk memastikan mundur lewat `history.go()`
+   * mendarat di langkah yang dituju, bukan melempar pemesan keluar dari halaman
+   * checkout: di entri paling awal tidak ada apa pun milik kami untuk dimundurkan.
    */
   const pushedRef = useRef(0);
+  /**
+   * Cermin `currentStep` yang bisa dibaca seketika.
+   *
+   * `popstate` datang sesudah `moveTo` menyetel langkahnya sendiri, dan
+   * handler-nya dipasang sekali; state React di dalamnya selalu basi. Dari ref
+   * ini ia tahu berapa langkah yang sebenarnya dilompati.
+   */
+  const stepRef = useRef(1);
 
   const [draft, setDraft] = useState<Draft>(() =>
     emptyDraft(initialServiceId ?? packages[0]?.id ?? ''),
@@ -354,11 +357,23 @@ export function CheckoutForm({
       // Entri tanpa penanda kami berarti pemesan sudah memundur melewati
       // seluruh langkah — biarkan peramban meninggalkan halaman seperti biasa.
       if (typeof step !== 'number') return;
+      const next = Math.min(STEPS.length, Math.max(1, step));
+      // Riwayatnya runut (satu entri per langkah), jadi selisih langkah sama
+      // dengan selisih entri. Bila `moveTo` sudah lebih dulu menyetel langkah
+      // ini, selisihnya nol dan tidak ada yang berubah.
+      pushedRef.current = Math.max(0, pushedRef.current + next - stepRef.current);
+      stepRef.current = next;
       window.clearTimeout(armTimerRef.current);
       submitArmedRef.current = false;
-      pushedRef.current = Math.max(0, pushedRef.current - 1);
+      // "Maju" peramban bisa mendarat di Ringkasan. Tanpa ini tombol kirimnya
+      // tidak pernah siap, dan pemesan menekan tombol yang tidak berbuat apa-apa.
+      if (next === STEPS.length) {
+        armTimerRef.current = window.setTimeout(() => {
+          submitArmedRef.current = true;
+        }, SUBMIT_ARM_DELAY_MS);
+      }
       setError(null);
-      setCurrentStep(Math.min(STEPS.length, Math.max(1, step)));
+      setCurrentStep(next);
     }
 
     window.addEventListener('popstate', onPop);
@@ -379,8 +394,12 @@ export function CheckoutForm({
     [nasiBoxes, draft.nasi_box_service_id],
   );
 
-  const packageSubtotal = selected ? selected.price * draft.qty : 0;
-  const boxSubtotal = selectedBox ? selectedBox.price * draft.nasi_box_qty : 0;
+  // Jumlah yang akan ditolak server tidak pernah ikut dihitung: total yang
+  // tampil untuk 2,5 box atau 99999 box adalah angka yang tidak bisa dipesan.
+  const qtyIssue = issueOf(guestCheckoutSchema.shape.qty, draft.qty);
+  const boxQtyIssue = issueOf(guestCheckoutSchema.shape.nasi_box_qty, draft.nasi_box_qty);
+  const packageSubtotal = selected && !qtyIssue ? selected.price * draft.qty : 0;
+  const boxSubtotal = selectedBox && !boxQtyIssue ? selectedBox.price * draft.nasi_box_qty : 0;
   const total = packageSubtotal + boxSubtotal;
 
   /**
@@ -425,9 +444,13 @@ export function CheckoutForm({
     if (step === 1) {
       if (!draft.aqiqah_for) errors.aqiqah_for = 'Pilih salah satu terlebih dahulu';
       if (!draft.service_id) errors.service_id = 'Pilih paket terlebih dahulu';
+      if (qtyIssue) errors.qty = qtyIssue;
       // Memilih paket box tanpa jumlah berarti tidak ada yang bisa dipesan.
-      if (draft.nasi_box_service_id && draft.nasi_box_qty < 1) {
-        errors.nasi_box_qty = 'Isi jumlah box, atau pilih "Tidak pakai"';
+      // Selebihnya (pecahan, negatif, di atas batas) memakai medan zod server,
+      // supaya penolakannya muncul di sini, bukan saat menekan kirim.
+      if (draft.nasi_box_service_id) {
+        if (!draft.nasi_box_qty) errors.nasi_box_qty = 'Isi jumlah box, atau pilih "Tidak pakai"';
+        else if (boxQtyIssue) errors.nasi_box_qty = boxQtyIssue;
       }
     } else if (step === 2) {
       // Batasnya dibandingkan sebagai teks: `YYYY-MM-DD` berurut secara
@@ -524,7 +547,10 @@ export function CheckoutForm({
    */
   function jumpToField(field: string) {
     const step = FIELD_STEP[field];
-    if (step && step !== currentStep) setCurrentStep(step);
+    // Lewat `moveTo`, bukan `setCurrentStep`: perpindahan yang melewati
+    // riwayat membuat tombol kembali peramban tidak lagi sejalan dengan layar.
+    // Tanpa gulir ke atas, karena medannya sendiri yang akan digulir ke tengah.
+    if (step && step !== stepRef.current) moveTo(step, false);
 
     const anchor = FIELD_ANCHOR[field];
     if (!anchor) return;
@@ -555,12 +581,17 @@ export function CheckoutForm({
     jumpToField(first);
   }
 
-  /**
-   * Satu-satunya jalan berpindah langkah, supaya penguncian tombol kirim tidak
-   * bisa terlewat lewat jalur lain.
-   */
+  /** Pindah langkah atas kehendak pemesan; pesan galat server ikut dibuang. */
   function goToStep(next: number) {
     setError(null);
+    moveTo(next);
+  }
+
+  /**
+   * Satu-satunya jalan berpindah langkah, supaya penguncian tombol kirim dan
+   * riwayat peramban tidak bisa terlewat lewat jalur lain.
+   */
+  function moveTo(next: number, scrollTop = true) {
     // Tombol "Lanjut" dan "Konfirmasi & Kirim" menempati titik layar yang sama.
     // Begitu langkah berpindah, tombol kirim langsung berada tepat di bawah
     // kursor — klik kedua yang menyusul (atau klik ganda) mendarat di sana dan
@@ -573,28 +604,64 @@ export function CheckoutForm({
         submitArmedRef.current = true;
       }, SUBMIT_ARM_DELAY_MS);
     }
-    pushStepHistory(next);
+    syncStepHistory(next);
+    stepRef.current = next;
     setCurrentStep(next);
+    // Toast penolakan milik langkah yang baru saja lolos. Kalau dibiarkan, ia
+    // masih berbunyi "3 isian perlu diperbaiki" di langkah berikutnya yang
+    // sebenarnya bersih. `focusFirstError` memanggil ini dengan
+    // `scrollTop=false` dan memunculkan toastnya sesudahnya, jadi aman.
+    if (scrollTop) setToast(null);
+    // Tanpa ini, di ponsel judul dan medan pertama langkah baru berada jauh di
+    // atas layar: halamannya tetap di posisi tombol "Lanjut" yang baru diklik.
+    // Tanpa `behavior`, jadi `scroll-behavior` di globals.css yang menentukan,
+    // dan itu sudah dimatikan untuk `prefers-reduced-motion`.
+    if (scrollTop) window.scrollTo({ top: 0 });
   }
 
   /**
-   * Menandai posisi langkah di riwayat peramban.
+   * Menjaga riwayat peramban tetap runut: satu entri per langkah, berurutan.
+   *
+   * Dulu tiap perpindahan menambah satu entri, termasuk lompatan. Melompat
+   * 1 lalu 4 menyisakan tumpukan [1, 4], jadi "Kembali" dari Ringkasan
+   * mendarat di langkah 1, dan "kembali" peramban sesudahnya malah maju.
+   * Sekarang maju mendorong satu entri untuk **tiap** langkah yang dilewati,
+   * dan mundur memakai `history.go()` ke entri langkah itu sendiri, sehingga
+   * "kembali" peramban selalu berarti langkah sebelumnya.
    *
    * Entri pertama di-`replaceState` supaya langkah 1 tetap bisa ditinggalkan
    * dengan sekali "kembali" — kalau ikut di-`push`, pemesan yang baru tiba
    * harus menekan "kembali" dua kali untuk keluar dari halaman, dan itu
    * terbaca sebagai halaman yang menyandera.
    */
-  function pushStepHistory(next: number) {
-    const current = (window.history.state as { saStep?: number } | null)?.saStep;
-    if (typeof current !== 'number') {
+  function syncStepHistory(next: number) {
+    const from = stepRef.current;
+    if (next === from) return;
+
+    if (next < from) {
+      const back = from - next;
+      // Hanya bila entri di bawahnya memang dorongan kami. Selain itu cukup
+      // tandai ulang entri ini, supaya "kembali" tidak keluar dari checkout.
+      // Sengaja tidak membaca `history.state`: saat "Kembali" diklik dua kali
+      // cepat, `go()` yang pertama belum mendarat dan state-nya masih basi.
+      if (pushedRef.current >= back) {
+        pushedRef.current -= back;
+        window.history.go(-back);
+      } else {
+        window.history.replaceState({ ...window.history.state, saStep: next }, '');
+      }
+      return;
+    }
+
+    if (typeof (window.history.state as { saStep?: number } | null)?.saStep !== 'number') {
       // Entri yang sedang ditempati belum bertanda. Tandai dulu dengan langkah
       // sekarang, supaya `popstate` mengenalinya saat pemesan mundur ke sini.
-      window.history.replaceState({ ...window.history.state, saStep: currentStep }, '');
+      window.history.replaceState({ ...window.history.state, saStep: from }, '');
     }
-    if (next === current) return;
-    window.history.pushState({ saStep: next }, '');
-    pushedRef.current += 1;
+    for (let step = from + 1; step <= next; step += 1) {
+      window.history.pushState({ saStep: step }, '');
+      pushedRef.current += 1;
+    }
   }
 
   function nextStep() {
@@ -629,22 +696,31 @@ export function CheckoutForm({
   }
 
   /**
-   * Tombol "Kembali" di layar menempuh jalur yang **sama** dengan tombol
-   * kembali peramban: keduanya memundurkan riwayat.
-   *
-   * Kalau ia hanya menyetel state langsung, tiap kali mundur akan menyisakan
-   * entri "maju" yang menganggur — pemesan yang menekan kembali peramban
-   * sesudahnya justru terlempar ke langkah yang lebih jauh, bukan lebih dekat.
-   * Dengan `history.back()`, penanganan keduanya bertemu di satu tempat
-   * (`popstate`) dan tumpukannya tetap runut.
+   * "Kembali" selalu berarti langkah sebelumnya, bukan entri riwayat
+   * sebelumnya. `syncStepHistory` yang menyelaraskan riwayatnya.
    */
   function prevStep() {
-    setError(null);
-    if (pushedRef.current > 0) {
-      window.history.back();
+    goToStep(Math.max(1, currentStep - 1));
+  }
+
+  /**
+   * Penunjuk langkah: mundur bebas, maju hanya bila **setiap** langkah yang
+   * dilewati sah.
+   *
+   * Dulu yang diperiksa hanya langkah yang sedang terbuka, jadi dari langkah 1
+   * pemesan bisa langsung ke Ringkasan dengan jadwal dan data pemesan kosong.
+   * Berhenti di langkah pertama yang bermasalah: `validateStep` sudah
+   * memindahkan layar ke medannya dan menampilkan galatnya.
+   */
+  function jumpStep(target: number) {
+    if (target <= currentStep) {
+      goToStep(target);
       return;
     }
-    setCurrentStep((prev) => Math.max(1, prev - 1));
+    for (let step = currentStep; step < target; step += 1) {
+      if (!validateStep(step)) return;
+    }
+    goToStep(target);
   }
 
   function submit() {
@@ -658,11 +734,10 @@ export function CheckoutForm({
     // melompat lewat penunjuk langkah. Kalau hanya di-`return`, pesannya tidak
     // pernah dirender dan tombol kirim terlihat seperti rusak. Jadi pindah dulu
     // ke langkah yang bermasalah.
+    // `validateStep` sendiri yang memindahkan langkah ke medan pertama yang
+    // ditolak, lewat `moveTo`, supaya riwayat peramban ikut runut.
     for (const step of [1, 2, 3]) {
-      if (!validateStep(step)) {
-        setCurrentStep(step);
-        return;
-      }
+      if (!validateStep(step)) return;
     }
 
     setError(null);
@@ -759,14 +834,7 @@ export function CheckoutForm({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <StepHeader
-        steps={STEPS}
-        current={currentStep}
-        total={total}
-        onJump={(id) => {
-          if (id < currentStep || validateStep(currentStep)) goToStep(id);
-        }}
-      />
+      <StepHeader steps={STEPS} current={currentStep} total={total} onJump={jumpStep} />
 
       {/* Ringkasan galat: menetap di atas form, tiap baris melompat ke medannya.
           Ditaruh sebelum tawaran pemulihan karena galat lebih mendesak — yang
@@ -811,7 +879,6 @@ export function CheckoutForm({
         </div>
       )}
 
-      {/* Modal Body / Steps Content */}
       <form
         onSubmit={(e) => {
           // Pengiriman form TIDAK PERNAH mencatat pesanan. Jalur satu-satunya
@@ -822,7 +889,7 @@ export function CheckoutForm({
           if (currentStep < STEPS.length) nextStep();
         }}
         onKeyDown={handleEnterKey}
-        className="p-2 sm:p-4"
+        className="pt-6 sm:pt-8"
       >
         {/* STEP 1: PESANAN — aqiqah untuk, paket & jumlah ekor, nasi box.
             Ketiganya dulu langkah terpisah; disatukan karena masing-masing
@@ -875,56 +942,16 @@ export function CheckoutForm({
           />
         )}
 
-        {/* Modal Controls / Navigation Bar */}
-        <div className="border-line mt-6 flex items-center justify-between gap-2 border-t pt-4 sm:mt-8 sm:pt-6">
-          {currentStep > 1 ? (
-            <button
-              type="button"
-              onClick={prevStep}
-              className="btn btn-outline shrink-0 px-3.5 sm:px-5"
-            >
-              <ChevronLeft className="size-4" /> Kembali
-            </button>
-          ) : (
-            <div />
-          )}
-
-          {/* `key` berbeda itu wajib, bukan hiasan.
-              Tanpanya kedua tombol menempati slot yang sama di pohon React,
-              sehingga React memakai ulang elemen DOM yang sama dan hanya
-              menukar `type` serta handler-nya. Akibatnya tombol "Lanjut" yang
-              baru diklik berubah menjadi tombol kirim sambil tetap memegang
-              fokus dan berada di bawah kursor — klik kedua atau Enter langsung
-              mencatat pesanan. `key` memaksa React melepas yang lama dan
-              memasang elemen baru, jadi fokus maupun klik yang menyusul tidak
-              mendarat di tombol kirim. */}
-          {currentStep < STEPS.length ? (
-            <button
-              key="nav-next"
-              type="button"
-              onClick={nextStep}
-              className="btn btn-primary min-w-0 flex-1 sm:flex-none sm:px-6"
-            >
-              <span className="truncate">Lanjut ke {STEPS[currentStep].title}</span>{' '}
-              <ChevronRight className="size-4 shrink-0" />
-            </button>
-          ) : (
-            /* `type="button"` + onClick, bukan `type="submit"`: pesanan tercatat
-               di database dan tidak bisa dibatalkan pemesan, jadi jalurnya tidak
-               boleh bisa dipicu pengiriman form implisit dari mana pun. */
-            <button
-              key="nav-submit"
-              type="button"
-              onClick={submit}
-              disabled={pending || !selected}
-              aria-busy={pending}
-              className="btn btn-primary btn-lg min-w-0 flex-1 sm:flex-none sm:px-7"
-            >
-              {pending && <Loader2 className="size-4 animate-spin" />}
-              {pending ? 'Mengirim pesanan…' : 'Konfirmasi & Kirim Pesanan'}
-            </button>
-          )}
-        </div>
+        <StepNav
+          steps={STEPS}
+          current={currentStep}
+          total={total}
+          pending={pending}
+          submitDisabled={!selected}
+          onBack={prevStep}
+          onNext={nextStep}
+          onSubmit={submit}
+        />
       </form>
 
       {/* Di luar <form> supaya tombol tutupnya tidak pernah ikut terbaca

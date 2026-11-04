@@ -48,20 +48,19 @@ export const siteConfig = {
   },
 } as const;
 
-/** Menu navigasi utama (anchor ke section di landing). */
 /**
  * Menu navigasi utama (anchor ke section di landing).
  *
  * Urutannya mengikuti urutan section di halaman, jadi menu ini sekaligus jadi
  * daftar isi. "Keunggulan" sengaja tidak masuk meski sectionnya ada: ia berisi
  * klaim, sementara lima butir di bawah membawa pengunjung ke hal yang bisa
- * diperiksa sendiri — dan header hanya menyisakan ruang untuk lima.
+ * diperiksa sendiri. "Galeri" dicabut 2 November: fotonya kini bagian dari
+ * catatan pelaksanaan di `#proses`, jadi satu tujuan tidak perlu dua tautan.
  */
 export const primaryNav = [
   { label: 'Layanan', href: '#layanan' },
   { label: 'Paket', href: '#paket' },
   { label: 'Proses', href: '#proses' },
-  { label: 'Galeri', href: '#galeri' },
   { label: 'FAQ', href: '#faq' },
 ] as const;
 
@@ -79,7 +78,6 @@ export const footerNav = {
   ],
   bantuan: [
     { label: 'Lacak pesanan', href: '/lacak' },
-    { label: 'Galeri dokumentasi', href: '/#galeri' },
     { label: 'Pertanyaan umum', href: '/#faq' },
   ],
 } as const;
@@ -119,6 +117,9 @@ export const services = [
     title: 'Nasi Box Aqiqah',
     description:
       'Berbagi kebahagiaan aqiqah dalam bentuk nasi box siap saji, dipesan bersama paket aqiqah Anda lewat tim kami.',
+    // Tambahan atas paket, bukan cara ketiga: landing menampilkannya di catatan
+    // nasi box section paket, bukan di section Layanan. Chatbot tetap membacanya.
+    addOn: true,
     photo: {
       src: 'images/landing/packing.webp',
       alt: 'Nasi box aqiqah tersusun di keranjang siap dikirim',
@@ -146,7 +147,8 @@ export const landingPhotos = {
   /** Foto utama di hero. Lanskap; wajah/objek penting jangan di tepi bawah. */
   hero: {
     src: 'images/landing/hero.webp',
-    alt: 'Tim Sukses Aqiqah menyiapkan pesanan aqiqah',
+    // Tanpa nama merek: foto yang sama tampil di kanal LinkAja ("Aqiqah Aja").
+    alt: 'Tim pelaksana menyiapkan pesanan aqiqah',
     // Rasio berkas aslinya 3:2 (5558×3705). Wadah hero mengikuti angka ini,
     // jadi foto lain dengan rasio berbeda akan terpotong.
     width: 1200,
@@ -218,55 +220,50 @@ export const processSteps = [
     title: 'Pemesanan',
     description:
       'Pilih paket dan pesan lewat WhatsApp atau website. Data langsung tercatat di sistem.',
+    // `record`: siapa yang mengerjakan dan bukti apa yang tercatat, diambil dari
+    // alur sungguhan (`features/tracking/timeline.ts`, `STAGE_META`).
+    record: 'Tercatat di sistem saat pesanan masuk. Bukti: nomor pesanan untuk membayar dan melacak.',
   },
   {
     step: '02',
     title: 'Pembayaran',
     description:
       'Konfirmasi pembayaran diverifikasi tim kami dan status order otomatis diperbarui.',
+    record: 'Diverifikasi admin. Bukti: status "Pembayaran lunas" di Lacak Pesanan.',
   },
   {
     step: '03',
     title: 'Produksi',
     description: 'Pemotongan sesuai syariat dan pemasakan, seluruhnya terdokumentasi foto & video.',
+    record: 'Dikerjakan mitra pelaksana. Bukti: foto tiap tahap, divalidasi admin sebelum ditandai selesai.',
   },
   {
     step: '04',
     title: 'Pengiriman',
     description: 'Masakan dan daging diantar tepat waktu ke keluarga maupun penerima manfaat.',
+    record: 'Diantar atau disalurkan mitra. Bukti: serah terima di alamat, atau titik lokasi penyaluran.',
   },
   {
     step: '05',
     title: 'Pelaporan',
     description: 'Anda menerima laporan transparan berisi bukti dokumentasi melalui link unik.',
+    record: 'Disusun dari bukti yang sudah divalidasi. Bukti: laporan berfoto lewat tautan unik, tanpa login.',
   },
 ] as const;
 
-/** Keunggulan (01_PROJECT_VISION objectives). */
+/**
+ * Keunggulan (01_PROJECT_VISION objectives).
+ *
+ * Tinggal tiga sejak 2 November: "Pantau Sendiri", "Terdokumentasi", dan
+ * "Laporan Transparan" sudah dibuktikan baris per baris oleh catatan
+ * pelaksanaan di `#proses`, jadi mengulangnya di sini hanya menggandakan klaim.
+ */
 export const features = [
   {
     icon: 'shield',
     title: 'Syar’i & Amanah',
     description:
       'Hewan sehat tersertifikasi dan pemotongan sesuai syariat Islam yang dapat dipertanggungjawabkan.',
-  },
-  {
-    icon: 'activity',
-    title: 'Pantau Sendiri',
-    description:
-      'Buka halaman Lacak Pesanan dengan nomor pesanan Anda untuk melihat tahap yang sedang berjalan, tanpa menunggu balasan chat.',
-  },
-  {
-    icon: 'camera',
-    title: 'Terdokumentasi',
-    description:
-      'Setiap proses direkam dalam foto dan video yang tervalidasi sebelum ditandai selesai.',
-  },
-  {
-    icon: 'file',
-    title: 'Laporan Transparan',
-    description:
-      'Laporan pelaksanaan lengkap dikirim otomatis via link unik dan cukup dibuka tanpa login.',
   },
   {
     icon: 'clock',
@@ -330,12 +327,18 @@ export const testimonials: readonly {
   },
 ];
 
-/** FAQ (juga dipakai untuk FAQPage JSON-LD / GEO — 27_PAGE_MENU). */
-export const faqs = [
+/**
+ * FAQ (juga dipakai untuk FAQPage JSON-LD / GEO, 27_PAGE_MENU).
+ *
+ * Fungsi atas nama merek, bukan daftar tetap: kanal LinkAja menampilkan
+ * "Aqiqah Aja", dan FAQ yang tetap berbunyi "Apa itu Sukses Aqiqah?" di sana
+ * membocorkan merek kanal lain. Panggil dengan `getBrand().name`.
+ */
+export const faqs = (brandName: string) => [
   {
-    question: 'Apa itu Sukses Aqiqah?',
+    question: `Apa itu ${brandName}?`,
     answer:
-      'Sukses Aqiqah adalah layanan Aqiqah dan Sedekah Daging dari Zakat Sukses yang mengedepankan proses syar’i, amanah, dan terdokumentasi lengkap, sehingga Anda dapat memantau ibadah dan menerima laporan yang transparan.',
+      `${brandName} adalah layanan Aqiqah dan Sedekah Daging dari Zakat Sukses yang mengedepankan proses syar’i, amanah, dan terdokumentasi lengkap, sehingga Anda dapat memantau ibadah dan menerima laporan yang transparan.`,
   },
   {
     question: 'Bagaimana cara memesan?',
@@ -362,4 +365,4 @@ export const faqs = [
     answer:
       'Bisa. Anda dapat memilih agar daging disalurkan kepada penerima manfaat yang membutuhkan, lengkap dengan dokumentasi distribusi yang dapat Anda telusuri.',
   },
-] as const;
+];

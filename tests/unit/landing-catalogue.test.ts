@@ -216,8 +216,10 @@ describe('katering di landing', () => {
     // Jalurnya WhatsApp, satu tombol untuk seluruh paket — bukan tombol pesan
     // per paket seperti pada kartu.
     const note = cards.slice(cards.indexOf('function NasiBoxNote'));
-    const nextSection = note.indexOf('\n/**\n * Tab paket');
-    const body = nextSection === -1 ? note : note.slice(0, nextSection);
+    // Dipotong di akhir fungsinya sendiri: komponen lain di bawahnya (tabel
+    // katering) memang menuju `/checkout/katering`.
+    const end = note.indexOf('\n}\n');
+    const body = end === -1 ? note : note.slice(0, end);
     expect(body).toContain('whatsapp.href');
     expect(body).not.toContain('/checkout');
 
@@ -236,12 +238,24 @@ describe('katering di landing', () => {
     expect(perBoxBlock).toContain('photo_path');
   });
 
-  it('katering muncul di tab bawaan, bukan tersembunyi di balik klik', () => {
-    // Keputusan pemasaran: yang ditawarkan lebih dulu adalah katering dan
-    // aqiqah terpopuler. Tab `pilihan` karena itu harus jadi bawaannya — kalau
-    // bergeser ke `aqiqah`, katering turun satu klik tanpa ada yang menyadari.
-    expect(page).toContain('defaultTab="pilihan"');
+  it('landing membuka tab Aqiqah; tab Pilihan & Katering tetap tersedia', () => {
+    // Berubah 2 November (rencana finish-gate #2): tab bawaan `aqiqah` supaya
+    // ketiga foto paket tampil di kisi pertama. Tab `pilihan` (katering
+    // populer) tetap ada satu klik di sebelahnya, dan `/paket` tetap memuat
+    // katering di tab bawaannya.
+    expect(page).toContain('defaultTab="aqiqah"');
     expect(cards).toContain("id: 'pilihan'");
+    expect(cards).toContain("id: 'katering'");
+  });
+
+  it('/paket merender katering sebagai tabel harga, landing tetap kartu', () => {
+    expect(cards).toContain('function CateringTable');
+    expect(cards).toContain('<CateringTable rows={sortedCatering(catering)} />');
+  });
+
+  it('penanda populer paling banyak satu per kisi, dan bukan emas', () => {
+    expect(cards).toContain('popular: i === firstPopular');
+    expect(cards).not.toContain('bg-accent');
   });
 
   it('penyaringnya menyembunyikan, bukan membongkar-pasang kartunya', () => {

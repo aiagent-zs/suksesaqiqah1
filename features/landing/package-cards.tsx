@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { siteConfig } from '@/lib/constants/site';
-import type { LandingBox, getLandingCatalogue } from '@/features/landing/catalogue';
+import type {
+  LandingBox,
+  LandingCatering,
+  getLandingCatalogue,
+} from '@/features/landing/catalogue';
 import { formatIDR } from '@/lib/format/currency';
 import { IconCheck, IconWhatsApp } from '@/components/site/icons';
 import { SitePhoto } from '@/components/site/site-photo';
@@ -103,10 +107,9 @@ function PackageCard({
             <h3 className="text-ink mt-1 text-lg font-semibold">{data.title}</h3>
           </div>
 
-          {/* Penanda populer jadi label teks kecil, bukan pita mengambang yang
-              menggeser tata letak kartunya. */}
+          {/* Hijau muda, bukan emas: emas khusus sorotan KPI (design.md §0). */}
           {data.popular && (
-            <span className="bg-accent text-ink shrink-0 rounded px-2 py-0.5 text-xs font-semibold">
+            <span className="bg-primary-light text-primary shrink-0 rounded px-2 py-0.5 text-xs font-semibold">
               {data.popularLabel}
             </span>
           )}
@@ -128,9 +131,9 @@ function PackageCard({
               <details className="group mt-2">
                 <summary className="text-primary flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold underline-offset-2 hover:underline">
                   <span className="group-open:hidden">
-                    Lihat detail ({data.features.length - 4} lainnya)
+                    Lihat semua isi paket (+{data.features.length - 4})
                   </span>
-                  <span className="hidden group-open:inline">Sembunyikan detail</span>
+                  <span className="hidden group-open:inline">Tutup isi paket</span>
                 </summary>
                 <FeatureList items={data.features.slice(4)} />
               </details>
@@ -179,6 +182,9 @@ function FeatureList({ items }: { items: string[] }) {
  */
 function PackageGrid({ cards, swipe = false }: { cards: PackageCardData[]; swipe?: boolean }) {
   const showPhoto = cards.every((c) => c.photo);
+  // Penanda populer paling banyak satu per kisi: tiga kartu bertanda "Favorit"
+  // berjajar tidak lagi menyorot apa pun.
+  const firstPopular = cards.findIndex((c) => c.popular);
   return (
     <div
       className={
@@ -190,7 +196,7 @@ function PackageGrid({ cards, swipe = false }: { cards: PackageCardData[]; swipe
       {cards.map((card, i) => (
         <PackageCard
           key={`${card.kind}-${card.slug}`}
-          data={card}
+          data={{ ...card, popular: i === firstPopular }}
           delay={swipe ? 0 : i * 90}
           showPhoto={showPhoto}
           className={swipe ? 'w-[84%] shrink-0 snap-start sm:w-[46%] lg:w-auto' : ''}
@@ -282,7 +288,112 @@ function NasiBoxNote({ boxes, brandName }: { boxes: LandingBox[]; brandName: str
   );
 }
 
-export type PackageSort = 'rekomendasi' | 'termurah' | 'termahal';
+/** Subjudul tabel katering per jenis katalog. Jenis baru jatuh ke "Lainnya". */
+const CATERING_GROUP: Record<string, string> = {
+  katering_ayam: 'Ayam',
+  katering_daging: 'Daging',
+  katering_kebuli: 'Nasi kebuli',
+};
+
+/**
+ * Katering di `/paket` sebagai **tabel harga bergaris**, bukan belasan kartu.
+ *
+ * Paket yang dibedakan oleh lauk dan harga lebih cepat dibandingkan dalam
+ * baris sejajar daripada kartu setinggi layar; barisnya berjarak seperti garis
+ * buku catatan (motif design.md §0). Di ponsel tiap baris jadi nama + harga
+ * sebaris, isinya di bawah.
+ */
+function CateringTable({ rows }: { rows: LandingCatering[] }) {
+  const groups = new Map<string, LandingCatering[]>();
+  for (const r of rows) {
+    const g = CATERING_GROUP[r.type] ?? 'Lainnya';
+    groups.set(g, [...(groups.get(g) ?? []), r]);
+  }
+  const firstPopular = rows.find((r) => r.popular)?.slug;
+  const grouped = groups.size > 1;
+
+  return (
+    <Reveal className="border-line mt-8 overflow-hidden rounded-lg border bg-white">
+      <table className="w-full text-left text-sm">
+        <caption className="sr-only">Daftar harga paket katering per box</caption>
+        <thead className="text-ink-muted border-line hidden border-b text-xs font-semibold sm:table-header-group">
+          <tr>
+            <th scope="col" className="w-[28%] px-5 py-3">
+              Paket
+            </th>
+            <th scope="col" className="px-5 py-3">
+              Isi
+            </th>
+            <th scope="col" className="px-5 py-3 text-right">
+              Harga/box
+            </th>
+            <th scope="col" className="px-5 py-3">
+              <span className="sr-only">Pilih</span>
+            </th>
+          </tr>
+        </thead>
+        {[...groups].map(([group, items]) => (
+          <tbody key={group}>
+            {grouped && (
+              <tr className="block sm:table-row">
+                <th
+                  scope="colgroup"
+                  colSpan={4}
+                  className="text-primary bg-surface-muted border-line block border-b px-5 py-2 text-xs font-semibold sm:table-cell"
+                >
+                  {group}
+                </th>
+              </tr>
+            )}
+            {items.map((r) => (
+              <tr
+                key={r.slug}
+                className="border-line grid grid-cols-[1fr_auto] items-baseline gap-x-4 border-b px-5 pt-4 pb-1 sm:table-row sm:p-0"
+              >
+                <th
+                  scope="row"
+                  className="text-ink col-start-1 row-start-1 font-semibold sm:px-5 sm:py-4 sm:align-top"
+                >
+                  {r.name}
+                  {r.slug === firstPopular && (
+                    <span className="bg-primary-light text-primary ml-2 rounded px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap">
+                      Favorit
+                    </span>
+                  )}
+                </th>
+                <td className="text-ink-muted col-span-2 row-start-2 mt-1 leading-6 sm:mt-0 sm:px-5 sm:py-4 sm:align-top">
+                  {r.items.slice(0, 4).join(', ')}
+                  {r.items.length > 4 && (
+                    <details className="group">
+                      <summary className="text-primary inline-flex min-h-11 cursor-pointer list-none items-center font-semibold underline-offset-2 hover:underline sm:min-h-0 sm:pt-1">
+                        <span className="group-open:hidden">+{r.items.length - 4} lainnya</span>
+                        <span className="hidden group-open:inline">Sembunyikan</span>
+                      </summary>
+                      <p>{r.items.slice(4).join(', ')}</p>
+                    </details>
+                  )}
+                </td>
+                <td className="text-ink col-start-2 row-start-1 text-right font-semibold whitespace-nowrap tabular-nums sm:px-5 sm:py-4 sm:align-top">
+                  {formatIDR(r.price)}
+                </td>
+                <td className="col-span-2 row-start-3 sm:px-5 sm:py-2.5 sm:text-right sm:align-top">
+                  <Link
+                    href={`/checkout/katering?paket=${r.slug}`}
+                    className="text-primary inline-flex min-h-11 min-w-11 items-center font-semibold underline-offset-2 hover:underline sm:justify-end"
+                  >
+                    Pilih<span className="sr-only"> {r.name}</span>
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        ))}
+      </table>
+    </Reveal>
+  );
+}
+
+export type PackageSort ='rekomendasi' | 'termurah' | 'termahal';
 
 /**
  * Tab paket untuk `PackageFilter`.
@@ -369,6 +480,17 @@ export function buildPackageTabs(
       ? cards
       : [...cards].sort((a, b) => (sort === 'termurah' ? a.price - b.price : b.price - a.price));
 
+  // `/paket` (tanpa `limit`) merender katering sebagai tabel; landing tetap
+  // kartu geser supaya tab Katering di sana sebentuk dengan tab lain.
+  const sortedCatering = (rows: LandingCatering[]) =>
+    sort === 'rekomendasi'
+      ? rows
+      : [...rows].sort((a, b) => (sort === 'termurah' ? a.price - b.price : b.price - a.price));
+  const popularFirst = [
+    ...catering.filter((c) => c.popular),
+    ...catering.filter((c) => !c.popular),
+  ];
+
   const grid = (id: string, cards: PackageCardData[], label: string) => (
     <>
       <PackageGrid cards={limit ? sorted(cards).slice(0, limit) : sorted(cards)} swipe={!!limit} />
@@ -383,7 +505,15 @@ export function buildPackageTabs(
       count: pilihan.length,
       content: (
         <>
-          {grid('pilihan', pilihan, 'paket pilihan')}
+          {limit ? (
+            grid('pilihan', pilihan, 'paket pilihan')
+          ) : (
+            <>
+              {/* `/paket`: ketiga paket aqiqah berfoto di atas, katering di tabel bawahnya. */}
+              {grid('pilihan', aqiqahCards, 'paket pilihan')}
+              {catering.length > 0 && <CateringTable rows={sortedCatering(popularFirst)} />}
+            </>
+          )}
           {/* Ikut di sini juga: tab ini memuat paket aqiqah, dan nasi box
               adalah tambahan atasnya — menyebutkannya hanya di tab Aqiqah
               berarti pengunjung yang berhenti di tab bawaan tidak pernah tahu
@@ -409,7 +539,11 @@ export function buildPackageTabs(
       id: 'katering',
       label: 'Katering',
       count: cateringCards.length,
-      content: grid('katering', cateringCards, 'paket katering'),
+      content: limit ? (
+        grid('katering', cateringCards, 'paket katering')
+      ) : (
+        <CateringTable rows={sortedCatering(catering)} />
+      ),
     },
   ];
 }

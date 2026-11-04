@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useRegionCascade } from '../use-region-cascade';
 import type { RegionOption } from '../queries';
 import type { DeliveryAddressValue } from '../address';
+import { FieldError } from './steps/field-error';
 import { SERVICE_AREA_LABEL, isInServiceArea } from '../service-area';
 
 /**
@@ -214,6 +215,7 @@ export function AddressPicker({
         </Label>
         <Textarea
           id="co-detail"
+          autoComplete="street-address"
           value={value.detail}
           aria-invalid={Boolean(errors.delivery_detail)}
           placeholder="Jl. Cikutra Barat No. 12, RT 003/RW 007, sebelah Masjid Al-Ikhlas"
@@ -283,8 +285,4 @@ function RegionField({
       {error && <FieldError message={error} />}
     </div>
   );
-}
-
-function FieldError({ message }: { message: string }) {
-  return <p className="mt-1 text-xs font-medium text-red-600">{message}</p>;
 }

@@ -8,11 +8,12 @@ import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { CheckoutPackage, NasiBoxPackage } from '../../queries';
 import type { Draft } from '../../draft';
+import { splitCommonFeatures } from '../../package-features';
 import { ChoiceCard } from './choice-card';
 import { FieldError } from './field-error';
 import { SectionLabel, StepIntro } from './step-header';
 import { StepperButton } from './stepper-button';
-import { AQIQAH_FOR_OPTIONS, MAX_QTY, RECOMMENDED_QTY, SERVICE_TYPE_LABEL } from './constants';
+import { AQIQAH_FOR_OPTIONS, MAX_QTY, RECOMMENDED_QTY } from './constants';
 
 /** Langkah 1: apa yang dipesan. Jenis kelamin, paket & jumlah ekor, nasi box. */
 export function StepPesanan({
@@ -39,11 +40,13 @@ export function StepPesanan({
   pickAqiqahFor: (value: string) => void;
 }) {
   const recommended = draft.aqiqah_for ? RECOMMENDED_QTY[draft.aqiqah_for] : null;
+  const pkgFeatures = splitCommonFeatures(packages.map((p) => p.features));
+  const boxItems = splitCommonFeatures(nasiBoxes.map((b) => b.items));
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 space-y-10 duration-300 ease-out">
       <StepIntro title="Aqiqah apa yang ingin Anda pesan?">
-        Pilih satu di tiap bagian. Total di atas ikut berubah.
+        Pilih satu di tiap bagian. Totalnya dihitung ulang setiap kali Anda memilih.
       </StepIntro>
 
       <div>
@@ -84,6 +87,7 @@ export function StepPesanan({
           title="Pilih paket"
           hint="Harga per ekor, sudah termasuk olahan dan laporan."
         />
+        <CommonIncludes label="Semua paket termasuk" items={pkgFeatures.common} />
         <div
           id="co-service"
           role="radiogroup"
@@ -95,22 +99,16 @@ export function StepPesanan({
             fieldErrors.service_id && 'animate-nudge',
           )}
         >
-          {packages.map((pkg) => (
+          {packages.map((pkg, i) => (
             <ChoiceCard
               key={pkg.id}
               checked={pkg.id === draft.service_id}
               onSelect={() => pickPackage(pkg)}
               layout="stacked"
               icon={Beef}
-              badge={
-                <span className="text-primary text-xs font-semibold">
-                  {SERVICE_TYPE_LABEL[pkg.type] ??
-                    pkg.type.charAt(0).toUpperCase() + pkg.type.slice(1)}
-                </span>
-              }
               title={pkg.name}
               description={pkg.description ?? undefined}
-              includes={pkg.features}
+              includes={pkgFeatures.unique[i]}
               price={
                 <>
                   {formatCurrency(pkg.price)}
@@ -234,6 +232,7 @@ export function StepPesanan({
           }
           hint="Dibagikan bersama aqiqah Anda. Lewati dengan memilih Tidak pakai."
         />
+        <CommonIncludes label="Semua box berisi" items={boxItems.common} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <ChoiceCard
             role="button"
@@ -247,7 +246,7 @@ export function StepPesanan({
             title="Tidak pakai"
             description="Hanya paket aqiqah"
           />
-          {nasiBoxes.map((box) => (
+          {nasiBoxes.map((box, i) => (
             <ChoiceCard
               key={box.id}
               role="button"
@@ -259,7 +258,7 @@ export function StepPesanan({
               }}
               icon={box.name.toLowerCase().includes('kebuli') ? Soup : Package}
               title={box.name}
-              includes={box.items}
+              includes={boxItems.unique[i]}
               price={
                 <>
                   {formatCurrency(box.price)}
@@ -287,7 +286,10 @@ export function StepPesanan({
               onChange={(e) => set('nasi_box_qty', Number(e.target.value) || 0)}
               className="field mt-2 max-w-40 tabular-nums"
             />
-            {selectedBox && draft.nasi_box_qty > 0 && (
+            {/* `boxSubtotal` nol untuk jumlah yang akan ditolak server (pecahan,
+                di atas batas), jadi baris hitungannya ikut hilang alih-alih
+                menampilkan "99999 × harga". */}
+            {selectedBox && boxSubtotal > 0 && (
               <p className="text-ink-muted mt-2 text-sm">
                 {draft.nasi_box_qty} × {formatCurrency(selectedBox.price)} ={' '}
                 <span className="text-primary font-bold">{formatCurrency(boxSubtotal)}</span>
@@ -300,5 +302,19 @@ export function StepPesanan({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Isi yang dimiliki semua kartu, ditulis sekali di atas kisi. Kartunya sendiri
+ * hanya memuat pembedanya, jadi membandingkan paket tidak perlu membaca tujuh
+ * baris yang enam di antaranya sama.
+ */
+function CommonIncludes({ label, items }: { label: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <p className="bg-surface-muted text-ink mb-4 rounded-lg px-4 py-3 text-sm leading-6">
+      <span className="font-semibold">{label}:</span> {items.join(', ')}.
+    </p>
   );
 }

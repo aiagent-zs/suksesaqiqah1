@@ -6,6 +6,7 @@ import {
   bookingMaxDate,
   bookingMinDate,
   guestCheckoutSchema,
+  issueOf,
   SPECIES_BY_SERVICE_TYPE,
 } from '@/features/checkout/schema';
 import { addCalendarDays, todayWib } from '@/lib/format/date-range';
@@ -427,5 +428,24 @@ describe('SPECIES_BY_SERVICE_TYPE', () => {
         expect(guestCheckoutSchema.safeParse({ ...valid, species }).success, species).toBe(true);
       }
     }
+  });
+});
+
+describe('issueOf', () => {
+  // Form memakai medan zod yang sama untuk menolak jumlah sebelum dikirim.
+  const box = guestCheckoutSchema.shape.nasi_box_qty;
+  it.each([
+    [2.5, 'Jumlah nasi box harus bilangan bulat'],
+    [99999, 'Untuk pesanan di atas 5000 box, hubungi admin'],
+    [-5, 'Jumlah nasi box tidak boleh negatif'],
+    [10, null],
+  ])('nasi box %s → %s', (value, message) => {
+    expect(issueOf(box, value)).toBe(message);
+  });
+
+  it('jumlah ekor di atas 20 ditolak dengan pesan server', () => {
+    expect(issueOf(guestCheckoutSchema.shape.qty, 21)).toBe(
+      'Untuk pesanan di atas 20 ekor, hubungi admin',
+    );
   });
 });

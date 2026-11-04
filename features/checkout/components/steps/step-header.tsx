@@ -26,26 +26,22 @@ export function StepHeader({
   onJump: (id: number) => void;
 }) {
   return (
-    <div className="border-line sticky top-16 z-30 -mx-4 border-b bg-white px-4 py-3.5 sm:-mx-6 sm:px-6">
+    // Menempel hanya mulai `sm`. Di ponsel kepala site (64px) ditambah kepala
+    // ini (±125px) menyisakan kurang dari 3/4 layar untuk isian; total di
+    // ponsel sudah ada di bar aksi bawah (`StepNav`).
+    <div className="border-line -mx-4 border-b bg-white px-4 py-3 sm:sticky sm:top-16 sm:z-30 sm:-mx-6 sm:px-6">
       <div className="flex items-baseline justify-between gap-4">
         <p className="text-ink-muted text-sm font-medium">
           Langkah <span className="text-ink font-semibold">{current}</span> dari {steps.length}
           <span className="ml-2 hidden sm:inline">· {steps[current - 1]?.title}</span>
         </p>
-        <p aria-live="polite" className="text-right text-sm">
+        <p aria-live="polite" className="hidden text-right text-sm sm:block">
           <span className="text-ink-muted">Total </span>
           <span className="text-ink text-base font-bold tabular-nums">{formatCurrency(total)}</span>
         </p>
       </div>
 
-      <div className="bg-line mt-3 h-1.5 w-full overflow-hidden rounded-full">
-        <div
-          className="bg-primary h-full rounded-full transition-[width] duration-300 ease-out"
-          style={{ width: `${(current / steps.length) * 100}%` }}
-        />
-      </div>
-
-      <nav aria-label="Langkah pemesanan" className="mt-3 flex gap-1">
+      <nav aria-label="Langkah pemesanan" className="mt-2 flex gap-1">
         {steps.map((step) => {
           const isCurrent = step.id === current;
           const isPassed = step.id < current;

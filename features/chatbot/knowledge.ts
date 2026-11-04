@@ -55,5 +55,5 @@ ${price(boxes, 'box')}
 ${processSteps.map((s) => `${s.step}. ${s.title}: ${s.description}`).join('\n')}
 
 ## Pertanyaan umum
-${faqs.map((f) => `T: ${f.question}\nJ: ${f.answer}`).join('\n\n')}`;
+${faqs(brandName).map((f) => `T: ${f.question}\nJ: ${f.answer}`).join('\n\n')}`;
 }
