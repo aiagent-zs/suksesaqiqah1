@@ -150,8 +150,12 @@ export function OrderForm({
         router.refresh();
         return;
       }
-      setFormError(result.error.message);
-      setFieldErrors(result.error.fields ?? {});
+      const fields = result.error.fields ?? {};
+      // Daftar medan dirender di bawahnya; pesan atasnya cukup kalimat umum.
+      setFormError(
+        Object.keys(fields).length > 0 ? 'Data yang dikirim belum valid.' : result.error.message,
+      );
+      setFieldErrors(fields);
     });
   }
 

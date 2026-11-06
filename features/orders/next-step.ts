@@ -104,9 +104,12 @@ export function deriveNextStep(
   // Panel `hewan` tidak relevan untuk katering — ia tidak punya hewan untuk
   // didaftarkan, dan menunjuk ke sana sebagai pekerjaan berikutnya mengirim
   // admin ke panel yang memang kosong selamanya.
-  const panels = ctx.isCateringOrder
-    ? RELEVANT_PANELS[status].filter((p) => p !== 'hewan')
-    : RELEVANT_PANELS[status];
+  // Panel `verifikasi` hanya dirender untuk order tamu. Order buatan staf tidak
+  // punya panel itu, dan tautan "Buka Order dari checkout publik" tidak
+  // menggulir ke mana pun; tombolnya ada di Aksi Status.
+  const panels = RELEVANT_PANELS[status].filter(
+    (p) => !(ctx.isCateringOrder && p === 'hewan') && !(!ctx.isGuestOrder && p === 'verifikasi'),
+  );
 
   // Transisi maju saja. `on_hold` dan `cancelled` adalah jalan keluar, bukan
   // langkah berikutnya — menawarkannya sebagai "yang siap dikerjakan" membuat

@@ -358,7 +358,28 @@ export type TimelineEntry = {
   actorName: string | null;
   fromStatus: string | null;
   toStatus: string | null;
+  /** Kolom yang berubah pada `update`, tanpa `updated_at`. */
+  changed: string[];
 };
+
+/** Nama kolom order yang lazim berubah, dalam bahasa operator. */
+const CHANGE_LABEL: Record<string, string> = {
+  total_amount: 'nilai order',
+  paid_amount: 'pembayaran',
+  payment_status: 'pembayaran',
+  vendor_id: 'mitra pelaksana',
+  notes: 'catatan',
+  guest_verified_at: 'verifikasi order tamu',
+  status_reason: 'alasan status',
+};
+
+/** "Nilai order & mitra pelaksana diperbarui" dari daftar kolom yang berubah. */
+export function describeOrderChange(changed: string[]): string {
+  const labels = [...new Set(changed.map((c) => CHANGE_LABEL[c]).filter(Boolean))];
+  if (labels.length === 0) return 'Data order diperbarui';
+  const text = labels.join(' & ');
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)} diperbarui`;
+}
 
 /**
  * Riwayat audit order (docs/16 section 3 — GET /api/orders/{id}/timeline).
@@ -377,24 +398,34 @@ export async function getOrderTimeline(orderId: string): Promise<TimelineEntry[]
 
   if (error) return [];
 
-  return (data ?? []).map((rowValue) => {
-    const row = rowValue as unknown as {
-      id: string;
-      action: string;
-      created_at: string;
-      old_data: { status?: string } | null;
-      new_data: { status?: string } | null;
-      actor: { full_name: string | null } | null;
-    };
-    return {
-      id: row.id,
-      action: row.action,
-      createdAt: row.created_at,
-      actorName: row.actor?.full_name ?? null,
-      fromStatus: row.old_data?.status ?? null,
-      toStatus: row.new_data?.status ?? null,
-    };
-  });
+  return (data ?? [])
+    .map((rowValue) => {
+      const row = rowValue as unknown as {
+        id: string;
+        action: string;
+        created_at: string;
+        old_data: Record<string, unknown> | null;
+        new_data: Record<string, unknown> | null;
+        actor: { full_name: string | null } | null;
+      };
+      const changed = Object.keys(row.new_data ?? {}).filter(
+        (k) =>
+          k !== 'updated_at' &&
+          JSON.stringify(row.new_data?.[k]) !== JSON.stringify(row.old_data?.[k]),
+      );
+      return {
+        id: row.id,
+        action: row.action,
+        createdAt: row.created_at,
+        actorName: row.actor?.full_name ?? null,
+        fromStatus: (row.old_data?.status as string | undefined) ?? null,
+        toStatus: (row.new_data?.status as string | undefined) ?? null,
+        changed,
+      };
+    })
+    // Update yang hanya menyentuh `updated_at` (mis. trigger saat pembayaran
+    // dicatat) bukan perubahan yang bisa dibaca siapa pun.
+    .filter((e) => e.action !== 'update' || e.changed.length > 0);
 }
 
 /** Opsi untuk FilterBar & form order. */

@@ -189,7 +189,14 @@ export function PaymentManager({
     <div>
       <Toast state={toast} onDismiss={dismiss} />
 
-      {canRecord && outstanding > 0 && (
+      {canRecord && outstanding > 0 && summary.pendingCount > 0 && (
+        <p className="border-border text-muted-foreground border-b px-5 py-3 text-sm">
+          Ada pembayaran yang menunggu verifikasi. Verifikasi atau tolak dulu sebelum mencatat yang
+          baru.
+        </p>
+      )}
+
+      {canRecord && outstanding > 0 && summary.pendingCount === 0 && (
         <div className="border-border flex justify-end border-b px-5 py-3">
           {/* Modal, bukan formulir yang mekar di dalam panel. Panel ini berada
               di tengah halaman detail order bersama delapan panel lain, dan

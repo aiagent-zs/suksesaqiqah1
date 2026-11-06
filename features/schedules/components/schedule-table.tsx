@@ -25,7 +25,6 @@ export function ScheduleTable({ rows }: { rows: ScheduleRow[] }) {
             <TableHead>Peserta</TableHead>
             <TableHead>Lokasi</TableHead>
             <TableHead>Mitra</TableHead>
-
             <TableHead>Status Order</TableHead>
           </TableRow>
         </TableHeader>
@@ -92,8 +91,6 @@ export function ScheduleTable({ rows }: { rows: ScheduleRow[] }) {
                     <span className="text-muted-foreground text-xs">Belum ditunjuk</span>
                   )}
                 </TableCell>
-
-                <TableCell></TableCell>
 
                 <TableCell>
                   <OrderStatusBadge status={row.orderStatus} />

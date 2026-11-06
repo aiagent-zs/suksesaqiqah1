@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const uuid = z.string().uuid('ID tidak valid');
+const uuid = z.string().uuid('Pilihan tidak valid');
 
 /** Tanggal kalender `YYYY-MM-DD` dari `<input type="date">`. */
 const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD');

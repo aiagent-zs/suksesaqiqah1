@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const uuid = z.string().uuid('ID tidak valid');
+const uuid = z.string().uuid('Pilihan tidak valid');
 
 const severity = z.enum(['low', 'medium', 'high'], {
   message: 'Tingkat keparahan tidak dikenali',

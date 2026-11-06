@@ -21,16 +21,27 @@ export type ActionResult<T = void> =
       };
     };
 
-/** Ubah ZodError menjadi peta `field → pesan` untuk ditempel di form. */
+/**
+ * Ubah ZodError menjadi peta `field → pesan` untuk ditempel di form.
+ *
+ * Pesan pertama ikut ke `message`: sebagian besar form hanya menampilkan
+ * `message`, dan "Data yang dikirim belum valid." saja tidak menyebut apa yang
+ * harus dibetulkan.
+ */
 export function validationError(error: z.ZodError): ActionResult<never> {
   const fields: Record<string, string> = {};
   for (const issue of error.issues) {
     const key = issue.path.join('.') || '_';
     if (!fields[key]) fields[key] = issue.message;
   }
+  const first = Object.values(fields)[0];
   return {
     ok: false,
-    error: { code: 'VALIDATION_ERROR', message: 'Data yang dikirim belum valid.', fields },
+    error: {
+      code: 'VALIDATION_ERROR',
+      message: first ? `Data belum valid: ${first}` : 'Data yang dikirim belum valid.',
+      fields,
+    },
   };
 }
 

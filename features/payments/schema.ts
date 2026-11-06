@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { PAYMENT_METHODS } from '@/lib/constants/order';
 
-const uuid = z.string().uuid('ID tidak valid');
+const uuid = z.string().uuid('Pilihan tidak valid');
 
 /**
  * Nominal pembayaran.

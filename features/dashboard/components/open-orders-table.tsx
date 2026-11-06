@@ -78,7 +78,7 @@ export function OpenOrdersTable({ rows }: { rows: OpenOrderRow[] }) {
               <TableCell>
                 <Link
                   href={`/orders/${row.orderId}`}
-                  className="text-primary font-medium tabular-nums hover:underline"
+                  className="text-primary font-medium whitespace-nowrap tabular-nums hover:underline"
                 >
                   {row.orderNumber}
                 </Link>

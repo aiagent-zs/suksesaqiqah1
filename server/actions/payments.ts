@@ -126,6 +126,22 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ id: 
     };
   }
 
+  // Satu pelunasan menunggu sudah menutup seluruh sisa tagihan, jadi catatan
+  // kedua hampir pasti transfer yang sama dicatat dua kali (Simpan ditekan ulang,
+  // atau dua admin di order yang sama). Dibiarkan, "Menunggu" terbaca dua kali
+  // lipat nilai order dan verifikator harus menebak mana yang asli.
+  const { count: pendingCount, error: pendingError } = await supabase
+    .from('payments')
+    .select('id', { count: 'exact', head: true })
+    .eq('order_id', order_id)
+    .eq('status', 'pending');
+  if (pendingError) return internalError('Gagal memeriksa pembayaran tertunda', pendingError);
+  if ((pendingCount ?? 0) > 0) {
+    return conflict(
+      'Order ini sudah punya pembayaran yang menunggu verifikasi. Verifikasi atau tolak dulu catatan itu.',
+    );
+  }
+
   const { data, error } = await supabase
     .from('payments')
     .insert({
