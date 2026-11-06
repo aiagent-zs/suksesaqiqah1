@@ -56,6 +56,10 @@ export function DashboardFilters({ filter }: { filter: DashboardFilterInput }) {
           <ChevronDown className="text-muted-foreground size-4 transition-transform group-open:rotate-180" />
         </summary>
 
+        {/* Grid-nya di elemen dalam: `.filter-collapsible > :not(summary)`
+            memaksa `display: block` pada anak langsung di `lg`, dan itu
+            menimpa `grid` sehingga filternya menumpuk satu kolom. */}
+        <div>
         <div className="grid grid-cols-1 gap-3 px-4 pt-0 pb-4 sm:grid-cols-2 lg:grid-cols-4 lg:p-4">
           <div>
             <label htmlFor="status" className="mb-1.5 block text-sm text-slate-700">
@@ -111,6 +115,7 @@ export function DashboardFilters({ filter }: { filter: DashboardFilterInput }) {
               )}
             </div>
           </div>
+        </div>
         </div>
       </details>
     </form>

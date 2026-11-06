@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
-const uuid = z.string().uuid('ID tidak valid');
+const uuid = z.string().uuid('Pilihan tidak valid');
 
 /** Peserta: pilih yang sudah ada, atau buat baru (docs/16 section 3). */
 export const participantInputSchema = z.discriminatedUnion('mode', [
   z.object({
     mode: z.literal('existing'),
-    participant_id: uuid,
+    participant_id: z.string().uuid('Pilih peserta'),
   }),
   z.object({
     mode: z.literal('new'),
@@ -23,7 +23,7 @@ export const participantInputSchema = z.discriminatedUnion('mode', [
 ]);
 
 export const orderItemInputSchema = z.object({
-  service_id: uuid,
+  service_id: z.string().uuid('Pilih layanan'),
   qty: z.coerce.number().int().min(1, 'Jumlah minimal 1'),
   unit_price: z.coerce.number().min(0, 'Harga tidak boleh negatif'),
   on_behalf_of: z.string().trim().optional().or(z.literal('')),

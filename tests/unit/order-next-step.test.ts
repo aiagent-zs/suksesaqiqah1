@@ -65,9 +65,16 @@ describe('panel yang terbuka mengikuti fase', () => {
     expect(isPanelRelevant('validation', 'tahap')).toBe(true);
   });
 
+  it('order buatan staf yang baru tidak menunjuk panel verifikasi tamu', () => {
+    // Panel itu hanya dirender untuk order tamu; tautannya dulu menggulir ke
+    // elemen yang tidak ada (audit 6 Nov 2026).
+    expect(deriveNextStep('new', 'admin', ctx({ isGuestOrder: false })).panel).toBeNull();
+    expect(deriveNextStep('new', 'admin', ctx({ isGuestOrder: true })).panel).toBe('verifikasi');
+  });
+
   it('tiap status dalam rangkaian punya panel yang dituju', () => {
     for (const status of ORDER_STATUS_FLOW) {
-      const step = deriveNextStep(status, 'admin', ctx());
+      const step = deriveNextStep(status, 'admin', ctx({ isGuestOrder: true }));
       expect(step.panel, status).not.toBeNull();
       // Panel yang ditunjuk harus punya label — kalau tidak, tautannya
       // menampilkan "Buka undefined".

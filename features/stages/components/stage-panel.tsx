@@ -138,7 +138,9 @@ export function StagePanel({
         // medan, sehingga tidak ada yang bisa dikerjakan pembacanya.
         const fields = Object.values(result.error?.fields ?? {});
         setError(
-          [result.error?.message ?? 'Terjadi kesalahan.', ...fields].filter(Boolean).join('. '),
+          fields.length > 0
+            ? fields.join('. ')
+            : (result.error?.message ?? 'Terjadi kesalahan.'),
         );
         return;
       }

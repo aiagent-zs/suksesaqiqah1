@@ -126,7 +126,10 @@ export function GuestOrderPanel({
 
   return (
     <section
-      className={`overflow-hidden rounded-lg border shadow-sm ${
+      // Target tautan "Buka Order dari checkout publik" di kartu Langkah
+      // berikutnya (`PanelId` 'verifikasi').
+      id="verifikasi"
+      className={`scroll-mt-6 overflow-hidden rounded-lg border shadow-sm ${
         verified ? 'border-border bg-card' : 'border-amber-300 bg-amber-50'
       }`}
     >

@@ -29,6 +29,9 @@ let orderPaid = 0;
 /** Baris yang benar-benar sampai ke tabel `payments`, atau null bila ditolak. */
 let inserted: Record<string, unknown> | null = null;
 
+/** Jumlah pembayaran `pending` yang sudah ada pada order. */
+let pendingExisting = 0;
+
 /**
  * Klien Supabase tiruan.
  *
@@ -62,7 +65,14 @@ function fakeClient() {
         maybeSingle: async () => ({ data: { id: 'p1' }, error: null }),
       };
 
+      const countChain = {
+        eq: () => countChain,
+        then: (resolve: (v: { count: number; error: null }) => void) =>
+          resolve({ count: pendingExisting, error: null }),
+      };
+
       return {
+        select: () => countChain,
         insert(row: Record<string, unknown>) {
           inserted = row;
           return insertChain;
@@ -91,6 +101,19 @@ beforeEach(() => {
   orderTotal = 2_800_000;
   orderPaid = 0;
   inserted = null;
+  pendingExisting = 0;
+});
+
+describe('satu pelunasan menunggu per order', () => {
+  it('catatan kedua ditolak selama yang pertama belum diputuskan', async () => {
+    // Ditemukan saat audit 6 Nov 2026: dua catatan 2.300.000 menunggu pada
+    // order 2.300.000, panel menampilkan "Menunggu Rp 4.600.000".
+    pendingExisting = 1;
+    const result = await record(2_800_000);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('CONFLICT');
+    expect(inserted).toBeNull();
+  });
 });
 
 describe('nominal wajib persis sisa tagihan', () => {

@@ -23,7 +23,7 @@ function GuestBadge({ verifiedAt }: { verifiedAt: string | null }) {
   const pending = verifiedAt === null;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
         pending
           ? 'border-amber-300 bg-amber-50 text-amber-800'
           : 'border-slate-200 bg-slate-50 text-slate-600'

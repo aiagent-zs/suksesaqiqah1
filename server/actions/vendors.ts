@@ -65,8 +65,17 @@ async function resolveAddress(
     village: codes.village_code ? (byCode.get(codes.village_code) ?? null) : null,
   };
 
+  // Alamat jalan yang sudah ditempel utuh dari Google Maps (sudah memuat nama
+  // kota) tidak ditambahi wilayah lagi: hasilnya alamat ganda, dan bila
+  // kecamatannya berbeda, kurir tidak tahu mana yang benar.
+  const detail = codes.address_detail?.trim() || null;
+  const cityBare = names.city?.replace(/^(Kota Administrasi|Kabupaten|Kota)\s+/i, '');
+  if (detail && cityBare && detail.toLowerCase().includes(cityBare.toLowerCase())) {
+    return { names, address: detail };
+  }
+
   const parts = [
-    codes.address_detail || null,
+    detail,
     names.village ? `Kel. ${names.village}` : null,
     names.district ? `Kec. ${names.district}` : null,
     names.city,

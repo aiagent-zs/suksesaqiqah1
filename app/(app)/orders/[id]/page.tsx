@@ -4,7 +4,11 @@ import { ArrowLeft, CalendarDays, Globe, Receipt, User, UserCog } from 'lucide-r
 import { BRANDS, parseChannel } from '@/lib/brand';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
-import { getOrderDetail, getOrderTimeline } from '@/features/orders/queries';
+import {
+  describeOrderChange,
+  getOrderDetail,
+  getOrderTimeline,
+} from '@/features/orders/queries';
 import { getTransitionOptions } from '@/features/orders/state-machine';
 import { deriveNextStep, isPanelRelevant } from '@/features/orders/next-step';
 import { NextStepCard } from '@/features/orders/components/next-step-card';
@@ -472,7 +476,9 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                       <span className="bg-primary mt-1.5 size-2 shrink-0 rounded-full" />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm">
-                          {entry.action === 'status_change' && entry.toStatus ? (
+                          {/* audit_logs mencatat `insert`/`update`/`delete`;
+                              perubahan status dikenali dari kolomnya. */}
+                          {entry.changed.includes('status') && entry.toStatus ? (
                             <>
                               Status berubah
                               {entry.fromStatus
@@ -484,10 +490,10 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                                   ?.label ?? entry.toStatus}
                               </span>
                             </>
-                          ) : entry.action === 'create' ? (
+                          ) : entry.action === 'insert' || entry.action === 'create' ? (
                             'Order dibuat'
                           ) : (
-                            'Data order diperbarui'
+                            describeOrderChange(entry.changed)
                           )}
                         </p>
                         <p className="text-muted-foreground mt-0.5 text-xs">
