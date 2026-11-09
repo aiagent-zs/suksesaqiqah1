@@ -18,7 +18,7 @@ vi.mock('@anthropic-ai/sdk', () => {
   return { default: Anthropic };
 });
 vi.mock('@/features/chatbot/knowledge', () => ({ buildSystemPrompt: async () => 'sistem' }));
-vi.mock('@/lib/brand-server', () => ({ getBrand: async () => ({ name: 'Uji' }) }));
+
 
 const { POST } = await import('@/app/api/chat/route');
 

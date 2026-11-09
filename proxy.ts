@@ -1,26 +1,38 @@
+import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
-import { CHANNEL_COOKIE, CHANNEL_PARAM, parseChannel } from '@/lib/brand';
-import type { NextRequest } from 'next/server';
+import {
+  CHANNEL_HEADER,
+  CHANNEL_PARAM,
+  channelFromPath,
+  channelHref,
+  parseChannel,
+} from '@/lib/brand';
+
+/** Halaman publik yang punya kembaran di `/aqiqahaja`. */
+const CHANNEL_PAGES = ['/', '/paket', '/checkout', '/checkout/katering', '/lacak'];
 
 export async function proxy(request: NextRequest) {
-  // Link masuk mitra (`?ch=linkaja`) menetapkan merek untuk sisa kunjungan.
-  // Ditulis ke cookie permintaan juga, supaya render pertama sudah bermerek.
+  const { pathname } = request.nextUrl;
+
+  // Link masuk lama `?ch=linkaja` (sebelum ada area `/aqiqahaja`): dialihkan ke
+  // kembarannya supaya link yang sudah terpasang di mini app tetap bekerja.
   const ch = request.nextUrl.searchParams.get(CHANNEL_PARAM);
-  if (ch !== null) request.cookies.set(CHANNEL_COOKIE, parseChannel(ch));
-
-  const response = await updateSession(request);
-
   if (ch !== null) {
-    response.cookies.set(CHANNEL_COOKIE, parseChannel(ch), {
-      // `none` + secure: webview mitra bisa memperlakukan halaman kita sebagai
-      // konteks pihak ketiga, dan `lax` membuat cookie-nya tidak terkirim.
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    const url = request.nextUrl.clone();
+    url.searchParams.delete(CHANNEL_PARAM);
+    if (parseChannel(ch) === 'linkaja' && channelFromPath(pathname) === 'web') {
+      url.pathname = channelHref('linkaja', CHANNEL_PAGES.includes(pathname) ? pathname : '/');
+    }
+    const response = NextResponse.redirect(url);
+    // Cookie kanal versi lama tidak dibaca lagi; dibuang supaya tidak menetap.
+    response.cookies.delete('channel');
+    return response;
   }
-  return response;
+
+  // Ditimpa selalu: nilai `x-channel` kiriman klien tidak boleh menentukan merek
+  // maupun `orders.channel`.
+  request.headers.set(CHANNEL_HEADER, channelFromPath(pathname));
+  return updateSession(request);
 }
 
 export const config = {

@@ -371,6 +371,7 @@ export function CateringForm({
         orderNumber={done.orderNumber}
         total={done.total}
         paymentUrl={done.paymentUrl}
+        phone={draft.phone}
         waHref={siteConfig.whatsapp.href(
           orderWhatsAppMessage({
             orderNumber: done.orderNumber,

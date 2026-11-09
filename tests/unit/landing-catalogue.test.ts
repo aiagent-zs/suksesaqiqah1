@@ -250,7 +250,7 @@ describe('katering di landing', () => {
 
   it('/paket merender katering sebagai tabel harga, landing tetap kartu', () => {
     expect(cards).toContain('function CateringTable');
-    expect(cards).toContain('<CateringTable rows={sortedCatering(catering)} />');
+    expect(cards).toContain('<CateringTable rows={sortedCatering(catering)} channel={channel} />');
   });
 
   it('penanda populer paling banyak satu per kisi, dan bukan emas', () => {

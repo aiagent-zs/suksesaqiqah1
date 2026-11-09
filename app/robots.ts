@@ -6,9 +6,10 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      // `/r/` ikut dilarang meski halaman publik: tautannya dibagikan langsung
+      // `/aqiqahaja` kembaran situs ini untuk mini app LinkAja, bukan untuk mesin
+      // pencari. `/r/` ikut dilarang meski halaman publik: tautannya dibagikan langsung
       // ke peserta dan isinya memuat nama serta pelaksanaan ibadah mereka.
-      disallow: ['/dashboard', '/orders', '/schedule', '/validation', '/settings', '/api', '/r/'],
+      disallow: ['/aqiqahaja', '/dashboard', '/orders', '/schedule', '/validation', '/settings', '/api', '/r/'],
     },
     sitemap: `${siteConfig.url}/sitemap.xml`,
   };

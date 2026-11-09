@@ -814,6 +814,7 @@ export function CheckoutForm({
         orderNumber={done.order_number}
         total={done.total_amount}
         paymentUrl={done.payment_url ?? null}
+        phone={draft.phone}
         waHref={siteConfig.whatsapp.href(
           orderWhatsAppMessage({
             orderNumber: done.order_number,

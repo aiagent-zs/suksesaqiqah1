@@ -1,4 +1,5 @@
 import 'server-only';
+import { channelHref, type Channel } from '@/lib/brand';
 import { faqs, processSteps, services } from '@/lib/constants/site';
 import { getLandingCatalogue } from '@/features/landing/catalogue';
 import { SERVICE_AREA_LABEL } from '@/features/checkout/service-area';
@@ -12,7 +13,10 @@ import { formatIDR } from '@/lib/format/currency';
  * bisa menyimpang dari isi situs. Yang tidak ada di sini, bot tidak tahu, dan
  * prompt menyuruhnya mengalihkan ke admin alih-alih menebak.
  */
-export async function buildSystemPrompt(brandName: string): Promise<string> {
+export async function buildSystemPrompt(
+  brandName: string,
+  channel: Channel = 'web',
+): Promise<string> {
   const { programs, boxes, catering } = await getLandingCatalogue();
 
   const price = (items: { name: string; price: number }[], unit: string) =>
@@ -32,8 +36,8 @@ Saat mengalihkan: akui keluhannya dengan empati dalam satu kalimat, lalu minta p
 
 ## Aturan
 - Jawab hanya dari informasi di bawah. Jangan mengarang harga, jadwal, atau kebijakan.
-- Untuk melihat status pesanan, arahkan ke halaman Lacak Pesanan (/lacak).
-- Untuk memesan, arahkan ke halaman Paket (/paket).
+- Untuk melihat status pesanan, arahkan ke halaman Lacak Pesanan (${channelHref(channel, '/lacak')}).
+- Untuk memesan, arahkan ke halaman Paket (${channelHref(channel, '/paket')}).
 - Tolak dengan sopan pertanyaan yang tidak berhubungan dengan layanan ini.
 
 ## Jangkauan

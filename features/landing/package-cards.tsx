@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { siteConfig } from '@/lib/constants/site';
+import { BRANDS, channelHref, type Channel } from '@/lib/brand';
 import type {
   LandingBox,
   LandingCatering,
@@ -211,10 +212,20 @@ function PackageGrid({ cards, swipe = false }: { cards: PackageCardData[]; swipe
  * ada kartu yang tidak tampil — tautan "lihat semua" yang membuka daftar sama
  * persis adalah klik yang sia-sia.
  */
-function SeeAllLink({ tab, total, label }: { tab: string; total: number; label: string }) {
+function SeeAllLink({
+  tab,
+  total,
+  label,
+  channel,
+}: {
+  tab: string;
+  total: number;
+  label: string;
+  channel: Channel;
+}) {
   return (
     <div className="mt-6 flex justify-center">
-      <Link href={`/paket?jenis=${tab}`} className="btn btn-outline">
+      <Link href={channelHref(channel, `/paket?jenis=${tab}`)} className="btn btn-outline">
         Lihat semua {total} {label}
       </Link>
     </div>
@@ -303,7 +314,7 @@ const CATERING_GROUP: Record<string, string> = {
  * buku catatan (motif design.md §0). Di ponsel tiap baris jadi nama + harga
  * sebaris, isinya di bawah.
  */
-function CateringTable({ rows }: { rows: LandingCatering[] }) {
+function CateringTable({ rows, channel }: { rows: LandingCatering[]; channel: Channel }) {
   const groups = new Map<string, LandingCatering[]>();
   for (const r of rows) {
     const g = CATERING_GROUP[r.type] ?? 'Lainnya';
@@ -378,7 +389,7 @@ function CateringTable({ rows }: { rows: LandingCatering[] }) {
                 </td>
                 <td className="col-span-2 row-start-3 sm:px-5 sm:py-2.5 sm:text-right sm:align-top">
                   <Link
-                    href={`/checkout/katering?paket=${r.slug}`}
+                    href={channelHref(channel, `/checkout/katering?paket=${r.slug}`)}
                     className="text-primary inline-flex min-h-11 min-w-11 items-center font-semibold underline-offset-2 hover:underline sm:justify-end"
                   >
                     Pilih<span className="sr-only"> {r.name}</span>
@@ -405,8 +416,9 @@ export function buildPackageTabs(
   { programs, boxes, catering }: Awaited<ReturnType<typeof getLandingCatalogue>>,
   limit?: number,
   sort: PackageSort = 'rekomendasi',
-  brandName = 'Sukses Aqiqah',
+  channel: Channel = 'web',
 ): PackageTab[] {
+  const brandName = BRANDS[channel].name;
   const aqiqahCards: PackageCardData[] = programs.map((p) => ({
     slug: p.slug,
     // Katalog menyimpan "Aqiqah Ekonomi" tetapi `catalogue.ts` memangkas
@@ -424,7 +436,7 @@ export function buildPackageTabs(
     photo: p.photo,
     action: (
       <Link
-        href={`/checkout?paket=${p.slug}`}
+        href={channelHref(channel, `/checkout?paket=${p.slug}`)}
         className={`btn w-full ${p.popular ? 'btn-primary' : 'btn-outline'}`}
       >
         Pilih paket {p.name}
@@ -447,7 +459,7 @@ export function buildPackageTabs(
       // Katering pesanan yang berdiri sendiri, jadi ia punya formnya sendiri —
       // `create_catering_order` melayaninya langsung.
       <Link
-        href={`/checkout/katering?paket=${c.slug}`}
+        href={channelHref(channel, `/checkout/katering?paket=${c.slug}`)}
         className={`btn w-full ${c.popular ? 'btn-primary' : 'btn-outline'}`}
       >
         Pilih {c.name}
@@ -494,7 +506,7 @@ export function buildPackageTabs(
   const grid = (id: string, cards: PackageCardData[], label: string) => (
     <>
       <PackageGrid cards={limit ? sorted(cards).slice(0, limit) : sorted(cards)} swipe={!!limit} />
-      {limit && cards.length > limit && <SeeAllLink tab={id} total={cards.length} label={label} />}
+      {limit && cards.length > limit && <SeeAllLink tab={id} total={cards.length} label={label} channel={channel} />}
     </>
   );
 
@@ -511,7 +523,7 @@ export function buildPackageTabs(
             <>
               {/* `/paket`: ketiga paket aqiqah berfoto di atas, katering di tabel bawahnya. */}
               {grid('pilihan', aqiqahCards, 'paket pilihan')}
-              {catering.length > 0 && <CateringTable rows={sortedCatering(popularFirst)} />}
+              {catering.length > 0 && <CateringTable rows={sortedCatering(popularFirst)} channel={channel} />}
             </>
           )}
           {/* Ikut di sini juga: tab ini memuat paket aqiqah, dan nasi box
@@ -542,7 +554,7 @@ export function buildPackageTabs(
       content: limit ? (
         grid('katering', cateringCards, 'paket katering')
       ) : (
-        <CateringTable rows={sortedCatering(catering)} />
+        <CateringTable rows={sortedCatering(catering)} channel={channel} />
       ),
     },
   ];

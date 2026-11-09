@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import type { Brand } from '@/lib/brand';
+import { channelFromPath, channelHref, type Brand } from '@/lib/brand';
 import { primaryNav, siteConfig } from '@/lib/constants/site';
 import { IconClose, IconMenu, IconWhatsApp } from './icons';
 import { Logo } from './logo';
@@ -22,8 +22,13 @@ export function SiteHeader({ brand }: { brand: Brand }) {
    * (`/#layanan`) supaya tetap membawa ke tempatnya. Di landing dibiarkan polos
    * supaya peramban menggulir tanpa memuat ulang halaman.
    */
-  const isLanding = pathname === '/';
-  const navHref = (hash: string) => (isLanding ? hash : `/${hash}`);
+  // Kanal dari path, bukan prop: header ini juga dirender `not-found` global.
+  const channel = channelFromPath(pathname ?? '/');
+  const home = channelHref(channel, '/');
+  const lacak = channelHref(channel, '/lacak');
+  const paket = channelHref(channel, '/paket');
+  const isLanding = pathname === home;
+  const navHref = (hash: string) => (isLanding ? hash : channelHref(channel, `/${hash}`));
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -98,7 +103,7 @@ export function SiteHeader({ brand }: { brand: Brand }) {
       }`}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="shrink-0 rounded" onClick={() => setOpen(false)}>
+        <Link href={home} className="shrink-0 rounded" onClick={() => setOpen(false)}>
           <Logo brand={brand} />
         </Link>
 
@@ -114,10 +119,10 @@ export function SiteHeader({ brand }: { brand: Brand }) {
             </a>
           ))}
           <Link
-            href="/lacak"
-            aria-current={pathname === '/lacak' ? 'page' : undefined}
+            href={lacak}
+            aria-current={pathname === lacak ? 'page' : undefined}
             className={`inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors duration-150 ${
-              pathname === '/lacak' ? 'text-primary' : 'text-ink-muted hover:text-ink'
+              pathname === lacak ? 'text-primary' : 'text-ink-muted hover:text-ink'
             }`}
           >
             Lacak pesanan
@@ -134,7 +139,7 @@ export function SiteHeader({ brand }: { brand: Brand }) {
             <IconWhatsApp className="size-4" />
             WhatsApp
           </a>
-          <Link href="/paket" className="btn btn-primary">
+          <Link href={paket} className="btn btn-primary">
             Lihat paket aqiqah
           </Link>
         </div>
@@ -172,14 +177,14 @@ export function SiteHeader({ brand }: { brand: Brand }) {
               </a>
             ))}
             <Link
-              href="/lacak"
+              href={lacak}
               onClick={() => setOpen(false)}
               className="text-ink hover:bg-surface-muted flex min-h-12 items-center rounded-lg px-2 text-base font-medium"
             >
               Lacak pesanan
             </Link>
             <div className="border-line mt-3 flex flex-col gap-2 border-t pt-3">
-              <Link href="/paket" onClick={() => setOpen(false)} className="btn btn-primary btn-lg">
+              <Link href={paket} onClick={() => setOpen(false)} className="btn btn-primary btn-lg">
                 Lihat paket aqiqah
               </Link>
               <a

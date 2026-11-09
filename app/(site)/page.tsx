@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { getBrand } from '@/lib/brand-server';
-import type { Brand } from '@/lib/brand';
+import { getBrand, getChannel } from '@/lib/brand-server';
+import { BRANDS, channelHref, type Brand, type Channel } from '@/lib/brand';
 import {
   faqs,
   features,
@@ -39,20 +39,21 @@ export async function generateMetadata(): Promise<Metadata> {
  * memisahkannya membuat pengunjung mencocokkan sendiri.
  */
 export default async function LandingPage() {
-  const [catalogue, brand] = await Promise.all([getLandingCatalogue(), getBrand()]);
+  const [catalogue, channel] = await Promise.all([getLandingCatalogue(), getChannel()]);
+  const brand = BRANDS[channel];
   const faqList = faqs(brand.name);
 
   return (
     <>
       <JsonLd faqList={faqList} />
-      <Hero brand={brand} />
+      <Hero brand={brand} channel={channel} />
       <ServicesSection />
-      <PackagesSection catalogue={catalogue} brand={brand} />
-      <LedgerSection />
+      <PackagesSection catalogue={catalogue} channel={channel} />
+      <LedgerSection channel={channel} />
       <FeaturesSection />
       {testimonials.length > 0 && <TestimonialsSection />}
       <FaqSection brand={brand} faqList={faqList} />
-      <CtaSection brand={brand} />
+      <CtaSection brand={brand} channel={channel} />
     </>
   );
 }
@@ -60,7 +61,7 @@ export default async function LandingPage() {
 /* Hero: teks kiri, foto kanan, tetap putih (latar hijau tua ditolak pemilik).
    Kisi garis pindah ke belakang kolom foto dan bingkai fotonya menempel ke sel
    56px, jadi motifnya terbaca sebagai halaman bergaris, bukan noda di pojok. */
-function Hero({ brand }: { brand: Brand }) {
+function Hero({ brand, channel }: { brand: Brand; channel: Channel }) {
   return (
     <section className="border-line relative overflow-hidden border-b bg-white">
       {/* Kisi hanya di separuh kanan desktop (di belakang foto): teks tetap di
@@ -93,7 +94,7 @@ function Hero({ brand }: { brand: Brand }) {
           </Reveal>
           <Reveal delay={270}>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/paket" className="btn btn-primary btn-lg">
+              <Link href={channelHref(channel, '/paket')} className="btn btn-primary btn-lg">
                 Lihat paket aqiqah
               </Link>
               <a
@@ -203,10 +204,10 @@ function ServicesSection() {
 
 function PackagesSection({
   catalogue,
-  brand,
+  channel,
 }: {
   catalogue: Awaited<ReturnType<typeof getLandingCatalogue>>;
-  brand: Brand;
+  channel: Channel;
 }) {
   const { programs, boxes, catering } = catalogue;
   // Katalog kosong berarti database tak terjangkau. Section disembunyikan:
@@ -227,14 +228,14 @@ function PackagesSection({
               menyusul.
             </p>
           </div>
-          <Link href="/paket" className="btn btn-outline shrink-0">
+          <Link href={channelHref(channel, '/paket')} className="btn btn-outline shrink-0">
             Bandingkan semua paket
           </Link>
         </Reveal>
         {/* Tab bawaan Aqiqah: ketiga paketnya punya foto, jadi kisi pertama
             yang dilihat pengunjung memperlihatkan masakannya, bukan teks saja. */}
         <PackageFilter
-          tabs={buildPackageTabs(catalogue, 3, undefined, brand.name)}
+          tabs={buildPackageTabs(catalogue, 3, undefined, channel)}
           defaultTab="aqiqah"
         />
       </div>
@@ -255,7 +256,7 @@ const LEDGER_PHOTOS: Record<string, number[]> = {
 /* Catatan pelaksanaan: judul di kolom samping yang menempel, langkah sebagai
    baris bergaris dengan nomor di margin kiri seperti kertas bergaris. Latar
    terang: satu-satunya pita gelap di halaman ini kini footer. */
-function LedgerSection() {
+function LedgerSection({ channel }: { channel: Channel }) {
   const gallery = landingPhotos.gallery;
   return (
     <section id="proses" className="border-line border-b bg-white">
@@ -268,7 +269,7 @@ function LedgerSection() {
             Setiap langkah punya penanggung jawab dan bukti. Tahap berikutnya baru dibuka setelah
             tahap sebelumnya divalidasi. Foto pesanan Anda sendiri dikirim di laporan akhir.
           </p>
-          <Link href="/lacak" className="btn btn-outline mt-6">
+          <Link href={channelHref(channel, '/lacak')} className="btn btn-outline mt-6">
             Lacak pesanan Anda
           </Link>
         </Reveal>
@@ -505,7 +506,7 @@ function FaqSection({ brand, faqList }: { brand: Brand; faqList: ReturnType<type
 /* CTA: kartu terbelah. Foto masakan utuh di satu sisi (dulu tertutup lapisan
    hijau 90% sampai tak terlihat), teks dan tombol di hijau muda berkisi di
    sisi lain. Terang, sejalan dengan seluruh halaman. */
-function CtaSection({ brand }: { brand: Brand }) {
+function CtaSection({ brand, channel }: { brand: Brand; channel: Channel }) {
   return (
     <section className="bg-white">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16">
@@ -532,7 +533,7 @@ function CtaSection({ brand }: { brand: Brand }) {
                 Tim kami membantu dari memilih paket sampai laporan pelaksanaan.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href="/paket" className="btn btn-primary btn-lg">
+                <Link href={channelHref(channel, '/paket')} className="btn btn-primary btn-lg">
                   Lihat paket aqiqah
                 </Link>
                 <a
