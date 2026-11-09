@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site/site-header';
 import { SiteFooter } from '@/components/site/site-footer';
-import { getBrand } from '@/lib/brand-server';
+import { getChannel } from '@/lib/brand-server';
+import { BRANDS, channelHref } from '@/lib/brand';
 
 export const metadata = { title: 'Halaman tidak ditemukan' };
 
@@ -11,9 +12,10 @@ export const metadata = { title: 'Halaman tidak ditemukan' };
  * header situs untuk kembali, bukan halaman polos bawaan Next.
  */
 export default async function NotFound() {
+  const channel = await getChannel();
   return (
     <>
-      <SiteHeader brand={await getBrand()} />
+      <SiteHeader brand={BRANDS[channel]} />
       <main className="flex-1">
         <section className="mx-auto max-w-xl px-4 py-20 text-center sm:px-6">
           <p className="text-primary text-sm font-semibold tabular-nums">404</p>
@@ -22,10 +24,10 @@ export default async function NotFound() {
             Alamat yang Anda buka tidak ada atau sudah dipindah.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href="/paket" className="btn btn-primary btn-lg">
+            <Link href={channelHref(channel, '/paket')} className="btn btn-primary btn-lg">
               Lihat paket aqiqah
             </Link>
-            <Link href="/lacak" className="btn btn-outline btn-lg">
+            <Link href={channelHref(channel, '/lacak')} className="btn btn-outline btn-lg">
               Lacak pesanan
             </Link>
           </div>

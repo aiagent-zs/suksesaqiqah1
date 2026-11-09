@@ -4,7 +4,8 @@ import { getLandingCatalogue } from '@/features/landing/catalogue';
 import { buildPackageTabs, orderMessage, type PackageSort } from '@/features/landing/package-cards';
 import { PackageFilter } from '@/components/site/package-filter';
 import { siteConfig } from '@/lib/constants/site';
-import { getBrand } from '@/lib/brand-server';
+import { getChannel } from '@/lib/brand-server';
+import { BRANDS, channelHref } from '@/lib/brand';
 import { IconWhatsApp } from '@/components/site/icons';
 
 export const metadata: Metadata = {
@@ -29,8 +30,9 @@ const SORTS: { id: PackageSort; label: string }[] = [
 export default async function PackagesPage({ searchParams }: PageProps<'/paket'>) {
   const { jenis, urut } = await searchParams;
   const sort = SORTS.find((s) => s.id === urut)?.id ?? 'rekomendasi';
-  const [catalogue, brand] = await Promise.all([getLandingCatalogue(), getBrand()]);
-  const tabs = buildPackageTabs(catalogue, undefined, sort, brand.name);
+  const [catalogue, channel] = await Promise.all([getLandingCatalogue(), getChannel()]);
+  const brand = BRANDS[channel];
+  const tabs = buildPackageTabs(catalogue, undefined, sort, channel);
   // Hanya tab yang benar-benar ada dan berisi yang dibawa ke tautan urutan.
   // `?jenis=bogus` dulu ikut tersalin apa adanya ke setiap tautan.
   const tab =
@@ -76,7 +78,7 @@ export default async function PackagesPage({ searchParams }: PageProps<'/paket'>
               {SORTS.map((s) => (
                 <Link
                   key={s.id}
-                  href={`/paket?jenis=${tab}&urut=${s.id}`}
+                  href={channelHref(channel, `/paket?jenis=${tab}&urut=${s.id}`)}
                   scroll={false}
                   aria-current={s.id === sort ? 'true' : undefined}
                   className={`inline-flex min-h-11 items-center rounded-md px-2 font-medium sm:px-3 ${

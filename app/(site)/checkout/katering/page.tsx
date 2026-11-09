@@ -1,5 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
-import { getBrand } from '@/lib/brand-server';
+import { getChannel } from '@/lib/brand-server';
+import { BRANDS } from '@/lib/brand';
+import { CheckoutHero } from '@/features/checkout/components/checkout-hero';
 import { getCateringOptions } from '@/features/catering/queries';
 import { bookingMaxDate, bookingMinDate } from '@/features/catering/schema';
 import { CateringForm } from '@/features/catering/components/catering-form';
@@ -54,33 +56,21 @@ export default async function CateringCheckoutPage({
   // melanggar aturan kemurnian React, dan jam peramban pemesan bisa berada di
   // zona mana saja — sementara batasnya harus WIB, sama dengan yang ditegakkan
   // `create_catering_order`.
+  const channel = await getChannel();
   const minDate = bookingMinDate();
   const maxDate = bookingMaxDate();
 
   return (
-    <div className="relative min-h-screen pb-14 sm:pb-20">
-      {/* Tekstur yang sama dengan hero landing & checkout aqiqah — ketiganya
-          terasa berasal dari sistem yang sama. */}
-      <div
-        aria-hidden
-        className="bg-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 [mask-image:radial-gradient(100%_80%_at_20%_0%,black,transparent_75%)]"
-      />
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
-        <header className="border-b border-neutral-200 py-10 sm:py-14">
-          <p className="text-primary text-sm font-semibold">
-            Pemesanan mandiri
-          </p>
-          <h1 className="mt-4 text-[1.75rem] leading-tight font-bold tracking-tight text-neutral-900 sm:text-4xl">
-            Pesan katering
-          </h1>
-          <p className="mt-3.5 max-w-xl text-base leading-7 text-neutral-600">
-            Nasi kotak dan prasmanan untuk acara Anda. Empat langkah singkat, tanpa perlu membuat
-            akun. Tim kami menghubungi Anda lewat WhatsApp untuk konfirmasi dan pembayaran.
-          </p>
-        </header>
+    // Latar abu-hijau, form dalam kartu putih: sama dengan checkout aqiqah.
+    <div className="bg-surface-muted min-h-screen pb-10">
+      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:max-w-6xl">
+        <CheckoutHero channel={channel} title="Pesan katering">
+          Nasi kotak dan prasmanan untuk acara Anda. Satu halaman, tanpa perlu membuat akun. Tim
+          kami menghubungi Anda lewat WhatsApp untuk konfirmasi dan pembayaran.
+        </CheckoutHero>
 
         {unavailable ? (
-          <div className="mt-8 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900">
             <AlertTriangle className="mt-0.5 size-5 shrink-0" />
             <div>
               <p className="font-medium">Pemesanan katering belum tersedia</p>
@@ -96,7 +86,7 @@ export default async function CateringCheckoutPage({
             minDate={minDate}
             maxDate={maxDate}
             initialServiceId={preselected?.id}
-            brandName={(await getBrand()).name}
+            brandName={BRANDS[channel].name}
           />
         )}
       </div>

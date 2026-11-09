@@ -5,10 +5,10 @@ import { createRoot, type Root } from 'react-dom/client';
 import type { CateringPackage } from '@/features/catering/queries';
 
 /**
- * Langkah 1 checkout katering: jenis katering jadi tab, paket jadi baris.
+ * Bagian Pesanan checkout katering: jenis katering jadi tab, paket jadi baris.
  *
  * Sebelumnya ketiga jenis ditumpuk sebagai kartu, dan pemesan harus menggulir
- * melewati semuanya untuk sampai ke jenis yang dicari dan ke tombol Lanjut.
+ * melewati semuanya untuk sampai ke jenis yang dicari.
  */
 vi.mock('@/server/actions/catering', () => ({ createCateringOrderAction: vi.fn() }));
 vi.mock('@/features/checkout/regions', () => ({ fetchRegionChildren: vi.fn(async () => []) }));
@@ -123,7 +123,7 @@ describe('pemilih paket katering', { timeout: 30_000 }, () => {
     expect(container!.textContent).toContain('10 box dari 1 paket');
   });
 
-  it('jumlah pecahan ditolak di langkah 1 dan tidak ikut dihitung', async () => {
+  it('jumlah pecahan ditolak dan tidak ikut dihitung', async () => {
     await mount();
     const input = container!.querySelector<HTMLInputElement>(`#kt-qty-${PACKAGES[0].id}`)!;
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
@@ -132,32 +132,38 @@ describe('pemilih paket katering', { timeout: 30_000 }, () => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
     expect(container!.textContent).toContain('Jumlah box harus bilangan bulat');
-    const next = [...container!.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Lanjut ke'),
+    const send = [...container!.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Kirim Pesanan'),
     )!;
-    act(() => next.click());
-    // Masih di langkah 1: input jumlahnya tetap terpasang.
-    expect(container!.querySelector(`#kt-qty-${PACKAGES[0].id}`)).not.toBeNull();
+    act(() => send.click());
     expect(container!.textContent).toContain('Ayam Bakar: Jumlah box harus bilangan bulat');
   });
 
-  it('penunjuk langkah tidak bisa melompat ke Ringkasan dengan langkah kosong', async () => {
+  it('satu kali kirim menyebut seluruh isian yang kurang', async () => {
+    // Wizard dicabut 9 November: dulu yang kurang muncul langkah demi langkah.
     await mount();
     act(() =>
-      container!.querySelector<HTMLButtonElement>('[aria-label="Tambah 10 box Ayam Bakar"]')!.click(),
+      container!
+        .querySelector<HTMLButtonElement>('[aria-label="Tambah 10 box Ayam Bakar"]')!
+        .click(),
     );
-    act(() => container!.querySelector<HTMLButtonElement>('[aria-label^="Langkah 4:"]')!.click());
-    expect(
-      container!.querySelector('[aria-current="step"]')?.getAttribute('aria-label'),
-    ).toBe('Langkah 2: Jadwal & Alamat');
-    expect(container!.textContent).toContain('Pilih tanggal pengiriman');
+    const send = [...container!.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Kirim Pesanan'),
+    )!;
+    act(() => send.click());
+    const text = container!.textContent ?? '';
+    expect(text).toContain('Pilih tanggal pengiriman');
+    expect(text).toContain('Pilih provinsi tujuan');
+    expect(text).toContain('Nama pemesan wajib diisi');
+    expect(container!.querySelector('[aria-current="step"]')).toBeNull();
   });
 
-  it('tombol Lanjut ada di bar yang menempel di bawah', async () => {
+  it('tombol kirim ada di bar yang menempel di bawah, bertipe button', async () => {
     await mount();
-    const next = [...container!.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Lanjut ke'),
+    const send = [...container!.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Kirim Pesanan'),
     )!;
-    expect(next.parentElement!.className).toMatch(/sticky bottom-0/);
+    expect(send.type).toBe('button');
+    expect(send.parentElement!.className).toMatch(/sticky bottom-0/);
   });
 });

@@ -1,14 +1,12 @@
 'use client';
 
-import { useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react';
+import { useMemo, useState, useSyncExternalStore, useTransition } from 'react';
 import {
   AlertCircle,
   Beef,
   Building2,
-  CalendarClock,
   CalendarDays,
   Check,
-  ClipboardCheck,
   Clock,
   Drumstick,
   Mail,
@@ -36,17 +34,9 @@ import { FieldError } from '@/features/checkout/components/steps/field-error';
 import { StepperButton } from '@/features/checkout/components/steps/stepper-button';
 import { ErrorSummary } from '@/features/checkout/components/steps/error-summary';
 import { SuccessPanel } from '@/features/checkout/components/steps/success-panel';
-import {
-  SummaryRow,
-  SummarySection,
-  SummaryTotal,
-} from '@/features/checkout/components/steps/summary-row';
-import { StepNav } from '@/features/checkout/components/steps/step-nav';
-import {
-  SectionLabel,
-  StepHeader,
-  StepIntro,
-} from '@/features/checkout/components/steps/step-header';
+import { OrderAside } from '@/features/checkout/components/steps/order-aside';
+import { CheckoutSection, SubmitBar } from '@/features/checkout/components/steps/checkout-section';
+import { SectionLabel } from '@/features/checkout/components/steps/step-header';
 import { createCateringOrderAction } from '@/server/actions/catering';
 import type { RegionOption } from '@/features/checkout/queries';
 import type { CateringPackage } from '../queries';
@@ -68,19 +58,8 @@ import {
   type CateringDraft,
 } from '../draft';
 
-/** Urutan dan nama langkah sengaja sejajar dengan checkout aqiqah. */
-const STEPS = [
-  { id: 1, title: 'Pesanan', shortTitle: 'Pesanan', icon: Package },
-  { id: 2, title: 'Jadwal & Alamat', shortTitle: 'Jadwal', icon: CalendarClock },
-  { id: 3, title: 'Data Pemesan', shortTitle: 'Data', icon: User },
-  { id: 4, title: 'Ringkasan', shortTitle: 'Ringkasan', icon: ClipboardCheck },
-];
-
 /** Tombol +/- melompat 10 box: pesanan katering jarang di bawah puluhan. */
 const QTY_STEP = 10;
-
-/** Jeda sebelum tombol kirim menerima klik; alasannya sama dengan checkout aqiqah. */
-const SUBMIT_ARM_DELAY_MS = 700;
 
 const TYPE_LABEL: Record<string, string> = {
   katering_ayam: 'Katering Ayam',
@@ -96,8 +75,8 @@ const TYPE_ICON: Record<string, LucideIcon> = {
 };
 
 /**
- * Medan → langkah dan id elemennya. Dipakai saat validasi atau server menolak
- * sesuatu yang tidak terlihat di langkah yang sedang terbuka.
+ * Medan → bagian dan id elemennya. Bagian menentukan urutan galat yang
+ * difokuskan lebih dulu, sesuai urutan di layar.
  */
 const FIELD_STEP: Record<string, number> = {
   items: 1,
@@ -166,7 +145,6 @@ export function CateringForm({
   const [draft, setDraft] = useState<CateringDraft>(() =>
     emptyDraft(initialServiceId ?? packages[0]?.id ?? ''),
   );
-  const [step, setStep] = useState(1);
   const [activeType, setActiveType] = useState(
     () => packages.find((p) => p.id === initialServiceId)?.type ?? packages[0]?.type ?? '',
   );
@@ -179,13 +157,13 @@ export function CateringForm({
     paymentUrl: string | null;
   } | null>(null);
   const [pending, startTransition] = useTransition();
-  const submitArmedRef = useRef(false);
-  const armTimerRef = useRef<number | undefined>(undefined);
 
   function set<K extends keyof CateringDraft>(key: K, value: CateringDraft[K]) {
     const next = { ...draft, [key]: value };
     setDraft(next);
-    saveDraft(next, step);
+    // Langkah selalu 1: formnya kini satu halaman. Medannya tetap ada supaya
+    // bentuk draft di `sessionStorage` tidak berubah.
+    saveDraft(next, 1);
   }
 
   /** Jumlah box per paket. Tiap paket paling banyak satu baris di `items`. */
@@ -202,7 +180,7 @@ export function CateringForm({
    * Baris yang terisi, beserta penolakannya menurut medan zod server.
    *
    * Baris yang akan ditolak (2,5 box, di atas batas) tetap ikut di sini supaya
-   * `validateStep` bisa menyebutnya, tapi subtotalnya nol: total yang tampil
+   * `collectErrors` bisa menyebutnya, tapi subtotalnya nol: total yang tampil
    * tidak boleh dihitung dari jumlah yang tidak bisa dipesan.
    */
   const lines = useMemo(
@@ -233,57 +211,54 @@ export function CateringForm({
     }));
   }, [packages, initialServiceId]);
 
-  function validateStep(n: number): boolean {
+  /**
+   * Seluruh isian yang ditolak, dari bagian pertama sampai terakhir. Form ini
+   * satu halaman, jadi pemesan melihat semua yang kurang dalam satu kali tekan.
+   */
+  function collectErrors(): Record<string, string> {
     const errors: Record<string, string> = {};
-    if (n === 1) {
-      const invalid = lines.find((l) => l.issue);
-      if (lines.length === 0) errors.items = 'Isi jumlah box untuk minimal satu paket';
-      else if (invalid) errors.items = `${invalid.pkg.name}: ${invalid.issue}`;
-      else if (totalBoxes > MAX_TOTAL_BOXES) {
-        errors.items = `Total di atas ${MAX_TOTAL_BOXES.toLocaleString('id-ID')} box. Hubungi admin untuk penawaran khusus.`;
-      }
-    } else if (n === 2) {
-      if (!draft.requested_date) errors.requested_date = 'Pilih tanggal pengiriman';
-      else if (draft.requested_date < minDate) {
-        errors.requested_date = `Paling cepat ${formatDate(minDate)}`;
-      } else if (draft.requested_date > maxDate) {
-        errors.requested_date = `Maksimal ${BOOKING_MAX_DAYS} hari ke depan`;
-      }
-      if (!draft.requested_time) errors.requested_time = 'Pilih jam pengiriman';
 
-      const a = draft.delivery;
-      if (!a.province_code) errors.delivery_province_code = 'Pilih provinsi tujuan';
-      if (!a.city_code) errors.delivery_city_code = 'Pilih kabupaten/kota tujuan';
-      if (!a.district_code) errors.delivery_district_code = 'Pilih kecamatan tujuan';
-      if (!a.village_code) errors.delivery_village_code = 'Pilih kelurahan/desa tujuan';
-      if (!/^[0-9]{5}$/.test(a.postal_code)) {
-        errors.delivery_postal_code = a.postal_code
-          ? 'Kode pos harus 5 digit angka'
-          : 'Kode pos wajib diisi';
-      }
-      if (!a.detail.trim()) errors.delivery_detail = 'Isi nama jalan dan nomor bangunan';
-    } else if (n === 3) {
-      if (draft.name.trim().length < 2) errors.name = 'Nama pemesan wajib diisi';
-      const phone = draft.phone.trim();
-      if (!phone) errors.phone = 'Nomor WhatsApp wajib diisi';
-      else if (phone.length < 8) errors.phone = 'Nomor telepon terlalu pendek';
-      else if (!/^[0-9+()\- ]+$/.test(phone)) errors.phone = 'Hanya boleh angka dan tanda + ( ) -';
-      const email = draft.email.trim();
-      if (!email) errors.email = 'Email wajib diisi';
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Format email tidak valid';
+    const invalid = lines.find((l) => l.issue);
+    if (lines.length === 0) errors.items = 'Isi jumlah box untuk minimal satu paket';
+    else if (invalid) errors.items = `${invalid.pkg.name}: ${invalid.issue}`;
+    else if (totalBoxes > MAX_TOTAL_BOXES) {
+      errors.items = `Total di atas ${MAX_TOTAL_BOXES.toLocaleString('id-ID')} box. Hubungi admin untuk penawaran khusus.`;
     }
 
-    setFieldErrors(errors);
-    const first = Object.keys(errors)[0];
-    if (first) jumpToField(first);
-    return !first;
+    if (!draft.requested_date) errors.requested_date = 'Pilih tanggal pengiriman';
+    else if (draft.requested_date < minDate) {
+      errors.requested_date = `Paling cepat ${formatDate(minDate)}`;
+    } else if (draft.requested_date > maxDate) {
+      errors.requested_date = `Maksimal ${BOOKING_MAX_DAYS} hari ke depan`;
+    }
+    if (!draft.requested_time) errors.requested_time = 'Pilih jam pengiriman';
+
+    const a = draft.delivery;
+    if (!a.province_code) errors.delivery_province_code = 'Pilih provinsi tujuan';
+    if (!a.city_code) errors.delivery_city_code = 'Pilih kabupaten/kota tujuan';
+    if (!a.district_code) errors.delivery_district_code = 'Pilih kecamatan tujuan';
+    if (!a.village_code) errors.delivery_village_code = 'Pilih kelurahan/desa tujuan';
+    if (!/^[0-9]{5}$/.test(a.postal_code)) {
+      errors.delivery_postal_code = a.postal_code
+        ? 'Kode pos harus 5 digit angka'
+        : 'Kode pos wajib diisi';
+    }
+    if (!a.detail.trim()) errors.delivery_detail = 'Isi nama jalan dan nomor bangunan';
+
+    if (draft.name.trim().length < 2) errors.name = 'Nama pemesan wajib diisi';
+    const phone = draft.phone.trim();
+    if (!phone) errors.phone = 'Nomor WhatsApp wajib diisi';
+    else if (phone.length < 8) errors.phone = 'Nomor telepon terlalu pendek';
+    else if (!/^[0-9+()\- ]+$/.test(phone)) errors.phone = 'Hanya boleh angka dan tanda + ( ) -';
+    const email = draft.email.trim();
+    if (!email) errors.email = 'Email wajib diisi';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Format email tidak valid';
+
+    return errors;
   }
 
   function jumpToField(field: string) {
-    const root = field.split('.')[0];
-    const target = FIELD_STEP[root];
-    if (target && target !== step) setStep(target);
-    const anchor = FIELD_ANCHOR[root];
+    const anchor = FIELD_ANCHOR[field.split('.')[0]];
     if (!anchor) return;
     window.setTimeout(() => {
       const el = document.getElementById(anchor);
@@ -292,42 +267,23 @@ export function CateringForm({
     }, 80);
   }
 
-  function goToStep(next: number) {
-    setError(null);
-    setFieldErrors({});
-    window.clearTimeout(armTimerRef.current);
-    submitArmedRef.current = false;
-    if (next === STEPS.length) {
-      armTimerRef.current = window.setTimeout(() => {
-        submitArmedRef.current = true;
-      }, SUBMIT_ARM_DELAY_MS);
-    }
-    setStep(next);
-    saveDraft(draft, next);
-    // Tanpa `behavior`: `scroll-behavior` di globals.css yang menentukan, dan
-    // itu sudah dimatikan untuk `prefers-reduced-motion`.
-    window.scrollTo({ top: 0 });
-  }
-
-  /**
-   * Penunjuk langkah: mundur bebas, maju hanya bila **setiap** langkah yang
-   * dilewati sah. Dulu yang diperiksa hanya langkah yang sedang terbuka, jadi
-   * pemesan bisa langsung ke Ringkasan dengan alamat dan kontak kosong.
-   * `validateStep` sendiri yang membawa layar ke langkah yang bermasalah.
-   */
-  function jumpStep(target: number) {
-    if (target > step) {
-      for (let n = step; n < target; n += 1) if (!validateStep(n)) return;
-    }
-    goToStep(target);
+  /** Galat pertama menurut urutan bagian di layar, bukan urutan kunci objek. */
+  function focusFirstError(errors: Record<string, string>) {
+    const first = Object.keys(errors).sort(
+      (x, y) => (FIELD_STEP[x.split('.')[0]] ?? 99) - (FIELD_STEP[y.split('.')[0]] ?? 99),
+    )[0];
+    if (first) jumpToField(first);
   }
 
   function submit() {
-    if (!submitArmedRef.current) return;
-    for (const n of [1, 2, 3]) if (!validateStep(n)) return;
+    const errors = collectErrors();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      focusFirstError(errors);
+      return;
+    }
 
     setError(null);
-    setFieldErrors({});
     startTransition(async () => {
       const result = await createCateringOrderAction({
         items: lines.map((l) => ({ service_id: l.pkg.id, qty: l.qty })),
@@ -354,14 +310,14 @@ export function CateringForm({
           total: Number(result.data.total_amount),
           paymentUrl: result.data.payment_url ?? null,
         });
+        window.scrollTo({ top: 0 });
         return;
       }
 
       const fields = result.error.fields ?? {};
       setFieldErrors(fields);
       setError(result.error.message);
-      const first = Object.keys(fields)[0];
-      if (first) jumpToField(first);
+      focusFirstError(fields);
     });
   }
 
@@ -371,6 +327,7 @@ export function CateringForm({
         orderNumber={done.orderNumber}
         total={done.total}
         paymentUrl={done.paymentUrl}
+        phone={draft.phone}
         waHref={siteConfig.whatsapp.href(
           orderWhatsAppMessage({
             orderNumber: done.orderNumber,
@@ -387,63 +344,66 @@ export function CateringForm({
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <StepHeader steps={STEPS} current={step} total={total} onJump={jumpStep} />
-
-      <ErrorSummary errors={fieldErrors} labels={FIELD_LABEL} onJump={jumpToField} />
-
-      {/* Ditawarkan, bukan dipulihkan diam-diam: isian lama yang muncul tanpa
+    // Dua kolom di desktop, sama dengan checkout aqiqah (`OrderAside`).
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-10">
+      <div className="min-w-0">
+        {/* Ditawarkan, bukan dipulihkan diam-diam: isian lama yang muncul tanpa
           diminta terbaca seperti isian sendiri. */}
-      {stored && !recovered && (
-        <div className="animate-in fade-in mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 duration-300">
-          <div className="flex items-start gap-2.5">
-            <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-700" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-amber-900">Lanjutkan isian sebelumnya?</p>
-              <p className="mt-1 text-xs leading-5 text-amber-800">
-                Ada pesanan katering yang belum selesai dari tab ini.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDraft(stored.draft);
-                    goToStep(Math.min(stored.step, STEPS.length));
-                    setRecovered(true);
-                  }}
-                  className="inline-flex min-h-11 items-center rounded-lg bg-amber-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-amber-800"
-                >
-                  Lanjutkan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearDraft();
-                    setRecovered(true);
-                  }}
-                  className="inline-flex min-h-11 items-center rounded-lg border border-amber-300 bg-white px-4 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
-                >
-                  Mulai baru
-                </button>
+        {stored && !recovered && (
+          <div className="animate-in fade-in mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 duration-300">
+            <div className="flex items-start gap-2.5">
+              <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-700" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-amber-900">Lanjutkan isian sebelumnya?</p>
+                <p className="mt-1 text-xs leading-5 text-amber-800">
+                  Ada pesanan katering yang belum selesai dari tab ini.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(stored.draft);
+                      setRecovered(true);
+                    }}
+                    className="inline-flex min-h-11 items-center rounded-lg bg-amber-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-amber-800"
+                  >
+                    Lanjutkan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearDraft();
+                      setRecovered(true);
+                    }}
+                    className="inline-flex min-h-11 items-center rounded-lg border border-amber-300 bg-white px-4 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+                  >
+                    Mulai baru
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="pt-6 sm:pt-8">
-        {step === 1 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
-            <StepIntro title="Paket apa, dan berapa box?">
-              Isi jumlah box di paket yang Anda mau, boleh lebih dari satu paket. Tombol + dan -
-              menambah atau mengurangi 10 box, angkanya juga bisa diketik langsung.
-            </StepIntro>
-
+        <div className="space-y-4">
+          <CheckoutSection
+            id="bagian-pesanan"
+            index={1}
+            done={lines.length > 0 && !lines.some((l) => l.issue)}
+            title="Pesanan"
+            hint="Isi jumlah box di paket yang Anda mau, boleh lebih dari satu paket. Tombol + dan - menambah atau mengurangi 10 box."
+          >
             <div id="kt-packages" tabIndex={-1} className="outline-none">
               {/* Satu jenis per tampilan: tiga kelompok yang ditumpuk memaksa
                   pemesan menggulir jauh hanya untuk membandingkan jenis. */}
               {groups.length > 1 && (
-                <div role="tablist" aria-label="Jenis katering" className="flex flex-wrap gap-2">
+                <div
+                  role="tablist"
+                  aria-label="Jenis katering"
+                  // Tiga kolom sama lebar: di ponsel ketiganya tetap sebaris, tidak
+                  // terlipat jadi dua baris yang tampak seperti dua kelompok.
+                  className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap"
+                >
                   {groups.map((group) => {
                     const on = group.type === activeType;
                     const picked = lines.filter((l) => l.pkg.type === group.type).length;
@@ -455,7 +415,7 @@ export function CateringForm({
                         aria-selected={on}
                         onClick={() => setActiveType(group.type)}
                         className={cn(
-                          'flex min-h-11 items-center gap-2 rounded-lg border-2 px-4 text-sm font-semibold transition-colors duration-150',
+                          'flex min-h-11 items-center justify-center gap-1.5 rounded-lg border-2 px-2 text-sm font-semibold transition-colors duration-150 sm:gap-2 sm:px-4',
                           on
                             ? 'border-primary bg-primary text-white'
                             : 'border-line text-ink hover:border-primary/50 bg-white',
@@ -606,15 +566,17 @@ export function CateringForm({
                 ))}
             </div>
             {fieldErrors.items && <FieldError message={fieldErrors.items} />}
-          </div>
-        )}
+          </CheckoutSection>
 
-        {step === 2 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
-            <StepIntro title="Kapan dan ke mana kami antar?">
-              Jadwal ini masih permintaan. Tim kami mengonfirmasinya lewat WhatsApp.
-            </StepIntro>
-
+          <CheckoutSection
+            id="bagian-jadwal"
+            index={2}
+            done={Boolean(
+              draft.requested_date && draft.requested_time && draft.delivery.village_code,
+            )}
+            title="Jadwal & alamat"
+            hint="Jadwal ini masih permintaan. Tim kami mengonfirmasinya lewat WhatsApp."
+          >
             <div>
               <SectionLabel
                 index={1}
@@ -717,15 +679,15 @@ export function CateringForm({
                 Membantu kurir menemukan lokasi acara.
               </p>
             </div>
-          </div>
-        )}
+          </CheckoutSection>
 
-        {step === 3 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
-            <StepIntro title="Siapa yang bisa kami hubungi?">
-              Kami mengirim konfirmasi dan rincian pembayaran ke nomor WhatsApp ini.
-            </StepIntro>
-
+          <CheckoutSection
+            id="bagian-data"
+            index={3}
+            done={Boolean(draft.name && draft.phone && draft.email)}
+            title="Data pemesan"
+            hint="Kami mengirim konfirmasi dan rincian pembayaran ke nomor WhatsApp ini."
+          >
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <Label htmlFor="kt-name" className="text-ink text-sm font-semibold">
@@ -796,69 +758,9 @@ export function CateringForm({
                 {fieldErrors.email && <FieldError message={fieldErrors.email} />}
               </div>
             </div>
-          </div>
-        )}
+          </CheckoutSection>
 
-        {step === 4 && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-8 duration-300 ease-out">
-            <StepIntro title="Periksa sekali lagi sebelum dikirim">
-              Ada yang keliru? Ketuk Ubah di kelompok yang ingin diganti.
-            </StepIntro>
-
-            <div className="border-line overflow-hidden rounded-lg border bg-white">
-              <SummarySection title="Pesanan" onEdit={() => goToStep(1)}>
-                {lines.map(({ pkg, qty, subtotal }) => (
-                  <SummaryRow
-                    key={pkg.id}
-                    label={TYPE_LABEL[pkg.type] ?? 'Katering'}
-                    amount={subtotal}
-                  >
-                    {pkg.name}, {qty.toLocaleString('id-ID')} box
-                  </SummaryRow>
-                ))}
-              </SummarySection>
-              <SummarySection title="Jadwal & alamat" onEdit={() => goToStep(2)}>
-                <SummaryRow label="Dikirim">
-                  {draft.requested_date ? formatDate(draft.requested_date) : '-'}
-                  {draft.requested_time && `, ${draft.requested_time} WIB`}
-                </SummaryRow>
-                <SummaryRow label="Alamat">
-                  {draft.recipient_institution && (
-                    <span className="block">{draft.recipient_institution}</span>
-                  )}
-                  <span className="text-ink-muted block text-xs leading-5 font-normal">
-                    {draft.delivery.detail}
-                    <br />
-                    Kel. {draft.delivery.village_name}, Kec. {draft.delivery.district_name}
-                    <br />
-                    {draft.delivery.city_name}, {draft.delivery.province_name}{' '}
-                    {draft.delivery.postal_code}
-                  </span>
-                </SummaryRow>
-              </SummarySection>
-              <SummarySection title="Data pemesan" onEdit={() => goToStep(3)}>
-                <SummaryRow label="Pemesan">
-                  {draft.name}
-                  <span className="text-ink-muted block text-xs font-normal wrap-break-word">
-                    {draft.phone}
-                    <br />
-                    {draft.email}
-                  </span>
-                </SummaryRow>
-              </SummarySection>
-              <SummaryTotal
-                label={
-                  <>
-                    Total tagihan
-                    <span className="block text-sm font-normal">
-                      {totalBoxes.toLocaleString('id-ID')} box
-                    </span>
-                  </>
-                }
-                total={total}
-              />
-            </div>
-
+          <CheckoutSection id="bagian-catatan" index={4} done={false} title="Catatan & kirim">
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <Label
@@ -906,27 +808,39 @@ export function CateringForm({
 
             <p className="bg-surface-muted text-ink flex items-start gap-2.5 rounded-lg p-4 text-sm leading-6">
               <ShieldCheck aria-hidden className="text-primary mt-0.5 size-5 shrink-0" />
-              Setelah Anda menekan Konfirmasi, kami menampilkan nomor pesanan dan cara
+              Setelah Anda menekan Kirim Pesanan, kami menampilkan nomor pesanan dan cara
               pembayarannya. Simpan nomor itu untuk melacak pesanan.
             </p>
-          </div>
-        )}
+          </CheckoutSection>
 
-        <StepNav
-          steps={STEPS}
-          current={step}
-          total={total}
-          status={
-            totalBoxes > 0
-              ? `${totalBoxes.toLocaleString('id-ID')} box dari ${lines.length} paket`
-              : 'Belum ada paket dipilih'
-          }
-          pending={pending}
-          onBack={() => goToStep(step - 1)}
-          onNext={() => validateStep(step) && goToStep(step + 1)}
-          onSubmit={submit}
-        />
+          {/* Ringkasan galat tepat di atas tombol kirim, tempat mata pemesan
+              berada saat tombolnya ditolak. Tiap baris melompat ke medannya. */}
+          <ErrorSummary errors={fieldErrors} labels={FIELD_LABEL} onJump={jumpToField} />
+
+          <SubmitBar
+            total={total}
+            status={
+              totalBoxes > 0
+                ? `${totalBoxes.toLocaleString('id-ID')} box dari ${lines.length} paket`
+                : 'Belum ada paket dipilih'
+            }
+            pending={pending}
+            onSubmit={submit}
+          />
+        </div>
       </div>
+      <OrderAside
+        lines={lines
+          .filter((l) => l.subtotal > 0)
+          .map((l) => ({
+            label: l.pkg.name,
+            detail: `${l.qty.toLocaleString('id-ID')} box`,
+            amount: l.subtotal,
+          }))}
+        total={total}
+        empty="Isi jumlah box untuk melihat tagihannya."
+        brandName={brandName}
+      />
     </div>
   );
 }

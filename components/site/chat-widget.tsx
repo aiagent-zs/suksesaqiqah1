@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { siteConfig } from '@/lib/constants/site';
+import { channelFromPath } from '@/lib/brand';
 import { IconChat, IconClose, IconWhatsApp } from './icons';
 
 type Message = { role: 'user' | 'assistant'; content: string; handoff?: boolean };
@@ -63,7 +64,12 @@ export function ChatWidget({ brandName }: { brandName: string }) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: recent.map(({ role, content }) => ({ role, content })) }),
+        body: JSON.stringify({
+          messages: recent.map(({ role, content }) => ({ role, content })),
+          // `/api/chat` tidak berada di bawah `/aqiqahaja`, jadi kanalnya dibawa dari
+          // halaman yang sedang dibuka.
+          channel: channelFromPath(pathname ?? '/'),
+        }),
       });
       const data = (await res.json()) as { reply?: string; handoff?: boolean };
       setMessages([
@@ -90,7 +96,7 @@ export function ChatWidget({ brandName }: { brandName: string }) {
 
   // Checkout punya bilah tombol tetap di bawah layar; gelembung ini
   // menutupinya di ponsel, dan pemesan di sana sudah tahu apa yang dicari.
-  if (pathname?.startsWith('/checkout')) return null;
+  if (pathname?.startsWith('/checkout') || pathname?.startsWith('/aqiqahaja/checkout')) return null;
 
   const lastQuestion = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
   const waHref = siteConfig.whatsapp.href(

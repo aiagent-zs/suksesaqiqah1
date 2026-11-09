@@ -1,11 +1,13 @@
 import Link from 'next/link';
-import { getBrand, getChannel } from '@/lib/brand-server';
+import { getChannel } from '@/lib/brand-server';
+import { BRANDS, channelHref, type Channel } from '@/lib/brand';
 import { footerNav, siteConfig } from '@/lib/constants/site';
 import { IconArrowRight, IconInstagram, IconMail, IconWhatsApp } from './icons';
 import { Logo } from './logo';
 
 export async function SiteFooter() {
-  const [brand, channel] = await Promise.all([getBrand(), getChannel()]);
+  const channel = await getChannel();
+  const brand = BRANDS[channel];
   const year = 2026; // Date.now() tidak tersedia di lingkungan build ini.
 
   return (
@@ -51,8 +53,8 @@ export async function SiteFooter() {
           {/* Dua kolom berdampingan sejak ponsel: dua daftar pendek yang
               ditumpuk hanya menambah panjang gulir tanpa menambah isi. */}
           <div className="grid grid-cols-2 gap-6 lg:contents">
-            <FooterGroup title="Layanan" items={footerNav.layanan} />
-            <FooterGroup title="Bantuan" items={footerNav.bantuan} />
+            <FooterGroup title="Layanan" items={footerNav.layanan} channel={channel} />
+            <FooterGroup title="Bantuan" items={footerNav.bantuan} channel={channel} />
           </div>
         </div>
 
@@ -67,9 +69,11 @@ export async function SiteFooter() {
 function FooterGroup({
   title,
   items,
+  channel,
 }: {
   title: string;
   items: readonly { label: string; href: string }[];
+  channel: Channel;
 }) {
   return (
     <nav aria-label={title}>
@@ -79,7 +83,7 @@ function FooterGroup({
         {items.map((item) => (
           <li key={item.href}>
             <Link
-              href={item.href}
+              href={channelHref(channel, item.href)}
               className="group flex min-h-11 items-center gap-1.5 text-sm text-white/85 hover:text-white"
             >
               {item.label}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BRANDS, parseChannel } from '@/lib/brand';
+import { BRANDS, channelFromPath, channelHref, parseChannel } from '@/lib/brand';
 
 /**
  * Nilai kanal datang dari query (`?ch=`) dan cookie, dua-duanya bisa diketik
@@ -17,5 +17,33 @@ describe('parseChannel', () => {
       expect(parseChannel(raw)).toBe('web');
     }
     expect(BRANDS.web.name).toBe('Sukses Aqiqah');
+  });
+});
+
+describe('area /aqiqahaja', () => {
+  it('kanal dibaca dari path, bukan dari awalan yang kebetulan mirip', () => {
+    expect(channelFromPath('/aqiqahaja')).toBe('linkaja');
+    expect(channelFromPath('/aqiqahaja/checkout/katering')).toBe('linkaja');
+    for (const p of ['/', '/checkout', '/aqiqahajaX', '/paket/aqiqahaja']) {
+      expect(channelFromPath(p)).toBe('web');
+    }
+  });
+
+  it('tautan internal LinkAja tetap di dalam areanya', () => {
+    expect(channelHref('linkaja', '/')).toBe('/aqiqahaja');
+    expect(channelHref('linkaja', '/#faq')).toBe('/aqiqahaja#faq');
+    expect(channelHref('linkaja', '/checkout?paket=x')).toBe('/aqiqahaja/checkout?paket=x');
+    expect(channelHref('linkaja', '/lacak')).toBe('/aqiqahaja/lacak');
+  });
+
+  it('laporan peserta, tautan luar, dan anchor tidak diberi awalan', () => {
+    expect(channelHref('linkaja', '/r/abc')).toBe('/r/abc');
+    expect(channelHref('linkaja', 'https://wa.me/62')).toBe('https://wa.me/62');
+    expect(channelHref('linkaja', '#paket')).toBe('#paket');
+  });
+
+  it('web tidak berubah', () => {
+    expect(channelHref('web', '/checkout')).toBe('/checkout');
+    expect(channelHref('web', '/')).toBe('/');
   });
 });

@@ -7,7 +7,8 @@ import { buildTimeline } from '@/features/tracking/timeline';
 import { ORDER_STATUS_META, PAYMENT_STATUS_META } from '@/lib/constants/order';
 import { formatDate } from '@/lib/format';
 import { siteConfig } from '@/lib/constants/site';
-import { getBrand } from '@/lib/brand-server';
+import { getChannel } from '@/lib/brand-server';
+import { BRANDS, channelHref } from '@/lib/brand';
 import { IconCheck, IconWhatsApp } from '@/components/site/icons';
 
 export const metadata: Metadata = {
@@ -31,7 +32,8 @@ export default async function TrackPage({ searchParams }: PageProps<'/lacak'>) {
   const submitted = nomor !== '' || hp !== '';
   const validInput = nomor.length >= 4 && /^\d{4}$/.test(hp);
 
-  const { name: brandName } = await getBrand();
+  const channel = await getChannel();
+  const brandName = BRANDS[channel].name;
   const result: TrackingLookup | null =
     submitted && validInput ? await lookupOrder(nomor, hp, clientIpFrom(await headers())) : null;
 
@@ -46,7 +48,7 @@ export default async function TrackPage({ searchParams }: PageProps<'/lacak'>) {
 
         <form
           method="get"
-          action="/lacak"
+          action={channelHref(channel, '/lacak')}
           className="border-line mt-8 grid gap-4 rounded-lg border bg-white p-5 sm:grid-cols-[1fr_10rem_auto] sm:items-end sm:p-6"
         >
           <div>

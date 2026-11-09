@@ -11,7 +11,7 @@ import type { Draft } from '../../draft';
 import { splitCommonFeatures } from '../../package-features';
 import { ChoiceCard } from './choice-card';
 import { FieldError } from './field-error';
-import { SectionLabel, StepIntro } from './step-header';
+import { SectionLabel } from './step-header';
 import { StepperButton } from './stepper-button';
 import { AQIQAH_FOR_OPTIONS, MAX_QTY, RECOMMENDED_QTY } from './constants';
 
@@ -44,11 +44,7 @@ export function StepPesanan({
   const boxItems = splitCommonFeatures(nasiBoxes.map((b) => b.items));
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-10 duration-300 ease-out">
-      <StepIntro title="Aqiqah apa yang ingin Anda pesan?">
-        Pilih satu di tiap bagian. Totalnya dihitung ulang setiap kali Anda memilih.
-      </StepIntro>
-
+    <div className="space-y-6">
       <div>
         <SectionLabel
           id="co-aqiqahfor-label"

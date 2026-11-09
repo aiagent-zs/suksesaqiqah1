@@ -1,10 +1,14 @@
 import 'server-only';
-import { cookies } from 'next/headers';
-import { BRANDS, CHANNEL_COOKIE, parseChannel, type Brand, type Channel } from './brand';
+import { headers } from 'next/headers';
+import { BRANDS, CHANNEL_HEADER, parseChannel, type Brand, type Channel } from './brand';
 
-/** Kanal pengunjung saat ini, dari cookie yang disetel `proxy.ts`. */
+/**
+ * Kanal permintaan ini, dari header yang disetel `proxy.ts` menurut path.
+ * Server action ikut membawanya: action dipanggil dari halaman `/aqiqahaja/...`
+ * dan POST-nya menuju path halaman itu.
+ */
 export async function getChannel(): Promise<Channel> {
-  return parseChannel((await cookies()).get(CHANNEL_COOKIE)?.value);
+  return parseChannel((await headers()).get(CHANNEL_HEADER));
 }
 
 export async function getBrand(): Promise<Brand> {

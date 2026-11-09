@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { buildSystemPrompt } from '@/features/chatbot/knowledge';
-import { getBrand } from '@/lib/brand-server';
+import { BRANDS, CHANNELS } from '@/lib/brand';
 import { RateLimiter, rateLimitKeyFrom } from '@/lib/security/rate-limit';
 
 /**
@@ -22,6 +22,8 @@ const client = new Anthropic();
 const chatLimiter = new RateLimiter({ limit: 20, windowMs: 10 * 60 * 1000 });
 
 const bodySchema = z.object({
+  // Hanya menentukan nama merek & tautan di jawaban, bukan hak akses apa pun.
+  channel: z.enum(CHANNELS).default('web'),
   messages: z
     .array(
       z.object({
@@ -88,7 +90,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const brand = await getBrand();
+    const { channel } = parsed.data;
     const response = await client.beta.messages.create({
       model: 'claude-opus-5-5',
       // Jawaban chat pendek; batas ini juga plafon biaya per pesan dari
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
       system: [
         {
           type: 'text',
-          text: await buildSystemPrompt(brand.name),
+          text: await buildSystemPrompt(BRANDS[channel].name, channel),
           cache_control: { type: 'ephemeral' },
         },
       ],

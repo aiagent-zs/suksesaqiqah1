@@ -1,5 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
-import { getBrand } from '@/lib/brand-server';
+import { getChannel } from '@/lib/brand-server';
+import { BRANDS } from '@/lib/brand';
+import { CheckoutHero } from '@/features/checkout/components/checkout-hero';
 import { getCheckoutOptions } from '@/features/checkout/queries';
 import { bookingMaxDate, bookingMinDate } from '@/features/checkout/schema';
 import { todayWib } from '@/lib/format/date-range';
@@ -48,6 +50,7 @@ export default async function CheckoutPage({
   // badan komponen melanggar aturan kemurnian React, dan jam peramban pemesan
   // bisa berada di zona waktu mana saja — sementara batasnya harus WIB, sama
   // dengan yang ditegakkan `create_guest_order`.
+  const channel = await getChannel();
   const minDate = bookingMinDate();
   const maxDate = bookingMaxDate();
   // Hari ini, terpisah dari batas bawah pemesanan: sejak ada jeda persiapan
@@ -56,33 +59,17 @@ export default async function CheckoutPage({
   const today = todayWib();
 
   return (
-    // Latar putih polos, sejalan dengan landing. Versi sebelumnya memakai latar
-    // abu agar kartu form tampak "melayang" — sekarang formnya sendiri sudah
-    // datar dan bergaris rambut, jadi tidak ada yang perlu diangkat.
-    <div className="relative min-h-screen pb-14 sm:pb-20">
-      {/* Tekstur yang sama dengan hero landing, memudar cepat ke bawah — dua
-          halaman ini terasa berasal dari sistem yang sama, dan formnya sendiri
-          tetap di atas latar putih polos supaya isian mudah dibaca. */}
-      <div
-        aria-hidden
-        className="bg-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 [mask-image:radial-gradient(100%_80%_at_20%_0%,black,transparent_75%)]"
-      />
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
-        <header className="border-b border-neutral-200 py-10 sm:py-14">
-          <p className="text-primary text-sm font-semibold">
-            Pemesanan mandiri
-          </p>
-          <h1 className="mt-4 text-[1.75rem] leading-tight font-bold tracking-tight text-neutral-900 sm:text-4xl">
-            Pesan aqiqah
-          </h1>
-          <p className="mt-3.5 max-w-xl text-base leading-7 text-neutral-600">
-            Empat langkah singkat, tanpa perlu membuat akun. Tim kami menghubungi Anda lewat
-            WhatsApp untuk konfirmasi dan pembayaran.
-          </p>
-        </header>
+    // Latar abu-hijau, form dalam kartu putih: tiap bagian terpisah jelas
+    // dari latarnya. Versi putih polos membuat isian mengalir tanpa batas.
+    <div className="bg-surface-muted min-h-screen pb-10">
+      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:max-w-6xl">
+        <CheckoutHero channel={channel} title="Pesan aqiqah">
+          Satu halaman, tanpa perlu membuat akun. Tim kami menghubungi Anda lewat WhatsApp untuk
+          konfirmasi dan pembayaran.
+        </CheckoutHero>
 
         {unavailable ? (
-          <div className="mt-8 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900">
             <AlertTriangle className="mt-0.5 size-5 shrink-0" />
             <div>
               <p className="font-medium">Pemesanan mandiri belum tersedia</p>
@@ -100,7 +87,7 @@ export default async function CheckoutPage({
             maxDate={maxDate}
             today={today}
             initialServiceId={preselected?.id}
-            brandName={(await getBrand()).name}
+            brandName={BRANDS[channel].name}
           />
         )}
       </div>
