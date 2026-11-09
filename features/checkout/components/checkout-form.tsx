@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react';
-import { CalendarClock, ClipboardCheck, Package, RotateCcw, User } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { Toast, type ToastState } from '@/components/ui/toast';
 import { formatDate } from '@/lib/format';
+import { ANIMAL_SPECIES_LABEL } from '@/lib/constants/order';
 import { siteConfig } from '@/lib/constants/site';
 import { createGuestOrderAction } from '@/server/actions/checkout';
 import { orderWhatsAppMessage } from '../order-message';
@@ -28,63 +29,15 @@ import type { CheckoutPackage, GuestOrderResult, NasiBoxPackage, RegionOption } 
 import { StepPesanan } from './steps/step-pesanan';
 import { StepJadwal } from './steps/step-jadwal';
 import { StepDataPemesan } from './steps/step-data-pemesan';
-import { StepRingkasan } from './steps/step-ringkasan';
-import { StepHeader } from './steps/step-header';
+import { StepCatatan } from './steps/step-catatan';
+import { CheckoutSection, SubmitBar } from './steps/checkout-section';
 import { SuccessPanel } from './steps/success-panel';
+import { OrderAside } from './steps/order-aside';
 import { ErrorSummary } from './steps/error-summary';
-import { StepNav } from './steps/step-nav';
-
-/**
- * Jeda sebelum tombol kirim mau menerima klik, dihitung sejak tiba di langkah
- * terakhir. Cukup panjang untuk menelan klik ganda dan klik susulan yang tidak
- * disengaja, cukup pendek untuk tidak terasa oleh orang yang memang membaca
- * ringkasannya dulu.
- */
-const SUBMIT_ARM_DELAY_MS = 700;
-
-/**
- * Empat langkah, bukan enam.
- *
- * "Aqiqah untuk", "Paket", dan "Nasi box" disatukan pada 19 Agustus 2026:
- * ketiganya menjawab satu pertanyaan yang sama — *apa yang dipesan* — dan
- * masing-masing hanya menuntut satu klik. Memecahnya jadi tiga langkah membuat
- * pemesan menekan "Lanjut" dua kali tanpa mengisi apa pun di antaranya, sambil
- * menyembunyikan bahwa paket dan nasi box saling memengaruhi total.
- */
-const STEPS = [
-  {
-    id: 1,
-    title: 'Pesanan',
-    shortTitle: 'Pesanan',
-    icon: Package,
-    description: 'Paket, jumlah ekor, nasi box',
-  },
-  {
-    id: 2,
-    title: 'Jadwal & Penyaluran',
-    shortTitle: 'Jadwal',
-    icon: CalendarClock,
-    description: 'Tanggal, jam, cara kirim',
-  },
-  {
-    id: 3,
-    title: 'Data Pemesan',
-    shortTitle: 'Data',
-    icon: User,
-    description: 'Kontak & nama anak',
-  },
-  {
-    id: 4,
-    title: 'Ringkasan',
-    shortTitle: 'Ringkasan',
-    icon: ClipboardCheck,
-    description: 'Periksa lalu konfirmasi',
-  },
-];
 
 /**
  * Anjuran jumlah ekor per jenis kelamin — anjuran, bukan paksaan: pemesan tetap
- * bebas mengubahnya di tahap berikutnya.
+ * bebas mengubahnya sesudahnya.
  */
 const RECOMMENDED_QTY: Record<string, number> = { laki_laki: 2, perempuan: 1 };
 
@@ -156,8 +109,12 @@ const FIELD_LABEL: Record<string, string> = {
   notes: 'Catatan',
 };
 
-/** Langkah tempat tiap medan tinggal — server tidak tahu soal langkah. */
-const FIELD_STEP: Record<string, number> = {
+/**
+ * Bagian tempat tiap medan tinggal, untuk mengurutkan galat sesuai urutan di
+ * layar. Server memvalidasi seluruh payload sekaligus dan tidak tahu soal
+ * bagian, jadi urutannya ditentukan di sini.
+ */
+const FIELD_SECTION: Record<string, number> = {
   aqiqah_for: 1,
   service_id: 1,
   species: 1,
@@ -226,43 +183,16 @@ export function CheckoutForm({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState<GuestOrderResult | null>(null);
-  const [currentStep, setCurrentStep] = useState<number>(1);
   /**
    * Pemberitahuan sekilas di pojok layar.
    *
-   * `id` yang naik tiap kali, bukan sekadar pesannya: menekan "Lanjut" dua kali
+   * `id` yang naik tiap kali, bukan sekadar pesannya: menekan kirim dua kali
    * dengan kesalahan yang sama harus memunculkan toast lagi. Kalau kuncinya
    * pesan, React melihat nilai yang sama dan tidak menganimasikan apa pun —
    * pemesan menekan tombol dan tampak tidak terjadi apa-apa.
    */
   const [toast, setToast] = useState<ToastState>(null);
   const toastSeq = useRef(0);
-  /**
-   * Apakah tombol kirim sudah boleh dianggap benar-benar disengaja.
-   *
-   * Penanda boolean + timer, bukan perbandingan `Date.now()`: memanggil jam di
-   * badan komponen melanggar aturan kemurnian React (hasilnya bisa berbeda tiap
-   * render ulang).
-   */
-  const submitArmedRef = useRef(false);
-  const armTimerRef = useRef<number | undefined>(undefined);
-  /**
-   * Berapa entri riwayat yang sudah kami dorong sendiri di bawah posisi
-   * sekarang.
-   *
-   * Dipakai `syncStepHistory` untuk memastikan mundur lewat `history.go()`
-   * mendarat di langkah yang dituju, bukan melempar pemesan keluar dari halaman
-   * checkout: di entri paling awal tidak ada apa pun milik kami untuk dimundurkan.
-   */
-  const pushedRef = useRef(0);
-  /**
-   * Cermin `currentStep` yang bisa dibaca seketika.
-   *
-   * `popstate` datang sesudah `moveTo` menyetel langkahnya sendiri, dan
-   * handler-nya dipasang sekali; state React di dalamnya selalu basi. Dari ref
-   * ini ia tahu berapa langkah yang sebenarnya dilompati.
-   */
-  const stepRef = useRef(1);
 
   const [draft, setDraft] = useState<Draft>(() =>
     emptyDraft(initialServiceId ?? packages[0]?.id ?? ''),
@@ -289,11 +219,12 @@ export function CheckoutForm({
    * meresahkan daripada menolong — terlebih bila perangkatnya dipakai berdua.
    * Jadi bacanya di sini, tapi yang memasangnya klik pemesan.
    *
-   * Draft yang berhenti di langkah 1 tidak ditawarkan: pemesan menutup tab
-   * sebelum menyelesaikan apa pun, dan menawarkannya hanya menambah satu
-   * keputusan yang tidak menyelamatkan pekerjaan siapa pun.
+   * Draft yang baru berisi pilihan paket tidak ditawarkan: memilih paket ulang
+   * hanya satu klik, dan menawarkannya menambah satu keputusan yang tidak
+   * menyelamatkan pekerjaan siapa pun. Yang layak diselamatkan adalah isian
+   * ketikan: jadwal, kontak, dan data anak.
    */
-  const recovered = !recoveryHandled && stored && stored.step > 1 ? stored : null;
+  const recovered = !recoveryHandled && stored && hasTypedWork(stored.draft) ? stored : null;
 
   /**
    * Patokan "belum disentuh", dipakai menentukan apakah ada yang layak
@@ -312,8 +243,10 @@ export function CheckoutForm({
   /** Simpan tiap kali isian berubah — tanpa tombol "simpan", tanpa diumumkan. */
   useEffect(() => {
     if (done || !isDirty) return;
-    saveDraft(draft, currentStep);
-  }, [draft, currentStep, done, isDirty]);
+    // Langkah selalu 1: formnya kini satu halaman. Medannya tetap ada supaya
+    // bentuk draft di `sessionStorage` tidak berubah.
+    saveDraft(draft, 1);
+  }, [draft, done, isDirty]);
 
   /**
    * Peringatan bawaan peramban sebelum tab ditutup atau dimuat ulang.
@@ -336,49 +269,6 @@ export function CheckoutForm({
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [isDirty, done, pending]);
-
-  /**
-   * Tombol "kembali" peramban memundurkan **langkah**, bukan meninggalkan
-   * halaman.
-   *
-   * Di ponsel, gestur usap-dari-tepi adalah cara paling lazim untuk membatalkan
-   * sesuatu. Tanpa ini, gestur itu membuang tiga langkah isian sekaligus — dan
-   * `beforeunload` tidak selalu sempat menahannya. Tiap perpindahan langkah
-   * menambah satu entri riwayat, jadi "kembali" mendarat di langkah sebelumnya.
-   *
-   * `window.history` dipakai langsung, bukan `router.push`: panduan Next 16
-   * menyatakan `pushState`/`replaceState` sudah terintegrasi dengan router-nya,
-   * dan ini tidak berpindah rute — hanya menandai posisi di dalam satu halaman.
-   */
-  useEffect(() => {
-    function onPop(e: PopStateEvent) {
-      const state = e.state as { saStep?: number } | null;
-      const step = state?.saStep;
-      // Entri tanpa penanda kami berarti pemesan sudah memundur melewati
-      // seluruh langkah — biarkan peramban meninggalkan halaman seperti biasa.
-      if (typeof step !== 'number') return;
-      const next = Math.min(STEPS.length, Math.max(1, step));
-      // Riwayatnya runut (satu entri per langkah), jadi selisih langkah sama
-      // dengan selisih entri. Bila `moveTo` sudah lebih dulu menyetel langkah
-      // ini, selisihnya nol dan tidak ada yang berubah.
-      pushedRef.current = Math.max(0, pushedRef.current + next - stepRef.current);
-      stepRef.current = next;
-      window.clearTimeout(armTimerRef.current);
-      submitArmedRef.current = false;
-      // "Maju" peramban bisa mendarat di Ringkasan. Tanpa ini tombol kirimnya
-      // tidak pernah siap, dan pemesan menekan tombol yang tidak berbuat apa-apa.
-      if (next === STEPS.length) {
-        armTimerRef.current = window.setTimeout(() => {
-          submitArmedRef.current = true;
-        }, SUBMIT_ARM_DELAY_MS);
-      }
-      setError(null);
-      setCurrentStep(next);
-    }
-
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
 
   const selected = useMemo(
     () => packages.find((p) => p.id === draft.service_id),
@@ -404,7 +294,7 @@ export function CheckoutForm({
 
   /**
    * Memilih jenis kelamin ikut menyetel anjuran jumlah ekor (2 laki-laki,
-   * 1 perempuan). Hanya anjuran — pemesan bebas mengubahnya di tahap 2.
+   * 1 perempuan). Hanya anjuran — pemesan bebas mengubahnya sesudahnya.
    */
   function pickAqiqahFor(value: string) {
     setDraft((prev) => ({
@@ -433,92 +323,79 @@ export function CheckoutForm({
   }
 
   /**
+   * Seluruh isian yang ditolak, dari bagian pertama sampai terakhir.
+   *
    * Aturannya sengaja dibuat sama ketat dengan `guestCheckoutSchema`, bukan
-   * sekadar "tidak kosong". Kalau di sini lebih longgar, nomor telepon ngawur
-   * baru ketahuan setelah pemesan mengisi seluruh langkah dan menekan kirim —
-   * penolakan datang di tempat yang jauh dari penyebabnya.
+   * sekadar "tidak kosong": nomor telepon ngawur harus ditolak di sini, di
+   * samping medannya, bukan dikembalikan server sesudah pesanan dikirim.
+   * Semua bagian diperiksa sekaligus — form ini satu halaman, jadi pemesan
+   * melihat seluruh yang kurang dalam satu kali tekan, bukan satu per satu.
    */
-  function validateStep(step: number): boolean {
+  function collectErrors(): Record<string, string> {
     const errors: Record<string, string> = {};
 
-    if (step === 1) {
-      if (!draft.aqiqah_for) errors.aqiqah_for = 'Pilih salah satu terlebih dahulu';
-      if (!draft.service_id) errors.service_id = 'Pilih paket terlebih dahulu';
-      if (qtyIssue) errors.qty = qtyIssue;
-      // Memilih paket box tanpa jumlah berarti tidak ada yang bisa dipesan.
-      // Selebihnya (pecahan, negatif, di atas batas) memakai medan zod server,
-      // supaya penolakannya muncul di sini, bukan saat menekan kirim.
-      if (draft.nasi_box_service_id) {
-        if (!draft.nasi_box_qty) errors.nasi_box_qty = 'Isi jumlah box, atau pilih "Tidak pakai"';
-        else if (boxQtyIssue) errors.nasi_box_qty = boxQtyIssue;
-      }
-    } else if (step === 2) {
-      // Batasnya dibandingkan sebagai teks: `YYYY-MM-DD` berurut secara
-      // leksikografis, jadi tidak perlu mengurai tanggal — sekaligus tidak
-      // memperkenalkan zona waktu peramban ke dalam perbandingan.
-      if (!draft.requested_date) errors.requested_date = 'Pilih tanggal pelaksanaan';
-      else if (draft.requested_date < today) {
-        errors.requested_date = 'Tanggal pelaksanaan sudah lewat';
-      } else if (draft.requested_date < minDate) {
-        errors.requested_date = `Paling cepat ${BOOKING_MIN_DAYS} hari setelah pemesanan (${formatDate(minDate)})`;
-      } else if (draft.requested_date > maxDate) {
-        errors.requested_date = `Maksimal ${BOOKING_MAX_DAYS} hari ke depan`;
-      }
-
-      if (!draft.requested_time) errors.requested_time = 'Pilih jam pelaksanaan';
-
-      if (!draft.distribution_mode) errors.distribution_mode = 'Pilih cara penyaluran';
-
-      if (draft.distribution_mode === 'kirim') {
-        const a = draft.delivery;
-        if (!a.province_code) errors.delivery_province_code = 'Pilih provinsi tujuan';
-        if (!a.city_code) errors.delivery_city_code = 'Pilih kabupaten/kota tujuan';
-        if (!a.district_code) errors.delivery_district_code = 'Pilih kecamatan tujuan';
-        if (!a.village_code) errors.delivery_village_code = 'Pilih kelurahan/desa tujuan';
-        if (!a.postal_code) errors.delivery_postal_code = 'Kode pos wajib diisi';
-        else if (!/^[0-9]{5}$/.test(a.postal_code)) {
-          errors.delivery_postal_code = 'Kode pos harus 5 digit angka';
-        }
-        if (!a.detail.trim()) errors.delivery_detail = 'Isi nama jalan dan nomor rumah';
-      }
-    } else if (step === 3) {
-      if (draft.name.trim().length < 2) errors.name = 'Nama pemesan wajib diisi';
-
-      const phone = draft.phone.trim();
-      if (!phone) errors.phone = 'Nomor WhatsApp wajib diisi';
-      else if (phone.length < 8) errors.phone = 'Nomor telepon terlalu pendek';
-      else if (!/^[0-9+()\- ]+$/.test(phone)) {
-        errors.phone = 'Hanya boleh angka dan tanda + ( ) -';
-      }
-
-      const email = draft.email.trim();
-      if (!email) errors.email = 'Email wajib diisi';
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        errors.email = 'Format email tidak valid';
-      }
-
-      if (draft.child_name.trim().length < 2) errors.child_name = 'Nama anak wajib diisi';
-
-      if (draft.child_birth_place.trim().length < 2) {
-        errors.child_birth_place = 'Tempat lahir anak wajib diisi';
-      }
-
-      if (!draft.child_birth_date) errors.child_birth_date = 'Isi tanggal lahir anak';
-      else if (draft.child_birth_date > today) {
-        errors.child_birth_date = 'Tanggal lahir tidak boleh di masa depan';
-      } else if (draft.child_birth_date < CHILD_BIRTH_MIN_DATE) {
-        errors.child_birth_date = 'Periksa lagi tahun lahirnya';
-      }
+    // 1 · Pesanan
+    if (!draft.aqiqah_for) errors.aqiqah_for = 'Pilih salah satu terlebih dahulu';
+    if (!draft.service_id) errors.service_id = 'Pilih paket terlebih dahulu';
+    if (qtyIssue) errors.qty = qtyIssue;
+    // Memilih paket box tanpa jumlah berarti tidak ada yang bisa dipesan.
+    // Selebihnya (pecahan, negatif, di atas batas) memakai medan zod server.
+    if (draft.nasi_box_service_id) {
+      if (!draft.nasi_box_qty) errors.nasi_box_qty = 'Isi jumlah box, atau pilih "Tidak pakai"';
+      else if (boxQtyIssue) errors.nasi_box_qty = boxQtyIssue;
     }
 
-    setFieldErrors(errors);
-    const count = Object.keys(errors).length;
-    if (count > 0) {
-      showErrorToast(count);
-      focusFirstError(errors);
-      return false;
+    // 2 · Jadwal & penyaluran. Batas tanggal dibandingkan sebagai teks:
+    // `YYYY-MM-DD` berurut secara leksikografis, jadi tidak perlu mengurai
+    // tanggal — sekaligus tidak membawa zona waktu peramban ke perbandingan.
+    if (!draft.requested_date) errors.requested_date = 'Pilih tanggal pelaksanaan';
+    else if (draft.requested_date < today) {
+      errors.requested_date = 'Tanggal pelaksanaan sudah lewat';
+    } else if (draft.requested_date < minDate) {
+      errors.requested_date = `Paling cepat ${BOOKING_MIN_DAYS} hari setelah pemesanan (${formatDate(minDate)})`;
+    } else if (draft.requested_date > maxDate) {
+      errors.requested_date = `Maksimal ${BOOKING_MAX_DAYS} hari ke depan`;
     }
-    return true;
+    if (!draft.requested_time) errors.requested_time = 'Pilih jam pelaksanaan';
+    if (!draft.distribution_mode) errors.distribution_mode = 'Pilih cara penyaluran';
+    if (draft.distribution_mode === 'kirim') {
+      const a = draft.delivery;
+      if (!a.province_code) errors.delivery_province_code = 'Pilih provinsi tujuan';
+      if (!a.city_code) errors.delivery_city_code = 'Pilih kabupaten/kota tujuan';
+      if (!a.district_code) errors.delivery_district_code = 'Pilih kecamatan tujuan';
+      if (!a.village_code) errors.delivery_village_code = 'Pilih kelurahan/desa tujuan';
+      if (!a.postal_code) errors.delivery_postal_code = 'Kode pos wajib diisi';
+      else if (!/^[0-9]{5}$/.test(a.postal_code)) {
+        errors.delivery_postal_code = 'Kode pos harus 5 digit angka';
+      }
+      if (!a.detail.trim()) errors.delivery_detail = 'Isi nama jalan dan nomor rumah';
+    }
+
+    // 3 · Data pemesan & anak
+    if (draft.name.trim().length < 2) errors.name = 'Nama pemesan wajib diisi';
+    const phone = draft.phone.trim();
+    if (!phone) errors.phone = 'Nomor WhatsApp wajib diisi';
+    else if (phone.length < 8) errors.phone = 'Nomor telepon terlalu pendek';
+    else if (!/^[0-9+()\- ]+$/.test(phone)) {
+      errors.phone = 'Hanya boleh angka dan tanda + ( ) -';
+    }
+    const email = draft.email.trim();
+    if (!email) errors.email = 'Email wajib diisi';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Format email tidak valid';
+    }
+    if (draft.child_name.trim().length < 2) errors.child_name = 'Nama anak wajib diisi';
+    if (draft.child_birth_place.trim().length < 2) {
+      errors.child_birth_place = 'Tempat lahir anak wajib diisi';
+    }
+    if (!draft.child_birth_date) errors.child_birth_date = 'Isi tanggal lahir anak';
+    else if (draft.child_birth_date > today) {
+      errors.child_birth_date = 'Tanggal lahir tidak boleh di masa depan';
+    } else if (draft.child_birth_date < CHILD_BIRTH_MIN_DATE) {
+      errors.child_birth_date = 'Periksa lagi tahun lahirnya';
+    }
+
+    return errors;
   }
 
   /**
@@ -538,26 +415,16 @@ export function CheckoutForm({
   }
 
   /**
-   * Bawa perhatian ke satu medan: pindah langkah bila perlu, gulir ke sana,
-   * lalu fokuskan.
+   * Bawa perhatian ke satu medan: gulir ke sana, lalu fokuskan.
    *
    * Dipakai dua jalur — melompat otomatis ke galat pertama, dan menekan satu
-   * baris di ringkasan galat. Keduanya harus berperilaku persis sama, jadi
-   * keduanya lewat sini.
+   * baris di ringkasan galat. Keduanya harus berperilaku persis sama.
    */
   function jumpToField(field: string) {
-    const step = FIELD_STEP[field];
-    // Lewat `moveTo`, bukan `setCurrentStep`: perpindahan yang melewati
-    // riwayat membuat tombol kembali peramban tidak lagi sejalan dengan layar.
-    // Tanpa gulir ke atas, karena medannya sendiri yang akan digulir ke tengah.
-    if (step && step !== stepRef.current) moveTo(step, false);
-
     const anchor = FIELD_ANCHOR[field];
     if (!anchor) return;
-
-    // Jeda kecil, bukan rAF: medannya bisa berada di langkah lain yang baru
-    // akan dirender setelah `setCurrentStep`. rAF kerap menyala sebelum React
-    // sempat memasangnya, sehingga elemennya belum ada saat dicari.
+    // Jeda kecil: pesan galatnya baru dirender sesudah `setFieldErrors`, dan
+    // posisi medan bisa bergeser karenanya.
     window.setTimeout(() => {
       const el = document.getElementById(anchor);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -566,182 +433,43 @@ export function CheckoutForm({
   }
 
   /**
-   * Bawa perhatian ke medan pertama yang bermasalah. Tanpa ini pesan galat bisa
-   * berada di luar layar dan tombol "Lanjut" tampak tidak merespons.
-   *
-   * Urutannya mengikuti `FIELD_STEP` lalu `FIELD_ANCHOR`, bukan urutan kunci
-   * pada objek galat — yang terakhir itu urutan penyisipan, dan bisa menaruh
-   * medan langkah 3 di depan medan langkah 1.
+   * Bawa perhatian ke medan pertama yang bermasalah, menurut urutan bagian di
+   * layar — bukan urutan kunci objek galat, yang bisa menaruh medan bagian 3
+   * di depan medan bagian 1.
    */
   function focusFirstError(errors: Record<string, string>) {
     const first = Object.keys(errors)
       .filter((key) => FIELD_ANCHOR[key])
-      .sort((a, b) => (FIELD_STEP[a] ?? 99) - (FIELD_STEP[b] ?? 99))[0];
-    if (!first) return;
-    jumpToField(first);
-  }
-
-  /** Pindah langkah atas kehendak pemesan; pesan galat server ikut dibuang. */
-  function goToStep(next: number) {
-    setError(null);
-    moveTo(next);
-  }
-
-  /**
-   * Satu-satunya jalan berpindah langkah, supaya penguncian tombol kirim dan
-   * riwayat peramban tidak bisa terlewat lewat jalur lain.
-   */
-  function moveTo(next: number, scrollTop = true) {
-    // Tombol "Lanjut" dan "Konfirmasi & Kirim" menempati titik layar yang sama.
-    // Begitu langkah berpindah, tombol kirim langsung berada tepat di bawah
-    // kursor — klik kedua yang menyusul (atau klik ganda) mendarat di sana dan
-    // pesanan tercatat tanpa pernah dimaksudkan. `key` berbeda tidak menolong:
-    // itu hanya mencegah fokus ikut berpindah, bukan posisinya di layar.
-    window.clearTimeout(armTimerRef.current);
-    submitArmedRef.current = false;
-    if (next === STEPS.length) {
-      armTimerRef.current = window.setTimeout(() => {
-        submitArmedRef.current = true;
-      }, SUBMIT_ARM_DELAY_MS);
-    }
-    syncStepHistory(next);
-    stepRef.current = next;
-    setCurrentStep(next);
-    // Toast penolakan milik langkah yang baru saja lolos. Kalau dibiarkan, ia
-    // masih berbunyi "3 isian perlu diperbaiki" di langkah berikutnya yang
-    // sebenarnya bersih. `focusFirstError` memanggil ini dengan
-    // `scrollTop=false` dan memunculkan toastnya sesudahnya, jadi aman.
-    if (scrollTop) setToast(null);
-    // Tanpa ini, di ponsel judul dan medan pertama langkah baru berada jauh di
-    // atas layar: halamannya tetap di posisi tombol "Lanjut" yang baru diklik.
-    // Tanpa `behavior`, jadi `scroll-behavior` di globals.css yang menentukan,
-    // dan itu sudah dimatikan untuk `prefers-reduced-motion`.
-    if (scrollTop) window.scrollTo({ top: 0 });
-  }
-
-  /**
-   * Menjaga riwayat peramban tetap runut: satu entri per langkah, berurutan.
-   *
-   * Dulu tiap perpindahan menambah satu entri, termasuk lompatan. Melompat
-   * 1 lalu 4 menyisakan tumpukan [1, 4], jadi "Kembali" dari Ringkasan
-   * mendarat di langkah 1, dan "kembali" peramban sesudahnya malah maju.
-   * Sekarang maju mendorong satu entri untuk **tiap** langkah yang dilewati,
-   * dan mundur memakai `history.go()` ke entri langkah itu sendiri, sehingga
-   * "kembali" peramban selalu berarti langkah sebelumnya.
-   *
-   * Entri pertama di-`replaceState` supaya langkah 1 tetap bisa ditinggalkan
-   * dengan sekali "kembali" — kalau ikut di-`push`, pemesan yang baru tiba
-   * harus menekan "kembali" dua kali untuk keluar dari halaman, dan itu
-   * terbaca sebagai halaman yang menyandera.
-   */
-  function syncStepHistory(next: number) {
-    const from = stepRef.current;
-    if (next === from) return;
-
-    if (next < from) {
-      const back = from - next;
-      // Hanya bila entri di bawahnya memang dorongan kami. Selain itu cukup
-      // tandai ulang entri ini, supaya "kembali" tidak keluar dari checkout.
-      // Sengaja tidak membaca `history.state`: saat "Kembali" diklik dua kali
-      // cepat, `go()` yang pertama belum mendarat dan state-nya masih basi.
-      if (pushedRef.current >= back) {
-        pushedRef.current -= back;
-        window.history.go(-back);
-      } else {
-        window.history.replaceState({ ...window.history.state, saStep: next }, '');
-      }
-      return;
-    }
-
-    if (typeof (window.history.state as { saStep?: number } | null)?.saStep !== 'number') {
-      // Entri yang sedang ditempati belum bertanda. Tandai dulu dengan langkah
-      // sekarang, supaya `popstate` mengenalinya saat pemesan mundur ke sini.
-      window.history.replaceState({ ...window.history.state, saStep: from }, '');
-    }
-    for (let step = from + 1; step <= next; step += 1) {
-      window.history.pushState({ saStep: step }, '');
-      pushedRef.current += 1;
-    }
-  }
-
-  function nextStep() {
-    if (validateStep(currentStep)) {
-      goToStep(Math.min(STEPS.length, currentStep + 1));
-    }
+      .sort((a, b) => (FIELD_SECTION[a] ?? 99) - (FIELD_SECTION[b] ?? 99))[0];
+    if (first) jumpToField(first);
   }
 
   /**
    * Menahan pengiriman implisit oleh tombol Enter.
    *
    * Form dengan satu tombol submit akan terkirim begitu Enter ditekan di
-   * sembarang `<input>`. Di langkah terakhir itu berarti pesanan **langsung
-   * tercatat** saat pemesan sekadar mengetik di kolom instansi atau kode
-   * referral — tanpa pernah menekan tombol konfirmasi, dan tanpa bisa
-   * dibatalkan sendiri karena ordernya sudah masuk database.
-   *
-   * Di langkah-langkah sebelumnya Enter tetap berguna: dipakai untuk maju. Di
-   * langkah terakhir sengaja tidak melakukan apa-apa — mengirim pesanan harus
-   * lewat klik yang disengaja.
+   * sembarang `<input>` — dan pesanan langsung tercatat tanpa pemesan pernah
+   * menekan tombol kirim. Textarea butuh Enter untuk baris baru, dan tombol
+   * punya perilakunya sendiri, jadi keduanya dibiarkan.
    */
   function handleEnterKey(e: React.KeyboardEvent<HTMLFormElement>) {
     if (e.key !== 'Enter') return;
-
     const target = e.target as HTMLElement;
-    // Textarea memang butuh Enter untuk baris baru, dan tombol punya
-    // perilakunya sendiri (Enter = klik) yang tidak boleh diganggu.
     if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') return;
-
     e.preventDefault();
-    if (currentStep < STEPS.length) nextStep();
-  }
-
-  /**
-   * "Kembali" selalu berarti langkah sebelumnya, bukan entri riwayat
-   * sebelumnya. `syncStepHistory` yang menyelaraskan riwayatnya.
-   */
-  function prevStep() {
-    goToStep(Math.max(1, currentStep - 1));
-  }
-
-  /**
-   * Penunjuk langkah: mundur bebas, maju hanya bila **setiap** langkah yang
-   * dilewati sah.
-   *
-   * Dulu yang diperiksa hanya langkah yang sedang terbuka, jadi dari langkah 1
-   * pemesan bisa langsung ke Ringkasan dengan jadwal dan data pemesan kosong.
-   * Berhenti di langkah pertama yang bermasalah: `validateStep` sudah
-   * memindahkan layar ke medannya dan menampilkan galatnya.
-   */
-  function jumpStep(target: number) {
-    if (target <= currentStep) {
-      goToStep(target);
-      return;
-    }
-    for (let step = currentStep; step < target; step += 1) {
-      if (!validateStep(step)) return;
-    }
-    goToStep(target);
   }
 
   function submit() {
-    // Abaikan klik yang datang terlalu cepat setelah tiba di langkah terakhir —
-    // itu sisa klik pada tombol "Lanjut", bukan persetujuan mengirim pesanan.
-    // Pesanan tercatat di database dan tidak bisa dibatalkan pemesan, jadi
-    // ambang ragu-ragu ini lebih murah daripada order yang tidak diinginkan.
-    if (!submitArmedRef.current) return;
-
-    // Galat bisa berada di langkah yang sedang tidak tampil — mis. pemesan
-    // melompat lewat penunjuk langkah. Kalau hanya di-`return`, pesannya tidak
-    // pernah dirender dan tombol kirim terlihat seperti rusak. Jadi pindah dulu
-    // ke langkah yang bermasalah.
-    // `validateStep` sendiri yang memindahkan langkah ke medan pertama yang
-    // ditolak, lewat `moveTo`, supaya riwayat peramban ikut runut.
-    for (const step of [1, 2, 3]) {
-      if (!validateStep(step)) return;
+    const errors = collectErrors();
+    setFieldErrors(errors);
+    const count = Object.keys(errors).length;
+    if (count > 0) {
+      showErrorToast(count);
+      focusFirstError(errors);
+      return;
     }
 
     setError(null);
-    setFieldErrors({});
     startTransition(async () => {
       // Alamat diratakan jadi medan-medan datar, dan **hanya kodenya** yang
       // ikut: nama wilayah dibaca ulang RPC dari `regions`, jadi mengirimnya
@@ -766,22 +494,17 @@ export function CheckoutForm({
         // paket keburu dinonaktifkan). Toast-nya harus tetap muncul — dan yang
         // dibacakan pesan dari server, bukan hitungan medan yang nol.
         toastSeq.current += 1;
-        const count = Object.keys(fields).length;
+        const n = Object.keys(fields).length;
         setToast({
           id: toastSeq.current,
           tone: 'error',
           message:
-            count > 0
-              ? count === 1
+            n > 0
+              ? n === 1
                 ? '1 isian perlu diperbaiki'
-                : `${count} isian perlu diperbaiki`
+                : `${n} isian perlu diperbaiki`
               : result.error.message,
         });
-
-        // Server memvalidasi seluruh payload sekaligus dan tidak tahu soal
-        // langkah. `focusFirstError` yang memindahkan langkahnya lewat
-        // `jumpToField`, jadi tidak ada lagi perpindahan terpisah di sini —
-        // dulu keduanya menghitung langkah dengan cara berbeda.
         focusFirstError(fields);
         return;
       }
@@ -791,6 +514,7 @@ export function CheckoutForm({
       // kali tanpa merasa melakukan sesuatu yang salah.
       clearDraft();
       setDone(result.data);
+      window.scrollTo({ top: 0 });
     });
   }
 
@@ -798,7 +522,6 @@ export function CheckoutForm({
   function restoreRecovered() {
     if (!recovered) return;
     setDraft(recovered.draft);
-    goToStep(Math.min(STEPS.length, recovered.step));
     setRecoveryHandled(true);
   }
 
@@ -833,132 +556,169 @@ export function CheckoutForm({
       />
     );
 
+  const speciesLabel =
+    ANIMAL_SPECIES_LABEL[draft.species as keyof typeof ANIMAL_SPECIES_LABEL] ?? 'ekor';
+
   return (
-    <div className="mx-auto max-w-3xl">
-      <StepHeader steps={STEPS} current={currentStep} total={total} onJump={jumpStep} />
-
-      {/* Ringkasan galat: menetap di atas form, tiap baris melompat ke medannya.
-          Ditaruh sebelum tawaran pemulihan karena galat lebih mendesak — yang
-          satu menghalangi pemesan melanjutkan, yang satu cuma menawarkan. */}
-      <ErrorSummary errors={fieldErrors} labels={FIELD_LABEL} onJump={jumpToField} />
-
-      {/*
-        Tawaran memulihkan isian yang tertinggal.
-
-        Ditaruh di bawah kepala wizard, bukan sebagai dialog yang menghadang:
-        isian yang hilang memang menjengkelkan, tapi tidak cukup genting untuk
-        menghalangi orang yang justru datang untuk memesan hal lain.
-      */}
-      {recovered && (
-        <div className="animate-in fade-in mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 duration-300">
-          <div className="flex items-start gap-2.5">
-            <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-700" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-amber-900">Lanjutkan isian sebelumnya?</p>
-              <p className="mt-1 text-xs leading-5 text-amber-800">
-                Kami menemukan pesanan yang belum selesai dari tab ini, tersimpan sampai langkah{' '}
-                {recovered.step} ({STEPS[recovered.step - 1]?.title}).
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={restoreRecovered}
-                  className="inline-flex min-h-11 items-center rounded-lg bg-amber-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-amber-800 active:bg-amber-900"
-                >
-                  Lanjutkan
-                </button>
-                <button
-                  type="button"
-                  onClick={discardRecovered}
-                  className="inline-flex min-h-11 items-center rounded-lg border border-amber-300 bg-white px-4 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 active:bg-amber-200"
-                >
-                  Mulai baru
-                </button>
+    // Dua kolom di desktop: isian kiri, tagihan menempel kanan. Kolom kanan
+    // hilang di bawah `lg`; totalnya tetap di bilah kirim bawah.
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-10">
+      <div className="min-w-0">
+        {/*
+          Tawaran memulihkan isian yang tertinggal. Di atas form, bukan dialog
+          yang menghadang: isian yang hilang memang menjengkelkan, tapi tidak
+          cukup genting untuk menghalangi orang yang datang memesan hal lain.
+        */}
+        {recovered && (
+          <div className="animate-in fade-in mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 duration-300">
+            <div className="flex items-start gap-2.5">
+              <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-700" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-amber-900">Lanjutkan isian sebelumnya?</p>
+                <p className="mt-1 text-xs leading-5 text-amber-800">
+                  Kami menemukan pesanan yang belum selesai dari tab ini.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={restoreRecovered}
+                    className="inline-flex min-h-11 items-center rounded-lg bg-amber-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-amber-800 active:bg-amber-900"
+                  >
+                    Lanjutkan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={discardRecovered}
+                    className="inline-flex min-h-11 items-center rounded-lg border border-amber-300 bg-white px-4 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 active:bg-amber-200"
+                  >
+                    Mulai baru
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <form
-        onSubmit={(e) => {
+        <form
           // Pengiriman form TIDAK PERNAH mencatat pesanan. Jalur satu-satunya
-          // adalah klik tombol konfirmasi. Apa pun yang memicu submit implisit
-          // — Enter di input, tombol yang luput diberi `type`, autofill
-          // peramban — paling jauh hanya memajukan langkah.
-          e.preventDefault();
-          if (currentStep < STEPS.length) nextStep();
-        }}
-        onKeyDown={handleEnterKey}
-        className="pt-6 sm:pt-8"
-      >
-        {/* STEP 1: PESANAN — aqiqah untuk, paket & jumlah ekor, nasi box.
-            Ketiganya dulu langkah terpisah; disatukan karena masing-masing
-            hanya menuntut satu klik dan total tagihannya saling memengaruhi. */}
-        {currentStep === 1 && (
-          <StepPesanan
-            draft={draft}
-            set={set}
-            fieldErrors={fieldErrors}
-            packages={packages}
-            nasiBoxes={nasiBoxes}
-            selectedBox={selectedBox}
-            speciesOptions={speciesOptions}
-            boxSubtotal={boxSubtotal}
-            pickPackage={pickPackage}
-            pickAqiqahFor={pickAqiqahFor}
-          />
-        )}
+          // adalah klik tombol kirim; submit implisit (Enter, autofill) diam.
+          onSubmit={(e) => e.preventDefault()}
+          onKeyDown={handleEnterKey}
+          noValidate
+          className="space-y-4"
+        >
+          <CheckoutSection
+            id="bagian-pesanan"
+            index={1}
+            done={Boolean(draft.aqiqah_for && draft.service_id && !qtyIssue)}
+            title="Pesanan"
+          >
+            <StepPesanan
+              draft={draft}
+              set={set}
+              fieldErrors={fieldErrors}
+              packages={packages}
+              nasiBoxes={nasiBoxes}
+              selectedBox={selectedBox}
+              speciesOptions={speciesOptions}
+              boxSubtotal={boxSubtotal}
+              pickPackage={pickPackage}
+              pickAqiqahFor={pickAqiqahFor}
+            />
+          </CheckoutSection>
 
-        {/* STEP 2: JADWAL & PENYALURAN */}
-        {currentStep === 2 && (
-          <StepJadwal
-            draft={draft}
-            set={set}
-            fieldErrors={fieldErrors}
-            provinces={provinces}
-            minDate={minDate}
-            maxDate={maxDate}
-          />
-        )}
+          <CheckoutSection
+            id="bagian-jadwal"
+            index={2}
+            done={Boolean(draft.requested_date && draft.requested_time && draft.distribution_mode)}
+            title="Jadwal & penyaluran"
+            hint="Jadwal ini masih permintaan. Tim kami mengonfirmasinya lewat WhatsApp."
+          >
+            <StepJadwal
+              draft={draft}
+              set={set}
+              fieldErrors={fieldErrors}
+              provinces={provinces}
+              minDate={minDate}
+              maxDate={maxDate}
+            />
+          </CheckoutSection>
 
-        {/* STEP 3: DATA PEMESAN */}
-        {currentStep === 3 && (
-          <StepDataPemesan draft={draft} set={set} fieldErrors={fieldErrors} today={today} />
-        )}
+          <CheckoutSection
+            id="bagian-data"
+            index={3}
+            done={Boolean(
+              draft.name &&
+              draft.phone &&
+              draft.email &&
+              draft.child_name &&
+              draft.child_birth_place &&
+              draft.child_birth_date,
+            )}
+            title="Data pemesan & anak"
+            hint="Kontak Anda dipakai untuk konfirmasi. Data anak dicetak di sertifikat aqiqah."
+          >
+            <StepDataPemesan draft={draft} set={set} fieldErrors={fieldErrors} today={today} />
+          </CheckoutSection>
 
-        {/* STEP 4: RINGKASAN & KONFIRMASI */}
-        {currentStep === 4 && (
-          <StepRingkasan
-            draft={draft}
-            set={set}
-            fieldErrors={fieldErrors}
-            selected={selected}
-            selectedBox={selectedBox}
-            packageSubtotal={packageSubtotal}
-            boxSubtotal={boxSubtotal}
+          <CheckoutSection id="bagian-catatan" index={4} done={false} title="Catatan & kirim">
+            <StepCatatan draft={draft} set={set} fieldErrors={fieldErrors} error={error} />
+          </CheckoutSection>
+
+          {/* Ringkasan galat tepat di atas tombol kirim: di situlah mata pemesan
+              berada saat tombolnya ditolak. Tiap baris melompat ke medannya. */}
+          <ErrorSummary errors={fieldErrors} labels={FIELD_LABEL} onJump={jumpToField} />
+
+          <SubmitBar
             total={total}
-            error={error}
-            onEdit={goToStep}
+            status={
+              selected && packageSubtotal > 0
+                ? `${selected.name}, ${draft.qty} ${speciesLabel}`
+                : 'Total'
+            }
+            pending={pending}
+            disabled={!selected}
+            onSubmit={submit}
           />
-        )}
+        </form>
 
-        <StepNav
-          steps={STEPS}
-          current={currentStep}
-          total={total}
-          pending={pending}
-          submitDisabled={!selected}
-          onBack={prevStep}
-          onNext={nextStep}
-          onSubmit={submit}
-        />
-      </form>
-
-      {/* Di luar <form> supaya tombol tutupnya tidak pernah ikut terbaca
-          sebagai kontrol form, dan `fixed`-nya tidak terpengaruh transform
-          milik pembungkus mana pun. */}
-      <Toast state={toast} onDismiss={() => setToast(null)} />
+        {/* Di luar <form> supaya tombol tutupnya tidak pernah ikut terbaca
+            sebagai kontrol form, dan `fixed`-nya tidak terpengaruh transform
+            milik pembungkus mana pun. */}
+        <Toast state={toast} onDismiss={() => setToast(null)} />
+      </div>
+      <OrderAside
+        lines={[
+          ...(selected && packageSubtotal > 0
+            ? [
+                {
+                  label: selected.name,
+                  detail: `${draft.qty} ${speciesLabel}`,
+                  amount: packageSubtotal,
+                },
+              ]
+            : []),
+          ...(selectedBox && boxSubtotal > 0
+            ? [
+                {
+                  label: selectedBox.name,
+                  detail: `${draft.nasi_box_qty} box`,
+                  amount: boxSubtotal,
+                },
+              ]
+            : []),
+        ]}
+        total={total}
+        empty="Pilih paket untuk melihat tagihannya."
+        brandName={brandName}
+      />
     </div>
+  );
+}
+
+/** Isian ketikan yang layak ditawarkan kembali (lihat `recovered`). */
+function hasTypedWork(d: Draft): boolean {
+  return Boolean(
+    d.requested_date || d.name || d.phone || d.email || d.child_name || d.delivery.detail,
   );
 }

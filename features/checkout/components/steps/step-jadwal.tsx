@@ -11,7 +11,7 @@ import type { RegionOption } from '../../queries';
 import { AddressPicker } from '../address-picker';
 import { ChoiceCard } from './choice-card';
 import { FieldError } from './field-error';
-import { SectionLabel, StepIntro } from './step-header';
+import { SectionLabel } from './step-header';
 import { DISTRIBUTION_OPTIONS } from './constants';
 
 /** Langkah 2 — kapan dan bagaimana pesanan disalurkan. */
@@ -31,11 +31,7 @@ export function StepJadwal({
   maxDate: string;
 }) {
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-10 duration-300 ease-out">
-      <StepIntro title="Kapan aqiqahnya, dan dagingnya ke mana?">
-        Jadwal ini masih permintaan. Tim kami mengonfirmasinya lewat WhatsApp.
-      </StepIntro>
-
+    <div className="space-y-6">
       <div>
         <SectionLabel
           index={1}

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { CHILD_BIRTH_MIN_DATE } from '../../schema';
 import type { Draft } from '../../draft';
 import { FieldError } from './field-error';
-import { SectionLabel, StepIntro } from './step-header';
+import { SectionLabel } from './step-header';
 
 /** Langkah 3 — kontak pemesan dan data anak. */
 export function StepDataPemesan({
@@ -21,11 +21,7 @@ export function StepDataPemesan({
   today: string;
 }) {
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-10 duration-300 ease-out">
-      <StepIntro title="Siapa yang memesan, dan untuk anak siapa?">
-        Kontak Anda dipakai untuk konfirmasi. Data anak dicetak di sertifikat aqiqah.
-      </StepIntro>
-
+    <div className="space-y-6">
       {/* <div className="flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900">
               <User className="mt-0.5 size-4 shrink-0 text-blue-600" />
               <span>

@@ -14,7 +14,7 @@ import {
 import { getLandingCatalogue } from '@/features/landing/catalogue';
 import { SERVICE_AREA_LABEL } from '@/features/checkout/service-area';
 import { buildPackageTabs, orderMessage } from '@/features/landing/package-cards';
-import { IconWhatsApp } from '@/components/site/icons';
+import { IconCheck, IconWhatsApp } from '@/components/site/icons';
 import { SitePhoto } from '@/components/site/site-photo';
 import { Reveal } from '@/components/site/reveal';
 import { PackageFilter } from '@/components/site/package-filter';
@@ -47,6 +47,7 @@ export default async function LandingPage() {
     <>
       <JsonLd faqList={faqList} />
       <Hero brand={brand} channel={channel} />
+      <TrackStrip channel={channel} />
       <ServicesSection />
       <PackagesSection catalogue={catalogue} channel={channel} />
       <LedgerSection channel={channel} />
@@ -59,18 +60,17 @@ export default async function LandingPage() {
 }
 
 /* Hero: teks kiri, foto kanan, tetap putih (latar hijau tua ditolak pemilik).
-   Kisi garis pindah ke belakang kolom foto dan bingkai fotonya menempel ke sel
-   56px, jadi motifnya terbaca sebagai halaman bergaris, bukan noda di pojok. */
+   Kisi garis di belakang kolom foto, bingkai fotonya menempel ke sel 56px:
+   motifnya terbaca sebagai halaman bergaris, bukan noda di pojok. Tiga janji
+   di bawah tombol adalah hal yang bisa diperiksa pemesan sendiri, bukan angka. */
 function Hero({ brand, channel }: { brand: Brand; channel: Channel }) {
   return (
     <section className="border-line relative overflow-hidden border-b bg-white">
-      {/* Kisi hanya di separuh kanan desktop (di belakang foto): teks tetap di
-          atas putih polos supaya kontrasnya tidak bergantung pada garis. */}
       <div
         aria-hidden
         className="bg-grid pointer-events-none absolute inset-y-0 right-0 hidden w-[48%] bg-[position:0_0] lg:block"
       />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 pt-8 pb-14 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-24">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 pt-8 pb-14 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
         <div className="min-w-0">
           <Reveal>
             <p className="text-primary text-sm font-semibold">Layanan aqiqah dari Zakat Sukses</p>
@@ -85,11 +85,6 @@ function Hero({ brand, channel }: { brand: Brand; channel: Channel }) {
               Penyembelihan sesuai syariat, dimasak, lalu diantar ke rumah atau disalurkan ke
               penerima manfaat. Setiap tahap dicatat dan bisa Anda lacak sendiri, tanpa membuat
               akun.
-            </p>
-            {/* Cakupan dari konstanta yang sama dengan validasi checkout, supaya
-                pemesan di luar wilayah tahu sejak awal, bukan di langkah alamat. */}
-            <p className="text-ink mt-3 text-sm font-medium">
-              Pengiriman saat ini melayani wilayah {SERVICE_AREA_LABEL}.
             </p>
           </Reveal>
           <Reveal delay={270}>
@@ -109,6 +104,16 @@ function Hero({ brand, channel }: { brand: Brand; channel: Channel }) {
                 Konsultasi WhatsApp
               </a>
             </div>
+            {/* Wilayah dari konstanta yang sama dengan validasi checkout, supaya
+                pemesan di luar wilayah tahu sejak awal, bukan di langkah alamat. */}
+            <ul className="text-ink mt-8 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+              {HERO_PROMISES.map((t) => (
+                <li key={t} className="flex items-start gap-2">
+                  <IconCheck className="text-primary mt-0.5 size-4 shrink-0" />
+                  {t}
+                </li>
+              ))}
+            </ul>
           </Reveal>
         </div>
 
@@ -141,9 +146,82 @@ function Hero({ brand, channel }: { brand: Brand; channel: Channel }) {
   );
 }
 
-/* Layanan: prosesnya sama, hanya tujuannya beda. Jadi dua foto besar
-   menggantung di bawah satu garis bersama yang menamai bagian yang sama;
-   nasi box pindah ke catatan tambahan di section paket. */
+const HERO_PROMISES = [
+  'Penyembelihan sesuai syariat',
+  'Laporan berfoto tiap tahap',
+  `Antar ke wilayah ${SERVICE_AREA_LABEL}`,
+];
+
+/* Lacak: pita hijau tua tepat di bawah hero, mengikuti referensi pemilik.
+   Satu-satunya pita gelap di atas footer, jadi ia terbaca sebagai alat, bukan
+   section: pemesan yang kembali ke situs paling sering datang untuk ini.
+   Form GET ke halaman Lacak yang sama, jadi bekerja tanpa JavaScript. */
+function TrackStrip({ channel }: { channel: Channel }) {
+  return (
+    <section aria-labelledby="lacak-cepat" className="bg-primary-dark relative overflow-hidden">
+      <div aria-hidden className="bg-grid-inverse pointer-events-none absolute inset-0" />
+      <div className="relative mx-auto grid max-w-7xl gap-5 px-4 py-8 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-10">
+        <div>
+          <h2 id="lacak-cepat" className="text-lg font-bold text-white sm:text-xl">
+            Lacak pesanan Anda
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-white/85">
+            Lihat tahap yang sedang dikerjakan, lalu buka laporannya begitu selesai.
+          </p>
+        </div>
+        <form
+          method="get"
+          action={channelHref(channel, '/lacak')}
+          className="grid gap-3 sm:grid-cols-[1fr_9rem_auto] sm:items-end"
+        >
+          <div>
+            <label htmlFor="lacak-nomor" className="text-sm font-semibold text-white">
+              Nomor pesanan
+            </label>
+            <input
+              id="lacak-nomor"
+              name="nomor"
+              required
+              placeholder="IA-202610-0001"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              className="field mt-1.5"
+            />
+          </div>
+          <div>
+            <label htmlFor="lacak-hp" className="text-sm font-semibold text-white">
+              4 digit akhir HP
+            </label>
+            <input
+              id="lacak-hp"
+              name="hp"
+              required
+              inputMode="numeric"
+              pattern="[0-9]{4}"
+              maxLength={4}
+              placeholder="1234"
+              autoComplete="off"
+              className="field mt-1.5 tabular-nums"
+            />
+          </div>
+          {/* Putih di atas hijau tua: tombol hijau di atas hijau tidak terbaca. */}
+          <button
+            type="submit"
+            className="btn btn-lg text-primary-dark hover:bg-primary-light bg-white"
+          >
+            Lacak
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+}
+
+/* Cara aqiqah: dua kolom teks, tanpa foto (keputusan pemilik 9 November).
+   Bedanya hanya ke mana masakan berakhir, jadi kalimat pembukanya bersama dan
+   tiap kolom menutup dengan tiga pembeda yang sama urutannya, supaya bisa
+   dibandingkan baris per baris. Nasi box tetap catatan di section paket. */
 function ServicesSection() {
   const ways = services.filter((s) => !('addOn' in s));
   return (
@@ -156,44 +234,34 @@ function ServicesSection() {
           <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">
             Pilih cara aqiqah Anda ditunaikan
           </h2>
+          <p className="text-ink-muted mt-4 text-base leading-7">
+            Disembelih dan dimasak sama untuk semua pesanan. Yang berbeda hanya ke mana ia berakhir.
+          </p>
         </Reveal>
 
-        {/* Garis bersama: satu bagian yang sama untuk semua pesanan, lalu
-            bercabang. Garis vertikal kecil adalah cabangnya. */}
-        <Reveal className="mt-10 sm:mt-12">
-          <div className="relative">
-            <p className="border-primary/40 text-ink relative border-t pt-3 text-center text-sm font-semibold sm:text-base">
-              Disembelih dan dimasak sama untuk semua pesanan.{' '}
-              <span className="text-ink-muted font-normal">
-                Yang berbeda hanya ke mana ia berakhir.
-              </span>
-            </p>
-            <span
-              aria-hidden
-              className="bg-primary/40 absolute top-full left-1/4 hidden h-8 w-px md:block"
-            />
-            <span
-              aria-hidden
-              className="bg-primary/40 absolute top-full left-3/4 hidden h-8 w-px md:block"
-            />
-          </div>
-        </Reveal>
-
-        <ul className="mt-8 grid gap-10 md:grid-cols-2 md:gap-6 lg:gap-10">
+        <ul className="border-line divide-line mt-10 grid divide-y border-y md:grid-cols-2 md:divide-x md:divide-y-0">
           {ways.map((s, i) => (
-            <Reveal key={s.title} as="li" delay={i * 90} className="min-w-0">
-              <div className="border-line bg-surface-muted aspect-4/3 overflow-hidden rounded-lg border">
-                <SitePhoto
-                  src={s.photo.src}
-                  alt={s.photo.alt}
-                  width={1200}
-                  height={800}
-                  sizes="(min-width: 768px) 46vw, 100vw"
-                  className="h-full w-full object-cover"
-                />
+            <Reveal
+              key={s.title}
+              as="li"
+              delay={i * 90}
+              className="min-w-0 py-8 md:px-10 md:py-10 md:first:pl-0 md:last:pr-0"
+            >
+              <div className="flex items-baseline gap-3">
+                <span className="text-primary text-sm font-bold tabular-nums">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <h3 className="text-h3 text-ink font-semibold">{s.title}</h3>
               </div>
-              <h3 className="text-h3 text-ink mt-5 font-semibold">{s.title}</h3>
-              <p className="text-ink-muted mt-2 max-w-lg text-base leading-7">{s.description}</p>
+              <p className="text-ink-muted mt-3 max-w-lg text-base leading-7">{s.description}</p>
+              <dl className="mt-6 grid gap-2.5 text-sm">
+                {(WAY_FACTS[s.title] ?? []).map(([k, v]) => (
+                  <div key={k} className="grid grid-cols-[6.5rem_1fr] gap-3">
+                    <dt className="text-ink-muted">{k}</dt>
+                    <dd className="text-ink font-medium">{v}</dd>
+                  </div>
+                ))}
+              </dl>
             </Reveal>
           ))}
         </ul>
@@ -201,6 +269,20 @@ function ServicesSection() {
     </section>
   );
 }
+
+/** Pembeda kedua cara, dari alur sungguhan di checkout & laporan. */
+const WAY_FACTS: Record<string, [string, string][]> = {
+  'Aqiqah Kirim': [
+    ['Berakhir di', 'Rumah Anda, siap disajikan'],
+    ['Alamat', `Wajib, wilayah ${SERVICE_AREA_LABEL}`],
+    ['Bukti selesai', 'Anda konfirmasi saat pesanan sampai'],
+  ],
+  'Aqiqah Salur': [
+    ['Berakhir di', 'Penghafal Al-Qur’an & dhuafa'],
+    ['Alamat', 'Tidak perlu'],
+    ['Bukti selesai', 'Foto & lokasi penyaluran di laporan'],
+  ],
+};
 
 function PackagesSection({
   catalogue,
@@ -255,7 +337,7 @@ const LEDGER_PHOTOS: Record<string, number[]> = {
 
 /* Catatan pelaksanaan: judul di kolom samping yang menempel, langkah sebagai
    baris bergaris dengan nomor di margin kiri seperti kertas bergaris. Latar
-   terang: satu-satunya pita gelap di halaman ini kini footer. */
+   terang: pita gelap di halaman ini hanya pita Lacak dan footer. */
 function LedgerSection({ channel }: { channel: Channel }) {
   const gallery = landingPhotos.gallery;
   return (

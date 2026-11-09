@@ -8,8 +8,8 @@ import { addCalendarDays } from '@/lib/format/date-range';
 import { formatCurrency } from '@/lib/format';
 
 /**
- * Menjaga agar pesanan hanya terkirim lewat klik yang disengaja, dan agar alur
- * empat tahapnya tetap utuh.
+ * Menjaga agar pesanan hanya terkirim lewat klik yang disengaja, dan agar
+ * validasi seluruh isiannya tetap utuh di form satu halaman.
  */
 // Tanda tangannya dinyatakan lewat parameter tipe `vi.fn` supaya
 // `mock.calls[0][0]` bisa diperiksa.
@@ -188,8 +188,7 @@ function pressEnter(id: string): { defaultPrevented: boolean } {
  * Yang diuji di sini perpindahan langkah & fokusnya, bukan pengguliran.
  */
 Element.prototype.scrollIntoView = vi.fn();
-// Sama halnya `window.scrollTo`: jsdom hanya mencetak "Not implemented". Dibuat
-// mock supaya tes bisa memeriksa bahwa pindah langkah menggulir ke atas.
+// Sama halnya `window.scrollTo`: jsdom hanya mencetak "Not implemented".
 window.scrollTo = vi.fn() as typeof window.scrollTo;
 
 function advanceClock(ms: number) {
@@ -198,25 +197,22 @@ function advanceClock(ms: number) {
   });
 }
 
-/** Lewati tahap 1-3 dengan isian sah, lalu berhenti di tahap 4 (Ringkasan). */
-function goToFinalStep({ arm = true }: { arm?: boolean } = {}) {
-  mount();
-  // 1 · Pesanan — aqiqah untuk, paket (terpilih otomatis), nasi box (opsional).
+/** Isi seluruh form dengan isian sah (Aqiqah Salur, tanpa alamat). */
+function fillValid() {
   clickText('Anak Laki-laki');
-  clickText('Lanjut ke');
-  type('co-date', PICKED_DATE); // 2 · Jadwal & penyaluran
+  type('co-date', PICKED_DATE);
   clickText(PICKED_TIME);
   clickText('Aqiqah Salur');
-  clickText('Lanjut ke');
-  type('co-name', 'Budi Santoso'); // 3 · Data pemesan
+  type('co-name', 'Budi Santoso');
   type('co-phone', '081234567890');
   type('co-email', 'budi@example.com');
   type('co-child', 'Fatih');
   type('co-birthplace', 'Bandung');
   type('co-birthdate', CHILD_BIRTH_DATE);
-  clickText('Lanjut ke');
-  if (arm) advanceClock(1000);
 }
+
+/** Tekan tombol kirim satu-satunya. */
+const submit = () => clickText('Kirim Pesanan');
 
 beforeEach(() => {
   createGuestOrderAction.mockClear();
@@ -233,27 +229,22 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('alur empat tahap', () => {
-  it('tahap 1 memuat aqiqah untuk, paket, dan nasi box sekaligus', () => {
-    // Ketiganya dulu tahap terpisah; disatukan 19 Agustus 2026.
+describe('satu halaman', () => {
+  it('seluruh bagian tampil sekaligus, tanpa langkah', () => {
+    // Wizard empat langkah dicabut 9 November: pemesan menekan "Lanjut" tiga
+    // kali hanya untuk melihat apa yang masih diminta.
     mount();
     const text = document.body.textContent ?? '';
 
     expect(text).toContain('Aqiqah untuk siapa');
-    expect(text).toContain('Pilih paket');
     expect(text).toContain('Aqiqah Ekonomi');
     expect(text).toContain('Tambah nasi box');
-    expect(text).toContain('Tidak pakai');
     expect(text).toContain('Jumlah ekor');
-  });
-
-  it('tidak bisa maju sebelum memilih jenis kelamin', () => {
-    mount();
-    clickText('Lanjut ke');
-
-    // Masih di tahap 1 — pemilih tanggal belum dirender.
-    expect(document.getElementById('co-date')).toBeNull();
-    expect(document.body.textContent).toContain('Pilih salah satu terlebih dahulu');
+    for (const id of ['co-date', 'co-name', 'co-child', 'co-referral', 'co-notes']) {
+      expect(document.getElementById(id), id).not.toBeNull();
+    }
+    expect(text).not.toContain('Lanjut ke');
+    expect(document.querySelector('[aria-current="step"]')).toBeNull();
   });
 
   it('memilih anak laki-laki menganjurkan 2 ekor, perempuan 1 ekor', () => {
@@ -265,157 +256,86 @@ describe('alur empat tahap', () => {
     expect(document.body.textContent).toContain('Anjuran untuk anak perempuan: 1 ekor');
   });
 
-  it('nasi box boleh dilewati lewat "Tidak pakai"', () => {
+  it('nasi box opsional: kolom jumlahnya baru muncul setelah paket box dipilih', () => {
     mount();
-    clickText('Anak Laki-laki');
-
-    // Tidak memilih box apa pun tetap boleh lanjut, dan kolom jumlahnya tidak
-    // muncul selama belum ada paket box terpilih.
     expect(document.getElementById('co-boxqty')).toBeNull();
-    clickText('Lanjut ke');
-    expect(document.body.textContent).toContain('Dagingnya mau ke mana');
+    fillValid();
+    submit();
+    expect(createGuestOrderAction).toHaveBeenCalledOnce();
   });
 
   it('memilih paket nasi box menuntut jumlahnya', () => {
     mount();
-    clickText('Anak Laki-laki');
+    fillValid();
     clickText('Paket A');
-
     expect(document.getElementById('co-boxqty')).not.toBeNull();
     type('co-boxqty', '0');
-    clickText('Lanjut ke');
+    submit();
+
     expect(document.body.textContent).toContain('Isi jumlah box');
+    expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
   it('Aqiqah Kirim memunculkan pemilih alamat dan mewajibkannya', () => {
     mount();
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
+    fillValid();
     clickText('Aqiqah Kirim');
 
     for (const id of ['co-prov', 'co-city', 'co-dist', 'co-vill', 'co-postal', 'co-detail']) {
       expect(document.getElementById(id), id).not.toBeNull();
     }
 
-    clickText('Lanjut ke'); // alamat masih kosong
+    submit(); // alamat masih kosong
     const text = document.body.textContent ?? '';
     expect(text).toContain('Pilih provinsi tujuan');
     expect(text).toContain('Kode pos wajib diisi');
     expect(text).toContain('Isi nama jalan dan nomor rumah');
+    expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
   it('Aqiqah Salur tidak meminta alamat', () => {
     mount();
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
     clickText('Aqiqah Salur');
-
     expect(document.getElementById('co-prov')).toBeNull();
   });
 
-  it('tahap terakhir menampilkan ringkasan sebelum konfirmasi', () => {
-    goToFinalStep();
+  it('kirim yang ditolak menyebut SEMUA isian yang kurang sekaligus', () => {
+    // Bedanya dengan wizard: dulu penolakan datang satu langkah demi satu
+    // langkah. Sekarang satu tekan memperlihatkan seluruhnya.
+    mount();
+    submit();
     const text = document.body.textContent ?? '';
 
-    expect(text).toContain('Jadwal & penyaluran');
-    expect(text).toContain('Anak Laki-laki');
-    expect(text).toContain('Fatih');
-    expect(text).toContain('Aqiqah Salur');
-    expect(text).toContain('Budi Santoso');
-    expect(text).toContain('Total tagihan');
-    // Kesempatan terakhir mengoreksi data yang akan tercetak di sertifikat.
-    expect(text).toContain('Lahir di Bandung');
+    expect(text).toContain('Pilih salah satu terlebih dahulu');
+    expect(text).toContain('Pilih tanggal pelaksanaan');
+    expect(text).toContain('Pilih cara penyaluran');
+    expect(text).toContain('Nama pemesan wajib diisi');
+    expect(text).toContain('Tempat lahir anak wajib diisi');
+    expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
-  it('menahan tahap 3 selama data lahir anak belum lengkap', () => {
+  it('menahan pesanan selama data lahir anak belum lengkap', () => {
     mount();
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
-    type('co-date', PICKED_DATE);
-    clickText(PICKED_TIME);
-    clickText('Aqiqah Salur');
-    clickText('Lanjut ke');
-    type('co-name', 'Budi Santoso');
-    type('co-phone', '081234567890');
-    type('co-email', 'budi@example.com');
-    type('co-child', 'Fatih');
-    clickText('Lanjut ke');
+    fillValid();
+    type('co-birthplace', '');
+    type('co-birthdate', '');
+    submit();
 
     expect(document.body.textContent).toContain('Tempat lahir anak wajib diisi');
     expect(document.body.textContent).toContain('Isi tanggal lahir anak');
-    // Masih di tahap 3 — ringkasan belum dirender.
-    expect(document.body.textContent).not.toContain('Total tagihan');
+    expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
   it('menolak tanggal lahir di masa depan sekalipun diketik langsung', () => {
     mount();
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
-    type('co-date', PICKED_DATE);
-    clickText(PICKED_TIME);
-    clickText('Aqiqah Salur');
-    clickText('Lanjut ke');
-    type('co-name', 'Budi Santoso');
-    type('co-phone', '081234567890');
-    type('co-email', 'budi@example.com');
-    type('co-child', 'Fatih');
-    type('co-birthplace', 'Bandung');
+    fillValid();
     // Atribut `max` hanya membantu pemilih tanggal peramban; nilainya tetap
     // bisa diketik, jadi penolakannya harus datang dari validasi.
     type('co-birthdate', '2027-01-01');
-    clickText('Lanjut ke');
+    submit();
 
     expect(document.body.textContent).toContain('Tanggal lahir tidak boleh di masa depan');
-  });
-});
-
-describe('navigasi langkah', () => {
-  const jumpTo = (id: number) => {
-    const btn = document.querySelector<HTMLButtonElement>(`[aria-label^="Langkah ${id}:"]`);
-    if (!btn) throw new Error(`penunjuk langkah ${id} tidak ditemukan`);
-    act(() => btn.click());
-  };
-  const onStep = () =>
-    document.querySelector('[aria-current="step"]')?.getAttribute('aria-label') ?? '';
-
-  it('pindah langkah menggulir ke atas halaman', () => {
-    mount();
-    clickText('Anak Laki-laki');
-    vi.mocked(window.scrollTo).mockClear();
-    clickText('Lanjut ke');
-    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0 });
-  });
-
-  it('penunjuk langkah tidak bisa melompati langkah yang masih kosong', () => {
-    mount();
-    clickText('Anak Laki-laki');
-    jumpTo(4);
-    // Berhenti di langkah 2, langkah pertama yang belum sah, beserta galatnya.
-    expect(onStep()).toBe('Langkah 2: Jadwal & Penyaluran');
-    expect(document.body.textContent).toContain('Pilih tanggal pelaksanaan');
-    expect(document.body.textContent).not.toContain('Total tagihan');
-  });
-
-  it('mundur lewat penunjuk langkah tetap bebas', () => {
-    goToFinalStep();
-    jumpTo(1);
-    expect(onStep()).toBe('Langkah 1: Pesanan');
-  });
-
-  it('"Kembali" sesudah melompat mendarat di langkah sebelumnya', () => {
-    goToFinalStep();
-    jumpTo(1);
-    jumpTo(4);
-    clickText('Kembali');
-    expect(onStep()).toBe('Langkah 3: Data Pemesan');
-  });
-
-  it('tombol Lanjut memakai judul pendek di layar sempit', () => {
-    mount();
-    const next = [...document.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Lanjut ke'),
-    )!;
-    expect(next.querySelector('.sm\\:hidden')?.textContent).toBe('Jadwal');
+    expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 });
 
@@ -424,46 +344,48 @@ describe('jumlah nasi box mengikuti schema server', () => {
     ['2.5', 'Jumlah nasi box harus bilangan bulat'],
     ['99999', 'Untuk pesanan di atas 5000 box, hubungi admin'],
     ['-5', 'Jumlah nasi box tidak boleh negatif'],
-  ])('menolak %s box di langkah 1', (value, message) => {
+  ])('menolak %s box', (value, message) => {
     mount();
-    clickText('Anak Laki-laki');
+    fillValid();
     clickText('Paket A');
     type('co-boxqty', value);
     // Total tidak boleh dihitung dari jumlah yang akan ditolak server: yang
     // terhitung hanya 2 ekor paket aqiqah.
     const total = [...document.querySelectorAll('[aria-live="polite"]')].find((el) =>
-      el.textContent?.startsWith('Total'),
+      el.textContent?.includes(formatCurrency(2 * PACKAGES[0].price)),
     );
-    expect(total?.textContent).toBe(`Total ${formatCurrency(2 * PACKAGES[0].price)}`);
-    clickText('Lanjut ke');
+    expect(total, 'total memuat jumlah box yang tidak sah').toBeTruthy();
+    submit();
     expect(document.body.textContent).toContain(message);
-    expect(document.getElementById('co-boxqty')).not.toBeNull();
+    expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 });
 
 describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
-  it('sampai di tahap akhir tanpa mengirim apa pun', () => {
-    goToFinalStep();
-
+  it('mengisi seluruh form tidak mengirim apa pun', () => {
+    mount();
+    fillValid();
     expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
-  it('Enter di kolom kode referral dibatalkan, jadi tidak mengirim pesanan', () => {
-    goToFinalStep();
+  it('Enter di kolom isian dibatalkan, jadi tidak mengirim pesanan', () => {
+    mount();
+    fillValid();
     type('co-referral', 'SA-BUDI');
 
     expect(pressEnter('co-referral').defaultPrevented).toBe(true);
+    expect(pressEnter('co-name').defaultPrevented).toBe(true);
     expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
   it('Enter di catatan tidak dibatalkan — textarea butuh baris baru', () => {
-    goToFinalStep();
-
+    mount();
     expect(pressEnter('co-notes').defaultPrevented).toBe(false);
   });
 
   it('mengirim form secara implisit tidak pernah mencatat pesanan', () => {
-    goToFinalStep();
+    mount();
+    fillValid();
     const form = document.querySelector('form')!;
     act(() => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -472,24 +394,18 @@ describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
     expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
-  it('klik susulan seketika di posisi tombol Lanjut tidak mengirim pesanan', () => {
-    goToFinalStep({ arm: false });
-    clickText('Kirim Pesanan');
-
-    expect(createGuestOrderAction).not.toHaveBeenCalled();
+  it('tombol kirim bertipe button, bukan submit', () => {
+    mount();
+    const btn = [...document.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Kirim Pesanan'),
+    )!;
+    expect(btn.type).toBe('button');
   });
 
-  it('setelah jeda singkat, tombol kirim menerima klik yang disengaja', () => {
-    goToFinalStep({ arm: false });
-    advanceClock(1000);
-    clickText('Kirim Pesanan');
-
-    expect(createGuestOrderAction).toHaveBeenCalledOnce();
-  });
-
-  it('payload memuat medan tahap baru', () => {
-    goToFinalStep();
-    clickText('Kirim Pesanan');
+  it('payload memuat seluruh medannya', () => {
+    mount();
+    fillValid();
+    submit();
 
     const payload = createGuestOrderAction.mock.calls[0][0] as unknown as Record<string, unknown>;
     expect(payload.aqiqah_for).toBe('laki_laki');
@@ -503,8 +419,9 @@ describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
   });
 
   it('tidak mengirim cabang — wilayah ditentukan server', () => {
-    goToFinalStep();
-    clickText('Kirim Pesanan');
+    mount();
+    fillValid();
+    submit();
 
     const payload = createGuestOrderAction.mock.calls[0][0] as unknown as Record<string, unknown>;
     expect(payload).not.toHaveProperty('branch_id');
@@ -512,24 +429,23 @@ describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
 });
 
 describe('jadwal pelaksanaan', () => {
-  /** Berhenti di tahap 2, dengan tahap 1 sudah sah. */
-  function goToScheduleStep() {
+  it('menahan pesanan selama tanggal atau jam belum dipilih', () => {
     mount();
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
-  }
-
-  it('menahan langkah selama tanggal atau jam belum dipilih', () => {
-    goToScheduleStep();
-    clickText('Aqiqah Salur');
-    clickText('Lanjut ke');
-
+    fillValid();
+    type('co-date', '');
+    // Jam tidak bisa dikosongkan lewat klik, jadi diuji dari form segar.
+    submit();
     expect(document.body.textContent).toContain('Pilih tanggal pelaksanaan');
+
+    act(() => root!.unmount());
+    container!.remove();
+    mount();
+    submit();
     expect(document.body.textContent).toContain('Pilih jam pelaksanaan');
   });
 
   it('membatasi pemilih tanggal pada jendela yang diberikan server', () => {
-    goToScheduleStep();
+    mount();
     const input = byId<HTMLInputElement>('co-date');
 
     expect(input.min).toBe(MIN_DATE);
@@ -537,13 +453,10 @@ describe('jadwal pelaksanaan', () => {
   });
 
   it('menolak tanggal di luar jendela sekalipun diketik langsung', () => {
-    // Atribut `min`/`max` hanya membantu pemilih tanggal peramban; nilainya
-    // tetap bisa diketik, jadi penolakannya harus datang dari validasi.
-    goToScheduleStep();
+    mount();
+    fillValid();
     type('co-date', '2026-10-30');
-    clickText(PICKED_TIME);
-    clickText('Aqiqah Salur');
-    clickText('Lanjut ke');
+    submit();
 
     expect(document.body.textContent).toContain('Maksimal 30 hari ke depan');
   });
@@ -551,11 +464,10 @@ describe('jadwal pelaksanaan', () => {
   it('menolak tanggal yang belum melewati jeda persiapan', () => {
     // Yang paling mungkin dicoba pemesan: hari ini sendiri. Bukan tanggal yang
     // lewat, jadi pesannya harus soal jeda — bukan "sudah lewat".
-    goToScheduleStep();
+    mount();
+    fillValid();
     type('co-date', TODAY);
-    clickText(PICKED_TIME);
-    clickText('Aqiqah Salur');
-    clickText('Lanjut ke');
+    submit();
 
     expect(document.body.textContent).toContain(
       `Paling cepat ${BOOKING_MIN_DAYS} hari setelah pemesanan`,
@@ -567,29 +479,21 @@ describe('jadwal pelaksanaan', () => {
     // Keduanya dulu satu prop karena nilainya kebetulan sama. Kalau tertukar
     // lagi, tanggal lahir sampai `MIN_DATE` ikut lolos — padahal hari-hari itu
     // belum terjadi.
-    goToScheduleStep();
+    mount();
     expect(byId<HTMLInputElement>('co-date').min).toBe(MIN_DATE);
-
-    type('co-date', PICKED_DATE);
-    clickText(PICKED_TIME);
-    clickText('Aqiqah Salur');
-    clickText('Lanjut ke');
-
     expect(byId<HTMLInputElement>('co-birthdate').max).toBe(TODAY);
   });
 });
 
 describe('pemilih alamat bertingkat', () => {
-  async function goToDeliveryStep() {
+  async function openDelivery() {
     mount();
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
     clickText('Aqiqah Kirim');
     await flush();
   }
 
   it('mengisi tiap tingkat hanya setelah induknya dipilih', async () => {
-    await goToDeliveryStep();
+    await openDelivery();
 
     // Selama provinsi belum dipilih, tidak ada permintaan sama sekali dan
     // tingkat di bawahnya dimatikan.
@@ -614,7 +518,7 @@ describe('pemilih alamat bertingkat', () => {
   it('mengganti provinsi mengosongkan tingkat di bawahnya', async () => {
     // Kalau tidak, kelurahan dari provinsi lama tertinggal dan menghasilkan
     // alamat yang tidak sejalur — baru ketahuan saat dikirim.
-    await goToDeliveryStep();
+    await openDelivery();
     pickOption('co-prov', '32');
     await flush();
     pickOption('co-city', '32.76');
@@ -633,14 +537,17 @@ describe('pemilih alamat bertingkat', () => {
   });
 
   it('kode pos menolak huruf saat diketik', async () => {
-    await goToDeliveryStep();
+    await openDelivery();
     type('co-postal', '4a0b1c2d5e');
 
     expect(byId<HTMLInputElement>('co-postal').value).toBe('40125');
   });
 
   it('mengirim kode wilayahnya saja, tanpa nama maupun alamat satu baris', async () => {
-    await goToDeliveryStep();
+    mount();
+    fillValid();
+    clickText('Aqiqah Kirim');
+    await flush();
     pickOption('co-prov', '32');
     await flush();
     pickOption('co-city', '32.76');
@@ -651,19 +558,7 @@ describe('pemilih alamat bertingkat', () => {
     await flush();
     type('co-postal', '16431');
     type('co-detail', 'Jl. Cikutra Barat No. 12');
-
-    type('co-date', PICKED_DATE);
-    clickText(PICKED_TIME);
-    clickText('Lanjut ke');
-    type('co-name', 'Budi Santoso');
-    type('co-phone', '081234567890');
-    type('co-email', 'budi@example.com');
-    type('co-child', 'Fatih');
-    type('co-birthplace', 'Bandung');
-    type('co-birthdate', CHILD_BIRTH_DATE);
-    clickText('Lanjut ke');
-    advanceClock(1000);
-    clickText('Kirim Pesanan');
+    submit();
 
     const payload = createGuestOrderAction.mock.calls[0][0] as unknown as Record<string, unknown>;
     expect(payload.delivery_province_code).toBe('32');
@@ -690,41 +585,38 @@ describe('pemilih alamat bertingkat', () => {
  * pada kesalahan yang sama berturut-turut.
  */
 describe('umpan balik galat', () => {
-  it('menampilkan ringkasan berisi tiap medan yang ditolak', () => {
-    mount();
-    // Langkah 1 tanpa memilih "aqiqah untuk" — satu-satunya yang wajib di sini.
-    clickText('Lanjut ke');
-
-    const summary = [...document.querySelectorAll('[role="alert"]')].find((el) =>
+  const summary = () =>
+    [...document.querySelectorAll('[role="alert"]')].find((el) =>
       el.textContent?.includes('perlu diperbaiki'),
     );
-    expect(summary, 'ringkasan galat tidak dirender').toBeTruthy();
-    expect(summary!.textContent).toContain('1 isian perlu diperbaiki');
-    // Nama medan yang terbaca orang, bukan kunci payload-nya.
-    expect(summary!.textContent).toContain('Aqiqah untuk');
-    expect(summary!.textContent).not.toContain('aqiqah_for');
+
+  it('menampilkan ringkasan berisi tiap medan yang ditolak, dengan nama yang terbaca', () => {
+    mount();
+    fillValid();
+    type('co-phone', '');
+    submit();
+
+    expect(summary(), 'ringkasan galat tidak dirender').toBeTruthy();
+    expect(summary()!.textContent).toContain('1 isian perlu diperbaiki');
+    expect(summary()!.textContent).toContain('Nomor WhatsApp');
+    expect(summary()!.textContent).not.toContain('phone');
   });
 
   it('menghitung jamak dengan benar', () => {
     mount();
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
-    // Langkah 2 dibiarkan kosong: tanggal, jam, dan cara penyaluran.
-    clickText('Lanjut ke');
-
-    const summary = [...document.querySelectorAll('[role="alert"]')].find((el) =>
-      el.textContent?.includes('perlu diperbaiki'),
-    );
-    expect(summary!.textContent).toContain('3 isian perlu diperbaiki');
+    fillValid();
+    type('co-date', '');
+    type('co-name', '');
+    type('co-email', '');
+    submit();
+    expect(summary()!.textContent).toContain('3 isian perlu diperbaiki');
   });
 
   it('galat per medan punya role="alert" dan tertaut ke inputnya', () => {
     mount();
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
-    clickText('Aqiqah Salur');
-    clickText(PICKED_TIME);
-    clickText('Lanjut ke'); // tanggal masih kosong
+    fillValid();
+    type('co-date', '');
+    submit();
 
     const input = byId<HTMLInputElement>('co-date');
     expect(input.getAttribute('aria-invalid')).toBe('true');
@@ -739,49 +631,36 @@ describe('umpan balik galat', () => {
     expect(message!.textContent).toContain('Pilih tanggal pelaksanaan');
   });
 
-  it('menekan baris ringkasan memindahkan langkah ke medan itu', () => {
-    // Berhenti di langkah 3 dengan nomor telepon kosong, lalu coba maju.
+  it('menekan baris ringkasan memfokuskan medannya', () => {
     mount();
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
-    type('co-date', PICKED_DATE);
-    clickText(PICKED_TIME);
-    clickText('Aqiqah Salur');
-    clickText('Lanjut ke');
-    type('co-name', 'Budi Santoso');
-    type('co-child', 'Fatih');
-    type('co-birthplace', 'Bandung');
-    type('co-birthdate', CHILD_BIRTH_DATE);
-    clickText('Lanjut ke'); // ditahan: telepon kosong
+    fillValid();
+    type('co-phone', '');
+    submit();
 
     const row = [...document.querySelectorAll('button')].find((b) =>
       b.textContent?.includes('Nomor WhatsApp'),
     );
     expect(row, 'baris ringkasan untuk medan yang ditolak tidak ada').toBeTruthy();
-
-    // Pindah ke langkah 1 lewat tabnya (langkah lampau boleh dituju bebas),
-    // supaya yang diuji benar-benar lompatan balik dari ringkasan.
-    const tab1 = [...document.querySelectorAll('button')].find(
-      (b) => b.getAttribute('aria-label') === 'Langkah 1: Pesanan',
-    );
-    act(() => tab1!.click());
-    expect(document.getElementById('co-phone'), 'seharusnya sudah pindah langkah').toBeNull();
-
-    // Ringkasan tetap tampil di langkah mana pun — itulah gunanya menetap.
-    const jump = [...document.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Nomor WhatsApp'),
-    );
-    expect(jump, 'ringkasan hilang saat berpindah langkah').toBeTruthy();
-    act(() => jump!.click());
+    byId('co-name').focus();
+    act(() => row!.click());
     advanceClock(200);
-    expect(byId('co-phone'), 'baris ringkasan tidak membawa kembali ke medannya').toBeTruthy();
+    expect(document.activeElement?.id).toBe('co-phone');
+  });
+
+  it('galat pertama yang difokuskan mengikuti urutan bagian di layar', () => {
+    mount();
+    fillValid();
+    type('co-email', ''); // bagian 3
+    type('co-date', ''); // bagian 2
+    submit();
+    advanceClock(200);
+    expect(document.activeElement?.id).toBe('co-date');
   });
 
   it('toast muncul lagi pada kesalahan yang sama berturut-turut', () => {
     mount();
-    clickText('Lanjut ke');
-    const first = document.querySelector('[role="status"]');
-    expect(first, 'toast tidak muncul').toBeTruthy();
+    submit();
+    expect(document.querySelector('[role="status"]'), 'toast tidak muncul').toBeTruthy();
 
     // Tutup, lalu ulangi kesalahan yang sama persis. Kalau kuncinya pesan (dan
     // bukan penghitung), React melihat nilai identik dan tidak memunculkan
@@ -792,13 +671,13 @@ describe('umpan balik galat', () => {
     act(() => close!.click());
     expect(document.querySelector('[role="status"]')).toBeNull();
 
-    clickText('Lanjut ke');
+    submit();
     expect(document.querySelector('[role="status"]')).toBeTruthy();
   });
 
   it('toast hilang sendiri setelah 5 detik', () => {
     mount();
-    clickText('Lanjut ke');
+    submit();
     expect(document.querySelector('[role="status"]')).toBeTruthy();
 
     advanceClock(5000); // memicu animasi keluar
@@ -806,18 +685,14 @@ describe('umpan balik galat', () => {
     expect(document.querySelector('[role="status"]')).toBeNull();
   });
 
-  it('ringkasan hilang begitu isiannya diperbaiki', () => {
+  it('ringkasan hilang begitu isiannya diperbaiki dan dikirim ulang', () => {
     mount();
-    clickText('Lanjut ke');
+    submit();
     expect(document.body.textContent).toContain('perlu diperbaiki');
 
-    clickText('Anak Laki-laki');
-    clickText('Lanjut ke');
-    // Sudah di langkah 2 dengan galat langkah 1 yang bersih.
-    const stale = [...document.querySelectorAll('[role="alert"]')].find((el) =>
-      el.textContent?.includes('Aqiqah untuk'),
-    );
-    expect(stale, 'ringkasan lama masih tersisa').toBeFalsy();
+    fillValid();
+    submit();
+    expect(summary(), 'ringkasan lama masih tersisa').toBeFalsy();
   });
 });
 
@@ -832,8 +707,9 @@ describe('umpan balik galat', () => {
  */
 describe('layar sukses', () => {
   async function submitOrder() {
-    goToFinalStep();
-    clickText('Konfirmasi & Kirim');
+    mount();
+    fillValid();
+    submit();
     await flush();
   }
 

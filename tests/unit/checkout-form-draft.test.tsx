@@ -9,14 +9,12 @@ import { addCalendarDays } from '@/lib/format/date-range';
 /**
  * Jaring pengaman terhadap **kehilangan isian**.
  *
- * Checkout ini menuntut belasan medan di tiga langkah sebelum pesanan bisa
- * dikirim. Sebelum ada penyimpanan sementara, satu kali muat ulang halaman —
+ * Checkout ini menuntut belasan medan sebelum pesanan bisa dikirim. Sebelum ada penyimpanan sementara, satu kali muat ulang halaman —
  * atau satu gestur usap-dari-tepi di ponsel — membuang seluruhnya tanpa
  * peringatan apa pun.
  *
  * Yang diuji di sini perilakunya di dalam komponen: kapan tawaran pemulihan
- * muncul, kapan ia justru **tidak** boleh muncul, dan apakah tombol kembali
- * peramban benar-benar memundurkan langkah alih-alih meninggalkan halaman.
+ * muncul, dan kapan ia justru **tidak** boleh muncul.
  * Bentuk & penyaringan data draft-nya sendiri diuji di `checkout-draft.test.ts`.
  */
 const createGuestOrderAction = vi.fn(async () => ({
@@ -144,12 +142,6 @@ function seed(step: number, draft: Record<string, unknown>) {
   );
 }
 
-/** Maju ke langkah 2 dengan isian yang sah. */
-function advanceToStep2() {
-  clickText('Anak Laki-laki');
-  clickText('Lanjut ke');
-}
-
 /**
  * Impor perdana harus mentranspilasi seluruh graf modul komponen, dan itu
  * sendirian bisa melewati batas waktu 5 detik milik kasus uji pertama.
@@ -189,32 +181,30 @@ describe('menyimpan isian', () => {
     expect(stored()).toBeNull();
   });
 
-  it('menyimpan begitu isian berubah, beserta langkahnya', async () => {
+  it('menyimpan begitu isian berubah', async () => {
     await mount();
-    advanceToStep2();
+    clickText('Anak Laki-laki');
     type('co-date', PICKED_DATE);
 
     const saved = stored();
     expect(saved.draft.aqiqah_for).toBe('laki_laki');
     expect(saved.draft.requested_date).toBe(PICKED_DATE);
-    expect(saved.step).toBe(2);
   });
 });
 
 describe('menawarkan pemulihan', () => {
-  it('menawarkan draft yang berhenti di tengah jalan', async () => {
-    seed(3, { aqiqah_for: 'laki_laki', name: 'Budi Santoso' });
+  it('menawarkan draft yang memuat isian ketikan', async () => {
+    seed(1, { aqiqah_for: 'laki_laki', name: 'Budi Santoso' });
     await mount();
 
     expect(document.body.textContent).toContain('Lanjutkan isian sebelumnya');
   });
 
-  it('tidak menawarkan draft yang masih di langkah 1', async () => {
+  it('tidak menawarkan draft yang baru berisi pilihan paket', async () => {
     seed(1, { aqiqah_for: 'laki_laki' });
     await mount();
 
-    // Belum ada yang layak diselamatkan — pemesan menutup tab sebelum
-    // menyelesaikan satu langkah pun.
+    // Memilih ulang hanya satu klik; tidak ada ketikan yang perlu diselamatkan.
     expect(document.body.textContent).not.toContain('Lanjutkan isian sebelumnya');
   });
 
@@ -232,10 +222,10 @@ describe('menawarkan pemulihan', () => {
     expect(window.sessionStorage.getItem(DRAFT_KEY)).toBeNull();
     expect(document.body.textContent).not.toContain('Lanjutkan isian sebelumnya');
     // Isian tetap kosong — yang ditolak memang tidak boleh terpasang.
-    expect(document.body.textContent).toContain('Aqiqah untuk siapa');
+    expect(byId<HTMLInputElement>('co-name').value).toBe('');
   });
 
-  it('"Lanjutkan" memasang isian dan melompat ke langkahnya', async () => {
+  it('"Lanjutkan" memasang seluruh isiannya', async () => {
     seed(3, {
       aqiqah_for: 'laki_laki',
       requested_date: PICKED_DATE,
@@ -247,36 +237,8 @@ describe('menawarkan pemulihan', () => {
 
     clickText('Lanjutkan');
 
-    // Langkah 3 = Data Pemesan; medannya harus sudah terisi.
     expect(byId<HTMLInputElement>('co-name').value).toBe('Budi Santoso');
+    expect(byId<HTMLInputElement>('co-date').value).toBe(PICKED_DATE);
     expect(document.body.textContent).not.toContain('Lanjutkan isian sebelumnya');
-  });
-});
-
-describe('tombol kembali peramban', () => {
-  it('memundurkan langkah alih-alih meninggalkan halaman', async () => {
-    await mount();
-    advanceToStep2();
-
-    // Langkah 2 dikenali dari pemilih tanggalnya.
-    expect(document.getElementById('co-date')).not.toBeNull();
-
-    act(() => {
-      window.history.back();
-    });
-    // jsdom memproses `popstate` secara asinkron pada antrean tugas.
-    act(() => {
-      window.dispatchEvent(Object.assign(new PopStateEvent('popstate', { state: { saStep: 1 } })));
-    });
-
-    expect(document.getElementById('co-date')).toBeNull();
-    expect(document.body.textContent).toContain('Aqiqah untuk siapa');
-  });
-
-  it('menandai langkah di riwayat saat maju', async () => {
-    await mount();
-    advanceToStep2();
-
-    expect((window.history.state as { saStep?: number } | null)?.saStep).toBe(2);
   });
 });

@@ -53,7 +53,7 @@ export function ChoiceCard({
     <span
       aria-hidden
       className={cn(
-        'flex size-10 shrink-0 items-center justify-center rounded-lg transition-colors duration-150',
+        'flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150',
         checked ? 'bg-primary text-white' : 'bg-surface-muted text-primary',
       )}
     >
@@ -81,7 +81,7 @@ export function ChoiceCard({
         <span className="text-ink-muted mt-0.5 block text-sm leading-5">{description}</span>
       )}
       {includes && includes.length > 0 && (
-        <span className="border-line mt-3 block space-y-1.5 border-t pt-3">
+        <span className="border-line mt-2 block space-y-1 border-t pt-2 sm:mt-3 sm:space-y-1.5 sm:pt-3">
           {includes.map((item) => (
             <span key={item} className="text-ink flex items-start gap-2 text-sm leading-5">
               <Check aria-hidden className="text-primary mt-0.5 size-3.5 shrink-0 stroke-[3]" />
@@ -91,7 +91,7 @@ export function ChoiceCard({
         </span>
       )}
       {price && (
-        <span className="text-primary mt-auto block pt-3 text-lg font-bold break-words tabular-nums">
+        <span className="text-primary mt-auto block pt-2 text-lg font-bold break-words tabular-nums sm:pt-3">
           {price}
         </span>
       )}
@@ -105,8 +105,10 @@ export function ChoiceCard({
       role={role}
       {...(role === 'radio' ? { 'aria-checked': checked } : { 'aria-pressed': checked })}
       className={cn(
-        'group relative flex w-full rounded-lg border-2 p-4 text-left transition-colors duration-150 active:scale-[0.99]',
-        layout === 'row' ? 'items-start gap-3' : 'flex-col gap-3',
+        'group relative flex w-full rounded-lg border-2 p-3 text-left transition-colors duration-150 active:scale-[0.99] sm:p-4',
+        // `stacked` hanya di layar lebar (kisi tiga kolom). Di ponsel kartunya
+        // selebar layar, jadi ikon-di-atas hanya menambah tinggi tanpa guna.
+        layout === 'row' ? 'items-start gap-3' : 'items-start gap-3 sm:flex-col',
         checked
           ? 'border-primary bg-primary-light'
           : 'border-line hover:border-primary/50 hover:bg-surface-muted bg-white',
@@ -121,9 +123,10 @@ export function ChoiceCard({
         </>
       ) : (
         <>
-          <span className="flex w-full items-start justify-between gap-3">
+          {/* Ponsel: ikon, teks, radio sebaris. `sm`: ikon & radio di atas. */}
+          <span className="contents sm:flex sm:w-full sm:items-start sm:justify-between sm:gap-3">
             {icon}
-            {radio}
+            <span className="order-last sm:order-none">{radio}</span>
           </span>
           {body}
         </>
