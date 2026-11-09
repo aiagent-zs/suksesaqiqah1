@@ -59,6 +59,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   env: { REPO_IMAGES: JSON.stringify(repoImages) },
+  // `x-powered-by: Next.js` hanya memberi tahu penyerang versi apa yang dicari.
+  poweredByHeader: false,
 
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];

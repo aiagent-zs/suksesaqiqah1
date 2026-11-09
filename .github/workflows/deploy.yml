@@ -1,26 +1,58 @@
 # Build image di runner GitHub, simpan di GHCR, lalu minta Dokploy menariknya.
 # VPS tidak lagi menjalankan `next build` — lihat komentar di Dockerfile.
+#
+# Berjalan SESUDAH CI hijau di `main`, bukan bersamaan dengan push. Dulu
+# keduanya dipicu push yang sama: 4 November CI merah (build gagal) dan Deploy
+# tetap jalan dan "sukses" — gerbangnya ada, tetapi tidak menahan apa pun.
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
+  # Darurat / rollback: jalankan manual, isi `ref` dengan SHA commit lama.
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit SHA, tag, atau branch yang di-deploy (kosong = main)'
+        required: false
 
 permissions:
   contents: read
   packages: write
 
+# Deploy tidak pernah dibatalkan di tengah jalan: image setengah terdorong atau
+# redeploy yang terpotong lebih buruk daripada menunggu antrean.
 concurrency:
   group: deploy
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/aiagent-zs/suksesaqiqah1
 
 jobs:
   image:
     name: Build & push image
+    # `workflow_run` juga terpicu saat CI gagal atau dibatalkan; yang lolos
+    # hanya CI hijau dari push ke main (bukan PR yang kebetulan bercabang main).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.NEXT_PUBLIC_APP_URL }}
     steps:
+      # Commit yang persis lolos CI, bukan ujung main saat ini: push lain bisa
+      # masuk di antara CI selesai dan Deploy mulai.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref || 'main' }}
+      - id: meta
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -31,7 +63,11 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/aiagent-zs/suksesaqiqah1:latest
+          # `:latest` yang ditarik Dokploy, `:<sha>` untuk rollback & jejak
+          # commit mana yang sedang jalan di produksi.
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # Nilai publik (ikut terkirim ke browser), jadi cukup Variables
@@ -61,3 +97,30 @@ jobs:
             -H "x-api-key: $DOKPLOY_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"applicationId\":\"$DOKPLOY_APPLICATION_ID\"}"
+
+      # Dokploy menjawab "deploy diterima", bukan "aplikasi sudah hidup". Yang
+      # membuktikannya: situs menjawab dengan header keamanan dari build ini.
+      # ponytail: cek header saja, bukan versi commit; tambah endpoint versi
+      # bila perlu memastikan image baru (bukan lama) yang menjawab.
+      - name: Cek situs hidup
+        env:
+          APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+        run: |
+          [ -n "$APP_URL" ] || { echo "::warning::NEXT_PUBLIC_APP_URL kosong, cek dilewati."; exit 0; }
+          for i in $(seq 1 30); do
+            if curl -sSfI --max-time 10 "${APP_URL%/}/" | grep -qi '^content-security-policy:'; then
+              echo "Situs hidup: ${APP_URL}"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::${APP_URL} tidak menjawab 200 dengan header keamanan dalam 5 menit."
+          exit 1
+
+      - name: Ringkasan
+        run: |
+          {
+            echo "### Deploy ${{ steps.meta.outputs.sha }}"
+            echo "Image: \`${{ env.IMAGE }}:${{ steps.meta.outputs.sha }}\`"
+            echo ""
+            echo "Rollback: Actions → Deploy → Run workflow, isi \`ref\` dengan SHA commit sebelumnya."
+          } >> "$GITHUB_STEP_SUMMARY"

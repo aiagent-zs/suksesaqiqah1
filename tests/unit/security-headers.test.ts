@@ -25,6 +25,12 @@ describe('header keamanan', () => {
     expect(h['Permissions-Policy']).toContain('geolocation=()');
   });
 
+  it('tidak mengiklankan framework', async () => {
+    vi.resetModules();
+    const { default: config } = await import('../../next.config');
+    expect(config.poweredByHeader).toBe(false);
+  });
+
   it('CSP menolak penyematan, plugin, dan eval di produksi', async () => {
     const csp = (await headersFor('production'))['Content-Security-Policy'];
     expect(directive(csp, 'frame-ancestors')).toBe("frame-ancestors 'self'");
