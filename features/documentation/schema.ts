@@ -33,15 +33,4 @@ export const reviewDocumentationSchema = z
     message: 'Alasan wajib diisi saat menolak dokumentasi',
   });
 
-export const deleteDocumentationSchema = z.object({ documentation_id: uuid });
-
-/** Filter antrian validasi (docs/10 section 6). */
-export const validationFilterSchema = z.object({
-  // Cabang dicabut sebagai filter — lihat catatan di `orderFilterSchema`.
-  stage: z.enum(DOC_STAGES).optional().catch(undefined),
-  page: z.coerce.number().int().min(1).default(1).catch(1),
-  page_size: z.coerce.number().int().min(5).max(100).default(20).catch(20),
-});
-
 export type UploadDocumentationInput = z.infer<typeof uploadDocumentationSchema>;
-export type ValidationFilterInput = z.infer<typeof validationFilterSchema>;

@@ -63,7 +63,7 @@ export default async function CateringCheckoutPage({
   return (
     // Latar abu-hijau, form dalam kartu putih: sama dengan checkout aqiqah.
     <div className="bg-surface-muted min-h-screen pb-10">
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:max-w-6xl">
+      <div className="container-site">
         <CheckoutHero channel={channel} title="Pesan katering">
           Nasi kotak dan prasmanan untuk acara Anda. Satu halaman, tanpa perlu membuat akun. Tim
           kami menghubungi Anda lewat WhatsApp untuk konfirmasi dan pembayaran.

@@ -68,9 +68,9 @@ function Hero({ brand, channel }: { brand: Brand; channel: Channel }) {
     <section className="border-line relative overflow-hidden border-b bg-white">
       <div
         aria-hidden
-        className="bg-grid pointer-events-none absolute inset-y-0 right-0 hidden w-[48%] bg-[position:0_0] lg:block"
+        className="bg-grid pointer-events-none absolute inset-y-0 right-0 hidden w-[48%] bg-position-[0_0] lg:block"
       />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 pt-8 pb-14 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
+      <div className="container-site relative grid items-center gap-8 pt-6 pb-10 sm:pt-10 sm:pb-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pt-10 lg:pb-16">
         <div className="min-w-0">
           <Reveal>
             <p className="text-primary text-sm font-semibold">Layanan aqiqah dari Zakat Sukses</p>
@@ -88,7 +88,7 @@ function Hero({ brand, channel }: { brand: Brand; channel: Channel }) {
             </p>
           </Reveal>
           <Reveal delay={270}>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
               <Link href={channelHref(channel, '/paket')} className="btn btn-primary btn-lg">
                 Lihat paket aqiqah
               </Link>
@@ -105,10 +105,15 @@ function Hero({ brand, channel }: { brand: Brand; channel: Channel }) {
               </a>
             </div>
             {/* Wilayah dari konstanta yang sama dengan validasi checkout, supaya
-                pemesan di luar wilayah tahu sejak awal, bukan di langkah alamat. */}
-            <ul className="text-ink mt-8 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
-              {HERO_PROMISES.map((t) => (
-                <li key={t} className="flex items-start gap-2">
+                pemesan di luar wilayah tahu sejak awal, bukan di langkah alamat.
+                Di ponsel hanya wilayah yang tampil: dua janji lainnya sudah
+                tertulis di paragraf tepat di atasnya. */}
+            <ul className="text-ink mt-4 text-sm sm:mt-8 sm:grid sm:grid-cols-3 sm:gap-x-6 sm:gap-y-2">
+              {HERO_PROMISES.map((t, i) => (
+                <li
+                  key={t}
+                  className={`flex items-start gap-2 ${i < HERO_PROMISES.length - 1 ? 'max-sm:hidden' : ''}`}
+                >
                   <IconCheck className="text-primary mt-0.5 size-4 shrink-0" />
                   {t}
                 </li>
@@ -160,22 +165,24 @@ function TrackStrip({ channel }: { channel: Channel }) {
   return (
     <section aria-labelledby="lacak-cepat" className="bg-primary-dark relative overflow-hidden">
       <div aria-hidden className="bg-grid-inverse pointer-events-none absolute inset-0" />
-      <div className="relative mx-auto grid max-w-7xl gap-5 px-4 py-8 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-10">
+      <div className="container-site relative grid gap-4 py-6 sm:py-8 lg:grid-cols-[1fr_1.4fr] lg:items-end lg:gap-10">
         <div>
-          <h2 id="lacak-cepat" className="text-lg font-bold text-white sm:text-xl">
+          <h2 id="lacak-cepat" className="text-base font-bold text-white sm:text-lg">
             Lacak pesanan Anda
           </h2>
-          <p className="mt-1 text-sm leading-6 text-white/85">
+          <p className="mt-1 text-sm leading-6 text-white/85 max-sm:hidden">
             Lihat tahap yang sedang dikerjakan, lalu buka laporannya begitu selesai.
           </p>
         </div>
         <form
           method="get"
           action={channelHref(channel, '/lacak')}
-          className="grid gap-3 sm:grid-cols-[1fr_9rem_auto] sm:items-end"
+          // Dua medan selalu sebaris: di ponsel tiga medan bertumpuk membuat pita
+          // ini setinggi satu layar penuh, tepat di bawah hero.
+          className="grid grid-cols-[1fr_6.5rem] items-end gap-x-3 gap-y-3 sm:grid-cols-[1fr_8rem_auto]"
         >
           <div>
-            <label htmlFor="lacak-nomor" className="text-sm font-semibold text-white">
+            <label htmlFor="lacak-nomor" className="text-xs font-semibold text-white sm:text-sm">
               Nomor pesanan
             </label>
             <input
@@ -190,7 +197,7 @@ function TrackStrip({ channel }: { channel: Channel }) {
             />
           </div>
           <div>
-            <label htmlFor="lacak-hp" className="text-sm font-semibold text-white">
+            <label htmlFor="lacak-hp" className="text-xs font-semibold text-white sm:text-sm">
               4 digit akhir HP
             </label>
             <input
@@ -208,7 +215,7 @@ function TrackStrip({ channel }: { channel: Channel }) {
           {/* Putih di atas hijau tua: tombol hijau di atas hijau tidak terbaca. */}
           <button
             type="submit"
-            className="btn btn-lg text-primary-dark hover:bg-primary-light bg-white"
+            className="btn text-primary-dark hover:bg-primary-light col-span-2 bg-white sm:col-span-1 sm:px-8"
           >
             Lacak
           </button>
@@ -226,7 +233,7 @@ function ServicesSection() {
   const ways = services.filter((s) => !('addOn' in s));
   return (
     <section id="layanan" className="border-line border-b bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
+      <div className="container-site section-y">
         <Reveal className="mx-auto max-w-2xl text-center">
           <SectionLabel index="01" center>
             Layanan
@@ -298,7 +305,7 @@ function PackagesSection({
 
   return (
     <section id="paket" className="bg-surface-muted border-line border-b">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-20">
+      <div className="container-site section-y">
         <Reveal className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <SectionLabel index="02">Paket & harga</SectionLabel>
@@ -342,7 +349,7 @@ function LedgerSection({ channel }: { channel: Channel }) {
   const gallery = landingPhotos.gallery;
   return (
     <section id="proses" className="border-line border-b bg-white">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:py-20 lg:grid-cols-[0.7fr_1.3fr] lg:gap-16">
+      <div className="container-site section-y grid gap-8 lg:grid-cols-[0.7fr_1.3fr] lg:gap-16">
         <Reveal className="lg:sticky lg:top-24 lg:self-start">
           <h2 className="text-h2 text-ink font-bold tracking-tight">
             Catatan pelaksanaan setiap pesanan
@@ -425,7 +432,7 @@ function LedgerSection({ channel }: { channel: Channel }) {
 function FeaturesSection() {
   return (
     <section id="keunggulan" className="bg-surface-muted border-line border-b">
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-24">
+      <div className="container-site section-y">
         <Reveal>
           <h2 className="text-ink-muted text-sm font-semibold">Kenapa kami</h2>
           <p className="text-ink mt-4 max-w-3xl text-2xl leading-snug font-semibold text-balance lg:text-3xl">
@@ -462,7 +469,7 @@ function TestimonialsSection() {
     // Latar hijau muda: membedakan suara pemesan dari klaim kami sendiri di
     // section sebelum dan sesudahnya, yang berlatar abu dan putih.
     <section id="testimoni" className="bg-primary-light border-line border-b">
-      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-20">
+      <div className="container-narrow section-y">
         <Reveal as="figure" className="border-line rounded-lg border bg-white p-6 sm:p-10">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-primary text-sm font-semibold">Kata pemesan</h2>
@@ -541,7 +548,7 @@ function TestimonialAuthor({ t }: { t: (typeof testimonials)[number] }) {
 function FaqSection({ brand, faqList }: { brand: Brand; faqList: ReturnType<typeof faqs> }) {
   return (
     <section id="faq" className="border-line border-b bg-white">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+      <div className="container-site section-y grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
         <Reveal>
           <SectionLabel index="03">Pertanyaan umum</SectionLabel>
           <h2 className="text-h2 text-ink mt-3 font-bold tracking-tight">Yang sering ditanyakan</h2>
@@ -591,7 +598,7 @@ function FaqSection({ brand, faqList }: { brand: Brand; faqList: ReturnType<type
 function CtaSection({ brand, channel }: { brand: Brand; channel: Channel }) {
   return (
     <section className="bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16">
+      <div className="container-site section-y">
         <Reveal className="border-line grid overflow-hidden rounded-lg border md:grid-cols-[0.9fr_1.1fr]">
           <div className="bg-surface-muted aspect-3/2 md:aspect-auto">
             <SitePhoto
@@ -614,7 +621,7 @@ function CtaSection({ brand, channel }: { brand: Brand; channel: Channel }) {
               <p className="text-ink mt-3 max-w-md text-base leading-7">
                 Tim kami membantu dari memilih paket sampai laporan pelaksanaan.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
                 <Link href={channelHref(channel, '/paket')} className="btn btn-primary btn-lg">
                   Lihat paket aqiqah
                 </Link>

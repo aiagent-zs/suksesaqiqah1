@@ -2,7 +2,7 @@
 export default function PackagesLoading() {
   return (
     <section className="bg-surface-muted border-line border-b" aria-busy="true">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
+      <div className="container-site section-y">
         <p className="sr-only" role="status">
           Memuat daftar paket…
         </p>

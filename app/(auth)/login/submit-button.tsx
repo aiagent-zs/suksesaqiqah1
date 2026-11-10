@@ -29,7 +29,7 @@ export function LoginSubmitButton() {
       disabled={pending}
       // `disabled` sekaligus penjaga: klik kedua selama permintaan pertama
       // berjalan tidak menghasilkan apa-apa selain antrean.
-      className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#16A34A] to-[#059669] font-medium text-white shadow-lg shadow-emerald-950/50 transition-all hover:from-[#15803D] hover:to-[#047857] focus-visible:ring-3 focus-visible:ring-emerald-500/50 focus-visible:outline-none active:translate-y-px disabled:cursor-not-allowed disabled:opacity-80"
+      className="btn btn-primary mt-2 w-full disabled:cursor-not-allowed"
     >
       {pending ? (
         <>

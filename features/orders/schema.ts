@@ -64,12 +64,6 @@ export const createOrderSchema = z.object({
   notes: z.string().trim().max(2000).optional().or(z.literal('')),
 });
 
-export const updateOrderSchema = z.object({
-  order_id: uuid,
-  notes: z.string().trim().max(2000).optional().or(z.literal('')),
-  total_amount: z.coerce.number().min(0).optional(),
-});
-
 export const changeStatusSchema = z.object({
   order_id: uuid,
   // Daftar ditulis eksplisit agar tipe hasil parse langsung menyempit ke OrderStatus.
@@ -113,8 +107,8 @@ export const ORDER_SOURCES = ['guest_pending', 'guest', 'staff'] as const;
 export type OrderSource = (typeof ORDER_SOURCES)[number];
 
 export const ORDER_SOURCE_LABEL: Record<OrderSource, string> = {
-  guest_pending: 'Tamu — perlu verifikasi',
-  guest: 'Tamu — semua',
+  guest_pending: 'Tamu: perlu verifikasi',
+  guest: 'Tamu: semua',
   staff: 'Dibuat staf',
 };
 

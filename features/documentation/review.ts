@@ -82,17 +82,12 @@ export function checkReview(params: {
  *
  * **Perhitungannya tidak di sini lagi.** `v_order_progress.missing_doc_stages`
  * menurunkannya dari tabel `stage_requirements` menurut cara penyaluran order —
- * satu sumber kebenaran di database. Fungsi di bawah hanya memformat hasilnya
- * untuk layar.
+ * satu sumber kebenaran di database.
  *
  * Alasannya: tahapan kini bercabang. Aturan yang ditulis di TypeScript harus
  * disalin ke guard transisi juga, dan dengan dua alur salinan itu jadi empat
  * tempat yang harus dijaga sinkron selamanya.
  */
-export function formatMissingDocStages(stages: string[], labels: Record<string, string>): string[] {
-  return stages.map((s) => labels[s] ?? s);
-}
-
 export function isDocumentationComplete(missingStages: string[]): boolean {
   return missingStages.length === 0;
 }

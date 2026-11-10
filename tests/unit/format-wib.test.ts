@@ -12,3 +12,20 @@ describe('format tanggal selalu WIB', () => {
     expect(formatDate('2026-06-12')).toBe('12 Jun 2026');
   });
 });
+
+describe('formatRelative', () => {
+  it('membulatkan ke satuan terbesar yang muat', async () => {
+    const { formatRelative } = await import('@/lib/format');
+    const ago = (ms: number) => new Date(Date.now() - ms);
+    expect(formatRelative(ago(30e3))).toBe('30 detik lalu');
+    expect(formatRelative(ago(90e3))).toBe('2 menit lalu');
+    expect(formatRelative(ago(5 * 3600e3))).toBe('5 jam lalu');
+    expect(formatRelative(ago(3 * 864e5))).toBe('3 hari lalu');
+    expect(formatRelative(ago(40 * 864e5))).toBe('1 bulan lalu');
+    expect(formatRelative(ago(400 * 864e5))).toBe('1 tahun lalu');
+  });
+
+  it('Agustus tetap "Agt"', () => {
+    expect(formatDate('2026-08-17')).toBe('17 Agt 2026');
+  });
+});

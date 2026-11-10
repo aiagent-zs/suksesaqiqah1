@@ -62,7 +62,7 @@ export default async function CheckoutPage({
     // Latar abu-hijau, form dalam kartu putih: tiap bagian terpisah jelas
     // dari latarnya. Versi putih polos membuat isian mengalir tanpa batas.
     <div className="bg-surface-muted min-h-screen pb-10">
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:max-w-6xl">
+      <div className="container-site">
         <CheckoutHero channel={channel} title="Pesan aqiqah">
           Satu halaman, tanpa perlu membuat akun. Tim kami menghubungi Anda lewat WhatsApp untuk
           konfirmasi dan pembayaran.

@@ -58,36 +58,33 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       description="Masukkan kredensial terotorisasi untuk mengakses dashboard"
       footer={
         <div className="space-y-1 text-center">
-          <p className="text-xs text-slate-400">
+          <p className="text-ink-muted text-xs">
             Akses terbatas hanya untuk staf &amp; pengelola terotorisasi.
           </p>
-          <p className="text-[11px] text-slate-500">Sukses Aqiqah © 2026 · Hak Cipta Dilindungi</p>
+          <p className="text-ink-muted text-[11px]">Sukses Aqiqah © 2026 · Hak Cipta Dilindungi</p>
         </div>
       }
     >
       {/* Keluar otomatis karena menganggur — pemberitahuan, bukan kegagalan */}
       {noticeMsg && (
-        <Alert className="rounded-lg border-amber-500/50 bg-amber-950/50 text-amber-200">
-          <Clock className="h-4 w-4 shrink-0 text-amber-400" />
-          <AlertDescription className="text-sm text-amber-200">{noticeMsg}</AlertDescription>
+        <Alert className="rounded-lg border-amber-300 bg-amber-50 text-amber-900">
+          <Clock className="h-4 w-4 shrink-0 text-amber-700" />
+          <AlertDescription className="text-sm text-amber-900">{noticeMsg}</AlertDescription>
         </Alert>
       )}
 
       {/* Error Alert */}
       {errorMsg && (
-        <Alert
-          variant="destructive"
-          className="rounded-lg border-red-500/50 bg-red-950/50 text-red-200"
-        >
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
-          <AlertDescription className="text-sm text-red-200">{errorMsg}</AlertDescription>
+        <Alert variant="destructive" className="text-danger rounded-lg border-red-200 bg-red-50">
+          <AlertCircle className="text-danger h-4 w-4 shrink-0" />
+          <AlertDescription className="text-danger text-sm">{errorMsg}</AlertDescription>
         </Alert>
       )}
 
       {/* Login Form */}
       <form action={loginWithEmail} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="input-email" className="text-sm font-medium text-slate-200">
+          <Label htmlFor="input-email" className="text-ink text-sm font-medium">
             Email Staf
           </Label>
           <Input
@@ -103,7 +100,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="input-password" className="text-sm font-medium text-slate-200">
+          <Label htmlFor="input-password" className="text-ink text-sm font-medium">
             Kata Sandi
           </Label>
           <Input
@@ -127,7 +124,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <p className="mt-4 text-center">
         <Link
           href="/lupa-sandi"
-          className="text-xs text-slate-400 underline-offset-4 transition-colors hover:text-emerald-400 hover:underline"
+          className="text-ink-muted hover:text-primary text-xs underline-offset-4 transition-colors hover:underline"
         >
           Lupa kata sandi?
         </Link>

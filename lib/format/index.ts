@@ -1,9 +1,12 @@
-import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
-import { id as localeId } from 'date-fns/locale';
-
 function toDate(value: string | Date | null | undefined): Date | null {
   if (!value) return null;
-  const d = typeof value === 'string' ? parseISO(value) : value;
+  // `new Date('2026-06-12')` dibaca UTC; tanggal kalender murni harus tengah malam lokal.
+  const d =
+    typeof value === 'string'
+      ? /^\d{4}-\d{2}-\d{2}$/.test(value)
+        ? new Date(`${value}T00:00:00`)
+        : new Date(value)
+      : value;
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
@@ -18,7 +21,7 @@ const wibParts = new Intl.DateTimeFormat('en-CA', {
 });
 
 /**
- * Jam dinding WIB sebagai `Date` lokal, untuk diformat `date-fns`.
+ * Jam dinding WIB sebagai `Date` lokal, untuk diformat di bawah.
  *
  * Server (UTC) dan peramban (WIB) harus mencetak teks yang sama, atau React
  * melaporkan hydration mismatch dan jamnya selisih 7 jam. Tanggal kalender
@@ -63,16 +66,29 @@ export function formatCurrencyCompact(value: number | string | null | undefined)
   }).format(n);
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+const pad = (n: number) => String(n).padStart(2, '0');
+const dayMonthYear = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+
+/** [satuan, detik per satuan, batas (detik) sebelum naik ke satuan berikutnya] */
+const RELATIVE_UNITS: [string, number, number][] = [
+  ['detik', 1, 60],
+  ['menit', 60, 3600],
+  ['jam', 3600, 86400],
+  ['hari', 86400, 2592000],
+  ['bulan', 2592000, 31536000],
+];
+
 /** 12 Jun 2026 */
 export function formatDate(value: string | Date | null | undefined): string {
   const d = toWib(value);
-  return d ? format(d, 'd MMM yyyy', { locale: localeId }) : '-';
+  return d ? dayMonthYear(d) : '-';
 }
 
 /** 12 Jun 2026, 07:30 */
 export function formatDateTime(value: string | Date | null | undefined): string {
   const d = toWib(value);
-  return d ? format(d, 'd MMM yyyy, HH:mm', { locale: localeId }) : '-';
+  return d ? `${dayMonthYear(d)}, ${pad(d.getHours())}:${pad(d.getMinutes())}` : '-';
 }
 
 /** 07:30 — kolom `time` dari Postgres datang sebagai "07:30:00". */
@@ -85,5 +101,10 @@ export function formatTime(value: string | null | undefined): string {
 export function formatRelative(value: string | Date | null | undefined): string {
   const d = toDate(value);
   if (!d) return '-';
-  return `${formatDistanceToNowStrict(d, { locale: localeId })} lalu`;
+  // Pembulatan & ambang unit mengikuti `formatDistanceToNowStrict` date-fns.
+  const sec = Math.abs(Date.now() - d.getTime()) / 1000;
+  for (const [unit, size, limit] of RELATIVE_UNITS) {
+    if (sec < limit) return `${Math.round(sec / size)} ${unit} lalu`;
+  }
+  return `${Math.round(sec / 31536000)} tahun lalu`;
 }

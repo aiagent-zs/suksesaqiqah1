@@ -28,7 +28,7 @@ export default function LupaSandiPage() {
       footer={
         <Link
           href="/login"
-          className="flex items-center justify-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-slate-200"
+          className="text-ink-muted hover:text-ink flex items-center justify-center gap-1.5 text-xs transition-colors"
         >
           <ArrowLeft className="size-3.5" />
           Kembali ke halaman masuk

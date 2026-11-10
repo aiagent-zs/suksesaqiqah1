@@ -135,7 +135,7 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, TransitionRule[]> = {
       guard: (ctx) =>
         ctx.stagesTotal > 0
           ? null
-          : 'Daftar tahap belum terbit — periksa cara penyaluran dan data hewan.',
+          : 'Daftar tahap belum terbit. Periksa cara penyaluran dan data hewan.',
     },
     { to: 'on_hold', roles: OPERATOR },
   ],

@@ -1,4 +1,4 @@
-import { ORDER_STATUS_META, type OrderStatus } from '@/lib/constants/order';
+import type { OrderStatus } from '@/lib/constants/order';
 import { getTransitionOptions, type OrderGuardContext } from './state-machine';
 import type { Database } from '@/types/database';
 
@@ -77,8 +77,8 @@ const STEP_TITLE: Record<OrderStatus, string> = {
   in_progress: 'Validasi laporan tahap yang dikirim mitra',
   validation: 'Validasi laporan tahap beserta buktinya',
   reporting: 'Buat laporan peserta lalu kirimkan tautannya',
-  completed: 'Order selesai — tidak ada yang perlu dikerjakan',
-  on_hold: 'Order ditahan — lanjutkan bila penyebabnya sudah selesai',
+  completed: 'Order selesai, tidak ada yang perlu dikerjakan',
+  on_hold: 'Order ditahan. Lanjutkan bila penyebabnya sudah selesai',
   cancelled: 'Order dibatalkan',
 };
 
@@ -130,9 +130,4 @@ export function deriveNextStep(
     readyFor: ready?.to ?? null,
     done,
   };
-}
-
-/** Label status berikutnya, untuk tombol/keterangan. */
-export function statusLabel(status: OrderStatus): string {
-  return ORDER_STATUS_META[status].label;
 }

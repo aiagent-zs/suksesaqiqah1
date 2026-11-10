@@ -166,12 +166,6 @@ export const DOC_STAGE_LABEL: Record<DocStage, string> = {
   terkirim: 'Terkirim',
 };
 
-export const DOC_TYPE_LABEL: Record<DocType, string> = {
-  photo: 'Foto',
-  video: 'Video',
-  note: 'Catatan',
-};
-
 export const ANIMAL_SPECIES_LABEL: Record<AnimalSpecies, string> = {
   kambing: 'Kambing',
   domba: 'Domba',
