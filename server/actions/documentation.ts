@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
 import {
-  deleteDocumentationSchema,
   reviewDocumentationSchema,
   uploadDocumentationSchema,
 } from '@/features/documentation/schema';
@@ -184,57 +183,3 @@ export async function reviewDocumentation(input: unknown): Promise<ActionResult<
 // =============================================================================
 // Hapus (koreksi)
 // =============================================================================
-
-/**
- * Hapus satu dokumentasi.
- *
- * Kebijakan RLS `documentations_delete` membatasinya ke Manager Program &
- * admin. Yang sudah `approved` ditolak di sini: dokumentasi itu bukti
- * yang melepas gate menuju `reporting` dan ikut tampil di laporan peserta.
- */
-export async function deleteDocumentation(input: unknown): Promise<ActionResult<null>> {
-  const session = await requireAuth();
-  const role = session.profile?.role;
-
-  if (role !== 'superadmin' && role !== 'admin') {
-    return forbidden('Hanya admin atau superadmin yang dapat menghapus dokumentasi.');
-  }
-
-  const parsed = deleteDocumentationSchema.safeParse(input);
-  if (!parsed.success) return validationError(parsed.error);
-
-  const supabase = await createClient();
-  const { data: doc } = await supabase
-    .from('documentations')
-    .select('id, order_id, status')
-    .eq('id', parsed.data.documentation_id)
-    .maybeSingle();
-
-  if (!doc) return notFound('Dokumentasi tidak ditemukan.');
-
-  if (doc.status === 'approved') {
-    return conflict(
-      'Dokumentasi yang sudah tervalidasi penuh tidak dapat dihapus — bukti ini dipakai laporan peserta.',
-    );
-  }
-
-  // Status ikut difilter di DELETE untuk menutup celah TOCTOU: tanpa itu,
-  // dokumentasi bisa berubah menjadi `approved` di antara SELECT dan DELETE.
-  const { data: deleted, error } = await supabase
-    .from('documentations')
-    .delete()
-    .eq('id', parsed.data.documentation_id)
-    .neq('status', 'approved')
-    .select('id');
-
-  if (error) return internalError('Gagal menghapus dokumentasi', error);
-  if ((deleted ?? []).length === 0) {
-    return conflict('Dokumentasi sudah tervalidasi atau dihapus pihak lain.');
-  }
-
-  // Berkas di Storage sengaja dibiarkan — berkas yatim sudah punya jadwal
-  // pembersihan tersendiri (docs/17 section 5).
-  revalidatePath(`/orders/${doc.order_id}`);
-  revalidatePath('/validation');
-  return { ok: true, data: null };
-}

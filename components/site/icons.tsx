@@ -83,70 +83,6 @@ export function IconArrowRight(props: IconProps) {
   );
 }
 
-export function IconShield(props: IconProps) {
-  return (
-    <svg {...base} {...props}>
-      <path d="M12 3 5 6v6c0 4.4 3 7.5 7 9 4-1.5 7-4.6 7-9V6l-7-3Z" />
-      <path d="m9.5 12 1.8 1.8 3.2-3.6" />
-    </svg>
-  );
-}
-
-export function IconActivity(props: IconProps) {
-  return (
-    <svg {...base} {...props}>
-      <path d="M3 12h4l2.5 7 5-14L17 12h4" />
-    </svg>
-  );
-}
-
-export function IconCamera(props: IconProps) {
-  return (
-    <svg {...base} {...props}>
-      <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
-      <circle cx="12" cy="13" r="3.2" />
-    </svg>
-  );
-}
-
-export function IconFile(props: IconProps) {
-  return (
-    <svg {...base} {...props}>
-      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" />
-      <path d="M14 3v5h5M9 13h6M9 17h6" />
-    </svg>
-  );
-}
-
-export function IconClock(props: IconProps) {
-  return (
-    <svg {...base} {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-
-export function IconHeart(props: IconProps) {
-  return (
-    <svg {...base} {...props}>
-      <path d="M12 20s-7-4.4-9.2-8.6C1.3 8.7 2.7 5.5 5.8 5.5c1.9 0 3.2 1.1 4.2 2.4 1-1.3 2.3-2.4 4.2-2.4 3.1 0 4.5 3.2 3 5.9C19 15.6 12 20 12 20Z" />
-    </svg>
-  );
-}
-
-/** Ikon layanan. */
-export function IconAqiqah(props: IconProps) {
-  // kambing / hewan ternak stylized
-  return (
-    <svg {...base} {...props}>
-      <path d="M6 8c-1.5 0-2.5-1-2.5-2.5C3.5 4 4.5 3.5 5.5 4c.4-1 1.4-1.5 2.3-1 .8-1 2.3-1 3 .2M6 8c0 1.2.4 2 1.2 2.8" />
-      <path d="M8 11c0 3 1.6 5 4 5s4-2 4-5c0-1.7 1-2.5 2.2-2.5 1.3 0 2.3 1 2.3 2.4 0 1.3-.9 2.2-2 2.4" />
-      <path d="M9 16v3M15 16v3" />
-    </svg>
-  );
-}
-
 export function IconQurban(props: IconProps) {
   // sapi / cattle stylized head
   return (
@@ -157,33 +93,4 @@ export function IconQurban(props: IconProps) {
       <path d="M10.5 13.5h.01M13.5 13.5h.01" />
     </svg>
   );
-}
-
-export function IconSedekah(props: IconProps) {
-  // hands giving / share
-  return (
-    <svg {...base} {...props}>
-      <path d="M12 4v5m0 0 2.5-2.5M12 9 9.5 6.5" />
-      <path d="M3 14l4-1.5c.6-.2 1.3-.1 1.8.3l2.2 1.7c.6.4 1.4.4 2 0l3.4-2.2c.7-.4 1.6-.2 2 .5.4.7.2 1.6-.5 2L15 20c-.8.6-1.8.8-2.8.6L6 19l-3 .8" />
-    </svg>
-  );
-}
-
-const iconMap = {
-  aqiqah: IconAqiqah,
-  qurban: IconQurban,
-  sedekah: IconSedekah,
-  shield: IconShield,
-  activity: IconActivity,
-  camera: IconCamera,
-  file: IconFile,
-  clock: IconClock,
-  heart: IconHeart,
-} as const;
-
-export type IconName = keyof typeof iconMap;
-
-export function Icon({ name, ...props }: IconProps & { name: IconName }) {
-  const Cmp = iconMap[name];
-  return <Cmp {...props} />;
 }

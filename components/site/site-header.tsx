@@ -53,8 +53,8 @@ export function SiteHeader({ brand }: { brand: Brand }) {
     return () => io.disconnect();
   }, [isLanding]);
 
-  // Menu mobile: kunci gulir body, tutup dengan Escape, kembalikan fokus ke
-  // tombol pembukanya supaya pengguna keyboard tidak kehilangan posisi.
+  // Menu ponsel: kunci gulir halaman di belakangnya, tutup dengan Escape, dan
+  // kembalikan fokus ke tombol pembuka supaya pengguna keyboard tidak tersesat.
   useEffect(() => {
     if (!open) return;
     document.body.style.overflow = 'hidden';
@@ -74,9 +74,9 @@ export function SiteHeader({ brand }: { brand: Brand }) {
   /**
    * Tutup menu, lalu gulir ke anchor-nya pada frame berikutnya.
    *
-   * Kunci `overflow: hidden` baru terlepas setelah React selesai me-render,
-   * sementara peramban sudah mencoba menggulir lebih dulu, dan menggulir di
-   * `body` yang masih terkunci tidak menghasilkan apa-apa.
+   * Kunci `overflow: hidden` baru terlepas setelah React selesai me-render;
+   * menggulir `body` yang masih terkunci tidak menghasilkan apa-apa.
+   *
    */
   const handleMobileNavClick = (hash: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!isLanding) {
@@ -102,7 +102,7 @@ export function SiteHeader({ brand }: { brand: Brand }) {
         scrolled ? 'border-line shadow-sm' : 'border-transparent'
       }`}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="container-site flex h-16 items-center justify-between gap-4">
         <Link href={home} className="shrink-0 rounded" onClick={() => setOpen(false)}>
           <Logo brand={brand} />
         </Link>
@@ -157,21 +157,31 @@ export function SiteHeader({ brand }: { brand: Brand }) {
         </button>
       </div>
 
+      {/* Menu ponsel melayang tepat di bawah header (`absolute top-full`) dan
+          menimpa hero setinggi isinya saja, bukan menyisip ke aliran isi: hero
+          tidak terdorong turun, dan halaman di bawah menu tetap terlihat.
+          Latarnya putih pekat; ketuk di luar menu untuk menutupnya. */}
+      {open && (
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          tabIndex={-1}
+          onClick={() => setOpen(false)}
+          className="fixed inset-x-0 top-16 bottom-0 cursor-default lg:hidden"
+        />
+      )}
       {open && (
         <div
           id="mobile-menu"
-          className="animate-in fade-in slide-in-from-top-2 border-line max-h-[calc(100dvh-4rem)] overflow-y-auto border-t bg-white pb-[env(safe-area-inset-bottom)] duration-300 ease-out lg:hidden"
+          className="animate-in fade-in slide-in-from-top-2 border-line absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto border-y bg-white shadow-sm duration-150 lg:hidden"
         >
-          <nav
-            aria-label="Menu utama"
-            className="mx-auto flex max-w-7xl flex-col px-4 py-3 sm:px-6"
-          >
+          <nav aria-label="Menu utama" className="container-site flex flex-col py-2">
             {primaryNav.map((item) => (
               <a
                 key={item.href}
                 href={navHref(item.href)}
                 onClick={handleMobileNavClick(item.href)}
-                className="text-ink hover:bg-surface-muted flex min-h-12 items-center rounded-lg px-2 text-base font-medium"
+                className="text-ink hover:bg-surface-muted -mx-2 flex min-h-12 items-center rounded-lg px-2 text-base font-medium"
               >
                 {item.label}
               </a>
@@ -179,25 +189,25 @@ export function SiteHeader({ brand }: { brand: Brand }) {
             <Link
               href={lacak}
               onClick={() => setOpen(false)}
-              className="text-ink hover:bg-surface-muted flex min-h-12 items-center rounded-lg px-2 text-base font-medium"
+              className="text-ink hover:bg-surface-muted -mx-2 flex min-h-12 items-center rounded-lg px-2 text-base font-medium"
             >
               Lacak pesanan
             </Link>
-            <div className="border-line mt-3 flex flex-col gap-2 border-t pt-3">
-              <Link href={paket} onClick={() => setOpen(false)} className="btn btn-primary btn-lg">
-                Lihat paket aqiqah
-              </Link>
-              <a
-                href={siteConfig.whatsapp.href(waMessage)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-outline btn-lg"
-              >
-                <IconWhatsApp className="size-4" />
-                Konsultasi WhatsApp
-              </a>
-            </div>
           </nav>
+          <div className="container-site border-line flex flex-col gap-2 border-t pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <Link href={paket} onClick={() => setOpen(false)} className="btn btn-primary btn-lg">
+              Lihat paket aqiqah
+            </Link>
+            <a
+              href={siteConfig.whatsapp.href(waMessage)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline btn-lg"
+            >
+              <IconWhatsApp className="size-4" />
+              Konsultasi WhatsApp
+            </a>
+          </div>
         </div>
       )}
     </header>

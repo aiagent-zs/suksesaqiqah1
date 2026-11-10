@@ -9,7 +9,6 @@ import {
   changeStatusSchema,
   createOrderSchema,
   deleteAnimalSchema,
-  updateOrderSchema,
   verifyGuestOrderSchema,
 } from '@/features/orders/schema';
 import { checkTransition } from '@/features/orders/state-machine';
@@ -104,58 +103,6 @@ export async function createOrder(
 // =============================================================================
 // Update data order (bukan status)
 // =============================================================================
-
-export async function updateOrder(input: unknown): Promise<ActionResult<null>> {
-  const session = await requireAuth();
-  const role = session.profile?.role;
-
-  if (!canDo(role, 'UPDATE_ORDER')) {
-    return {
-      ok: false,
-      error: { code: 'FORBIDDEN', message: 'Role Anda tidak berhak mengubah data order.' },
-    };
-  }
-
-  const parsed = updateOrderSchema.safeParse(input);
-  if (!parsed.success) return validationError(parsed.error);
-  const { order_id, ...changes } = parsed.data;
-
-  if (changes.total_amount !== undefined && !canDo(role, 'UPDATE_ORDER_AMOUNT')) {
-    return {
-      ok: false,
-      error: {
-        code: 'FORBIDDEN',
-        message: 'Hanya Manager Program yang dapat mengubah nilai order.',
-      },
-    };
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('orders')
-    .update({
-      // Hanya bila dikirim: `undefined` = tidak disentuh, '' = dikosongkan.
-      // Tanpa syarat ini, ubah nilai order saja ikut menghapus catatannya.
-      ...(changes.notes !== undefined ? { notes: changes.notes || null } : {}),
-      ...(changes.total_amount !== undefined ? { total_amount: changes.total_amount } : {}),
-    })
-    .eq('id', order_id)
-    .select('id');
-
-  if (error) return internalError('Gagal menyimpan perubahan order', error);
-
-  // UPDATE yang tidak mengenai baris apapun bukan error di PostgREST — tanpa cek
-  // ini, penolakan RLS terlihat sebagai sukses di UI.
-  if ((data ?? []).length === 0) {
-    return {
-      ok: false,
-      error: { code: 'NOT_FOUND', message: 'Order tidak ditemukan atau di luar akses Anda.' },
-    };
-  }
-
-  revalidatePath(`/orders/${order_id}`);
-  return { ok: true, data: null };
-}
 
 // =============================================================================
 // Verifikasi order tamu (prd.md FR-C2, TASKS.md section 11 butir 1)

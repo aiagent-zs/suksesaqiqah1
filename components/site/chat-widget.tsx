@@ -104,7 +104,11 @@ export function ChatWidget({ brandName }: { brandName: string }) {
   );
 
   return (
-    <div className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-end gap-3 sm:right-6">
+    // Ekstensi browser kadang menyuntik `style.translate` ke widget fixed ini sebelum hidrasi.
+    <div
+      suppressHydrationWarning
+      className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-end gap-3 sm:right-6"
+    >
       {open && (
         <section
           id="chat-panel"

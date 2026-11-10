@@ -81,7 +81,11 @@ export function SubmitBar({
   onSubmit: () => void;
 }) {
   return (
-    <div className="border-line sticky bottom-0 z-20 -mx-4 flex items-center gap-3 border-t bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:mx-0 sm:rounded-lg sm:border sm:px-5">
+    // Menempel hanya di bawah `lg`: di desktop total sudah tampil di kolom samping,
+    // dan bilah yang menempel menutupi kartu paket yang sedang dipilih.
+    <div
+      className="border-line sticky bottom-0 z-20 -mx-4 flex items-center gap-3 border-t bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:mx-0 sm:rounded-lg sm:border sm:px-5 lg:static lg:pb-3"
+    >
       <p aria-live="polite" className="min-w-0 leading-tight">
         <span className="text-ink-muted block truncate text-xs sm:text-sm">{status}</span>
         <span className="text-ink block text-lg font-bold tabular-nums">

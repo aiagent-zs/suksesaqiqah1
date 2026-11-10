@@ -1,6 +1,5 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
-import type { ValidationFilterInput } from './schema';
 import { DOC_BUCKET, type DocStage, type DocStatus, type DocType } from './storage';
 
 /** TTL signed URL media — docs/17 section 4 menyarankan 5–15 menit. */
@@ -129,86 +128,5 @@ export async function getOrderDocumentations(orderId: string): Promise<Documenta
   return {
     rows,
     pendingReview: rows.filter((r) => r.status === 'pending').length,
-  };
-}
-
-export type ValidationQueueItem = DocumentationRow & {
-  orderId: string;
-  orderNumber: string;
-  participantName: string;
-};
-
-export type ValidationQueueResult = {
-  data: ValidationQueueItem[];
-  page: number;
-  page_size: number;
-  total: number;
-};
-
-const QUEUE_SELECT = `
-  ${DOC_SELECT},
-  order:orders!inner (
-    id, order_number, vendor_id,
-    participant:participants!orders_participant_id_fkey ( name ),
-    vendor:vendors!orders_vendor_id_fkey ( code )
-  )
-`;
-
-/**
- * Antrian validasi (docs/10 section 6).
- *
- * Daftar `status` ditentukan pemanggil, bukan filter dari klien. Baris tetap
- * ter-scope RLS.
- */
-export async function getValidationQueue(
-  statuses: DocStatus[],
-  filter: ValidationFilterInput,
-): Promise<ValidationQueueResult> {
-  const supabase = await createClient();
-  const { page, page_size } = filter;
-
-  let query = supabase
-    .from('documentations')
-    .select(QUEUE_SELECT, { count: 'exact' })
-    // Daftar, bukan satu status: sejak validasi jadi satu tingkat, antrian ini
-    // memuat `pending` **dan** sisa `approved_supervisor` dari tangga lama.
-    .in('status', statuses)
-    // Yang paling lama menunggu ditangani lebih dulu.
-    .order('created_at', { ascending: true });
-
-  if (filter.stage) query = query.eq('stage', filter.stage);
-
-  const from = (page - 1) * page_size;
-  const { data, count, error } = await query.range(from, from + page_size - 1);
-
-  if (error) throw new Error(`Gagal memuat antrian validasi: ${error.message}`);
-
-  const raw = (data ?? []) as unknown as Array<
-    RawDoc & {
-      order: {
-        id: string;
-        order_number: string;
-        participant: { name: string } | null;
-        vendor: { code: string } | null;
-      } | null;
-    }
-  >;
-
-  const urlByPath = await signPaths(
-    supabase,
-    raw.map((r) => r.storage_path).filter((p): p is string => Boolean(p)),
-  );
-
-  return {
-    data: raw.map((r) => ({
-      ...mapDoc(r, urlByPath),
-      orderId: r.order?.id ?? '',
-      orderNumber: r.order?.order_number ?? '-',
-      vendorCode: r.order?.vendor?.code ?? '-',
-      participantName: r.order?.participant?.name ?? '-',
-    })),
-    page,
-    page_size,
-    total: count ?? 0,
   };
 }

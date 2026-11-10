@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { requireAuth } from '@/server/auth/session';
-import { AuthProvider } from '@/components/providers/auth-provider';
 import { IdleLogout } from '@/components/providers/idle-logout';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { MobileNav } from '@/components/layout/mobile-nav';
@@ -17,7 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await requireAuth();
 
   return (
-    <AuthProvider profile={session.profile}>
+    <>
       {/* Keluar otomatis saat menganggur — penegakannya di middleware,
           komponen ini yang membuat waktunya tepat (lib/auth/idle.ts) */}
       <IdleLogout />
@@ -123,7 +122,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               di atas konten, jadi sisi bawah butuh ruang sendiri (`pb-24`) yang
               baru kembali normal begitu sidebar muncul di `lg`. Ditulis sebagai
               shorthand, nilai `pb` itu akan tertimpa `md:p-8`. */}
-          <main className="mx-auto w-full max-w-[1440px] flex-1 px-6 pt-6 pb-24 md:px-8 md:pt-8 lg:pb-8">
+          <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pt-5 pb-24 sm:px-6 md:pt-8 lg:px-8 lg:pb-8">
             {children}
           </main>
         </div>
@@ -134,6 +133,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         fullName={session.profile?.full_name ?? session.email ?? 'User Staf'}
         role={session.profile?.role}
       />
-    </AuthProvider>
+    </>
   );
 }

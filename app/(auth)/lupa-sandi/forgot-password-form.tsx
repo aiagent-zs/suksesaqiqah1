@@ -41,18 +41,18 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <div className="space-y-3">
-        <p className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-300">
+        <p className="border-primary/20 bg-primary-light text-primary-dark flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm">
           <Check className="mt-0.5 size-4 shrink-0" />
           {sent}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-ink-muted text-xs">
           Tautannya berlaku sekali pakai dan punya masa berlaku. Bila belum masuk dalam beberapa
           menit, periksa folder spam sebelum meminta yang baru.
         </p>
         <button
           type="button"
           onClick={() => setSent(null)}
-          className="text-xs text-slate-400 underline-offset-4 transition-colors hover:text-slate-200 hover:underline"
+          className="text-ink-muted hover:text-ink text-xs underline-offset-4 transition-colors hover:underline"
         >
           Kirim ke email lain
         </button>
@@ -63,7 +63,7 @@ export function ForgotPasswordForm() {
   return (
     <form action={submit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="reset-email" className="text-sm font-medium text-slate-200">
+        <Label htmlFor="reset-email" className="text-ink text-sm font-medium">
           Email akun
         </Label>
         <Input

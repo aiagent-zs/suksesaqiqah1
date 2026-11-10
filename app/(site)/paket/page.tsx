@@ -43,7 +43,7 @@ export default async function PackagesPage({ searchParams }: PageProps<'/paket'>
 
   return (
     <section className="bg-surface-muted border-line border-b">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
+      <div className="container-site section-y">
         <h1 className="text-h1 text-ink font-bold tracking-tight">Semua paket & harga</h1>
         <p className="text-ink-muted mt-4 max-w-2xl text-base leading-7">
           Harga sudah termasuk penyembelihan, pemasakan, dokumentasi, dan laporan pelaksanaan. Tidak

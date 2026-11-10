@@ -64,7 +64,7 @@ const locationFields = {
   address: z
     .string()
     .trim()
-    .min(10, 'Alamat lengkap wajib diisi — tulis jalan, nomor, kelurahan, dan kota')
+    .min(10, 'Alamat lengkap wajib diisi: jalan, nomor, kelurahan, dan kota')
     .max(500, 'Alamat terlalu panjang'),
 };
 

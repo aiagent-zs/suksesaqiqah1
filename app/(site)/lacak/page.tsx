@@ -39,7 +39,7 @@ export default async function TrackPage({ searchParams }: PageProps<'/lacak'>) {
 
   return (
     <section className="bg-surface-muted border-line border-b">
-      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
+      <div className="container-narrow section-y">
         <h1 className="text-h1 text-ink font-bold tracking-tight">Lacak pesanan</h1>
         <p className="text-ink-muted mt-3 max-w-xl text-base leading-7">
           Masukkan nomor pesanan dari halaman konfirmasi atau pesan WhatsApp Anda, beserta 4 digit

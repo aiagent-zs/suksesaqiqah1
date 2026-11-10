@@ -64,7 +64,7 @@ function waMessage(
     return (
       `Assalamu'alaikum ${nama}. Alhamdulillah ibadah aqiqah Anda ` +
       `(Order ${order}) telah dilaksanakan. Lihat laporan & dokumentasinya di sini:\n${link}\n\n` +
-      `— Zakat Sukses · Sukses Aqiqah`
+      `Zakat Sukses · Sukses Aqiqah`
     );
   }
 
@@ -72,7 +72,7 @@ function waMessage(
     return (
       `Assalamu'alaikum ${nama}. Pesanan aqiqah Anda (Order ${order}) sudah kami antar. ` +
       `Mohon konfirmasi penerimaannya lewat tautan berikut:\n${link}\n\n` +
-      `— Zakat Sukses · Sukses Aqiqah`
+      `Zakat Sukses · Sukses Aqiqah`
     );
   }
 

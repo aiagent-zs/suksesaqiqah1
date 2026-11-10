@@ -12,7 +12,7 @@ export async function SiteFooter() {
 
   return (
     <footer className="bg-primary-dark text-white">
-      <div className="mx-auto max-w-7xl px-4 pt-12 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:px-6">
+      <div className="container-site pt-12 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr]">
           <div className="max-w-sm">
             <span className="inline-flex rounded-lg bg-white px-3 py-2">

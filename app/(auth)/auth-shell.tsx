@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
  * membuat satu halaman terlihat berbeda tanpa ada yang sadar.
  */
 export const AUTH_FIELD_CLASS =
-  'h-11 rounded-lg border-[#213145] bg-[#0b1c30]/80 text-white placeholder:text-slate-500 focus-visible:border-[#16A34A] focus-visible:ring-[#16A34A]';
+  'h-11 rounded-lg border-line bg-white text-ink placeholder:text-ink-muted/70 focus-visible:border-primary focus-visible:ring-primary/30';
 
 export function AuthShell({
   title,
@@ -29,10 +29,10 @@ export function AuthShell({
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0b1c30] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#004d1f] via-[#0b1c30] to-[#051120] p-4">
+    <div className="bg-surface-muted flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="w-full max-w-md space-y-6">
         <div className="space-y-2 text-center">
-          <div className="mb-2 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 p-1.5 shadow-lg ring-1 shadow-emerald-900/50 ring-white/20 backdrop-blur-sm">
+          <div className="border-line mb-2 inline-flex size-16 items-center justify-center rounded-lg border bg-white p-1.5">
             <Image
               src="/images/logo_new.webp"
               alt="Logo Sukses Aqiqah"
@@ -42,21 +42,17 @@ export function AuthShell({
               className="h-full w-full object-contain"
             />
           </div>
-          <h1 className="font-sans text-3xl font-bold tracking-tight text-white">
+          <h1 className="text-h2 font-bold tracking-tight">
             <span className="text-[#6EAF13]">Sukses</span>{' '}
             <span className="text-[#FF7200]">Aqiqah</span>
           </h1>
-          <p className="text-xs font-semibold tracking-wider text-emerald-400 uppercase">
-            Command Center · Tebarkan Manfaat
-          </p>
+          <p className="text-ink-muted text-sm">Masuk untuk tim & mitra pelaksana</p>
         </div>
 
-        <Card className="rounded-2xl border-[#213145] bg-[#15273e]/90 shadow-2xl backdrop-blur-xl">
+        <Card className="border-line rounded-lg bg-white shadow-sm">
           <CardHeader className="space-y-1.5 pb-4">
-            <CardTitle className="text-xl font-semibold tracking-tight text-white">
-              {title}
-            </CardTitle>
-            <CardDescription className="text-sm text-slate-400">{description}</CardDescription>
+            <CardTitle className="text-ink text-xl font-semibold tracking-tight">{title}</CardTitle>
+            <CardDescription className="text-ink-muted text-sm">{description}</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-5">{children}</CardContent>

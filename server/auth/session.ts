@@ -61,26 +61,3 @@ export async function requireRole(allowedRoles: UserRole[]): Promise<SessionUser
 
   return session;
 }
-
-/**
- * Cek apakah user punya role tertentu (tanpa redirect — untuk conditional rendering).
- */
-export function hasRole(profile: Profile | null, roles: UserRole[]): boolean {
-  if (!profile) return false;
-  return roles.includes(profile.role);
-}
-
-/**
- * Pihak internal — superadmin atau admin.
- *
- * Lawannya vendor, yang hanya melihat order yang ditugaskan padanya. Cerminan
- * `public.is_staff()` di database; keduanya harus bergerak bersama.
- */
-export function isStaff(profile: Profile | null): boolean {
-  return hasRole(profile, ['superadmin', 'admin']);
-}
-
-/** Cerminan `public.is_superadmin()`. */
-export function isSuperadmin(profile: Profile | null): boolean {
-  return hasRole(profile, ['superadmin']);
-}

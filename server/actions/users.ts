@@ -39,6 +39,40 @@ function adminClient() {
   });
 }
 
+/**
+ * Lepaskan email yang masih dipegang akun terhapus.
+ *
+ * `deleteUser` hanya menandai `deleted_at` dan mem-ban `auth.users`; barisnya
+ * tetap ada, jadi emailnya masih unik-terpakai dan akun baru dengan email yang
+ * sama ditolak "sudah terdaftar". Email lamanya diganti alamat mati, sehingga
+ * jejak siapa-mengerjakan-apa tetap utuh dan emailnya bebas dipakai lagi.
+ * `profiles.email` ikut berganti lewat trigger `on_auth_user_email_changed`.
+ *
+ * Mengembalikan `true` bila ada akun terhapus yang emailnya dilepas.
+ */
+async function releaseEmailFromDeleted(
+  admin: ReturnType<typeof adminClient>,
+  email: string,
+): Promise<boolean> {
+  const { data: holder } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .not('deleted_at', 'is', null)
+    .maybeSingle();
+  if (!holder) return false;
+
+  const { error } = await admin.auth.admin.updateUserById(holder.id, {
+    email: `terhapus-${holder.id}@deleted.invalid`,
+    email_confirm: true,
+  });
+  if (error) {
+    console.error('[users] Gagal melepas email akun terhapus:', error.message);
+    return false;
+  }
+  return true;
+}
+
 // untuk mencegah superadmin hapus diri sendiri
 async function lastSuperadminGuard(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -113,20 +147,31 @@ export async function createUser(
     return internalError('Pengaturan server belum lengkap', e as { message: string });
   }
 
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email: v.email,
-    password: v.password,
-    // Akun dibuat admin, bukan mendaftar sendiri — jadi tidak perlu menunggu
-    // konfirmasi email yang tidak akan pernah dibuka siapa pun.
-    email_confirm: true,
-    user_metadata: {
-      full_name: v.full_name,
-      phone: v.phone || null,
-      // Sengaja tanpa `role` dan `vendor_id`: `handle_new_user` mengabaikan
-      // keduanya (metadata bisa diisi siapa pun yang mendaftar). Keduanya
-      // ditulis lewat update profil di bawah.
-    },
-  });
+  const createAuthUser = () =>
+    admin.auth.admin.createUser({
+      email: v.email,
+      password: v.password,
+      // Akun dibuat admin, bukan mendaftar sendiri — jadi tidak perlu menunggu
+      // konfirmasi email yang tidak akan pernah dibuka siapa pun.
+      email_confirm: true,
+      user_metadata: {
+        full_name: v.full_name,
+        phone: v.phone || null,
+        // Sengaja tanpa `role` dan `vendor_id`: `handle_new_user` mengabaikan
+        // keduanya (metadata bisa diisi siapa pun yang mendaftar). Keduanya
+        // ditulis lewat update profil di bawah.
+      },
+    });
+
+  let { data: created, error: createError } = await createAuthUser();
+
+  // Email yang dipegang akun terhapus dilepas, lalu dicoba sekali lagi.
+  if (
+    createError?.message.toLowerCase().includes('already') &&
+    (await releaseEmailFromDeleted(admin, v.email))
+  ) {
+    ({ data: created, error: createError } = await createAuthUser());
+  }
 
   if (createError) {
     // Pesan Supabase untuk email ganda cukup jelas dan tidak membocorkan apa
@@ -238,10 +283,16 @@ export async function updateUser(input: unknown): Promise<ActionResult<null>> {
       return internalError('Pengaturan server belum lengkap', e as { message: string });
     }
 
-    const { error: authError } = await admin.auth.admin.updateUserById(v.user_id, {
-      email: v.email,
-      email_confirm: true,
-    });
+    const moveEmail = () =>
+      admin!.auth.admin.updateUserById(v.user_id, { email: v.email, email_confirm: true });
+
+    let { error: authError } = await moveEmail();
+    if (
+      authError?.message.toLowerCase().includes('already') &&
+      (await releaseEmailFromDeleted(admin, v.email))
+    ) {
+      ({ error: authError } = await moveEmail());
+    }
 
     if (authError) {
       if (authError.message.toLowerCase().includes('already')) {

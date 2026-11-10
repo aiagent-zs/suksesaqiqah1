@@ -540,6 +540,21 @@ html {
   }
 }
 
+/* Satu lebar & satu gutter untuk semua halaman publik. Sebelumnya ada empat
+   lebar (7xl, 6xl, 3xl, 1440px) dan dua gutter, jadi tepi kiri konten
+   melompat tiap pindah halaman. `-narrow` untuk halaman satu kolom (lacak,
+   laporan): tepinya tetap sejajar gutter yang sama. */
+@utility container-site {
+  @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+}
+@utility container-narrow {
+  @apply mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8;
+}
+/* Jarak vertikal section: satu tangga untuk ponsel, tablet, desktop. */
+@utility section-y {
+  @apply py-12 sm:py-16 lg:py-20;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

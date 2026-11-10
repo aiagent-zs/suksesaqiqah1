@@ -64,14 +64,14 @@ export function ResetPasswordForm() {
       )}
 
       {done && (
-        <p className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+        <p className="border-primary/20 bg-primary-light text-primary-dark flex items-start gap-2 rounded-lg border px-3 py-2 text-sm">
           <Check className="mt-0.5 size-4 shrink-0" />
           Kata sandi tersimpan. Mengalihkan ke dashboard…
         </p>
       )}
 
       <div>
-        <Label htmlFor="new-pass" className="text-sm font-medium text-slate-200">
+        <Label htmlFor="new-pass" className="text-ink text-sm font-medium">
           Kata sandi baru
         </Label>
         <Input
@@ -88,12 +88,12 @@ export function ResetPasswordForm() {
         {fields.new_password ? (
           <p className="text-destructive mt-1 text-xs">{fields.new_password}</p>
         ) : (
-          <p className="mt-1 text-xs text-slate-500">Minimal 8 karakter.</p>
+          <p className="text-ink-muted mt-1 text-xs">Minimal 8 karakter.</p>
         )}
       </div>
 
       <div>
-        <Label htmlFor="confirm-pass" className="text-sm font-medium text-slate-200">
+        <Label htmlFor="confirm-pass" className="text-ink text-sm font-medium">
           Ulangi kata sandi baru
         </Label>
         <Input

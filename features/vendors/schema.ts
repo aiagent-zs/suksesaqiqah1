@@ -158,7 +158,7 @@ export const vendorServiceSchema = z
       .number()
       .int('Harus bilangan bulat')
       .min(0, 'Tidak boleh negatif')
-      .max(24 * 30, 'Lebih dari 30 hari — periksa lagi angkanya')
+      .max(24 * 30, 'Lebih dari 30 hari. Periksa lagi angkanya')
       .optional(),
 
     notes: z.string().trim().max(500, 'Catatan terlalu panjang').optional().or(z.literal('')),

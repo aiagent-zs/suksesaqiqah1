@@ -76,19 +76,17 @@ export default async function PublicReportPage({ params }: { params: Params }) {
   const onBehalf = report.animals.map((a) => a.onBehalfOf).filter((v): v is string => Boolean(v));
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-4 py-10 sm:px-6">
-      <header className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
-        <p className="text-sm font-semibold tracking-wider text-emerald-700 uppercase">
-          Sukses Aqiqah
-        </p>
-        <h1 className="mt-1 text-2xl font-bold text-emerald-900">Laporan Pelaksanaan</h1>
-        <p className="mt-2 text-sm text-emerald-800 tabular-nums">
+    <main className="container-narrow min-h-dvh py-8 sm:py-12">
+      <header className="bg-primary rounded-lg p-5 text-white sm:p-6">
+        <p className="text-sm font-semibold text-white/80">Sukses Aqiqah</p>
+        <h1 className="text-h2 mt-1 font-bold tracking-tight">Laporan Pelaksanaan</h1>
+        <p className="mt-2 text-sm text-white/80 tabular-nums">
           {report.orderNumber}
           {report.report ? ` · versi ${report.report.version}` : ''}
           {report.vendorName ? ` · ${report.vendorName}` : ''}
         </p>
-        <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs text-emerald-800">
-          <ShieldCheck className="size-3.5" />
+        <p className="mt-4 flex items-start gap-2 border-t border-white/20 pt-4 text-sm text-white">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0" />
           {allValidated
             ? 'Seluruh bukti telah melalui validasi dua tingkat'
             : stagesTotal > 0 && stagesValidated < stagesTotal
@@ -97,17 +95,17 @@ export default async function PublicReportPage({ params }: { params: Params }) {
         </p>
       </header>
 
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="text-base font-semibold text-slate-900">Ringkasan</h2>
+      <section className="border-line mt-4 rounded-lg border bg-white p-5 sm:mt-6 sm:p-6">
+        <h2 className="text-ink text-base font-semibold">Ringkasan</h2>
         <dl className="mt-4 space-y-3 text-sm">
           <div className="flex gap-3">
-            <dt className="w-36 shrink-0 text-slate-500">Peserta</dt>
-            <dd className="font-medium text-slate-900">{report.participantName ?? '-'}</dd>
+            <dt className="text-ink-muted w-28 shrink-0 sm:w-40">Peserta</dt>
+            <dd className="text-ink font-medium">{report.participantName ?? '-'}</dd>
           </div>
           {onBehalf.length > 0 && (
             <div className="flex gap-3">
-              <dt className="w-36 shrink-0 text-slate-500">Atas nama</dt>
-              <dd className="text-slate-900">{onBehalf.join(', ')}</dd>
+              <dt className="text-ink-muted w-28 shrink-0 sm:w-40">Atas nama</dt>
+              <dd className="text-ink">{onBehalf.join(', ')}</dd>
             </div>
           )}
           {/* Disembunyikan saat kosong, bukan ditampilkan sebagai "-": order
@@ -115,8 +113,8 @@ export default async function PublicReportPage({ params }: { params: Params }) {
               pernah menanyakannya. */}
           {(report.childBirthPlace || report.childBirthDate) && (
             <div className="flex gap-3">
-              <dt className="w-36 shrink-0 text-slate-500">Tempat, tanggal lahir</dt>
-              <dd className="text-slate-900">
+              <dt className="text-ink-muted w-28 shrink-0 sm:w-40">Tempat, tanggal lahir</dt>
+              <dd className="text-ink">
                 {[
                   report.childBirthPlace,
                   report.childBirthDate ? formatDate(report.childBirthDate) : null,
@@ -127,25 +125,25 @@ export default async function PublicReportPage({ params }: { params: Params }) {
             </div>
           )}
           <div className="flex gap-3">
-            <dt className="w-36 shrink-0 text-slate-500">Layanan</dt>
-            <dd className="text-slate-900">
+            <dt className="text-ink-muted w-28 shrink-0 sm:w-40">Layanan</dt>
+            <dd className="text-ink">
               {report.services.map((s) => `${s.name} (${s.qty})`).join(', ') || '-'}
             </dd>
           </div>
           <div className="flex gap-3">
-            <dt className="w-36 shrink-0 text-slate-500">Hewan</dt>
-            <dd className="text-slate-900">{animalSummary || '-'}</dd>
+            <dt className="text-ink-muted w-28 shrink-0 sm:w-40">Hewan</dt>
+            <dd className="text-ink">{animalSummary || '-'}</dd>
           </div>
           <div className="flex gap-3">
-            <dt className="w-36 shrink-0 text-slate-500">Lokasi</dt>
-            <dd className="flex items-center gap-1.5 text-slate-900">
-              <MapPin className="size-3.5 text-slate-400" />
+            <dt className="text-ink-muted w-28 shrink-0 sm:w-40">Lokasi</dt>
+            <dd className="text-ink flex items-center gap-1.5">
+              <MapPin className="text-ink-muted size-3.5" />
               {report.schedule?.locationName ?? '-'}
             </dd>
           </div>
           <div className="flex gap-3">
-            <dt className="w-36 shrink-0 text-slate-500">Tanggal pelaksanaan</dt>
-            <dd className="text-slate-900">
+            <dt className="text-ink-muted w-28 shrink-0 sm:w-40">Tanggal pelaksanaan</dt>
+            <dd className="text-ink">
               {report.schedule?.scheduledDate ? formatDate(report.schedule.scheduledDate) : '-'}
               {report.schedule?.scheduledTime
                 ? ` · ${formatTime(report.schedule.scheduledTime)}`
@@ -155,8 +153,8 @@ export default async function PublicReportPage({ params }: { params: Params }) {
         </dl>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="text-base font-semibold text-slate-900">Status Pelaksanaan</h2>
+      <section className="border-line mt-4 rounded-lg border bg-white p-5 sm:mt-6 sm:p-6">
+        <h2 className="text-ink text-base font-semibold">Status Pelaksanaan</h2>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
             // Kartu per-ekor hanya untuk pesanan yang memang punya hewan.
@@ -180,17 +178,17 @@ export default async function PublicReportPage({ params }: { params: Params }) {
               value: `${report.progress.stagesValidated}/${report.progress.stagesTotal} tahap`,
             },
           ].map((cell) => (
-            <div key={cell.label} className="rounded-xl bg-slate-50 px-4 py-3">
-              <p className="text-xs text-slate-500">{cell.label}</p>
-              <p className="mt-0.5 font-semibold text-slate-900 tabular-nums">{cell.value}</p>
+            <div key={cell.label} className="bg-surface-muted rounded-lg px-4 py-3">
+              <p className="text-ink-muted text-xs">{cell.label}</p>
+              <p className="text-ink mt-0.5 font-semibold tabular-nums">{cell.value}</p>
             </div>
           ))}
         </div>
       </section>
 
       {photos.length > 0 && (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-base font-semibold text-slate-900">Galeri Bukti</h2>
+        <section className="border-line mt-4 rounded-lg border bg-white p-5 sm:mt-6 sm:p-6">
+          <h2 className="text-ink text-base font-semibold">Galeri Bukti</h2>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {photos.map((m, i) => (
               <figure key={i}>
@@ -202,9 +200,9 @@ export default async function PublicReportPage({ params }: { params: Params }) {
                   src={m.url!}
                   alt={m.caption ?? `Bukti ${DOC_STAGE_LABEL[m.stage]}`}
                   loading="lazy"
-                  className="aspect-4/3 w-full rounded-xl object-cover"
+                  className="aspect-4/3 w-full rounded-lg object-cover"
                 />
-                <figcaption className="mt-1 text-xs text-slate-500">
+                <figcaption className="text-ink-muted mt-1 text-xs">
                   {DOC_STAGE_LABEL[m.stage]}
                   {m.caption ? ` · ${m.caption}` : ''}
                 </figcaption>
@@ -217,13 +215,13 @@ export default async function PublicReportPage({ params }: { params: Params }) {
       {/* Bagian sendiri, bukan menumpang di galeri foto: order yang hanya punya
           video dulu tidak menampilkan buktinya sama sekali. */}
       {videos.length > 0 && (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-base font-semibold text-slate-900">Video Bukti</h2>
+        <section className="border-line mt-4 rounded-lg border bg-white p-5 sm:mt-6 sm:p-6">
+          <h2 className="text-ink text-base font-semibold">Video Bukti</h2>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {videos.map((m, i) => (
               <figure key={i}>
-                <video src={m.url!} controls preload="metadata" className="w-full rounded-xl" />
-                <figcaption className="mt-1 text-xs text-slate-500">
+                <video src={m.url!} controls preload="metadata" className="w-full rounded-lg" />
+                <figcaption className="text-ink-muted mt-1 text-xs">
                   {DOC_STAGE_LABEL[m.stage]}
                   {m.caption ? ` · ${m.caption}` : ''}
                 </figcaption>
@@ -234,21 +232,19 @@ export default async function PublicReportPage({ params }: { params: Params }) {
       )}
 
       {report.stages.length > 0 && (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-base font-semibold text-slate-900">Tahap Pelaksanaan</h2>
-          <p className="mt-1 text-sm text-slate-500">
+        <section className="border-line mt-4 rounded-lg border bg-white p-5 sm:mt-6 sm:p-6">
+          <h2 className="text-ink text-base font-semibold">Tahap Pelaksanaan</h2>
+          <p className="text-ink-muted mt-1 text-sm">
             Setiap tahap di bawah sudah diperiksa dan divalidasi tim kami.
           </p>
-          <ol className="mt-4 divide-y divide-slate-100">
+          <ol className="divide-line mt-4 divide-y">
             {report.stages.map((s, i) => (
               <li key={i} className="flex items-start justify-between gap-3 py-2.5 text-sm">
                 <div>
-                  <p className="font-medium text-slate-900">
-                    {STAGE_LABEL_PUBLIC[s.stage] ?? s.stage}
-                  </p>
-                  {s.notes && <p className="mt-0.5 text-xs text-slate-500">{s.notes}</p>}
+                  <p className="text-ink font-medium">{STAGE_LABEL_PUBLIC[s.stage] ?? s.stage}</p>
+                  {s.notes && <p className="text-ink-muted mt-0.5 text-xs">{s.notes}</p>}
                 </div>
-                <span className="shrink-0 text-xs text-slate-500 tabular-nums">
+                <span className="text-ink-muted shrink-0 text-xs tabular-nums">
                   {s.occurredAt ? formatDate(s.occurredAt) : '-'}
                 </span>
               </li>
@@ -258,14 +254,14 @@ export default async function PublicReportPage({ params }: { params: Params }) {
       )}
 
       {notes.length > 0 && (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-base font-semibold text-slate-900">Catatan Lapangan</h2>
-          <ul className="mt-3 space-y-2 text-sm text-slate-700">
+        <section className="border-line mt-4 rounded-lg border bg-white p-5 sm:mt-6 sm:p-6">
+          <h2 className="text-ink text-base font-semibold">Catatan Lapangan</h2>
+          <ul className="text-ink mt-3 space-y-2 text-sm">
             {notes.map((m, i) => (
               <li key={i} className="flex gap-2">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                <CheckCircle2 className="text-primary mt-0.5 size-4 shrink-0" />
                 <span>
-                  <span className="text-slate-500">[{DOC_STAGE_LABEL[m.stage]}]</span> {m.caption}
+                  <span className="text-ink-muted">[{DOC_STAGE_LABEL[m.stage]}]</span> {m.caption}
                 </span>
               </li>
             ))}
@@ -275,21 +271,18 @@ export default async function PublicReportPage({ params }: { params: Params }) {
 
       {report.pdfUrl && (
         <div className="mt-6">
-          <a
-            href={report.pdfUrl}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-600 px-5 font-medium text-white transition-colors hover:bg-emerald-700"
-          >
+          <a href={report.pdfUrl} className="btn btn-primary">
             <Download className="size-4" />
             Unduh PDF Laporan
           </a>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="text-ink-muted mt-2 text-xs">
             Tautan unduhan berlaku 10 menit. Muat ulang halaman bila kedaluwarsa.
           </p>
         </div>
       )}
 
-      <footer className="mt-10 border-t border-slate-200 pt-6 text-sm text-slate-500">
-        <p className="font-medium text-slate-700">Terima kasih atas kepercayaan Anda.</p>
+      <footer className="border-line text-ink-muted mt-10 border-t pt-6 text-sm">
+        <p className="text-ink font-medium">Terima kasih atas kepercayaan Anda.</p>
         <p className="mt-1">
           Laporan ini dibuat otomatis oleh sistem Sukses Aqiqah · Zakat Sukses
           {report.report ? ` · ${formatDateTime(report.report.generatedAt)}` : ''}
