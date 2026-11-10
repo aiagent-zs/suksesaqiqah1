@@ -1,6 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
+import { sendQueuedEmails } from '@/features/notifications/send-email';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
@@ -288,6 +290,9 @@ export async function verifyPayment(
       ? await advanceToPaidIfReady(supabase, data.order_id, session.profile?.role)
       : false;
 
+  // Email yang baru diantrekan trigger (invoice lunas, konfirmasi, selesai)
+  // dikirim sesudah respons, jadi admin tidak menunggu Resend.
+  after(() => sendQueuedEmails().catch((e) => console.error('[email]', e)));
   revalidatePath(`/orders/${data.order_id}`);
   revalidatePath('/orders');
   revalidatePath('/dashboard');
