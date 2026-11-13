@@ -6,7 +6,7 @@
  * di `links.`, jadi keduanya dipilih dari awalan kuncinya. Auth-nya Basic
  * dengan kunci sebagai username dan password kosong.
  */
-const sandbox = () => process.env.DURIANPAY_SECRET_KEY?.startsWith('dp_test_') ?? false;
+export const sandbox = () => process.env.DURIANPAY_SECRET_KEY?.startsWith('dp_test_') ?? false;
 
 /** Durianpay tidak menjawab dengan benar (5xx, 429, jaringan, timeout): coba lagi nanti. */
 export class DurianpayUnavailableError extends Error {}
@@ -30,7 +30,10 @@ async function dpFetch(path: string, init?: RequestInit): Promise<Record<string,
     throw new DurianpayUnavailableError(`${init?.method ?? 'GET'} ${path}: ${String(err)}`);
   }
   if (!res.ok) {
-    console.error(`[durianpay] ${init?.method ?? 'GET'} ${path} → ${res.status}`);
+    // Isi penolakannya ikut dicatat: di situ Durianpay menyebut field mana yang
+    // salah, sementara kode status saja tidak membedakan kunci salah dari payload salah.
+    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    console.error(`[durianpay] ${init?.method ?? 'GET'} ${path} → ${res.status} ${detail}`);
     // 4xx = permintaan ditolak permanen; 429 dan 5xx = Durianpay sedang bermasalah.
     if (res.status === 429 || res.status >= 500) {
       throw new DurianpayUnavailableError(`${path} → ${res.status}`);
@@ -51,6 +54,38 @@ export function normalizeMobile(phone: string): string | null {
 }
 
 /**
+ * Isi `POST /v1/orders`.
+ *
+ * `items` wajib untuk metode LinkAja dan BNPL (docs Create Order); tanpanya
+ * metode itu gagal di halaman bayar sementara DANA tetap jalan. Satu baris
+ * seharga total, bukan rincian per paket: jumlah rincian yang tidak pas dengan
+ * `amount` (pembulatan, nasi box) membuat Durianpay menolak ordernya.
+ */
+export function orderPayload(order: {
+  order_number: string;
+  total_amount: number;
+  name: string;
+  phone: string;
+  email?: string | null;
+}) {
+  const amount = String(Math.round(order.total_amount));
+  const mobile = normalizeMobile(order.phone);
+  return {
+    amount,
+    currency: 'IDR',
+    payment_option: 'full_payment',
+    is_payment_link: true,
+    order_ref_id: order.order_number,
+    customer: {
+      given_name: order.name,
+      ...(mobile ? { mobile } : {}),
+      ...(order.email ? { email: order.email } : {}),
+    },
+    items: [{ name: `Pesanan ${order.order_number}`, qty: 1, price: amount }],
+  };
+}
+
+/**
  * Buat payment link untuk satu order (pelunasan penuh).
  *
  * `order_ref_id` = nomor order kita — dari situlah webhook menemukan order-nya
@@ -65,21 +100,9 @@ export async function createPaymentLink(order: {
   email?: string | null;
 }): Promise<string | null> {
   try {
-    const mobile = normalizeMobile(order.phone);
     const data = await dpFetch('/orders', {
       method: 'POST',
-      body: JSON.stringify({
-        amount: String(Math.round(order.total_amount)),
-        currency: 'IDR',
-        payment_option: 'full_payment',
-        is_payment_link: true,
-        order_ref_id: order.order_number,
-        customer: {
-          given_name: order.name,
-          ...(mobile ? { mobile } : {}),
-          ...(order.email ? { email: order.email } : {}),
-        },
-      }),
+      body: JSON.stringify(orderPayload(order)),
     });
     const code = data?.payment_link_url;
     return typeof code === 'string' && code
@@ -113,7 +136,16 @@ export async function fetchCompletedPayment(payId: string): Promise<VerifiedPaym
   // Tanpa `expand` endpoint detail menjawab 404 (teruji di sandbox, 2026-10-30);
   // `expand=order` sekaligus membawa `order_ref_id`, jadi cukup satu panggilan.
   const payment = await dpFetch(`/payments/${payId}?expand=order`);
-  if (!payment || payment.status !== 'completed') return null;
+  // Alasannya dicatat: tanpa ini log hanya berbunyi "tidak terverifikasi", dan
+  // pembayaran sandbox yang tak kunjung lunas tidak bisa dilacak sebabnya.
+  if (!payment) {
+    console.warn(`[durianpay] ${payId} tidak ditemukan di host ${sandbox() ? 'sandbox' : 'live'}`);
+    return null;
+  }
+  if (payment.status !== 'completed') {
+    console.warn(`[durianpay] ${payId} berstatus "${String(payment.status)}", bukan completed`);
+    return null;
+  }
 
   const order = payment.order as Record<string, unknown> | undefined;
   const orderNumber = order?.order_ref_id;

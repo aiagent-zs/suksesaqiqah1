@@ -1,5 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeMobile, paymentMatchesOrder } from '@/features/payments/durianpay';
+import { normalizeMobile, orderPayload, paymentMatchesOrder } from '@/features/payments/durianpay';
+
+describe('orderPayload', () => {
+  const order = {
+    order_number: 'IA-202611-0001',
+    total_amount: 2_300_000.4,
+    name: 'Budi',
+    phone: '0812-3456-7890',
+    email: 'budi@example.com',
+  };
+
+  it('mengirim items yang jumlahnya sama persis dengan amount (wajib untuk LinkAja/BNPL)', () => {
+    const p = orderPayload(order);
+    expect(p.amount).toBe('2300000');
+    expect(p.items).toEqual([{ name: 'Pesanan IA-202611-0001', qty: 1, price: '2300000' }]);
+  });
+
+  it('order_ref_id = nomor order, supaya webhook menemukan ordernya kembali', () => {
+    expect(orderPayload(order).order_ref_id).toBe('IA-202611-0001');
+  });
+
+  it('menyertakan mobile dan email pelanggan', () => {
+    expect(orderPayload(order).customer).toEqual({
+      given_name: 'Budi',
+      mobile: '081234567890',
+      email: 'budi@example.com',
+    });
+  });
+});
 
 describe('paymentMatchesOrder', () => {
   const order = { total_amount: 2_500_000, payment_status: 'unpaid' };

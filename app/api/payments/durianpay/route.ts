@@ -5,6 +5,7 @@ import {
   DurianpayUnavailableError,
   fetchCompletedPayment,
   paymentMatchesOrder,
+  sandbox,
 } from '@/features/payments/durianpay';
 
 /**
@@ -23,10 +24,21 @@ import {
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
     event?: string;
-    data?: { id?: string };
+    data?: { id?: string; is_live?: boolean };
   } | null;
 
   if (body?.event !== 'payment.completed') return NextResponse.json({ ok: true });
+
+  // Webhook dari dashboard sandbox tapi server memakai kunci live (atau
+  // sebaliknya): pembayarannya tidak akan pernah ditemukan di host yang kita
+  // tanya. Tetap diteruskan ke verifikasi (yang akan menolak), tapi sebabnya
+  // dicatat terang supaya tidak terbaca sebagai pembayaran palsu.
+  if (typeof body.data?.is_live === 'boolean' && body.data.is_live === sandbox()) {
+    console.error(
+      `[durianpay] webhook is_live=${body.data.is_live}, tapi DURIANPAY_SECRET_KEY server ` +
+        `adalah kunci ${sandbox() ? 'sandbox (dp_test_)' : 'live'}. Samakan mode kunci dan dashboard.`,
+    );
+  }
 
   let payment: Awaited<ReturnType<typeof fetchCompletedPayment>>;
   try {
