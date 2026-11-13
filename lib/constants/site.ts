@@ -4,6 +4,11 @@
  * Nilai kontak (WhatsApp, Instagram) diambil dari environment variable
  * sesuai 27_PAGE_MENU — JANGAN hardcode nomor/URL di komponen.
  * Fallback dipakai agar halaman tetap tampil saat env belum diisi (dev).
+ *
+ * Semua fallback memakai `||`, bukan `??`. Build produksi menerima tiap
+ * `NEXT_PUBLIC_*` sebagai build-arg Docker; variabel repo yang belum dibuat
+ * tiba sebagai string kosong, dan `??` meloloskannya. Itu yang membuat tautan
+ * WhatsApp dan Instagram di produksi kosong sampai 13 November.
  */
 
 /**
@@ -14,12 +19,22 @@
  * Dinormalkan sekali di sini supaya tiap pemanggil tidak perlu mengingatnya.
  */
 export function appUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+  return (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
-const rawWhatsapp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '6281234567890';
 // Normalisasi: buang karakter non-digit agar aman untuk link wa.me.
-const whatsappNumber = rawWhatsapp.replace(/[^0-9]/g, '');
+const rawWhatsapp = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '').replace(/[^0-9]/g, '');
+
+// Nomor admin satu-satunya jalur pemesan ke admin, dan nomor contoh di bawah
+// bukan milik kita. Build produksi tanpa nomor harus gagal, bukan terbit
+// dengan tautan wa.me yang salah sasaran.
+if (!rawWhatsapp && process.env.NODE_ENV === 'production') {
+  throw new Error(
+    'NEXT_PUBLIC_WHATSAPP_NUMBER kosong. Isi variabel repo di GitHub: ' +
+      'Settings → Secrets and variables → Actions → Variables.',
+  );
+}
+const whatsappNumber = rawWhatsapp || '6281234567890';
 
 export const siteConfig = {
   name: 'Sukses Aqiqah',
@@ -35,10 +50,10 @@ export const siteConfig = {
     'Layanan Aqiqah dan Sedekah Daging yang syar’i, amanah, dan terdokumentasi. ' +
     'Lacak setiap tahap pesanan Anda dan terima laporan pelaksanaan berisi foto.',
   url: appUrl(),
-  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'halo@zakatsukses.org',
+  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'halo@zakatsukses.org',
   instagram: {
     handle: '@zakatsukses',
-    url: process.env.NEXT_PUBLIC_INSTAGRAM_URL ?? 'https://instagram.com/zakatsukses',
+    url: process.env.NEXT_PUBLIC_INSTAGRAM_URL || 'https://instagram.com/zakatsukses',
   },
   whatsapp: {
     number: whatsappNumber,

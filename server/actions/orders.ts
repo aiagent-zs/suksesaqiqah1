@@ -1,6 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
+import { sendQueuedEmails } from '@/features/notifications/send-email';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth } from '@/server/auth/session';
 import { canDo } from '@/server/auth/capabilities';
@@ -254,6 +256,9 @@ export async function changeOrderStatus(
       ? 'paid'
       : (to as OrderStatus);
 
+  // Email yang baru diantrekan trigger (invoice lunas, konfirmasi, selesai)
+  // dikirim sesudah respons, jadi admin tidak menunggu Resend.
+  after(() => sendQueuedEmails().catch((e) => console.error('[email]', e)));
   revalidatePath(`/orders/${order_id}`);
   revalidatePath('/orders');
   return { ok: true, data: { status: finalStatus } };

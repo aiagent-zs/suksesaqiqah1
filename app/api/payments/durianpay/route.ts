@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
+import { sendQueuedEmails } from '@/features/notifications/send-email';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   DurianpayUnavailableError,
@@ -110,6 +111,10 @@ export async function POST(request: Request) {
     .eq('status', 'verified')
     .eq('payment_status', 'paid');
   if (advanceError) console.error('[durianpay] gagal menaikkan status ke paid', advanceError);
+
+  // Invoice lunas diantrekan trigger saat `payment_status` jadi `paid`;
+  // dikirim sesudah Durianpay menerima 200, jadi webhook tidak ikut lambat.
+  after(() => sendQueuedEmails().catch((e) => console.error('[email]', e)));
 
   return NextResponse.json({ ok: true });
 }

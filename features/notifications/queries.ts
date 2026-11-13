@@ -46,6 +46,7 @@ const TEMPLATE_LABEL: Record<string, string> = {
   guest_order_new: 'Order tamu baru menunggu verifikasi',
   delivery_pending: 'Pemesan perlu mengonfirmasi penerimaan',
   order_verified: 'Email konfirmasi pesanan ke pemesan',
+  payment_paid: 'Email invoice lunas ke pemesan',
   order_completed: 'Email pesanan selesai ke pemesan',
 };
 

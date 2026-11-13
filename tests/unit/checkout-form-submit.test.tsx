@@ -211,8 +211,19 @@ function fillValid() {
   type('co-birthdate', CHILD_BIRTH_DATE);
 }
 
-/** Tekan tombol kirim satu-satunya. */
-const submit = () => clickText('Kirim Pesanan');
+/**
+ * Periksa, lalu kirim bila layar periksa terbuka.
+ *
+ * Isian yang ditolak tidak pernah membuka layar periksa, jadi tes galat
+ * validasi tetap berhenti di klik pertama.
+ */
+function submit() {
+  clickText('Periksa Pesanan');
+  const send = [...document.querySelectorAll('button')].find((b) =>
+    b.textContent?.includes('Kirim Pesanan'),
+  );
+  if (send) act(() => send.click());
+}
 
 beforeEach(() => {
   createGuestOrderAction.mockClear();
@@ -394,10 +405,10 @@ describe('pengiriman pesanan hanya lewat klik yang disengaja', () => {
     expect(createGuestOrderAction).not.toHaveBeenCalled();
   });
 
-  it('tombol kirim bertipe button, bukan submit', () => {
+  it('tombol periksa bertipe button, bukan submit', () => {
     mount();
     const btn = [...document.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Kirim Pesanan'),
+      b.textContent?.includes('Periksa Pesanan'),
     )!;
     expect(btn.type).toBe('button');
   });
@@ -753,5 +764,82 @@ describe('layar sukses', () => {
     // pun. Mock-nya memakai 32 huruf 'x' — kalau kelak ia ikut terangkut,
     // tes ini yang menangkapnya.
     expect(text).not.toContain('x'.repeat(32));
+  });
+});
+
+/**
+ * Layar periksa: isian yang sudah lolos validasi ditampilkan sendiri, dan
+ * hanya dari sana pesanan dikirim.
+ */
+describe('layar periksa', () => {
+  const sendButton = () =>
+    [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Kirim Pesanan'));
+
+  it('isian sah membuka layar periksa tanpa mengirim apa pun', () => {
+    mount();
+    fillValid();
+    clickText('Periksa Pesanan');
+
+    expect(createGuestOrderAction).not.toHaveBeenCalled();
+    expect(document.getElementById('co-name')).toBeNull();
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('Periksa sebelum dikirim');
+    expect(text).toContain('Fatih');
+    expect(text).toContain('Budi Santoso');
+    expect(sendButton()).toBeTruthy();
+  });
+
+  it('isian yang ditolak tidak membuka layar periksa', () => {
+    mount();
+    clickText('Periksa Pesanan');
+    expect(sendButton()).toBeUndefined();
+    expect(document.getElementById('co-name')).not.toBeNull();
+  });
+
+  it('Kembali ke isian memunculkan form lagi dengan isiannya utuh', async () => {
+    mount();
+    fillValid();
+    clickText('Periksa Pesanan');
+    clickText('Kembali ke isian');
+    advanceClock(50);
+    await flush();
+
+    expect((byId('co-name') as HTMLInputElement).value).toBe('Budi Santoso');
+    expect(sendButton()).toBeUndefined();
+  });
+
+  it('galat server per medan membawa pemesan kembali ke medannya', async () => {
+    createGuestOrderAction.mockResolvedValueOnce({
+      ok: false,
+      error: {
+        message: 'Kode referral tidak dikenal',
+        fields: { referral_code: 'Kode tidak dikenal' },
+      },
+    } as never);
+    mount();
+    fillValid();
+    submit();
+    await flush();
+    advanceClock(200);
+    await flush();
+
+    expect(document.getElementById('co-referral')).not.toBeNull();
+    expect(document.body.textContent).toContain('Kode tidak dikenal');
+  });
+
+  it('galat server tanpa medan tetap di layar periksa, di atas tombol kirim', async () => {
+    createGuestOrderAction.mockResolvedValueOnce({
+      ok: false,
+      error: { message: 'Terlalu banyak percobaan, coba lagi sebentar' },
+    } as never);
+    mount();
+    fillValid();
+    submit();
+    await flush();
+
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+      'Terlalu banyak percobaan',
+    );
+    expect(sendButton()).toBeTruthy();
   });
 });
