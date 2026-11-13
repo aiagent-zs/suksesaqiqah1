@@ -51,6 +51,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
           NEXT_PUBLIC_APP_URL: http://localhost:3000
+          # Wajib ada sejak build produksi menolak nomor kosong (lib/constants/site.ts).
+          # Image CI tidak pernah di-deploy, jadi nomor contoh cukup.
+          NEXT_PUBLIC_WHATSAPP_NUMBER: '6281234567890'
 
   dependencies:
     name: Audit dependensi produksi
