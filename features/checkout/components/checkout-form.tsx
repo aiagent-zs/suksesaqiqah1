@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { AlertCircle, ChevronLeft, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Toast, type ToastState } from '@/components/ui/toast';
 import { formatDate } from '@/lib/format';
 import { ANIMAL_SPECIES_LABEL } from '@/lib/constants/order';
@@ -33,6 +33,7 @@ import { StepCatatan } from './steps/step-catatan';
 import { CheckoutSection, SubmitBar } from './steps/checkout-section';
 import { SuccessPanel } from './steps/success-panel';
 import { OrderAside } from './steps/order-aside';
+import { OrderReview } from './steps/order-review';
 import { ErrorSummary } from './steps/error-summary';
 
 /**
@@ -194,6 +195,17 @@ export function CheckoutForm({
   const [toast, setToast] = useState<ToastState>(null);
   const toastSeq = useRef(0);
 
+  /**
+   * Layar periksa: isian yang sudah lolos validasi, satu tombol kirim.
+   *
+   * Sengaja di halaman yang sama, bukan route sendiri. Route terpisah berarti
+   * draft dioper lewat `sessionStorage` dan layar periksa bisa dibuka langsung
+   * dengan isian yang belum divalidasi.
+   */
+  const [reviewing, setReviewing] = useState(false);
+  /** Dijalankan sekali sesudah form dirender lagi saat layar periksa ditutup. */
+  const afterLeave = useRef<(() => void) | null>(null);
+
   const [draft, setDraft] = useState<Draft>(() =>
     emptyDraft(initialServiceId ?? packages[0]?.id ?? ''),
   );
@@ -269,6 +281,36 @@ export function CheckoutForm({
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [isDirty, done, pending]);
+
+  /**
+   * Masuk layar periksa: fokus ke judulnya, supaya pembaca layar tahu isi
+   * layar berganti. Keluar: jalankan `afterLeave` sesudah form ada lagi di DOM;
+   * menggulir sebelum itu tidak menemukan bagian yang dituju.
+   */
+  useEffect(() => {
+    if (reviewing) {
+      document.getElementById('bagian-periksa')?.focus({ preventScroll: true });
+      return;
+    }
+    const run = afterLeave.current;
+    afterLeave.current = null;
+    run?.();
+  }, [reviewing]);
+
+  /**
+   * Back di peramban atau gestur usap di ponsel menutup layar periksa, bukan
+   * meninggalkan checkout. Cukup satu entri riwayat: wizard empat langkah
+   * dulu menyinkronkan satu entri per langkah, dan itu sumber bugnya.
+   */
+  useEffect(() => {
+    if (!reviewing) return;
+    function onPop() {
+      afterLeave.current ??= () => jumpToSection('bagian-catatan');
+      setReviewing(false);
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [reviewing]);
 
   const selected = useMemo(
     () => packages.find((p) => p.id === draft.service_id),
@@ -432,6 +474,13 @@ export function CheckoutForm({
     }, 80);
   }
 
+  /** Tombol "Ubah" di ringkasan: gulir ke bagiannya dan pindahkan fokus ke sana. */
+  function jumpToSection(id: string) {
+    const el = document.getElementById(id);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el?.focus({ preventScroll: true });
+  }
+
   /**
    * Bawa perhatian ke medan pertama yang bermasalah, menurut urutan bagian di
    * layar — bukan urutan kunci objek galat, yang bisa menaruh medan bagian 3
@@ -459,7 +508,8 @@ export function CheckoutForm({
     e.preventDefault();
   }
 
-  function submit() {
+  /** Tombol "Periksa Pesanan": validasi seluruh isian, lalu buka layar periksa. */
+  function openReview() {
     const errors = collectErrors();
     setFieldErrors(errors);
     const count = Object.keys(errors).length;
@@ -469,6 +519,34 @@ export function CheckoutForm({
       return;
     }
 
+    setError(null);
+    window.history.pushState({ saReview: true }, '');
+    setReviewing(true);
+    window.scrollTo({ top: 0 });
+  }
+
+  /**
+   * Tutup layar periksa, lalu jalankan `then` di form.
+   *
+   * Lewat `history.back()` bila entri layar periksa masih di puncak riwayat:
+   * menutupnya dengan state saja meninggalkan entri itu, dan back berikutnya
+   * berhenti di layar yang sudah tertutup alih-alih keluar dari checkout.
+   */
+  function leaveReview(then: () => void) {
+    afterLeave.current = then;
+    if ((window.history.state as { saReview?: boolean } | null)?.saReview) {
+      window.history.back();
+    } else {
+      setReviewing(false);
+    }
+  }
+
+  /**
+   * Tombol "Kirim Pesanan" di layar periksa. Tidak memvalidasi ulang: layar
+   * itu hanya terbuka lewat `openReview` dan tidak punya isian yang bisa
+   * diubah. Penjaga terakhirnya tetap `create_guest_order` di server.
+   */
+  function submit() {
     setError(null);
     startTransition(async () => {
       // Alamat diratakan jadi medan-medan datar, dan **hanya kodenya** yang
@@ -505,7 +583,10 @@ export function CheckoutForm({
                 : `${n} isian perlu diperbaiki`
               : result.error.message,
         });
-        focusFirstError(fields);
+        // Galat per medan (mis. kode referral tak dikenal) diperbaiki di form,
+        // jadi layar periksa ditutup. Galat tanpa medan (rem laju) tetap di
+        // sini, di atas tombol kirim, supaya pemesan bisa mencoba lagi.
+        if (n > 0) leaveReview(() => focusFirstError(fields));
         return;
       }
       // Pesanan sudah tercatat di database. Draft-nya harus hilang sekarang
@@ -558,6 +639,8 @@ export function CheckoutForm({
 
   const speciesLabel =
     ANIMAL_SPECIES_LABEL[draft.species as keyof typeof ANIMAL_SPECIES_LABEL] ?? 'ekor';
+  const status =
+    selected && packageSubtotal > 0 ? `${selected.name}, ${draft.qty} ${speciesLabel}` : 'Total';
 
   return (
     // Dua kolom di desktop: isian kiri, tagihan menempel kanan. Kolom kanan
@@ -569,118 +652,169 @@ export function CheckoutForm({
           yang menghadang: isian yang hilang memang menjengkelkan, tapi tidak
           cukup genting untuk menghalangi orang yang datang memesan hal lain.
         */}
-        {recovered && (
-          <div className="animate-in fade-in mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 duration-300">
-            <div className="flex items-start gap-2.5">
-              <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-700" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-amber-900">Lanjutkan isian sebelumnya?</p>
-                <p className="mt-1 text-xs leading-5 text-amber-800">
-                  Kami menemukan pesanan yang belum selesai dari tab ini.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={restoreRecovered}
-                    className="inline-flex min-h-11 items-center rounded-lg bg-amber-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-amber-800 active:bg-amber-900"
-                  >
-                    Lanjutkan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={discardRecovered}
-                    className="inline-flex min-h-11 items-center rounded-lg border border-amber-300 bg-white px-4 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 active:bg-amber-200"
-                  >
-                    Mulai baru
-                  </button>
+        {!reviewing && (
+          <>
+            {recovered && (
+              <div className="animate-in fade-in mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 duration-300">
+                <div className="flex items-start gap-2.5">
+                  <RotateCcw className="mt-0.5 size-4 shrink-0 text-amber-700" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-amber-900">
+                      Lanjutkan isian sebelumnya?
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-amber-800">
+                      Kami menemukan pesanan yang belum selesai dari tab ini.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={restoreRecovered}
+                        className="inline-flex min-h-11 items-center rounded-lg bg-amber-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-amber-800 active:bg-amber-900"
+                      >
+                        Lanjutkan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={discardRecovered}
+                        className="inline-flex min-h-11 items-center rounded-lg border border-amber-300 bg-white px-4 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 active:bg-amber-200"
+                      >
+                        Mulai baru
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            )}
+
+            <form
+              // Pengiriman form TIDAK PERNAH mencatat pesanan. Jalur satu-satunya
+              // adalah klik tombol kirim; submit implisit (Enter, autofill) diam.
+              onSubmit={(e) => e.preventDefault()}
+              onKeyDown={handleEnterKey}
+              noValidate
+              className="space-y-4"
+            >
+              <CheckoutSection
+                id="bagian-pesanan"
+                index={1}
+                done={Boolean(draft.aqiqah_for && draft.service_id && !qtyIssue)}
+                title="Pesanan"
+              >
+                <StepPesanan
+                  draft={draft}
+                  set={set}
+                  fieldErrors={fieldErrors}
+                  packages={packages}
+                  nasiBoxes={nasiBoxes}
+                  selectedBox={selectedBox}
+                  speciesOptions={speciesOptions}
+                  boxSubtotal={boxSubtotal}
+                  pickPackage={pickPackage}
+                  pickAqiqahFor={pickAqiqahFor}
+                />
+              </CheckoutSection>
+
+              <CheckoutSection
+                id="bagian-jadwal"
+                index={2}
+                done={Boolean(
+                  draft.requested_date && draft.requested_time && draft.distribution_mode,
+                )}
+                title="Jadwal & penyaluran"
+                hint="Jadwal ini masih permintaan. Tim kami mengonfirmasinya lewat WhatsApp."
+              >
+                <StepJadwal
+                  draft={draft}
+                  set={set}
+                  fieldErrors={fieldErrors}
+                  provinces={provinces}
+                  minDate={minDate}
+                  maxDate={maxDate}
+                />
+              </CheckoutSection>
+
+              <CheckoutSection
+                id="bagian-data"
+                index={3}
+                done={Boolean(
+                  draft.name &&
+                  draft.phone &&
+                  draft.email &&
+                  draft.child_name &&
+                  draft.child_birth_place &&
+                  draft.child_birth_date,
+                )}
+                title="Data pemesan & anak"
+                hint="Kontak Anda dipakai untuk konfirmasi. Data anak dicetak di sertifikat aqiqah."
+              >
+                <StepDataPemesan draft={draft} set={set} fieldErrors={fieldErrors} today={today} />
+              </CheckoutSection>
+
+              <CheckoutSection id="bagian-catatan" index={4} done={false} title="Catatan">
+                <StepCatatan draft={draft} set={set} fieldErrors={fieldErrors} />
+              </CheckoutSection>
+
+              {/* Ringkasan galat tepat di atas tombol: di situlah mata pemesan
+              berada saat tombolnya ditolak. Tiap baris melompat ke medannya. */}
+              <ErrorSummary errors={fieldErrors} labels={FIELD_LABEL} onJump={jumpToField} />
+
+              <SubmitBar
+                label="Periksa Pesanan"
+                total={total}
+                status={status}
+                pending={false}
+                disabled={!selected}
+                onSubmit={openReview}
+              />
+            </form>
+          </>
         )}
 
-        <form
-          // Pengiriman form TIDAK PERNAH mencatat pesanan. Jalur satu-satunya
-          // adalah klik tombol kirim; submit implisit (Enter, autofill) diam.
-          onSubmit={(e) => e.preventDefault()}
-          onKeyDown={handleEnterKey}
-          noValidate
-          className="space-y-4"
-        >
-          <CheckoutSection
-            id="bagian-pesanan"
-            index={1}
-            done={Boolean(draft.aqiqah_for && draft.service_id && !qtyIssue)}
-            title="Pesanan"
-          >
-            <StepPesanan
-              draft={draft}
-              set={set}
-              fieldErrors={fieldErrors}
-              packages={packages}
-              nasiBoxes={nasiBoxes}
-              selectedBox={selectedBox}
-              speciesOptions={speciesOptions}
-              boxSubtotal={boxSubtotal}
-              pickPackage={pickPackage}
-              pickAqiqahFor={pickAqiqahFor}
-            />
-          </CheckoutSection>
+        {reviewing && (
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => leaveReview(() => jumpToSection('bagian-catatan'))}
+              className="text-primary -ml-2 inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-sm font-semibold underline-offset-2 hover:underline"
+            >
+              <ChevronLeft aria-hidden className="size-4" />
+              Kembali ke isian
+            </button>
 
-          <CheckoutSection
-            id="bagian-jadwal"
-            index={2}
-            done={Boolean(draft.requested_date && draft.requested_time && draft.distribution_mode)}
-            title="Jadwal & penyaluran"
-            hint="Jadwal ini masih permintaan. Tim kami mengonfirmasinya lewat WhatsApp."
-          >
-            <StepJadwal
-              draft={draft}
-              set={set}
-              fieldErrors={fieldErrors}
-              provinces={provinces}
-              minDate={minDate}
-              maxDate={maxDate}
-            />
-          </CheckoutSection>
+            <CheckoutSection
+              id="bagian-periksa"
+              title="Periksa sebelum dikirim"
+              hint="Pesanan tercatat begitu Anda menekan Kirim Pesanan. Nama dan tanggal lahir anak dicetak di sertifikat aqiqah."
+            >
+              <OrderReview
+                draft={draft}
+                selected={selected}
+                selectedBox={selectedBox}
+                packageSubtotal={packageSubtotal}
+                boxSubtotal={boxSubtotal}
+                onEdit={(id) => leaveReview(() => jumpToSection(id))}
+              />
 
-          <CheckoutSection
-            id="bagian-data"
-            index={3}
-            done={Boolean(
-              draft.name &&
-              draft.phone &&
-              draft.email &&
-              draft.child_name &&
-              draft.child_birth_place &&
-              draft.child_birth_date,
-            )}
-            title="Data pemesan & anak"
-            hint="Kontak Anda dipakai untuk konfirmasi. Data anak dicetak di sertifikat aqiqah."
-          >
-            <StepDataPemesan draft={draft} set={set} fieldErrors={fieldErrors} today={today} />
-          </CheckoutSection>
+              {error && (
+                <p
+                  role="alert"
+                  className="border-danger/30 text-danger flex items-start gap-2 rounded-lg border bg-red-50 px-4 py-3 text-sm"
+                >
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  {error}
+                </p>
+              )}
 
-          <CheckoutSection id="bagian-catatan" index={4} done={false} title="Catatan & kirim">
-            <StepCatatan draft={draft} set={set} fieldErrors={fieldErrors} error={error} />
-          </CheckoutSection>
+              <p className="bg-surface-muted text-ink flex items-start gap-2.5 rounded-lg p-4 text-sm leading-6">
+                <ShieldCheck aria-hidden className="text-primary mt-0.5 size-5 shrink-0" />
+                Setelah Anda menekan Kirim Pesanan, kami menampilkan nomor pesanan dan cara
+                pembayarannya. Simpan nomor itu untuk melacak pesanan.
+              </p>
+            </CheckoutSection>
 
-          {/* Ringkasan galat tepat di atas tombol kirim: di situlah mata pemesan
-              berada saat tombolnya ditolak. Tiap baris melompat ke medannya. */}
-          <ErrorSummary errors={fieldErrors} labels={FIELD_LABEL} onJump={jumpToField} />
-
-          <SubmitBar
-            total={total}
-            status={
-              selected && packageSubtotal > 0
-                ? `${selected.name}, ${draft.qty} ${speciesLabel}`
-                : 'Total'
-            }
-            pending={pending}
-            disabled={!selected}
-            onSubmit={submit}
-          />
-        </form>
+            <SubmitBar total={total} status={status} pending={pending} onSubmit={submit} />
+          </div>
+        )}
 
         {/* Di luar <form> supaya tombol tutupnya tidak pernah ikut terbaca
             sebagai kontrol form, dan `fixed`-nya tidak terpengaruh transform

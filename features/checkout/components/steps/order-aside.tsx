@@ -11,10 +11,8 @@ export type AsideLine = { label: string; detail: string; amount: number };
  * Ringkasan tagihan yang menempel di kolom kanan, dipakai checkout aqiqah dan
  * katering.
  *
- * Hanya di desktop (`lg`). Di ponsel total sudah ada di bilah aksi bawah
- * (`StepNav`), dan kolom kedua di 375px berarti isian yang menyempit separuh.
- * Isinya baris yang sama dengan langkah Ringkasan, jadi pemesan melihat
- * tagihannya tumbuh sejak langkah pertama, bukan baru di langkah terakhir.
+ * Hanya di desktop (`lg`). Di ponsel total sudah ada di bilah kirim bawah
+ * (`SubmitBar`), dan kolom kedua di 375px berarti isian yang menyempit separuh.
  */
 export function OrderAside({
   lines,
